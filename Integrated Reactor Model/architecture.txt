@@ -1,0 +1,97 @@
+Integrated Reactor Model
+======================
+
+Project Structure:
+├── inputs.py                 # Core input parameters and configuration
+├── main.py                  # Main execution script
+├── __init__.py
+├── cross_sections/
+│   └── cross_sections.xml
+│
+├── depletion/               # Depletion calculation functionality
+│   ├── __init__.py
+│   ├── run_depletion.py    # Main depletion runner
+│   ├── depletion_operator.py # Depletion operator setup
+│   └── depletion chains/
+│       ├── chain_endfb71_pwr.xml
+│       └── chain_casl_pwr.xml
+│
+├── execution/
+│   ├── __init__.py
+│   ├── outputs.py
+│   ├── run.py
+│   └── tallies/
+│       ├── __init__.py
+│       ├── core_tallies.py
+│       ├── energy_groups.py
+│       ├── find_no_checks.py
+│       ├── irradiation_tallies.py
+│       └── normalization.py
+│
+├── plotting/
+│   ├── __init__.py
+│   ├── plotall.py
+│   └── functions/
+│       ├── __init__.py
+│       ├── depletion.py
+│       ├── entropy.py
+│       ├── flux_maps.py
+│       ├── flux_traps.py
+│       ├── normalized_flux_profiles.py
+│       └── utils.py
+│
+├── Reactor/
+│   ├── __init__.py
+│   ├── materials.py
+│   ├── geometry.py
+│   └── geometry_helpers/
+│       ├── __init__.py
+│       ├── core.py
+│       ├── irradiation_cell.py
+│       ├── pin_fuel.py
+│       ├── plate_fuel.py
+│       └── utils.py
+│
+└── ThermalHydraulics/
+    ├── __init__.py
+    ├── TH.py
+    ├── TH_refactored.py
+    └── code_architecture/
+        ├── data_output_code/
+        │   ├── plottingcode/
+        │   │   ├── plotting_coeffs.py
+        │   │   ├── plotting_geometry.py
+        │   │   ├── plotting_pin.py
+        │   │   └── plotting_plate.py
+        │   └── output_helpers/
+        │       ├── th_data_extractor.py
+        │       ├── th_data_writer.py
+        │       ├── th_plotting.py
+        │       └── th_temperature_profiles.py
+        └── helper_codes/
+            ├── convergence/
+            │   ├── clad_convergence.py
+            │   ├── coolant_convergence.py
+            │   ├── fuel_convergence.py
+            │   ├── iteration.py
+            │   └── temperature_convergence.py
+            ├── material_properties/
+            │   ├── clad_properties.py
+            │   ├── coolant_properties.py
+            │   ├── fuel_properties.py
+            │   ├── gap_properties.py
+            │   └── coolant_data/
+            │       ├── isobaric_heavywater_1atm.csv
+            │       └── isobaric_lightwater_1atm.csv
+            ├── models/
+            │   ├── geometry.py
+            │   ├── geometry_validator.py
+            │   ├── material.py
+            │   ├── reactor.py
+            │   └── thermal_state.py
+            ├── power_calculations/
+            │   ├── heat_flux.py
+            │   └── power_distribution.py
+            └── temperature_points/
+                ├── pin_temperature_points.py
+                └── plate_temperature_points.py
