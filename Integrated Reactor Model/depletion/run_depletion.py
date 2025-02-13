@@ -18,37 +18,24 @@ import depletion.depletion_operator as depletion_operator
 from Reactor.materials import make_materials
 from Reactor.geometry_helpers.core import build_core_uni
 
-def configure_multiprocessing():
-    """Configure multiprocessing settings based on environment.
+def find_cross_sections():
+    """Find the cross_sections.xml file in known locations."""
+    # Get the absolute paths
+    current_dir = os.path.dirname(os.path.abspath(__file__))  # Current directory (depletion)
+    parent_dir = os.path.dirname(current_dir)  # Up one level to "Integrated Reactor Model"
+    root_dir = os.path.dirname(parent_dir)  # Up another level to IntegratedReactorModel
 
-    Returns
-    -------
-    bool
-        Whether multiprocessing should be enabled
-    """
-    # Check if running with MPI
-    try:
-        from mpi4py import MPI
-        comm = MPI.COMM_WORLD
-        size = comm.Get_size()
-        rank = comm.Get_rank()
-        using_mpi = size > 1
-    except ImportError:
-        using_mpi = False
-        rank = 0
+    # List of possible cross_sections.xml locations
+    cross_sections_paths = [
+        os.path.join(root_dir, "cross_sections", "cross_sections.xml"),
+    ]
 
-    # Get number of CPU cores
-    cpu_count = multiprocessing.cpu_count()
+    # Search for cross_sections.xml
+    for path in cross_sections_paths:
+        if os.path.isfile(path):
+            print(f"\nFound cross sections at: {path}")
+            return path
 
-    # Determine if we should use multiprocessing
-    if using_mpi:
-        print(f"\nRank {rank}: Running with MPI ({size} processes)")
-        print(f"Rank {rank}: Disabling multiprocessing for depletion to avoid MPI conflicts")
-        return False
-    else:
-        print(f"\nRunning in serial mode with {cpu_count} CPU cores available")
-        print("Enabling multiprocessing for depletion to utilize all cores")
-        return True
 
 def create_model(depletion_type='core'):
     """Create a new OpenMC model for depletion calculations.
@@ -66,6 +53,9 @@ def create_model(depletion_type='core'):
     """
     # Create materials and geometry
     mat_dict, materials = make_materials(None)  # Get both materials dict and collection
+    CROSS_SECTIONS_PATH = find_cross_sections()
+    os.environ['OPENMC_CROSS_SECTIONS'] = CROSS_SECTIONS_PATH
+    materials.cross_sections = CROSS_SECTIONS_PATH
 
     # Debug print for material temperatures
     print("\nMaterial temperatures:")
@@ -204,13 +194,6 @@ def create_model(depletion_type='core'):
     # Set other settings
     settings.output = {'tallies': False}
 
-    # Point to cross sections
-    cross_sections = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)),
-        'cross_sections', 'cross_sections.xml'
-    )
-    os.environ['OPENMC_CROSS_SECTIONS'] = cross_sections
-
     # Create model and set components
     model = openmc.Model()
     model.materials = materials  # Set materials first
@@ -239,7 +222,6 @@ def run_all_depletions(output_dir=None):
         Dictionary containing results for each enabled depletion type
     """
     results = {}
-
     # Set up base output directory
     if output_dir is None:
         output_dir = os.path.join(os.path.dirname(__file__), 'outputs')

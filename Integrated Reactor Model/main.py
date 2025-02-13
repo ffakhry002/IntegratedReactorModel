@@ -36,7 +36,23 @@ def main():
 
     # Create simulation directory structure
     print("\nCreating simulation directory structure...")
-    dirs = create_simulation_directories(root_dir)
+    # Create main simulation directory
+    sim_dir = os.path.join(root_dir, 'simulation_data')
+    if os.path.exists(sim_dir):
+        shutil.rmtree(sim_dir)
+    os.makedirs(sim_dir)
+
+    # Create subdirectories
+    dirs = {
+        'geometry_materials': os.path.join(sim_dir, 'Geometry_and_Materials'),
+        'thermal_hydraulics': os.path.join(sim_dir, 'ThermalHydraulics'),
+        'xml_h5': os.path.join(sim_dir, 'xml_and_h5'),
+        'flux_plots': os.path.join(sim_dir, 'flux_plots')
+    }
+
+    # Create each subdirectory
+    for dir_path in dirs.values():
+        os.makedirs(dir_path)
 
     # Run geometry and materials generation
     print("\nGenerating geometry and materials...")
