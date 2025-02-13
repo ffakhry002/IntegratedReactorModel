@@ -7,10 +7,13 @@ import shutil
 # Add root directory to path
 current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.dirname(current_dir)
+workspace_root = os.path.dirname(root_dir)
 
 # Add all necessary paths
 sys.path.append(root_dir)
+sys.path.append(workspace_root)
 sys.path.append(os.path.join(root_dir, 'Reactor'))
+
 
 from inputs import inputs
 from Reactor.materials import make_materials
@@ -19,38 +22,6 @@ from execution.tallies.irradiation_tallies import create_irradiation_tallies, cr
 from execution.tallies.core_tallies import create_nutotal_tallies, create_coreflux_tallys
 from execution.outputs import process_results
 
-def create_simulation_directories(root_dir):
-    """Create the directory structure for simulation outputs.
-
-    Parameters
-    ----------
-    root_dir : str
-        Root directory path where simulation_data will be created
-
-    Returns
-    -------
-    dict
-        Dictionary containing paths to all created directories
-    """
-    # Create main simulation directory
-    sim_dir = os.path.join(root_dir, 'simulation_data')
-    if os.path.exists(sim_dir):
-        shutil.rmtree(sim_dir)
-    os.makedirs(sim_dir)
-
-    # Create subdirectories
-    dirs = {
-        'geometry_materials': os.path.join(sim_dir, 'Geometry_and_Materials'),
-        'thermal_hydraulics': os.path.join(sim_dir, 'ThermalHydraulics'),
-        'xml_h5': os.path.join(sim_dir, 'xml_and_h5'),
-        'flux_plots': os.path.join(sim_dir, 'flux_plots')
-    }
-
-    # Create each subdirectory
-    for dir_path in dirs.values():
-        os.makedirs(dir_path)
-
-    return dirs
 
 def make_and_run_openmc_model(model, statepoint_name, folder='Output/'):
     """Run OpenMC simulation with given parameters.
@@ -66,8 +37,8 @@ def make_and_run_openmc_model(model, statepoint_name, folder='Output/'):
     """
     # Create output directory if it doesn't exist
     os.makedirs(folder, exist_ok=True)
-    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    os.environ['OPENMC_CROSS_SECTIONS'] = os.path.join(root_dir, 'cross_sections', 'cross_sections.xml')
+    workspace_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    os.environ['OPENMC_CROSS_SECTIONS'] = os.path.join(workspace_root, 'cross_sections', 'cross_sections.xml')
     model.export_to_xml(folder)
     openmc.run(cwd=folder,geometry_debug=False)
 

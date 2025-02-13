@@ -17,7 +17,7 @@ base_inputs = {
     # Core Operating Parameters
     "core_power": 10,              # Core power [MW]
     "fuel_height": 0.6,            # Active fuel height [m]
-    "assembly_type": 'Pin',        # Assembly type: 'Pin' or 'Plate'
+    "assembly_type": 'Plate',        # Assembly type: 'Pin' or 'Plate'
 
     ###########################################
     # Geometry Specifications
@@ -106,7 +106,7 @@ base_inputs = {
     ###########################################
     # Depletion Scenario Selection (only one should be True)
     "deplete_core": False,                    # Full core depletion
-    "deplete_assembly": False,               # Single assembly with reflective BC
+    "deplete_assembly": True,               # Single assembly with reflective BC
     "deplete_assembly_enhanced": False,      # Single enhanced assembly with reflective BC
     "deplete_element": True,                # Single fuel element with reflective BC
     "deplete_element_enhanced": False,       # Single enhanced fuel element with reflective BC
@@ -123,12 +123,12 @@ base_inputs = {
     ],
 
     # Transport Settings for Depletion
-    "depletion_particles": 1000,       # Particles per batch for depletion
+    "depletion_particles": 10000,       # Particles per batch for depletion
     "depletion_batches": 100,         # Active batches for depletion
     "depletion_inactive": 20,         # Inactive batches for depletion
 
     # Depletion Options
-    "depletion_integrator": "cecm",  # Integration algorithm
+    "depletion_integrator": "epcrk4",  # Integration algorithm
                                          # Options: predictor, cecm, celi, cf4,
                                          #         epcrk4, leqi, siceli, sileqi
     "depletion_chain": "casl",       # Depletion chain type ('casl' or 'endfb71')
