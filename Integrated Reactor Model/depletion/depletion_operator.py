@@ -16,6 +16,14 @@ import h5py
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from inputs import inputs
 
+current_dir = os.path.dirname(os.path.abspath(__file__))  # Current directory (depletion)
+parent_dir = os.path.dirname(current_dir)  # Up one level to "Integrated Reactor Model"
+root_dir = os.path.dirname(parent_dir)  # Up another level to IntegratedReactorModel
+
+# List of possible cross_sections.xml locations
+cross_sections_path = os.path.join(root_dir, "cross_sections", "cross_sections.xml")
+
+
 def calculate_volumes(geometry):
     """Calculate volumes for all depletable materials considering full core geometry."""
     debug_file = os.path.join(os.path.dirname(__file__), 'outputs', 'volume_debug.txt')
@@ -112,12 +120,7 @@ def create_operator(model, chain_file=None, depletion_type='core'):
         else:
             raise ValueError(f"Unknown chain type '{chain_type}'. Must be 'endfb71' or 'casl'")
 
-    # Set cross sections path
-    cross_sections = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)),
-        'cross_sections', 'cross_sections.xml'
-    )
-    openmc.config['cross_sections'] = cross_sections
+    os.environ['OPENMC_CROSS_SECTIONS'] = cross_sections_path
 
     # Ensure paths are determined
     model.geometry.determine_paths(instances_only=False)
