@@ -17,25 +17,14 @@ from inputs import inputs
 import depletion.depletion_operator as depletion_operator
 from Reactor.materials import make_materials
 from Reactor.geometry_helpers.core import build_core_uni
+from depletion.depletion_output_text import process_depletion_results, write_output
 
-def find_cross_sections():
-    """Find the cross_sections.xml file in known locations."""
-    # Get the absolute paths
-    current_dir = os.path.dirname(os.path.abspath(__file__))  # Current directory (depletion)
-    parent_dir = os.path.dirname(current_dir)  # Up one level to "Integrated Reactor Model"
-    root_dir = os.path.dirname(parent_dir)  # Up another level to IntegratedReactorModel
+current_dir = os.path.dirname(os.path.abspath(__file__))  # Current directory (depletion)
+parent_dir = os.path.dirname(current_dir)  # Up one level to "Integrated Reactor Model"
+root_dir = os.path.dirname(parent_dir)  # Up another level to IntegratedReactorModel
 
-    # List of possible cross_sections.xml locations
-    cross_sections_paths = [
-        os.path.join(root_dir, "cross_sections", "cross_sections.xml"),
-    ]
-
-    # Search for cross_sections.xml
-    for path in cross_sections_paths:
-        if os.path.isfile(path):
-            print(f"\nFound cross sections at: {path}")
-            return path
-
+# List of possible cross_sections.xml locations
+cross_sections_path = os.path.join(root_dir, "cross_sections", "cross_sections.xml")
 
 def create_model(depletion_type='core'):
     """Create a new OpenMC model for depletion calculations.
@@ -53,9 +42,8 @@ def create_model(depletion_type='core'):
     """
     # Create materials and geometry
     mat_dict, materials = make_materials(None)  # Get both materials dict and collection
-    CROSS_SECTIONS_PATH = find_cross_sections()
-    os.environ['OPENMC_CROSS_SECTIONS'] = CROSS_SECTIONS_PATH
-    materials.cross_sections = CROSS_SECTIONS_PATH
+    os.environ['OPENMC_CROSS_SECTIONS'] = cross_sections_path
+    materials.cross_sections = cross_sections_path
 
     # Debug print for material temperatures
     print("\nMaterial temperatures:")
@@ -74,6 +62,13 @@ def create_model(depletion_type='core'):
     if depletion_type == 'core':
         print("\nCreating full core model for depletion...")
         root_universe, _ = build_core_uni(mat_dict)
+        max_assemblies = max([len(row) - list(row).count('C') for row in inputs['core_lattice']])
+        if inputs['assembly_type'] == 'Plate':
+            assembly_unit_width = (inputs['fuel_plate_width'] + 2*inputs['clad_structure_width']) * 100  # cm
+        else:  # Pin type
+            assembly_unit_width = inputs['pin_pitch'] * inputs['n_side_pins'] * 100  # cm
+        total_width = max_assemblies * assembly_unit_width
+        half_width = total_width / 2
     elif depletion_type in ['assembly', 'assembly_enhanced']:
         is_enhanced = (depletion_type == 'assembly_enhanced')
         print(f"\nCreating single {'enhanced ' if is_enhanced else ''}assembly model for {calc_type} calculation...")
@@ -177,18 +172,18 @@ def create_model(depletion_type='core'):
     settings.batches = inputs.get('depletion_batches', 100)
     settings.inactive = inputs.get('depletion_inactive', 20)
 
-    # Set source distribution
-    bounds = geometry.bounding_box
-    lower_left = bounds[0]
-    upper_right = bounds[1]
 
-    # Create uniform spatial distribution over core using IndependentSource
-    source = openmc.IndependentSource()
-    source.space = openmc.stats.Box(
-        lower_left=lower_left,
-        upper_right=upper_right,
-        only_fissionable=True  # Only sample points in fissionable regions
+    half_height = inputs['fuel_height'] * 50   # Convert to cm
+
+    # Create initial source distribution - use actual fuel region size
+    uniform_dist = openmc.stats.Box(
+        [-half_width, -half_width, -half_height],
+        [half_width, half_width, half_height],
+        only_fissionable=True
     )
+    # Create source
+    source = openmc.IndependentSource()
+    source.space = uniform_dist
     settings.source = source
 
     # Set other settings
@@ -233,42 +228,22 @@ def run_all_depletions(output_dir=None):
         shutil.rmtree(output_dir)
     os.makedirs(output_dir, exist_ok=True)
 
-    # Run core depletion if enabled
-    if inputs['deplete_core']:
-        print("\n" + "="*80)
-        print("Starting full core depletion calculation")
-        print("="*80)
-        results['core'] = run_depletion(output_dir=output_dir, depletion_type='core')
+    # Define all possible depletion types and their descriptions
+    depletion_configs = {
+        'core': 'full core',
+        'assembly': 'fuel assembly k-infinity',
+        'assembly_enhanced': 'enhanced fuel assembly k-infinity',
+        'element': f"single {'pin' if inputs['assembly_type'] == 'Pin' else 'plate'} k-infinity",
+        'element_enhanced': f"enhanced single {'pin' if inputs['assembly_type'] == 'Pin' else 'plate'} k-infinity"
+    }
 
-    # Run regular assembly depletion if enabled
-    if inputs['deplete_assembly']:
-        print("\n" + "="*80)
-        print("Starting fuel assembly k-infinity depletion calculation")
-        print("="*80)
-        results['assembly'] = run_depletion(output_dir=output_dir, depletion_type='assembly')
-
-    # Run enhanced assembly depletion if enabled
-    if inputs['deplete_assembly_enhanced']:
-        print("\n" + "="*80)
-        print("Starting enhanced fuel assembly k-infinity depletion calculation")
-        print("="*80)
-        results['assembly_enhanced'] = run_depletion(output_dir=output_dir, depletion_type='assembly_enhanced')
-
-    # Run single element depletion if enabled
-    if inputs['deplete_element']:
-        element_type = 'pin' if inputs['assembly_type'] == 'Pin' else 'plate'
-        print("\n" + "="*80)
-        print(f"Starting single {element_type} k-infinity depletion calculation")
-        print("="*80)
-        results['element'] = run_depletion(output_dir=output_dir, depletion_type='element')
-
-    # Run enhanced single element depletion if enabled
-    if inputs['deplete_element_enhanced']:
-        element_type = 'pin' if inputs['assembly_type'] == 'Pin' else 'plate'
-        print("\n" + "="*80)
-        print(f"Starting enhanced single {element_type} k-infinity depletion calculation")
-        print("="*80)
-        results['element_enhanced'] = run_depletion(output_dir=output_dir, depletion_type='element_enhanced')
+    # Run each enabled depletion type
+    for dep_type, description in depletion_configs.items():
+        if inputs[f'deplete_{dep_type}']:
+            print("\n" + "="*80)
+            print(f"Starting {description} depletion calculation")
+            print("="*80)
+            results[dep_type] = run_depletion(output_dir=output_dir, depletion_type=dep_type)
 
     return results
 
@@ -339,28 +314,6 @@ def run_depletion(model=None, output_dir=None, depletion_type='core'):
     integrator.output_dir = os.path.abspath(output_dir)
     integrator.operator.output_dir = os.path.abspath(output_dir)
 
-    # Write simulation parameters to text file
-    params_file = os.path.join(output_dir, "simulation_parameters.txt")
-    with open(params_file, 'w') as f:
-        f.write(f"Depletion Parameters for {depletion_type} calculation\n")
-        f.write("="*50 + "\n\n")
-
-        f.write("Heavy Metal Mass:\n")
-        f.write(f"- Total HM mass: {dep_operator.heavy_metal:.2f} g ({dep_operator.heavy_metal/1000:.2f} kg)\n\n")
-
-        f.write("Power Settings:\n")
-        f.write(f"- Core power: {inputs['core_power']:.2f} MW ({inputs['core_power']*1e6:.2f} W)\n")
-        f.write(f"- Power density: {integrator.power_density:.2f} W/gHM\n")
-        total_power = integrator.power_density * dep_operator.heavy_metal
-        f.write(f"- Total power being used: {total_power/1e6:.3f} MW\n\n")
-
-        f.write("Time Steps:\n")
-        f.write(f"- Number of steps: {len(timesteps)}\n")
-        f.write(f"- Units: {inputs['depletion_timestep_units']}\n")
-        f.write(f"- Step configurations:\n")
-        for i, config in enumerate(inputs['depletion_timesteps'], 1):
-            f.write(f"  {i}. {config['steps']} steps of {config['size']} {inputs['depletion_timestep_units']}\n")
-
     # Print calculation parameters
     print(f"\nRunning {depletion_type} {calc_type} depletion calculation:")
     print(f"- Power density: {integrator.power_density:.3f} W/gHM")
@@ -382,22 +335,14 @@ def run_depletion(model=None, output_dir=None, depletion_type='core'):
 
     # Process results
     results = openmc.deplete.Results(results_file)
+    time_seconds, k_eff = results.get_keff()
 
-    # Append k-effective results to simulation parameters file
-    with open(params_file, 'a') as f:
-        f.write("\nDepletion Results:\n")
-        f.write("="*50 + "\n")
-        f.write("Time (days)  Burnup (MWd/kgHM)    k-eff ± std dev\n")
-        f.write("-"*50 + "\n")
+    # Process results data
+    results_data = process_depletion_results(time_seconds, k_eff, integrator.power_density)
 
-        # Get time, k-eff and burnup data
-        time_days = results.get_times() / (24*60*60)  # Convert seconds to days
-        k_eff = results.get_eigenvalue()
-        burnup = results.get_times() * integrator.power_density / (24*60*60*1000)  # Convert to MWd/kgHM
-
-        # Write results in formatted table
-        for t, b, k in zip(time_days, burnup, k_eff):
-            f.write(f"{t:10.2f} {b:16.2f}    {k[0]:.5f} ± {k[1]:.5f}\n")
+    # Write all output to parameter file
+    params_file = os.path.join(output_dir, "simulation_outputs.txt")
+    write_output(params_file, depletion_type, dep_operator, integrator, timesteps, inputs, results_data)
 
     return results
 
