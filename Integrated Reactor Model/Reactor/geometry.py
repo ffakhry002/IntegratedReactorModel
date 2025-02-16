@@ -88,7 +88,8 @@ def plot_geometry(output_dir=None):
         mat_dict['SS316']: 'darkgray',  # Medium gray
         mat_dict['Concrete']: 'tan',
         mat_dict['beryllium']: 'lightgreen',
-        mat_dict['beryllium oxide']: 'mediumseagreen'
+        mat_dict['beryllium oxide']: 'mediumseagreen',
+        mat_dict['mgo']: 'purple'
     }
 
     # Common plot parameters
