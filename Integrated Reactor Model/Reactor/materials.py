@@ -92,7 +92,7 @@ def make_materials(th_system=None, mat_list=None):
 
         u3si2 = openmc.Material.mix_materials([u_enriched, si_material], [0.6, 0.4], 'ao',
                                             name='U3Si2')
-        u3si2.set_density('g/cm3', 12.0)
+        u3si2.set_density('g/cm3', 5.7)
         u3si2.temperature = np.mean(TH_data['T_fuel_avg_z'])
         u3si2.depletable = True  # Mark as depletable
         material_list.append(u3si2)
@@ -348,8 +348,16 @@ def make_materials(th_system=None, mat_list=None):
         plenum.add_nuclide(config['h_nuclide'], 2.0)
         plenum.add_nuclide('O16', 1.0)
 
-        # Use outlet temperature for plenum
-        plenum_temp = TH_data['T_outlet']
+        if inputs['assembly_type'] == 'Pin':
+            # Use outlet temperature for plenum
+            coolant_volume = inputs['num_assemblies']*inputs['fuel_height'] * ((inputs['n_side_pins'] * inputs['pin_pitch'])**2-(inputs['n_side_pins']**2 * np.pi*inputs['r_clad_outer']**2))
+            outer_volume = inputs['fuel_height']*(np.pi * inputs['tank_radius']**2) - inputs['num_assemblies']*(inputs['n_side_pins']**2 * inputs['pin_pitch'])
+        elif inputs['assembly_type'] == 'Plate':
+            coolant_volume = inputs['plates_per_assembly']*inputs['num_assemblies']*inputs['fuel_height']*inputs['fuel_plate_width']*(inputs['fuel_plate_pitch']-inputs['fuel_meat_thickness']-2*inputs['clad_thickness'])
+            outer_volume = inputs['fuel_height']*((np.pi * inputs['tank_radius']**2) - inputs['num_assemblies']*(inputs['fuel_plate_width']+2*inputs['clad_structure_width'])**2)
+        plenum_volume = coolant_volume + outer_volume
+        # plenum_temp = (coolant_volume*TH_data['T_outlet'] + outer_volume*TH_data['T_inlet'])/plenum_volume
+        plenum_temp = TH_data['T_inlet']
 
         # Get density at outlet temperature
         plenum_density = np.interp(plenum_temp, TH_data['T_coolant_z'], TH_data['coolant_density'])
@@ -415,6 +423,17 @@ def make_materials(th_system=None, mat_list=None):
         concrete.set_density('g/cm3', 2.3)
         concrete.temperature = default_T
         material_list.append(concrete)
+
+    # MgO
+    if (mat_list is None) or ('mgo' in mat_list):
+        mgo = openmc.Material(name='mgo')
+        mgo.add_nuclide('Mg24', 0.79)
+        mgo.add_nuclide('Mg25', 0.10)
+        mgo.add_nuclide('Mg26', 0.11)
+        mgo.add_nuclide('O16', 1.33)
+        mgo.set_density('g/cm3', 3.58)
+        mgo.temperature = default_T
+        material_list.append(mgo)
 
     # Beryllium
     if (mat_list is None) or ('beryllium' in mat_list):

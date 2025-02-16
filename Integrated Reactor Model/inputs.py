@@ -25,15 +25,15 @@ base_inputs = {
     # Radial Core Geometry
     "tank_radius": 0.25,            # Reactor tank radius [m]
     "reflector_thickness": 0.1,    # Radial reflector thickness [m]
-    "bioshield_thickness": 0.1,    # Radial bioshield thickness [m]
+    "bioshield_thickness": 0.25,    # Radial bioshield thickness [m]
 
     # Axial Core Geometry
-    "bottom_bioshield_thickness": 0.1,  # Bottom bioshield thickness [m]
-    "bottom_reflector_thickness": 0.05,  # Bottom reflector thickness [m]
-    "feed_thickness": 0.03,            # Feed region thickness [m]
-    "plenum_height": 0.03,             # Plenum height [m]
-    "top_reflector_thickness": 0.05,   # Top reflector thickness [m]
-    "top_bioshield_thickness": 0.1,    # Top bioshield thickness [m]
+    "bottom_bioshield_thickness": 0.9,  # Bottom bioshield thickness [m]
+    "bottom_reflector_thickness": 0.3,  # Bottom reflector thickness [m]
+    "feed_thickness": 0.0,            # Feed region thickness [m]
+    "plenum_height": 1.7,             # Plenum height [m]
+    "top_reflector_thickness": 0.00,   # Top reflector thickness [m]
+    "top_bioshield_thickness": 0.0,    # Top bioshield thickness [m]
 
     # Pin Fuel Assembly Parameters
     "pin_pitch": 0.0126,          # Pin-to-pin pitch [m]
@@ -44,12 +44,12 @@ base_inputs = {
     "guide_tube_positions": [],   # List of (x,y) tuples for guide tube positions
 
     # Plate Fuel Assembly Parameters
-    "fuel_meat_width": 3.508/100,      # Fuel meat width [m]
-    "fuel_plate_width": 4.2/100,       # Fuel plate width [m]
-    "fuel_plate_pitch": 0.3/100,       # Plate-to-plate pitch [m]
-    "fuel_meat_thickness": 0.1/100,    # Fuel meat thickness [m]
-    "clad_thickness": 0.025/100,       # Cladding thickness [m]
-    "plates_per_assembly": 14,         # Number of plates per assembly
+    "fuel_meat_width": 3.91/100,      # Fuel meat width [m]
+    "fuel_plate_width": 4.81/100,       # Fuel plate width [m]
+    "fuel_plate_pitch": 0.37/100,       # Plate-to-plate pitch [m]
+    "fuel_meat_thickness": 0.147/100,    # Fuel meat thickness [m]
+    "clad_thickness": 0.025/100,       # coolant to fuel meat in y direction cladding thickness [m]
+    "plates_per_assembly": 13,         # Number of plates per assembly
     "clad_structure_width": 0.15/100,  # Support structure width [m]
 
     ###########################################
@@ -57,9 +57,9 @@ base_inputs = {
     ###########################################
     # Material Choices
     "coolant_type": 'Light Water',     # Coolant: 'Light Water' or 'Heavy Water'
-    "clad_type": 'Zirc2',             # Cladding: 'Al6061', 'Zirc2', or 'Zirc4'
-    "fuel_type": 'UO2',             # Fuel: 'U3Si2', 'UO2', or 'U10Mo'
-    "reflector_material": "beryllium", # Reflector material
+    "clad_type": 'Al6061',             # Cladding: 'Al6061', 'Zirc2', or 'Zirc4'
+    "fuel_type": 'U3Si2',             # Fuel: 'U3Si2', 'UO2', or 'U10Mo'
+    "reflector_material": "mgo", # Reflector material
     "bioshield_material": "Concrete",  # Bioshield material
 
     # Fuel Specifications
@@ -105,10 +105,10 @@ base_inputs = {
     # Depletion Calculation Parameters
     ###########################################
     # Depletion Scenario Selection (only one should be True)
-    "deplete_core": False,                    # Full core depletion
-    "deplete_assembly": True,               # Single assembly with reflective BC
+    "deplete_core": True,                    # Full core depletion
+    "deplete_assembly": False,               # Single assembly with reflective BC
     "deplete_assembly_enhanced": False,      # Single enhanced assembly with reflective BC
-    "deplete_element": True,                # Single fuel element with reflective BC
+    "deplete_element": False,                # Single fuel element with reflective BC
     "deplete_element_enhanced": False,       # Single enhanced fuel element with reflective BC
 
     # Time Steps Configuration
@@ -119,11 +119,11 @@ base_inputs = {
         {"steps": 5, "size": 2.5},   # 5 steps of 2.0 MWd/kgHM or days
         {"steps": 5, "size": 5},   # 5 steps of 2.0 MWd/kgHM or days
         {"steps": 5, "size": 10},   # 5 steps of 2.0 MWd/kgHM or days
-        # {"steps": 5, "size": 0}    # 5 steps of 10.0 MWd/kgHM or days
+        {"steps": 5, "size": 0}    # 5 steps of 10.0 MWd/kgHM or days
     ],
 
     # Transport Settings for Depletion
-    "depletion_particles": 10000,       # Particles per batch for depletion
+    "depletion_particles": 40000,       # Particles per batch for depletion
     "depletion_batches": 100,         # Active batches for depletion
     "depletion_inactive": 20,         # Inactive batches for depletion
 
@@ -149,7 +149,7 @@ base_inputs = {
     # Miscellaneous Settings
     ###########################################
     "outputs_folder": "local_outputs",  # Base output directory
-    "pixels": (4000, 4000),            # Plot resolution
+    "pixels": (8000, 8000),            # Plot resolution
 }
 
 
