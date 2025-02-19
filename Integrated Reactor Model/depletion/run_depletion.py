@@ -296,11 +296,7 @@ def run_depletion(model=None, output_dir=None, depletion_type='core'):
 
     # Set up depletion calculation
     chain_type = inputs.get('depletion_chain', 'endfb71')  # Default to ENDF/B-VII.1 chain
-    chain_file = os.path.join(
-        os.path.dirname(__file__),
-        "depletion chains",
-        f"chain_{chain_type}_pwr.xml"
-    )
+    chain_file = os.path.join(root_dir, "depletion chains", f"chain_{chain_type}_pwr.xml")
 
     # Configure output paths
     model.settings.output = {'path': output_dir}
