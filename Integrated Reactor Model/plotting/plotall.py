@@ -17,16 +17,17 @@ from plotting.functions.normalized_flux_profiles import plot_normalized_flux_pro
 from plotting.functions.entropy import plot_entropy
 from plotting.functions.depletion import plot_depletion_results
 
-def plot_all_flux_distributions():
+def plot_all_flux_distributions(depletion_dir=None, plot_dir=None):
     """Plot all flux distributions from the statepoint file.
 
-    The function automatically detects if it's being run from main.py or directly:
-    - If run from main.py: uses statepoint from simulation_data/xml_and_h5/
-    - If run directly: uses statepoint from execution/Output/
-
-    Plots are saved in:
-    - If run from main.py: simulation_data/flux_plots/
-    - If run directly: plotting/plots/
+    Parameters
+    ----------
+    depletion_dir : str, optional
+        Directory containing depletion results. If provided, will look for statepoint
+        files here instead of the default locations.
+    plot_dir : str, optional
+        Directory to save plots to. If not provided, will use default locations based
+        on execution context.
     """
     # Get root directory
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -34,28 +35,36 @@ def plot_all_flux_distributions():
     # Check if running directly by looking at the script name
     running_directly = os.path.basename(sys.argv[0]) == 'plotall.py'
 
-    if not running_directly and os.path.exists(os.path.join(root_dir, 'simulation_data')):
+    # Determine statepoint and plot directories based on context
+    if depletion_dir is not None:
+        # Running from main.py with depletion results
+        statepoint_path = os.path.join(depletion_dir, 'core_keff', 'statepoint.50.h5')
+        plot_dir = plot_dir or os.path.join(os.path.dirname(depletion_dir), 'depletion_plots')
+    elif not running_directly and os.path.exists(os.path.join(root_dir, 'simulation_data')):
+        # Running from main.py without depletion
         statepoint_path = os.path.join(root_dir, 'simulation_data', 'xml_and_h5', 'statepoint.eigenvalue.h5')
         plot_dir = os.path.join(root_dir, 'simulation_data', 'flux_plots')
     else:
-        statepoint_path = os.path.join(root_dir, 'execution', 'Output', 'statepoint.eigenvalue.h5')
-        # When running directly, save to plotting/plots directory
-        plot_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'plots')
+        # Running directly - look in depletion outputs first
+        statepoint_path = os.path.join(root_dir, 'depletion', 'outputs', 'core_keff', 'statepoint.50.h5')
+        if not os.path.exists(statepoint_path):
+            # Fallback to execution/Output
+            statepoint_path = os.path.join(root_dir, 'execution', 'Output', 'statepoint.eigenvalue.h5')
+        plot_dir = plot_dir or os.path.join(os.path.dirname(os.path.abspath(__file__)), 'plots')
 
     if not os.path.exists(statepoint_path):
-        raise FileNotFoundError(f"Statepoint file not found at {statepoint_path}")
+        print(f"Statepoint file not found at {statepoint_path}")
+        return
+    else:
+        print(f"Loading statepoint file: {statepoint_path}")
+        sp = openmc.StatePoint(statepoint_path)
 
     # Create plot directory if it doesn't exist
-
     if os.path.exists(plot_dir):
         print("\nCleaning up old plotting files...")
         import shutil
         shutil.rmtree(plot_dir)
     os.makedirs(plot_dir, exist_ok=True)
-
-    # Load statepoint file
-    print(f"Loading statepoint file: {statepoint_path}")
-    sp = openmc.StatePoint(statepoint_path)
 
     # Get power from inputs, default to 1 MW if not specified
     power_mw = inputs.get('core_power', 1.0)
@@ -91,11 +100,13 @@ def plot_all_flux_distributions():
     except Exception as e:
         print(f"Error generating normalized flux profiles: {str(e)}")
 
-    try:
-        print("\nGenerating depletion results plots...")
-        plot_depletion_results(plot_dir)
-    except Exception as e:
-        print(f"Error generating depletion results plots: {str(e)}")
+    # Generate depletion plots if we have depletion results
+    if depletion_dir is not None:
+        try:
+            print("\nGenerating depletion results plots...")
+            plot_depletion_results(plot_dir, root_dir=root_dir)
+        except Exception as e:
+            print(f"Error generating depletion results plots: {str(e)}")
 
     print(f"\nPlots have been saved to: {plot_dir}")
 
