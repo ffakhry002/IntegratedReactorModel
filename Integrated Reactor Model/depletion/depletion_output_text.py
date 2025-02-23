@@ -36,9 +36,6 @@ def process_depletion_results(time_seconds, k_eff, power_density):
     b1, b2 = burnup[-2], burnup[-1]    # Last two burnup values
     t1, t2 = time_days[-2], time_days[-1]  # Last two time values
 
-    # Calculate reactivity change in pcm
-    rho1 = (k1 - 1) / k1 * 1e5  # Convert to pcm
-    rho2 = (k2 - 1) / k2 * 1e5
     drho = (k2 - k1)*1e5
     dburnup = b2 - b1
 
@@ -80,20 +77,11 @@ def process_depletion_results(time_seconds, k_eff, power_density):
         results['keff_1_time'] = time_at_k1
         results['keff_1_method'] = 'extrapolation_down'
 
-    # Case 3: All points below k=1, extrapolate up
+    # Case 3: All points below k=1, don't extrapolate up
     elif k_start < 1 and k_end < 1:
-        # Use last two points to extrapolate
-        slope = (k2 - k1) / (b2 - b1)
-        b_intercept = k1 - slope * b1
-        burnup_at_k1 = (1 - b_intercept) / slope
-
-        # Also get time at k=1
-        time_slope = (t2 - t1) / (b2 - b1)
-        time_at_k1 = t1 + (burnup_at_k1 - b1) * time_slope
-
-        results['keff_1_burnup'] = burnup_at_k1
-        results['keff_1_time'] = time_at_k1
-        results['keff_1_method'] = 'extrapolation_up'
+        results['keff_1_burnup'] = None
+        results['keff_1_time'] = None
+        results['keff_1_method'] = 'never_crosses_k1'
 
     return results
 
@@ -145,14 +133,19 @@ def write_output(params_file, depletion_type, dep_operator, integrator, timestep
         # Write keff=1 crossing point if found
         if 'keff_1_burnup' in results_data:
             method = results_data['keff_1_method']
-            if method == 'interpolation':
-                f.write(f"k=1 crossing point (interpolated):\n")
-            elif method == 'extrapolation_down':
-                f.write(f"k=1 point (extrapolated from above):\n")
+            if method == 'never_crosses_k1':
+                f.write("k=1 crossing point: Never crosses k=1\n\n")
             else:
-                f.write(f"k=1 point (extrapolated from below):\n")
-            f.write(f"- Burnup: {results_data['keff_1_burnup']:.2f} MWd/kgHM\n")
-            f.write(f"- Time: {results_data['keff_1_time']:.2f} days\n\n")
+                if method == 'interpolation':
+                    f.write(f"k=1 crossing point (interpolated):\n")
+                elif method == 'extrapolation_down':
+                    f.write(f"k=1 point (extrapolated from above):\n")
+                else:
+                    f.write(f"k=1 point (never crossed)):\n")
+
+                if results_data['keff_1_burnup'] is not None:
+                    f.write(f"- Burnup: {results_data['keff_1_burnup']:.2f} MWd/kgHM\n")
+                    f.write(f"- Time: {results_data['keff_1_time']:.2f} days\n\n")
 
         # Write reactivity coefficients
         if 'pcm_per_burnup' in results_data:
