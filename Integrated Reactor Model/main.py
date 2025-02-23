@@ -5,10 +5,11 @@ Main script to run the integrated reactor simulation.
 import os
 import sys
 import shutil
-from execution.run import create_simulation_directories, run_eigenvalue
+from execution.run import run_eigenvalue
 from Reactor.geometry import plot_geometry
 from ThermalHydraulics.TH_refactored import THSystem
 from plotting.plotall import plot_all_flux_distributions
+from depletion.run_depletion import run_all_depletions
 from inputs import inputs
 
 def cleanup_all_pycache():
@@ -46,8 +47,10 @@ def main():
     dirs = {
         'geometry_materials': os.path.join(sim_dir, 'Geometry_and_Materials'),
         'thermal_hydraulics': os.path.join(sim_dir, 'ThermalHydraulics'),
-        'xml_h5': os.path.join(sim_dir, 'xml_and_h5'),
-        'flux_plots': os.path.join(sim_dir, 'flux_plots')
+        'transport_data': os.path.join(sim_dir, 'transport_data'),
+        'flux_plots': os.path.join(sim_dir, 'flux_plots'),
+        'depletion_data': os.path.join(sim_dir, 'depletion_data'),
+        'depletion_plots': os.path.join(sim_dir, 'depletion_plots')
     }
 
     # Create each subdirectory
@@ -69,6 +72,19 @@ def main():
     k_eff, k_std = run_eigenvalue()
     print(f"\nSimulation completed successfully!")
     print(f"k-effective = {k_eff:.6f} ± {k_std:.6f}")
+
+    # Run depletion calculations if enabled
+    any_depletion_enabled = any(v for k, v in inputs.items() if k.startswith('deplete_'))
+    if any_depletion_enabled:
+        print("\nRunning depletion calculations...")
+        depletion_results = run_all_depletions(output_dir=dirs['depletion_data'])
+
+        # Generate depletion plots
+        print("\nGenerating depletion plots...")
+        plot_all_flux_distributions(depletion_dir=dirs['depletion_data'],
+                                  plot_dir=dirs['depletion_plots'])
+    else:
+        print("\nNo depletion calculations enabled in inputs")
 
     # Generate flux plots
     print("\nGenerating flux plots...")
