@@ -42,7 +42,7 @@ def plot_all_flux_distributions(depletion_dir=None, plot_dir=None):
         plot_dir = plot_dir or os.path.join(os.path.dirname(depletion_dir), 'depletion_plots')
     elif not running_directly and os.path.exists(os.path.join(root_dir, 'simulation_data')):
         # Running from main.py without depletion
-        statepoint_path = os.path.join(root_dir, 'simulation_data', 'xml_and_h5', 'statepoint.eigenvalue.h5')
+        statepoint_path = os.path.join(root_dir, 'simulation_data', 'transport_data', 'statepoint.eigenvalue.h5')
         plot_dir = os.path.join(root_dir, 'simulation_data', 'flux_plots')
     else:
         # Running directly - look in depletion outputs first
@@ -104,7 +104,7 @@ def plot_all_flux_distributions(depletion_dir=None, plot_dir=None):
     if depletion_dir is not None:
         try:
             print("\nGenerating depletion results plots...")
-            plot_depletion_results(plot_dir, root_dir=root_dir)
+            plot_depletion_results(plot_dir, root_dir=root_dir, depletion_dir=depletion_dir)
         except Exception as e:
             print(f"Error generating depletion results plots: {str(e)}")
 

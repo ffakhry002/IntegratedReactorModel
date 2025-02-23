@@ -120,7 +120,7 @@ def load_depletion_data(results_file):
         print(f"Error loading depletion data: {str(e)}")
         return None, None, None
 
-def plot_depletion_results(plot_dir, root_dir=None):
+def plot_depletion_results(plot_dir, root_dir=None, depletion_dir=None):
     """Plot results from depletion calculation.
 
     Parameters
@@ -129,6 +129,9 @@ def plot_depletion_results(plot_dir, root_dir=None):
         Directory to save plots to
     root_dir : str, optional
         Root directory of the project. If not provided, will attempt to find it.
+    depletion_dir : str, optional
+        Directory containing depletion results. If provided, will look here instead
+        of the default locations.
     """
     # Get root directory if not provided
     if root_dir is None:
@@ -137,12 +140,20 @@ def plot_depletion_results(plot_dir, root_dir=None):
     # Function to plot a single depletion type with burnup axis
     def plot_depletion_type(depletion_type, ax1, color, label):
         # Handle core vs k-infinity calculations
-        if depletion_type == 'core':
-            results_file = os.path.join(root_dir, 'depletion', 'outputs', 'core_keff', 'depletion_results.h5')
-            input_flag = 'deplete_core'
+        if depletion_dir is not None:
+            # Use simulation_data structure
+            if depletion_type == 'core':
+                results_file = os.path.join(depletion_dir, 'core_keff', 'depletion_results.h5')
+            else:
+                results_file = os.path.join(depletion_dir, f"{depletion_type}_k∞", 'depletion_results.h5')
         else:
-            results_file = os.path.join(root_dir, 'depletion', 'outputs', f"{depletion_type}_k∞", 'depletion_results.h5')
-            input_flag = f"deplete_{depletion_type}"
+            # Use old directory structure
+            if depletion_type == 'core':
+                results_file = os.path.join(root_dir, 'depletion', 'outputs', 'core_keff', 'depletion_results.h5')
+            else:
+                results_file = os.path.join(root_dir, 'depletion', 'outputs', f"{depletion_type}_k∞", 'depletion_results.h5')
+
+        input_flag = f"deplete_{depletion_type}"
 
         # Only try to plot if the depletion type is enabled in inputs
         if not inputs.get(input_flag, False):
@@ -269,11 +280,11 @@ def plot_depletion_results(plot_dir, root_dir=None):
     if 'depletion_nuclides' in inputs:
         nuclide_plot_dir = os.path.join(plot_dir, 'nuclide_depletion')
         os.makedirs(nuclide_plot_dir, exist_ok=True)
-        plot_nuclide_evolution(nuclide_plot_dir, root_dir=root_dir)
+        plot_nuclide_evolution(nuclide_plot_dir, root_dir=root_dir, depletion_dir=depletion_dir)
 
     return True
 
-def plot_nuclide_evolution(plot_dir, root_dir=None):
+def plot_nuclide_evolution(plot_dir, root_dir=None, depletion_dir=None):
     """Plot nuclide evolution for each depletion type.
 
     Parameters
@@ -282,6 +293,9 @@ def plot_nuclide_evolution(plot_dir, root_dir=None):
         Directory to save plots to
     root_dir : str, optional
         Root directory of the project. If not provided, will attempt to find it.
+    depletion_dir : str, optional
+        Directory containing depletion results. If provided, will look here instead
+        of the default locations.
     """
     if root_dir is None:
         root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -297,14 +311,25 @@ def plot_nuclide_evolution(plot_dir, root_dir=None):
         depletion_type = depletion_flag.replace('deplete_', '')
 
         # Set up paths and labels
-        if depletion_type == 'core':
-            results_file = os.path.join(root_dir, 'depletion', 'outputs', 'core_keff', 'depletion_results.h5')
-            plot_title = 'Full Core'
+        if depletion_dir is not None:
+            # Use simulation_data structure
+            if depletion_type == 'core':
+                results_file = os.path.join(depletion_dir, 'core_keff', 'depletion_results.h5')
+            else:
+                results_file = os.path.join(depletion_dir, f"{depletion_type}_k∞", "depletion_results.h5")
         else:
-            results_file = os.path.join(root_dir, 'depletion', 'outputs', f"{depletion_type}_k∞", "depletion_results.h5")
-            if depletion_type.startswith('assembly'):
-                plot_title = 'Standard Assembly' if depletion_type == 'assembly' else 'Enhanced Assembly'
-            else:  # element
+            # Use old directory structure
+            if depletion_type == 'core':
+                results_file = os.path.join(root_dir, 'depletion', 'outputs', 'core_keff', 'depletion_results.h5')
+            else:
+                results_file = os.path.join(root_dir, 'depletion', 'outputs', f"{depletion_type}_k∞", "depletion_results.h5")
+
+        if depletion_type.startswith('assembly'):
+            plot_title = 'Standard Assembly' if depletion_type == 'assembly' else 'Enhanced Assembly'
+        else:  # element or core
+            if depletion_type == 'core':
+                plot_title = 'Full Core'
+            else:
                 element_type = inputs['assembly_type']
                 plot_title = f"{'Enhanced ' if 'enhanced' in depletion_type else 'Standard '}{element_type}"
 
