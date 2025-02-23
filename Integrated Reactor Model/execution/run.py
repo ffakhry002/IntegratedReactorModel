@@ -135,7 +135,7 @@ def run_eigenvalue():
 
     if not running_directly and os.path.exists(os.path.join(root_dir, 'simulation_data')):
         # Running from main.py
-        output_dir = os.path.join(root_dir, 'simulation_data', 'xml_and_h5')
+        output_dir = os.path.join(root_dir, 'simulation_data', 'transport_data')
     else:
         # Running directly or simulation_data doesn't exist
         output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Output')

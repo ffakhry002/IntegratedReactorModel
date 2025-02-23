@@ -94,7 +94,7 @@ base_inputs = {
     # Standard Transport Settings
     "batches": 150,                   # Number of active batches
     "inactive": 20,                   # Number of inactive batches
-    "particles": int(1e5),            # Particles per batch
+    "particles": int(1e2),            # Particles per batch
     "energy_structure": 'log1001',    # Energy group structure
 
     # Energy Group Boundaries
@@ -114,21 +114,21 @@ base_inputs = {
     # Time Steps Configuration
     "depletion_timestep_units": "MWd/kgHM",  # Units for timesteps: 'MWd/kgHM' or 'days'
     "depletion_timesteps": [
-        {"steps": 5, "size": 0.1},  # 5 steps of 0.2 MWd/kgHM or days
-        {"steps": 5, "size": 0.5},  # 10 steps of 1.0 MWd/kgHM or days
-        {"steps": 5, "size": 2.5},   # 5 steps of 2.0 MWd/kgHM or days
-        {"steps": 5, "size": 5},   # 5 steps of 2.0 MWd/kgHM or days
-        {"steps": 5, "size": 10},   # 5 steps of 2.0 MWd/kgHM or days
-        {"steps": 5, "size": 0}    # 5 steps of 10.0 MWd/kgHM or days
+        {"steps": 1, "size": 0.1},  # 5 steps of 0.2 MWd/kgHM or days
+        # {"steps": 5, "size": 0.5},  # 10 steps of 1.0 MWd/kgHM or days
+        # {"steps": 5, "size": 2.5},   # 5 steps of 2.0 MWd/kgHM or days
+        # {"steps": 5, "size": 5},   # 5 steps of 2.0 MWd/kgHM or days
+        # {"steps": 5, "size": 10},   # 5 steps of 2.0 MWd/kgHM or days
+        # {"steps": 5, "size": 0}    # 5 steps of 10.0 MWd/kgHM or days
     ],
 
     # Transport Settings for Depletion
-    "depletion_particles": 40000,       # Particles per batch for depletion
+    "depletion_particles": 100,       # Particles per batch for depletion
     "depletion_batches": 100,         # Active batches for depletion
     "depletion_inactive": 20,         # Inactive batches for depletion
 
     # Depletion Options
-    "depletion_integrator": "epcrk4",  # Integration algorithm
+    "depletion_integrator": "predictor",  # Integration algorithm
                                          # Options: predictor, cecm, celi, cf4,
                                          #         epcrk4, leqi, siceli, sileqi
     "depletion_chain": "casl",       # Depletion chain type ('casl' or 'endfb71')
@@ -149,7 +149,7 @@ base_inputs = {
     # Miscellaneous Settings
     ###########################################
     "outputs_folder": "local_outputs",  # Base output directory
-    "pixels": (8000, 8000),            # Plot resolution
+    "pixels": (1000, 1000),            # Plot resolution
 }
 
 
