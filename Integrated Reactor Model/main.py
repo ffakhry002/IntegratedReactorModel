@@ -73,6 +73,10 @@ def main():
     print(f"\nSimulation completed successfully!")
     print(f"k-effective = {k_eff:.6f} ± {k_std:.6f}")
 
+    # Generate standard flux plots
+    print("\nGenerating flux distribution plots...")
+    plot_all_flux_distributions(plot_dir=dirs['flux_plots'])
+
     # Run depletion calculations if enabled
     any_depletion_enabled = any(v for k, v in inputs.items() if k.startswith('deplete_'))
     if any_depletion_enabled:
@@ -81,14 +85,11 @@ def main():
 
         # Generate depletion plots
         print("\nGenerating depletion plots...")
-        plot_all_flux_distributions(depletion_dir=dirs['depletion_data'],
-                                  plot_dir=dirs['depletion_plots'])
+        from plotting.functions.depletion import plot_depletion_results
+        plot_depletion_results(plot_dir=dirs['depletion_plots'],
+                             depletion_dir=dirs['depletion_data'])
     else:
         print("\nNo depletion calculations enabled in inputs")
-
-    # Generate flux plots
-    print("\nGenerating flux plots...")
-    plot_all_flux_distributions()
 
     # Final cleanup of any new __pycache__ directories created during the run
     print("\nFinal cleanup of __pycache__ directories...")
