@@ -8,7 +8,7 @@ import shutil
 from execution.run import run_eigenvalue
 from Reactor.geometry import plot_geometry
 from ThermalHydraulics.TH_refactored import THSystem
-from plotting.plotall import plot_all_flux_distributions
+from plotting.plotall import plot_all
 from depletion.run_depletion import run_all_depletions
 from inputs import inputs
 
@@ -73,23 +73,17 @@ def main():
     print(f"\nSimulation completed successfully!")
     print(f"k-effective = {k_eff:.6f} ± {k_std:.6f}")
 
-    # Generate standard flux plots
-    print("\nGenerating flux distribution plots...")
-    plot_all_flux_distributions(plot_dir=dirs['flux_plots'])
-
     # Run depletion calculations if enabled
     any_depletion_enabled = any(v for k, v in inputs.items() if k.startswith('deplete_'))
     if any_depletion_enabled:
         print("\nRunning depletion calculations...")
         depletion_results = run_all_depletions(output_dir=dirs['depletion_data'])
-
-        # Generate depletion plots
-        print("\nGenerating depletion plots...")
-        from plotting.functions.depletion import plot_depletion_results
-        plot_depletion_results(plot_dir=dirs['depletion_plots'],
-                             depletion_dir=dirs['depletion_data'])
     else:
         print("\nNo depletion calculations enabled in inputs")
+
+    # Generate all plots
+    print("\nGenerating plots...")
+    plot_all(flux_plot_dir=dirs['flux_plots'], depletion_plot_dir=dirs['depletion_plots'])
 
     # Final cleanup of any new __pycache__ directories created during the run
     print("\nFinal cleanup of __pycache__ directories...")
