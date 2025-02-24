@@ -36,7 +36,7 @@ def create_irradiation_tallies():
 
     return tallies
 
-def create_irradiation_axial_tallies(n_axial_segments=50):
+def create_irradiation_axial_tallies(n_axial_segments=100):
     """Create axial flux tallies for irradiation positions.
 
     This creates a mesh tally for each irradiation position that divides

@@ -23,8 +23,8 @@ base_inputs = {
     # Geometry Specifications
     ###########################################
     # Radial Core Geometry
-    "tank_radius": 0.25,            # Reactor tank radius [m]
-    "reflector_thickness": 0.1,    # Radial reflector thickness [m]
+    "tank_radius": 0.5,            # Reactor tank radius [m]
+    "reflector_thickness": 0.0,    # Radial reflector thickness [m]
     "bioshield_thickness": 0.25,    # Radial bioshield thickness [m]
 
     # Axial Core Geometry
@@ -94,7 +94,7 @@ base_inputs = {
     # Standard Transport Settings
     "batches": 150,                   # Number of active batches
     "inactive": 20,                   # Number of inactive batches
-    "particles": int(1e2),            # Particles per batch
+    "particles": int(2.5e4),            # Particles per batch
     "energy_structure": 'log1001',    # Energy group structure
 
     # Energy Group Boundaries
