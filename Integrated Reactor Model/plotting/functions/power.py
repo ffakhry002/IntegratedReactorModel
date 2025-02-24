@@ -135,13 +135,17 @@ def plot_power_distributions(sp, plot_dir):
     df.to_csv(csv_path, index=False)
     print(f"\nSaved detailed power distribution to: {csv_path}")
 
-    # Create power distribution plot
-    fig, ax1 = plt.subplots(figsize=(10, 6))
+    # Determine if we should create a second plot
+    create_second_plot = n_segments > 20 and n_segments % 20 == 0
+    if create_second_plot:
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 6))
+    else:
+        fig, ax1 = plt.subplots(figsize=(10, 6))
 
     # Get hot assembly peak for normalization
     hot_assembly_peak = np.max(max_power_data['axial_distribution'])
 
-    # Plot power distributions in kW/m on left axis
+    # Plot power distributions in kW/m on left axis of first plot
     line1 = ax1.plot(z/100, avg_assembly_power, 'b-', label='Average Assembly')
     line2 = ax1.plot(z/100, max_power_data['axial_distribution'], 'r-',
                      label=f'Hot Assembly (Row {max_power_pos[0]}, Col {max_power_pos[1]})')
@@ -150,16 +154,54 @@ def plot_power_distributions(sp, plot_dir):
     ax1.grid(True)
 
     # Create second y-axis for normalized values
-    ax2 = ax1.twinx()
-    ax2.plot(z/100, avg_assembly_power/hot_assembly_peak, 'b--', alpha=0.5)
-    ax2.plot(z/100, max_power_data['axial_distribution']/hot_assembly_peak, 'r--', alpha=0.5)
-    ax2.set_ylabel('Normalized to Peak')
+    ax1_norm = ax1.twinx()
+    ax1_norm.plot(z/100, avg_assembly_power/hot_assembly_peak, 'b--', alpha=0.5)
+    ax1_norm.plot(z/100, max_power_data['axial_distribution']/hot_assembly_peak, 'r--', alpha=0.5)
+    ax1_norm.set_ylabel('Normalized to Peak')
 
     # Combine legends
     lines1, labels1 = ax1.get_legend_handles_labels()
     ax1.legend(lines1, labels1, loc='upper right')
 
-    plt.title('Axial Power Distribution (per Fuel Element)')
+    ax1.set_title('Axial Power Distribution (per Fuel Element)')
+
+    if create_second_plot:
+        # Calculate number of segments to combine
+        combine_factor = n_segments // 20
+
+        # Create new z positions for coarser mesh
+        z_coarse = np.linspace(-half_height, half_height, 20)
+
+        # Function to combine segments
+        def combine_segments(data):
+            return np.array([np.mean(data[i:i+combine_factor])
+                           for i in range(0, len(data), combine_factor)])
+
+        # Combine data for average and hot assembly
+        avg_assembly_power_coarse = combine_segments(avg_assembly_power)
+        hot_assembly_power_coarse = combine_segments(max_power_data['axial_distribution'])
+
+        # Plot coarse data
+        line1 = ax2.plot(z_coarse/100, avg_assembly_power_coarse, 'b-', label='Average Assembly')
+        line2 = ax2.plot(z_coarse/100, hot_assembly_power_coarse, 'r-',
+                        label=f'Hot Assembly (Row {max_power_pos[0]}, Col {max_power_pos[1]})')
+        ax2.set_xlabel('Height from Core Midplane [m]')
+        ax2.set_ylabel('Linear Power per Element [kW/m]')
+        ax2.grid(True)
+
+        # Create second y-axis for hot assembly / core average ratio only
+        ax2_norm = ax2.twinx()
+        ratio = hot_assembly_power_coarse / avg_assembly_power_coarse
+        ratio_line = ax2_norm.plot(z_coarse/100, ratio, 'g--', label='Hot Assembly / Core Average', linewidth=2)
+        ax2_norm.set_ylabel('Hot Assembly / Core Average Ratio')
+
+        # Add legends
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ratio_lines, ratio_labels = ax2_norm.get_legend_handles_labels()
+        ax2.legend(lines2 + ratio_lines, labels2 + ratio_labels, loc='upper right')
+
+        ax2.set_title('Coarse (20 segments) Power Distribution')
+
     plt.tight_layout()
     plot_path = os.path.join(plot_dir, 'power_distributions.png')
     plt.savefig(plot_path, dpi=300, bbox_inches='tight')
