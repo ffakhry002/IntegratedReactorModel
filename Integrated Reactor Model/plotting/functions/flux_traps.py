@@ -8,10 +8,10 @@ import matplotlib.pyplot as plt
 import openmc
 from inputs import inputs
 
-from execution.tallies.normalization import calc_norm_factor
+from eigenvalue.tallies.normalization import calc_norm_factor
 from plotting.functions.utils import get_tally_volume
-from execution.outputs import collapse_to_three_groups
-from execution.tallies.energy_groups import get_energy_bins
+from eigenvalue.outputs import collapse_to_three_groups
+from eigenvalue.tallies.energy_groups import get_energy_bins
 
 def plot_flux_trap_distributions(sp, power_mw, plot_dir):
     """Plot flux distributions for all irradiation positions."""
