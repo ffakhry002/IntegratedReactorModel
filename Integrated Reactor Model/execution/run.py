@@ -20,6 +20,7 @@ from Reactor.materials import make_materials
 from Reactor.geometry_helpers.core import build_core_uni
 from execution.tallies.irradiation_tallies import create_irradiation_tallies, create_irradiation_axial_tallies
 from execution.tallies.core_tallies import create_nutotal_tallies, create_coreflux_tallys
+from execution.tallies.power_tallies import create_power_tallies
 from execution.outputs import process_results
 
 
@@ -122,6 +123,7 @@ def run_eigenvalue():
     tallies.extend(create_irradiation_axial_tallies())
     tallies.extend(create_nutotal_tallies())
     tallies.extend(create_coreflux_tallys())
+    tallies.extend(create_power_tallies())
 
     # Create model
     model = openmc.model.Model()
