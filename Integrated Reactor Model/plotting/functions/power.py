@@ -299,9 +299,9 @@ def plot_power_distributions(sp, plot_dir):
         ratio_line = ax2_norm.plot(z_coarse/100, ratio, 'g-', label='Hot Assembly / Core Average', linewidth=2)
         ax2_norm.set_ylabel('Hot Assembly / Core Average Ratio')
 
-        # Set y-axis limits for ratio plot
-        ratio_range = np.max(ratio) - np.min(ratio)
-        ax2_norm.set_ylim([np.min(ratio) - 0.2*ratio_range, np.max(ratio) + 0.2*ratio_range])
+        # Set y-axis limits for ratio plot with fixed minimum of 0.9 and max of 2.0 or higher if needed
+        ratio_max = max(2.0, np.max(ratio))
+        ax2_norm.set_ylim([0.9, ratio_max])
 
         # Add legends
         lines2, labels2 = ax2.get_legend_handles_labels()
