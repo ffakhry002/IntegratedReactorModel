@@ -16,14 +16,15 @@ from plotting.functions.flux_maps import plot_flux_maps
 from plotting.functions.normalized_flux_profiles import plot_normalized_flux_profiles
 from plotting.functions.entropy import plot_entropy
 from plotting.functions.depletion import plot_depletion_results
+from plotting.functions.power import plot_power_distributions
 
-def plot_all(flux_plot_dir=None, depletion_plot_dir=None):
+def plot_all(plot_dir=None, depletion_plot_dir=None):
     """Plot all distributions from the simulation results.
 
     Parameters
     ----------
-    flux_plot_dir : str, optional
-        Directory to save flux-related plots to. If not provided, will use default locations
+    plot_dir : str, optional
+        Directory to save flux plots to. If not provided, will use default locations
         based on execution context.
     depletion_plot_dir : str, optional
         Directory to save depletion-related plots to. If not provided, will use default locations
@@ -35,19 +36,31 @@ def plot_all(flux_plot_dir=None, depletion_plot_dir=None):
     # Check if running directly by looking at the script name
     running_directly = os.path.basename(sys.argv[0]) == 'plotall.py'
 
-    # Determine paths based on context
+    # Get base directory for plots
     if not running_directly and os.path.exists(os.path.join(root_dir, 'simulation_data')):
         # Running from main.py
-        statepoint_path = os.path.join(root_dir, 'simulation_data', 'transport_data', 'statepoint.eigenvalue.h5')
-        flux_plot_dir = flux_plot_dir or os.path.join(root_dir, 'simulation_data', 'flux_plots')
-        depletion_plot_dir = depletion_plot_dir or os.path.join(root_dir, 'simulation_data', 'depletion_plots')
-        depletion_dir = os.path.join(root_dir, 'simulation_data', 'depletion_data')
+        base_dir = os.path.join(root_dir, 'simulation_data')
+        statepoint_path = os.path.join(base_dir, 'transport_data', 'statepoint.eigenvalue.h5')
+        flux_plot_dir = plot_dir or os.path.join(base_dir, 'flux_plots')
+        power_plot_dir = os.path.join(base_dir, 'power_plots')
+        depletion_plot_dir = depletion_plot_dir or os.path.join(base_dir, 'depletion_plots')
+        depletion_dir = os.path.join(base_dir, 'depletion_data')
     else:
         # Running directly
+        base_dir = os.path.dirname(os.path.abspath(__file__))
         statepoint_path = os.path.join(root_dir, 'execution', 'Output', 'statepoint.eigenvalue.h5')
-        flux_plot_dir = flux_plot_dir or os.path.join(os.path.dirname(os.path.abspath(__file__)), 'flux_plots')
-        depletion_plot_dir = depletion_plot_dir or os.path.join(os.path.dirname(os.path.abspath(__file__)), 'depletion_plots')
+        flux_plot_dir = plot_dir or os.path.join(base_dir, 'flux_plots')
+        power_plot_dir = os.path.join(base_dir, 'power_plots')
+        depletion_plot_dir = depletion_plot_dir or os.path.join(base_dir, 'depletion_plots')
         depletion_dir = os.path.join(root_dir, 'depletion', 'outputs')
+
+    print(f"\nUsing the following paths:")
+    print(f"Root directory: {root_dir}")
+    print(f"Statepoint file: {statepoint_path}")
+    print(f"Flux plot directory: {flux_plot_dir}")
+    print(f"Power plot directory: {power_plot_dir}")
+    print(f"Depletion plot directory: {depletion_plot_dir}")
+    print(f"Depletion data directory: {depletion_dir}")
 
     if not os.path.exists(statepoint_path):
         print(f"Transport statepoint file not found at {statepoint_path}")
@@ -56,12 +69,13 @@ def plot_all(flux_plot_dir=None, depletion_plot_dir=None):
         print(f"Loading transport statepoint file: {statepoint_path}")
         sp = openmc.StatePoint(statepoint_path)
 
-    # Create flux plot directory if it doesn't exist
-    if os.path.exists(flux_plot_dir):
-        print("\nCleaning up old flux plotting files...")
-        import shutil
-        shutil.rmtree(flux_plot_dir)
-    os.makedirs(flux_plot_dir, exist_ok=True)
+    # Clean up and create plot directories
+    for directory in [flux_plot_dir, power_plot_dir]:
+        if os.path.exists(directory):
+            print(f"\nCleaning up old plotting files in {directory}...")
+            import shutil
+            shutil.rmtree(directory)
+        os.makedirs(directory, exist_ok=True)
 
     # Get power from inputs, default to 1 MW if not specified
     power_mw = inputs.get('core_power', 1.0)
@@ -97,7 +111,14 @@ def plot_all(flux_plot_dir=None, depletion_plot_dir=None):
     except Exception as e:
         print(f"Error generating normalized flux profiles: {str(e)}")
 
+    try:
+        print("\nGenerating power distribution plots...")
+        plot_power_distributions(sp, power_plot_dir)
+    except Exception as e:
+        print(f"Error generating power distribution plots: {str(e)}")
+
     print(f"\nFlux plots have been saved to: {flux_plot_dir}")
+    print(f"Power plots have been saved to: {power_plot_dir}")
 
     # Generate depletion plots if depletion results exist
     if os.path.exists(depletion_dir):

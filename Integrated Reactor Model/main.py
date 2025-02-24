@@ -49,6 +49,7 @@ def main():
         'thermal_hydraulics': os.path.join(sim_dir, 'ThermalHydraulics'),
         'transport_data': os.path.join(sim_dir, 'transport_data'),
         'flux_plots': os.path.join(sim_dir, 'flux_plots'),
+        'power_plots': os.path.join(sim_dir, 'power_plots'),
         'depletion_data': os.path.join(sim_dir, 'depletion_data'),
         'depletion_plots': os.path.join(sim_dir, 'depletion_plots')
     }
@@ -83,7 +84,7 @@ def main():
 
     # Generate all plots
     print("\nGenerating plots...")
-    plot_all(flux_plot_dir=dirs['flux_plots'], depletion_plot_dir=dirs['depletion_plots'])
+    plot_all(plot_dir=dirs['flux_plots'], depletion_plot_dir=dirs['depletion_plots'])
 
     # Final cleanup of any new __pycache__ directories created during the run
     print("\nFinal cleanup of __pycache__ directories...")

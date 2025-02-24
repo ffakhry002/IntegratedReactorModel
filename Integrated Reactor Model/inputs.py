@@ -28,12 +28,12 @@ base_inputs = {
     "bioshield_thickness": 0.25,    # Radial bioshield thickness [m]
 
     # Axial Core Geometry
-    "bottom_bioshield_thickness": 0.9,  # Bottom bioshield thickness [m]
+    "bottom_bioshield_thickness": 0.5,  # Bottom bioshield thickness [m]
     "bottom_reflector_thickness": 0.3,  # Bottom reflector thickness [m]
-    "feed_thickness": 0.0,            # Feed region thickness [m]
-    "plenum_height": 1.7,             # Plenum height [m]
-    "top_reflector_thickness": 0.00,   # Top reflector thickness [m]
-    "top_bioshield_thickness": 0.0,    # Top bioshield thickness [m]
+    "feed_thickness": 2,            # Feed region thickness [m]
+    "plenum_height": 2,             # Plenum height [m]
+    "top_reflector_thickness": 0.3,   # Top reflector thickness [m]
+    "top_bioshield_thickness": 0.5,    # Top bioshield thickness [m]
 
     # Pin Fuel Assembly Parameters
     "pin_pitch": 0.0126,          # Pin-to-pin pitch [m]
@@ -94,7 +94,7 @@ base_inputs = {
     # Standard Transport Settings
     "batches": 150,                   # Number of active batches
     "inactive": 20,                   # Number of inactive batches
-    "particles": int(1e2),            # Particles per batch
+    "particles": int(1e4),            # Particles per batch
     "energy_structure": 'log1001',    # Energy group structure
 
     # Energy Group Boundaries
