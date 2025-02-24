@@ -16,12 +16,6 @@ def plot_normalized_flux_profiles(sp, plot_dir):
     plot_dir : str
         Directory to save the plots
     """
-    import os
-    import numpy as np
-    import matplotlib.pyplot as plt
-    from inputs import inputs
-    from execution.tallies.normalization import calc_norm_factor
-
     # Get the mesh tally
     mesh_tally = sp.get_tally(name='flux_mesh')
     flux = mesh_tally.get_slice(scores=['flux'])
@@ -44,13 +38,11 @@ def plot_normalized_flux_profiles(sp, plot_dir):
     active_core_radius = half_width  # Use calculated fuel region radius for core lines
     tank_radius = inputs['tank_radius'] * 100  # Tank outer boundary
     reflector_radius = tank_radius + inputs['reflector_thickness'] * 100  # Reflector outer boundary
-    bioshield_radius = reflector_radius + inputs['bioshield_thickness'] * 100  # Bioshield outer boundary
-    outer_radius = bioshield_radius  # Use bioshield as outer boundary
     half_height = inputs['fuel_height'] * 50  # Just use fuel height
 
     # Calculate mesh volume
     shape = [201, 201, 201]  # Match mesh dimensions
-    mesh_volume = (2 * outer_radius / shape[0]) * (2 * outer_radius / shape[1]) * (2 * half_height / shape[2])
+    mesh_volume = (2 * reflector_radius / shape[0]) * (2 * reflector_radius / shape[1]) * (2 * half_height / shape[2])
 
     # Create numpy arrays from tally data and normalize
     power_mw = inputs.get('core_power', 1.0)
@@ -81,16 +73,16 @@ def plot_normalized_flux_profiles(sp, plot_dir):
     # Calculate axially averaged profiles
     # X-direction axially averaged profile (at Y=0)
     avg_flux_x = np.mean(flux_mean[:, :, center_y], axis=0)  # Average along Z, vary along X
-    x = np.linspace(-outer_radius, outer_radius, len(avg_flux_x))
+    x = np.linspace(-reflector_radius, reflector_radius, len(avg_flux_x))
 
     # Y-direction axially averaged profile (at X=0)
     avg_flux_y = np.mean(flux_mean[:, center_x, :], axis=0)  # Average along Z, vary along Y
-    y = np.linspace(-outer_radius, outer_radius, len(avg_flux_y))
+    y = np.linspace(-reflector_radius, reflector_radius, len(avg_flux_y))
 
     # 45-degree diagonal profiles for axially averaged
     max_offset = min(center_x, center_y, shape[1]-center_x-1, shape[2]-center_y-1)
     diagonal_coords = np.arange(-max_offset, max_offset+1)
-    r_diag = diagonal_coords * np.sqrt(2) * (outer_radius / (shape[1]//2))
+    r_diag = diagonal_coords * np.sqrt(2) * (reflector_radius / (shape[1]//2))
 
     # Get axially averaged diagonal fluxes
     avg_flux_diag1 = np.mean(flux_mean[:,
@@ -126,8 +118,6 @@ def plot_normalized_flux_profiles(sp, plot_dir):
         ax.axvline(x=-tank_radius, color='blue', linestyle='--')
         ax.axvline(x=reflector_radius, color='green', linestyle='--', label='Reflector')
         ax.axvline(x=-reflector_radius, color='green', linestyle='--')
-        ax.axvline(x=bioshield_radius, color='brown', linestyle='--', label='Bioshield')
-        ax.axvline(x=-bioshield_radius, color='brown', linestyle='--')
 
     # Configure axially averaged axes
     ax0.set_title('Axially Averaged Radial Flux Profiles')
@@ -172,8 +162,6 @@ def plot_normalized_flux_profiles(sp, plot_dir):
         ax.axvline(x=-tank_radius, color='blue', linestyle='--')
         ax.axvline(x=reflector_radius, color='green', linestyle='--', label='Reflector')
         ax.axvline(x=-reflector_radius, color='green', linestyle='--')
-        ax.axvline(x=bioshield_radius, color='brown', linestyle='--', label='Bioshield')
-        ax.axvline(x=-bioshield_radius, color='brown', linestyle='--')
 
     # Configure midplane axes
     ax1.set_title('Radial Flux Profiles (Z Mid-plane)')
@@ -191,7 +179,7 @@ def plot_normalized_flux_profiles(sp, plot_dir):
 
     # Calculate assembly edge index and ensure it's within bounds
     assembly_edge_idx = min(
-        int((total_assembly_width/2) / (2*outer_radius) * shape[1]),
+        int((total_assembly_width/2) / (2*reflector_radius) * shape[1]),
         max_idx - 1
     )
 
@@ -200,7 +188,7 @@ def plot_normalized_flux_profiles(sp, plot_dir):
 
     # Ensure core edge index is within bounds
     core_edge_idx = min(
-        int(tank_radius / outer_radius * shape[1] // 2),
+        int(tank_radius / reflector_radius * shape[1] // 2),
         max_idx - 1
     )
 
@@ -295,7 +283,7 @@ def plot_normalized_flux_profiles(sp, plot_dir):
               bbox_to_anchor=(0.35, 0.02), loc='lower center', ncol=4)
     # Add boundary legend
     fig.legend([plt.Line2D([0], [0], color=c, linestyle='--') for c in ['red', 'blue', 'green']],
-              ['Tank', 'Reflector', 'Bioshield'],
+              ['Active Core', 'Tank', 'Reflector'],
               bbox_to_anchor=(0.35, -0.02), loc='lower center', ncol=3)
 
     # Adjust subplot spacing to make room for legends and add space between plots

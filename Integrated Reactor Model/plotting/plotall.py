@@ -46,21 +46,14 @@ def plot_all(plot_dir=None, depletion_plot_dir=None):
         depletion_plot_dir = depletion_plot_dir or os.path.join(base_dir, 'depletion_plots')
         depletion_dir = os.path.join(base_dir, 'depletion_data')
     else:
-        # Running directly
+        # Running directly - put everything under plots/
         base_dir = os.path.dirname(os.path.abspath(__file__))
         statepoint_path = os.path.join(root_dir, 'execution', 'Output', 'statepoint.eigenvalue.h5')
-        flux_plot_dir = plot_dir or os.path.join(base_dir, 'flux_plots')
-        power_plot_dir = os.path.join(base_dir, 'power_plots')
-        depletion_plot_dir = depletion_plot_dir or os.path.join(base_dir, 'depletion_plots')
+        plots_dir = os.path.join(base_dir, 'plots')
+        flux_plot_dir = plot_dir or os.path.join(plots_dir, 'flux_plots')
+        power_plot_dir = os.path.join(plots_dir, 'power_plots')
+        depletion_plot_dir = depletion_plot_dir or os.path.join(plots_dir, 'depletion_plots')
         depletion_dir = os.path.join(root_dir, 'depletion', 'outputs')
-
-    print(f"\nUsing the following paths:")
-    print(f"Root directory: {root_dir}")
-    print(f"Statepoint file: {statepoint_path}")
-    print(f"Flux plot directory: {flux_plot_dir}")
-    print(f"Power plot directory: {power_plot_dir}")
-    print(f"Depletion plot directory: {depletion_plot_dir}")
-    print(f"Depletion data directory: {depletion_dir}")
 
     if not os.path.exists(statepoint_path):
         print(f"Transport statepoint file not found at {statepoint_path}")
