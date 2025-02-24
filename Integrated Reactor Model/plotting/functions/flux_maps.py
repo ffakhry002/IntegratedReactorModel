@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from inputs import inputs
 import matplotlib.patches as patches
-from execution.tallies.normalization import calc_norm_factor
+from eigenvalue.tallies.normalization import calc_norm_factor
 
 def plot_flux_maps(sp, plot_dir):
     """Plot flux maps of the core (XY, XY relative error, and XZ views).

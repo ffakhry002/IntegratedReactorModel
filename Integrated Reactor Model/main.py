@@ -5,7 +5,7 @@ Main script to run the integrated reactor simulation.
 import os
 import sys
 import shutil
-from execution.run import run_eigenvalue
+from eigenvalue.run import run_eigenvalue
 from Reactor.geometry import plot_geometry
 from ThermalHydraulics.TH_refactored import THSystem
 from plotting.plotall import plot_all

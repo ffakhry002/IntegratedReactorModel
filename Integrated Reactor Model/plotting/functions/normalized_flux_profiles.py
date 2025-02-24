@@ -4,7 +4,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from inputs import inputs
-from execution.tallies.normalization import calc_norm_factor
+from eigenvalue.tallies.normalization import calc_norm_factor
 
 def plot_normalized_flux_profiles(sp, plot_dir):
     """Plot normalized radial and axial flux profiles.

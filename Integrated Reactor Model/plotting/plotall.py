@@ -48,7 +48,7 @@ def plot_all(plot_dir=None, depletion_plot_dir=None):
     else:
         # Running directly - put everything under plots/
         base_dir = os.path.dirname(os.path.abspath(__file__))
-        statepoint_path = os.path.join(root_dir, 'execution', 'Output', 'statepoint.eigenvalue.h5')
+        statepoint_path = os.path.join(root_dir, 'eigenvalue', 'Output', 'statepoint.eigenvalue.h5')
         plots_dir = os.path.join(base_dir, 'plots')
         flux_plot_dir = plot_dir or os.path.join(plots_dir, 'flux_plots')
         power_plot_dir = os.path.join(plots_dir, 'power_plots')
