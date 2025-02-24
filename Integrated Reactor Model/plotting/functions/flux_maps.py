@@ -33,14 +33,12 @@ def plot_flux_maps(sp, plot_dir):
     active_core_radius = total_assembly_width / 2  # Active core (fuel assemblies) radius
     tank_radius = inputs['tank_radius'] * 100  # Tank outer boundary
     reflector_radius = tank_radius + inputs['reflector_thickness'] * 100  # Reflector outer boundary
-    bioshield_radius = reflector_radius + inputs['bioshield_thickness'] * 100  # Bioshield outer boundary
-    outer_radius = bioshield_radius  # Use bioshield as outer boundary
     half_height = inputs['fuel_height'] * 50  # Just use fuel height
 
     # Calculate mesh volume
     shape = [201, 201, 201]  # Match mesh dimensions
-    dx = 2 * outer_radius / shape[0]  # Use bioshield radius for full width
-    dy = 2 * outer_radius / shape[1]
+    dx = 2 * reflector_radius / shape[0]  # Use reflector radius for full width
+    dy = 2 * reflector_radius / shape[1]
     dz = 2 * half_height / shape[2]  # Use fuel height only
     mesh_volume = dx * dy * dz
 
@@ -82,8 +80,8 @@ def plot_flux_maps(sp, plot_dir):
     # First row: Axially averaged XY flux map and relative error
     im1 = ax1.imshow(flux_mean_axial_avg.T,
                      norm=LogNorm(vmin=np.max(flux_mean)*1e-2, vmax=np.max(flux_mean)),
-                     extent=[-outer_radius, outer_radius,
-                            -outer_radius, outer_radius],
+                     extent=[-reflector_radius, reflector_radius,
+                            -reflector_radius, reflector_radius],
                      origin='lower',
                      cmap='viridis')
 
@@ -95,13 +93,10 @@ def plot_flux_maps(sp, plot_dir):
                             color='blue', linestyle='--', label='Tank')
         reflector = patches.Circle((0, 0), reflector_radius, fill=False,
                                  color='green', linestyle='--', label='Reflector')
-        bioshield = patches.Circle((0, 0), bioshield_radius, fill=False,
-                                 color='brown', linestyle='--', label='Bioshield')
         ax.add_patch(active_core)
         ax.add_patch(tank)
         ax.add_patch(reflector)
-        ax.add_patch(bioshield)
-        ax.legend(bbox_to_anchor=(0.5, -0.1), loc='upper center', ncol=4)
+        ax.legend(bbox_to_anchor=(0.5, -0.1), loc='upper center', ncol=3)
 
     ax1.set_title('XY Flux Map (Axially Averaged)')
     ax1.set_xlabel('X [cm]')
@@ -116,8 +111,8 @@ def plot_flux_maps(sp, plot_dir):
         rel_err_avg = np.nan_to_num(rel_err_avg, nan=0.0, posinf=0.0, neginf=0.0)  # Replace NaN and inf with 0
 
     im1e = ax1e.imshow(rel_err_avg,
-                       extent=[-outer_radius, outer_radius,
-                              -outer_radius, outer_radius],
+                       extent=[-reflector_radius, reflector_radius,
+                              -reflector_radius, reflector_radius],
                        origin='lower',
                        cmap='coolwarm')
     ax1e.set_title('XY Relative Error (Axially Averaged) [%]')
@@ -128,8 +123,8 @@ def plot_flux_maps(sp, plot_dir):
     # Second row: XY flux map at Y midplane and relative error
     im2 = ax2.imshow(flux_mean[mid_xz, :, :].T,
                      norm=LogNorm(vmin=np.max(flux_mean)*1e-2, vmax=np.max(flux_mean)),
-                     extent=[-outer_radius, outer_radius,
-                            -outer_radius, outer_radius],
+                     extent=[-reflector_radius, reflector_radius,
+                            -reflector_radius, reflector_radius],
                      origin='lower',
                      cmap='viridis')
 
@@ -141,13 +136,10 @@ def plot_flux_maps(sp, plot_dir):
                             color='blue', linestyle='--', label='Tank')
         reflector = patches.Circle((0, 0), reflector_radius, fill=False,
                                  color='green', linestyle='--', label='Reflector')
-        bioshield = patches.Circle((0, 0), bioshield_radius, fill=False,
-                                 color='brown', linestyle='--', label='Bioshield')
         ax.add_patch(active_core)
         ax.add_patch(tank)
         ax.add_patch(reflector)
-        ax.add_patch(bioshield)
-        ax.legend(bbox_to_anchor=(0.5, -0.1), loc='upper center', ncol=4)
+        ax.legend(bbox_to_anchor=(0.5, -0.1), loc='upper center', ncol=3)
 
     ax2.set_title('XY Flux Map (Y Mid-plane)')
     ax2.set_xlabel('X [cm]')
@@ -162,8 +154,8 @@ def plot_flux_maps(sp, plot_dir):
         rel_err = np.nan_to_num(rel_err, nan=0.0, posinf=0.0, neginf=0.0)  # Replace NaN and inf with 0
 
     im2e = ax2e.imshow(rel_err,
-                       extent=[-outer_radius, outer_radius,
-                              -outer_radius, outer_radius],
+                       extent=[-reflector_radius, reflector_radius,
+                              -reflector_radius, reflector_radius],
                        origin='lower',
                        cmap='coolwarm')
     ax2e.set_title('XY Relative Error (Y Mid-plane) [%]')
@@ -175,7 +167,7 @@ def plot_flux_maps(sp, plot_dir):
     flux_xz = flux_mean[:, mid_xy, :]
     im3 = ax3.imshow(flux_xz,
                      norm=LogNorm(),
-                     extent=[-outer_radius, outer_radius, -half_height, half_height],
+                     extent=[-reflector_radius, reflector_radius, -half_height, half_height],
                      origin='lower',
                      cmap='viridis')
     ax3.set_title('XZ Flux Map (Y Mid-plane)')
@@ -192,7 +184,7 @@ def plot_flux_maps(sp, plot_dir):
         rel_err_xz = np.nan_to_num(rel_err_xz, nan=0.0, posinf=0.0, neginf=0.0)  # Replace NaN and inf with 0
 
     im3e = ax3e.imshow(rel_err_xz,
-                       extent=[-outer_radius, outer_radius, -half_height, half_height],
+                       extent=[-reflector_radius, reflector_radius, -half_height, half_height],
                        origin='lower',
                        cmap='coolwarm')
     ax3e.set_title('XZ Relative Error (Y Mid-plane) [%]')
@@ -217,16 +209,10 @@ def plot_flux_maps(sp, plot_dir):
                                          2*half_height,
                                          fill=False, color='green', linestyle='--',
                                          label='Reflector', alpha=0.5)
-        bioshield_rect = patches.Rectangle((-bioshield_radius, -half_height),
-                                         2*bioshield_radius,
-                                         2*half_height,
-                                         fill=False, color='brown', linestyle='--',
-                                         label='Bioshield', alpha=0.5)
         ax.add_patch(active_core_rect)
         ax.add_patch(tank_rect)
         ax.add_patch(reflector_rect)
-        ax.add_patch(bioshield_rect)
-        ax.legend(bbox_to_anchor=(0.5, -0.1), loc='upper center', ncol=4)
+        ax.legend(bbox_to_anchor=(0.5, -0.1), loc='upper center', ncol=3)
 
     # Save without tight_layout (since we're using subplots_adjust)
     plt.savefig(os.path.join(plot_dir, 'flux_maps.png'),

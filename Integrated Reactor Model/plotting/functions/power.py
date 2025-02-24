@@ -20,8 +20,6 @@ def plot_power_distributions(sp, plot_dir):
 
     # Ensure plot directory exists
     os.makedirs(plot_dir, exist_ok=True)
-    power_dir = os.path.join(plot_dir, 'power')
-    os.makedirs(power_dir, exist_ok=True)
 
     # Get core dimensions
     half_height = inputs['fuel_height'] * 50  # Convert to cm
@@ -133,7 +131,7 @@ def plot_power_distributions(sp, plot_dir):
     df = pd.concat([df, pd.DataFrame([totals])], ignore_index=True)
 
     # Save to CSV
-    csv_path = os.path.join(power_dir, 'detailed_power_distribution.csv')
+    csv_path = os.path.join(plot_dir, 'detailed_power_distribution.csv')
     df.to_csv(csv_path, index=False)
     print(f"\nSaved detailed power distribution to: {csv_path}")
 
@@ -163,7 +161,7 @@ def plot_power_distributions(sp, plot_dir):
 
     plt.title('Axial Power Distribution (per Fuel Element)')
     plt.tight_layout()
-    plot_path = os.path.join(power_dir, 'power_distributions.png')
+    plot_path = os.path.join(plot_dir, 'power_distributions.png')
     plt.savefig(plot_path, dpi=300, bbox_inches='tight')
     plt.close()
     print(f"Saved power distribution plot to: {plot_path}")

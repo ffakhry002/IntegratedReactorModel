@@ -38,8 +38,7 @@ def create_coreflux_tallys():
     # Calculate mesh boundaries from inputs (in cm)
     core_radius = inputs['tank_radius'] * 100
     reflector_thickness = inputs['reflector_thickness'] * 100
-    bioshield_thickness = inputs['bioshield_thickness'] * 100
-    total_radius = core_radius + reflector_thickness + bioshield_thickness
+    total_radius = core_radius + reflector_thickness
 
     half_height = inputs['fuel_height']* 50
 
