@@ -6,6 +6,62 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from inputs import inputs
 
+def get_radial_profiles(assembly_data, core_layout):
+    """Get radial power profiles in X and Y directions.
+
+    Parameters
+    ----------
+    assembly_data : dict
+        Dictionary containing assembly power data
+    core_layout : list
+        Core layout from inputs
+
+    Returns
+    -------
+    tuple
+        Contains x_positions, y_positions and their corresponding power values
+        in format (x_pos, x_powers, x_linear, y_pos, y_powers, y_linear)
+    """
+    # Convert core layout to numpy array for easier manipulation
+    layout = np.array(core_layout)
+    center_i = len(layout) // 2
+    center_j = len(layout[0]) // 2
+
+    # Get assembly pitch in meters
+    if inputs['assembly_type'] == 'Pin':
+        assembly_pitch = inputs['pin_pitch'] * inputs['n_side_pins']
+    else:
+        assembly_pitch = inputs['fuel_plate_width'] + 2*inputs['clad_structure_width']
+
+    # Initialize lists for each direction
+    x_pos, x_powers, x_linear = [], [], []
+    y_pos, y_powers, y_linear = [], [], []
+
+    # Collect powers along each direction
+    for (i, j), data in assembly_data.items():
+        # Calculate positions in meters from core center
+        x = (j - center_j) * assembly_pitch
+        y = (i - center_i) * assembly_pitch
+
+        # X direction (y ≈ 0)
+        if i == center_i:
+            x_pos.append(x)
+            x_powers.append(data['total_power'])
+            x_linear.append(np.mean(data['axial_distribution']))
+
+        # Y direction (x ≈ 0)
+        if j == center_j:
+            y_pos.append(y)
+            y_powers.append(data['total_power'])
+            y_linear.append(np.mean(data['axial_distribution']))
+
+    # Sort all lists by position
+    x_pos, x_powers, x_linear = zip(*sorted(zip(x_pos, x_powers, x_linear)))
+    y_pos, y_powers, y_linear = zip(*sorted(zip(y_pos, y_powers, y_linear)))
+
+    return (x_pos, x_powers, x_linear,
+            y_pos, y_powers, y_linear)
+
 def plot_power_distributions(sp, plot_dir):
     """Plot power distributions and save data to CSV.
 
@@ -135,12 +191,54 @@ def plot_power_distributions(sp, plot_dir):
     df.to_csv(csv_path, index=False)
     print(f"\nSaved detailed power distribution to: {csv_path}")
 
-    # Determine if we should create a second plot
-    create_second_plot = n_segments > 20 and n_segments % 20 == 0
-    if create_second_plot:
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 6))
+    # Get radial profiles
+    (x_pos, x_powers, x_linear,
+     y_pos, y_powers, y_linear) = get_radial_profiles(assembly_data, inputs['core_lattice'])
+
+    # Create figure with three subplots
+    if n_segments > 20 and n_segments % 20 == 0:
+        fig = plt.figure(figsize=(20, 12))
+        gs = plt.GridSpec(2, 2, figure=fig)
+        ax_radial = fig.add_subplot(gs[0, 0])
+        ax_linear = fig.add_subplot(gs[0, 1])
+        ax1 = fig.add_subplot(gs[1, 0])
+        ax2 = fig.add_subplot(gs[1, 1])
     else:
-        fig, ax1 = plt.subplots(figsize=(10, 6))
+        fig = plt.figure(figsize=(20, 8))
+        gs = plt.GridSpec(1, 3, figure=fig)
+        ax_radial = fig.add_subplot(gs[0, 0])
+        ax_linear = fig.add_subplot(gs[0, 1])
+        ax1 = fig.add_subplot(gs[0, 2])
+
+    # Plot 1: Assembly powers (X and Y directions)
+    ax_radial.plot(x_pos, x_powers, 'bo-', label='X Direction')
+    ax_radial.plot(y_pos, y_powers, 'ro-', label='Y Direction')
+    ax_radial.set_xlabel('Distance from Core Center [m]')
+    ax_radial.set_ylabel('Assembly Power [MW]')
+    ax_radial.set_title('Radial Power Distribution')
+    ax_radial.grid(True)
+    ax_radial.legend()
+
+    # Plot 2: Linear powers comparison
+    ax_linear.plot(x_pos, x_linear, 'b--', label='X Direction (Avg)')
+    ax_linear.plot(y_pos, y_linear, 'r--', label='Y Direction (Avg)')
+
+    # Add midplane values
+    center_z = n_segments // 2
+    x_linear_mid = [data['axial_distribution'][center_z]
+                   for (i, j), data in assembly_data.items()
+                   if i == len(core_layout) // 2]
+    y_linear_mid = [data['axial_distribution'][center_z]
+                   for (i, j), data in assembly_data.items()
+                   if j == len(core_layout[0]) // 2]
+
+    ax_linear.plot(x_pos, x_linear_mid, 'b-', label='X Direction (Midplane)')
+    ax_linear.plot(y_pos, y_linear_mid, 'r-', label='Y Direction (Midplane)')
+    ax_linear.set_xlabel('Distance from Core Center [m]')
+    ax_linear.set_ylabel('Linear Power per Element [kW/m]')
+    ax_linear.set_title('Radial Linear Power Distribution')
+    ax_linear.grid(True)
+    ax_linear.legend()
 
     # Get hot assembly peak for normalization
     hot_assembly_peak = np.max(max_power_data['axial_distribution'])
@@ -165,7 +263,7 @@ def plot_power_distributions(sp, plot_dir):
 
     ax1.set_title('Axial Power Distribution (per Fuel Element)')
 
-    if create_second_plot:
+    if n_segments > 20 and n_segments % 20 == 0:
         # Calculate number of segments to combine
         combine_factor = n_segments // 20
 
@@ -189,11 +287,21 @@ def plot_power_distributions(sp, plot_dir):
         ax2.set_ylabel('Linear Power per Element [kW/m]')
         ax2.grid(True)
 
+        # Set y-axis limits for power plot
+        min_power = min(np.min(avg_assembly_power_coarse), np.min(hot_assembly_power_coarse))
+        max_power = max(np.max(avg_assembly_power_coarse), np.max(hot_assembly_power_coarse))
+        power_range = max_power - min_power
+        ax2.set_ylim([min_power - 0.2*power_range, max_power + 0.2*power_range])
+
         # Create second y-axis for hot assembly / core average ratio only
         ax2_norm = ax2.twinx()
         ratio = hot_assembly_power_coarse / avg_assembly_power_coarse
-        ratio_line = ax2_norm.plot(z_coarse/100, ratio, 'g--', label='Hot Assembly / Core Average', linewidth=2)
+        ratio_line = ax2_norm.plot(z_coarse/100, ratio, 'g-', label='Hot Assembly / Core Average', linewidth=2)
         ax2_norm.set_ylabel('Hot Assembly / Core Average Ratio')
+
+        # Set y-axis limits for ratio plot
+        ratio_range = np.max(ratio) - np.min(ratio)
+        ax2_norm.set_ylim([np.min(ratio) - 0.2*ratio_range, np.max(ratio) + 0.2*ratio_range])
 
         # Add legends
         lines2, labels2 = ax2.get_legend_handles_labels()

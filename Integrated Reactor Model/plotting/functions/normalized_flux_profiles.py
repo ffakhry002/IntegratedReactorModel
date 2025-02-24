@@ -244,16 +244,16 @@ def plot_normalized_flux_profiles(sp, plot_dir):
              label='Core Center (r=0)')
 
     ax2.plot(axial_flux_half / peak_flux, z, 'g-',
-             label=f'50% to Fuel Edge (r={total_assembly_width/4:.1f} cm)')
+             label=f'50% to Core Edge (r={total_assembly_width/4:.1f} cm)')
 
     ax2.plot(axial_flux_fuel_edge / peak_flux, z, 'r-',
-             label=f'Fuel Edge (r={total_assembly_width/2:.1f} cm)')
+             label=f'Core Edge (r={total_assembly_width/2:.1f} cm)')
 
     ax2.plot(axial_flux_mid_to_core / peak_flux, z, 'm-',
-             label=f'50% Fuel to Core Edge (r={(total_assembly_width/2 + tank_radius)/2:.1f} cm)')
+             label=f'50% Core Edge to Tank Edge (r={(total_assembly_width/2 + tank_radius)/2:.1f} cm)')
 
     ax2.plot(axial_flux_core_edge / peak_flux, z, 'k-',
-             label=f'Core Edge (r={tank_radius:.1f} cm)')
+             label=f'Tank Edge (r={tank_radius:.1f} cm)')
 
     # Add top axis for absolute flux values
     ax2_abs = ax2.twiny()

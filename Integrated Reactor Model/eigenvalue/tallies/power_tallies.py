@@ -10,7 +10,7 @@ import openmc
 from inputs import inputs
 from Reactor.geometry_helpers.utils import generate_cell_id
 
-def create_power_tallies(n_axial_segments=1000):
+def create_power_tallies(n_axial_segments=200):
     """Create power tallies for the entire core and individual assemblies.
 
     Parameters
