@@ -94,7 +94,6 @@ def plot_power_distributions(sp, plot_dir):
         for j, pos in enumerate(row):
             if pos in ['F', 'E']:
                 tally_name = f"assembly_power_{i}_{j}"
-                print(f"Processing assembly tally: {tally_name}")
                 tally = sp.get_tally(name=tally_name)
 
                 # Get raw tally data
@@ -130,8 +129,6 @@ def plot_power_distributions(sp, plot_dir):
             n_elements = inputs['plates_per_assembly']
         else:  # Pin type
             n_elements = inputs['n_side_pins']**2 - inputs['n_guide_tubes']
-
-        print(f"\nNumber of fuel elements per assembly: {n_elements}")
 
         # Convert MW/cm to kW/m:
         # 1) Convert MW to kW: multiply by 1000 [kW/cm]
