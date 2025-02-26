@@ -102,7 +102,7 @@ base_inputs = {
     "fast_cutoff": 100.0e3,          # Epithermal/fast boundary [eV]
 
     # Additional Tallies
-    "Core_Three_Group_Energy_Bins": True, # True: use three energy bins, False: don't tally energy groups
+    "Core_Three_Group_Energy_Bins": True, # True: use three energy bins for core tallies, False: don't tally energy groups
     ###########################################
     # Depletion Calculation Parameters
     ###########################################

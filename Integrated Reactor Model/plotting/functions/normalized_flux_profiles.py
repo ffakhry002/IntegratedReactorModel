@@ -257,18 +257,20 @@ def create_flux_profile_plots(flux_mean, shape, plot_dir, filename, title_prefix
     ax2.set_ylabel('Height [cm]')
     ax2.grid(True)
 
-    # Add legend for axial profiles below the third subplot
+    # Add legends at the same level as the third plot
     ax2.legend(bbox_to_anchor=(0.5, -0.15), loc='upper center', ncol=2)
 
-    # Add legends below the first two plots
-    # Create a common legend for both radial plots
+    # Add direction legend below first plot
     lines0, labels0 = ax0.get_legend_handles_labels()
-    fig.legend(lines0[:4], labels0[:4],
-              bbox_to_anchor=(0.35, 0.54), loc='lower center', ncol=4)
-    # Add boundary legend
-    fig.legend([plt.Line2D([0], [0], color=c, linestyle='--') for c in ['red', 'blue', 'green']],
+    ax0.legend(lines0[:4], labels0[:4],
+              bbox_to_anchor=(0.5, -0.15), loc='upper center', ncol=4,
+              title='Direction Legend')
+
+    # Add boundary legend below second plot
+    ax1.legend([plt.Line2D([0], [0], color=c, linestyle='--') for c in ['red', 'blue', 'green']],
               ['Active Core', 'Tank', 'Reflector'],
-              bbox_to_anchor=(0.35, 0.52), loc='lower center', ncol=3)
+              bbox_to_anchor=(0.5, -0.15), loc='upper center', ncol=3,
+              title='Boundary Legend')
 
     if group_fluxes:
         # Second row - energy group specific profiles
