@@ -5,88 +5,54 @@ import numpy as np
 import matplotlib.pyplot as plt
 from inputs import inputs
 from eigenvalue.tallies.normalization import calc_norm_factor
+import openmc
 
-def plot_normalized_flux_profiles(sp, plot_dir):
-    """Plot normalized radial and axial flux profiles.
+def create_flux_profile_plots(flux_mean, shape, plot_dir, filename, title_prefix="",
+                            active_core_radius=None, tank_radius=None, reflector_radius=None, half_height=None,
+                            group_fluxes=None):
+    """Helper function to create the standard 3-panel flux profile plot.
 
     Parameters
     ----------
-    sp : openmc.StatePoint
-        StatePoint file containing the tally results
+    flux_mean : numpy.ndarray
+        Mean flux values in shape [nx, ny, nz]
+    shape : list
+        Shape of the mesh [nx, ny, nz]
     plot_dir : str
-        Directory to save the plots
+        Directory to save the plot
+    filename : str
+        Name of the output file
+    title_prefix : str, optional
+        Prefix to add to plot titles
+    active_core_radius : float
+        Radius of active core region in cm
+    tank_radius : float
+        Radius of tank in cm
+    reflector_radius : float
+        Radius of reflector in cm
+    half_height : float
+        Half height of the core in cm
+    group_fluxes : dict, optional
+        Dictionary containing energy group fluxes with keys 'thermal', 'epithermal', 'fast'
     """
-    # Get the mesh tally
-    mesh_tally = sp.get_tally(name='flux_mesh')
-    flux = mesh_tally.get_slice(scores=['flux'])
+    # Create figure with subplots
+    n_rows = 2 if group_fluxes else 1
+    fig = plt.figure(figsize=(24, 8*n_rows))
+    gs = plt.GridSpec(n_rows, 3, figure=fig)
 
-    # Calculate actual core dimensions based on maximum fuel assembly row
-    core_layout = np.array(inputs['core_lattice'])
-    # Count actual fuel assemblies (F and E positions) in each row
-    max_fuel_assemblies = max(sum(1 for pos in row if pos in ['F', 'E']) for row in core_layout)
+    # First row - total flux profiles
+    ax0 = fig.add_subplot(gs[0, 0])
+    ax1 = fig.add_subplot(gs[0, 1])
+    ax2 = fig.add_subplot(gs[0, 2])
 
-    # Calculate the side length based on assembly type
-    if inputs['assembly_type'] == 'Plate':
-        assembly_unit_width = (inputs['fuel_plate_width'] + 2*inputs['clad_structure_width']) * 100  # cm
-    else:  # Pin type
-        assembly_unit_width = (inputs['pin_pitch'] * inputs['n_side_pins']) * 100  # cm
-
-    total_width = max_fuel_assemblies * assembly_unit_width
-    half_width = total_width / 2
-
-    # Get dimensions from inputs (in cm)
-    active_core_radius = half_width  # Use calculated fuel region radius for core lines
-    tank_radius = inputs['tank_radius'] * 100  # Tank outer boundary
-    reflector_radius = tank_radius + inputs['reflector_thickness'] * 100  # Reflector outer boundary
-    half_height = inputs['fuel_height'] * 50  # Just use fuel height
-
-    # Calculate mesh volume
-    shape = [201, 201, 201]  # Match mesh dimensions
-    mesh_volume = (2 * reflector_radius / shape[0]) * (2 * reflector_radius / shape[1]) * (2 * half_height / shape[2])
-
-    # Process the flux data based on whether energy bins are present
-    if inputs['Core_Three_Group_Energy_Bins']:
-        # Reshape to separate spatial and energy dimensions
-        n_spatial = np.prod(shape)
-        mean_data = flux.mean.reshape(n_spatial, -1)  # -1 for energy groups
-        std_data = flux.std_dev.reshape(n_spatial, -1)
-
-        # Sum over energy groups
-        mean_sum = np.sum(mean_data, axis=1)
-        # Propagate uncertainties (quadrature sum)
-        std_sum = np.sqrt(np.sum(std_data**2, axis=1))
-
-        # Reshape to spatial mesh
-        flux_mean = mean_sum.reshape(shape)
-    else:
-        # No energy bins - direct reshape
-        flux_mean = flux.mean.reshape(shape)
-
-    # Create numpy arrays from tally data and normalize
-    power_mw = inputs.get('core_power', 1.0)
-    norm_factor = calc_norm_factor(power_mw, sp)
-    flux_mean = flux_mean * norm_factor / mesh_volume
-
-    # Calculate total fuel assembly region width
-    core_layout = np.array(inputs['core_lattice'])
-    max_fuel_assemblies = max(sum(1 for pos in row if pos in ['F', 'E']) for row in core_layout)
-    if inputs['assembly_type'] == 'Plate':
-        assembly_unit_width = (inputs['fuel_plate_width'] + 2*inputs['clad_structure_width']) * 100  # cm
-    else:  # Pin type
-        assembly_unit_width = inputs['pin_pitch'] * inputs['n_side_pins'] * 100  # cm
-    total_assembly_width = max_fuel_assemblies * assembly_unit_width
-
-    # Create figure with three subplots side by side
-    fig, (ax0, ax1, ax2) = plt.subplots(1, 3, figsize=(24, 8))
+    # Create twin axes for absolute and normalized flux for both radial plots
+    ax0_norm = ax0.twinx()
+    ax1_norm = ax1.twinx()
 
     # Plot radial profiles (both midplane and axially averaged)
     center_x = shape[1] // 2  # X is second index
     center_y = shape[2] // 2  # Y is third index
     center_z = shape[0] // 2  # Z is first index
-
-    # Create twin axes for absolute and normalized flux for both radial plots
-    ax0_norm = ax0.twinx()
-    ax1_norm = ax1.twinx()
 
     # Calculate axially averaged profiles
     # X-direction axially averaged profile (at Y=0)
@@ -138,7 +104,7 @@ def plot_normalized_flux_profiles(sp, plot_dir):
         ax.axvline(x=-reflector_radius, color='green', linestyle='--')
 
     # Configure axially averaged axes
-    ax0.set_title('Axially Averaged Radial Flux Profiles')
+    ax0.set_title(f'{title_prefix}Axially Averaged Radial Flux Profiles')
     ax0.set_xlabel('Distance from Center [cm]')
     ax0.set_ylabel('Absolute Flux [n/cm²/s]')
     ax0_norm.set_ylabel('Normalized Flux')
@@ -182,7 +148,7 @@ def plot_normalized_flux_profiles(sp, plot_dir):
         ax.axvline(x=-reflector_radius, color='green', linestyle='--')
 
     # Configure midplane axes
-    ax1.set_title('Radial Flux Profiles (Z Mid-plane)')
+    ax1.set_title(f'{title_prefix}Radial Flux Profiles (Z Mid-plane)')
     ax1.set_xlabel('Distance from Center [cm]')
     ax1.set_ylabel('Absolute Flux [n/cm²/s]')
     ax1_norm.set_ylabel('Normalized Flux')
@@ -197,7 +163,7 @@ def plot_normalized_flux_profiles(sp, plot_dir):
 
     # Calculate assembly edge index and ensure it's within bounds
     assembly_edge_idx = min(
-        int((total_assembly_width/2) / (2*reflector_radius) * shape[1]),
+        int((active_core_radius) / reflector_radius * shape[1] // 2),
         max_idx - 1
     )
 
@@ -262,13 +228,13 @@ def plot_normalized_flux_profiles(sp, plot_dir):
              label='Core Center (r=0)')
 
     ax2.plot(axial_flux_half / peak_flux, z, 'g-',
-             label=f'50% to Core Edge (r={total_assembly_width/4:.1f} cm)')
+             label=f'50% to Core Edge (r={active_core_radius/2:.1f} cm)')
 
     ax2.plot(axial_flux_fuel_edge / peak_flux, z, 'r-',
-             label=f'Core Edge (r={total_assembly_width/2:.1f} cm)')
+             label=f'Core Edge (r={active_core_radius:.1f} cm)')
 
     ax2.plot(axial_flux_mid_to_core / peak_flux, z, 'm-',
-             label=f'50% Core Edge to Tank Edge (r={(total_assembly_width/2 + tank_radius)/2:.1f} cm)')
+             label=f'50% Core Edge to Tank Edge (r={(active_core_radius + tank_radius)/2:.1f} cm)')
 
     ax2.plot(axial_flux_core_edge / peak_flux, z, 'k-',
              label=f'Tank Edge (r={tank_radius:.1f} cm)')
@@ -283,10 +249,10 @@ def plot_normalized_flux_profiles(sp, plot_dir):
     ax2_abs.set_xlabel('Absolute Flux [n/cm²/s]')
 
     # Add fuel height lines
-    ax2.axhline(y=half_height, color='red', linestyle='--', label='Fuel Boundary')
-    ax2.axhline(y=-half_height, color='red', linestyle='--')
+    ax2.axhline(y=half_height, color='gray', linestyle='--', label='Fuel Boundary')
+    ax2.axhline(y=-half_height, color='gray', linestyle='--')
 
-    ax2.set_title('Normalized Axial Flux Profiles')
+    ax2.set_title(f'{title_prefix}Normalized Axial Flux Profiles')
     ax2.set_xlabel('Normalized Flux')
     ax2.set_ylabel('Height [cm]')
     ax2.grid(True)
@@ -298,15 +264,224 @@ def plot_normalized_flux_profiles(sp, plot_dir):
     # Create a common legend for both radial plots
     lines0, labels0 = ax0.get_legend_handles_labels()
     fig.legend(lines0[:4], labels0[:4],
-              bbox_to_anchor=(0.35, 0.02), loc='lower center', ncol=4)
+              bbox_to_anchor=(0.35, 0.54), loc='lower center', ncol=4)
     # Add boundary legend
     fig.legend([plt.Line2D([0], [0], color=c, linestyle='--') for c in ['red', 'blue', 'green']],
               ['Active Core', 'Tank', 'Reflector'],
-              bbox_to_anchor=(0.35, -0.02), loc='lower center', ncol=3)
+              bbox_to_anchor=(0.35, 0.52), loc='lower center', ncol=3)
 
-    # Adjust subplot spacing to make room for legends and add space between plots
-    plt.subplots_adjust(bottom=0.2, wspace=0.4)
+    if group_fluxes:
+        # Second row - energy group specific profiles
+        ax3 = fig.add_subplot(gs[1, 0])
+        ax4 = fig.add_subplot(gs[1, 1])
+        ax5 = fig.add_subplot(gs[1, 2])
 
-    plt.savefig(os.path.join(plot_dir, 'normalized_flux_profiles.png'),
+        # Create twin axes for the second row
+        ax3_norm = ax3.twinx()
+        ax4_norm = ax4.twinx()
+
+        colors = {'thermal': 'b', 'epithermal': 'g', 'fast': 'r'}
+        location_colors = {'center': 'b', 'half': 'g', 'edge': 'r', 'mid_to_core': 'm', 'core_edge': 'k'}
+        location_names = {
+            'center': 'Core Center (r=0)',
+            'half': f'50% to Core Edge (r={active_core_radius/2:.1f} cm)',
+            'edge': f'Core Edge (r={active_core_radius:.1f} cm)',
+            'mid_to_core': f'50% Core Edge to Tank Edge (r={(active_core_radius + tank_radius)/2:.1f} cm)',
+            'core_edge': f'Tank Edge (r={tank_radius:.1f} cm)'
+        }
+        energy_linestyles = {'thermal': '-', 'epithermal': '--', 'fast': ':'}
+
+        # Plot energy group specific axially averaged profiles
+        for group_name, group_flux in group_fluxes.items():
+            # Calculate axially averaged profiles for this group
+            avg_flux_x = np.mean(group_flux[:, :, center_y], axis=0)
+            avg_flux_y = np.mean(group_flux[:, center_x, :], axis=0)
+            avg_flux_diag1 = np.mean(group_flux[:,
+                                              center_x + diagonal_coords,
+                                              center_y + diagonal_coords], axis=0)
+            avg_flux_diag2 = np.mean(group_flux[:,
+                                              center_x + diagonal_coords,
+                                              center_y - diagonal_coords], axis=0)
+
+            # Plot on ax3
+            ax3.plot(x, avg_flux_x, color=colors[group_name], linestyle='-',
+                    label=f'{group_name.capitalize()} (All Directions)')
+            ax3.plot(y, avg_flux_y, color=colors[group_name], linestyle='-')
+            ax3.plot(r_diag, avg_flux_diag1, color=colors[group_name], linestyle='-')
+            ax3.plot(r_diag, avg_flux_diag2, color=colors[group_name], linestyle='-')
+
+            # Plot midplane profiles for this group
+            radial_flux_x = group_flux[center_z, :, center_y]
+            radial_flux_y = group_flux[center_z, center_x, :]
+            radial_flux_diag1 = group_flux[center_z,
+                                         center_x + diagonal_coords,
+                                         center_y + diagonal_coords]
+            radial_flux_diag2 = group_flux[center_z,
+                                         center_x + diagonal_coords,
+                                         center_y - diagonal_coords]
+
+            # Plot on ax4
+            ax4.plot(x, radial_flux_x, color=colors[group_name], linestyle='-',
+                    label=f'{group_name.capitalize()} (All Directions)')
+            ax4.plot(y, radial_flux_y, color=colors[group_name], linestyle='-')
+            ax4.plot(r_diag, radial_flux_diag1, color=colors[group_name], linestyle='-')
+            ax4.plot(r_diag, radial_flux_diag2, color=colors[group_name], linestyle='-')
+
+        # Plot axial profiles with all locations and energy groups
+        for loc_name, loc_color in location_colors.items():
+            # Get the appropriate radius index
+            if loc_name == 'center':
+                radius_idx = 0
+            elif loc_name == 'half':
+                radius_idx = half_fuel_idx
+            elif loc_name == 'edge':
+                radius_idx = assembly_edge_idx
+            elif loc_name == 'mid_to_core':
+                radius_idx = fuel_to_core_edge_idx
+            else:  # core_edge
+                radius_idx = core_edge_idx
+
+            # Plot each energy group for this location
+            for group_name, group_flux in group_fluxes.items():
+                axial_flux = get_circular_average_flux(group_flux, radius_idx)
+                ax5.plot(axial_flux, z, color=loc_color, linestyle=energy_linestyles[group_name],
+                        label=location_names[loc_name] if group_name == 'thermal' else '')
+
+        # Add boundaries to energy group plots
+        for ax in [ax3, ax3_norm, ax4, ax4_norm]:
+            ax.axvline(x=active_core_radius, color='red', linestyle='--', label='Active Core')
+            ax.axvline(x=-active_core_radius, color='red', linestyle='--')
+            ax.axvline(x=tank_radius, color='blue', linestyle='--', label='Tank')
+            ax.axvline(x=-tank_radius, color='blue', linestyle='--')
+            ax.axvline(x=reflector_radius, color='green', linestyle='--', label='Reflector')
+            ax.axvline(x=-reflector_radius, color='green', linestyle='--')
+
+        # Add fuel height lines to axial plot
+        ax5.axhline(y=half_height, color='gray', linestyle='--', label='Fuel Boundary')
+        ax5.axhline(y=-half_height, color='gray', linestyle='--')
+
+        # Configure energy group plot axes
+        ax3.set_title('Energy Group Axially Averaged Radial Flux Profiles')
+        ax3.set_xlabel('Distance from Center [cm]')
+        ax3.set_ylabel('Flux [n/cm²/s]')
+        ax3.grid(True)
+        ax3.legend(bbox_to_anchor=(0.5, -0.09), loc='upper center', ncol=3)
+
+        ax4.set_title('Energy Group Radial Flux Profiles (Z Mid-plane)')
+        ax4.set_xlabel('Distance from Center [cm]')
+        ax4.set_ylabel('Flux [n/cm²/s]')
+        ax4.grid(True)
+        ax4.legend(bbox_to_anchor=(0.5, -0.09), loc='upper center', ncol=3)
+
+        ax5.set_title('Energy Group Axial Flux Profiles')
+        ax5.set_xlabel('Flux [n/cm²/s]')
+        ax5.set_ylabel('Height [cm]')
+        ax5.grid(True)
+        # Add legend for locations
+        ax5.legend(bbox_to_anchor=(0.5, -0.09), loc='upper center', ncol=2)
+        # Add line style legend
+        fig.text(0.85, 0.3, 'Line styles:\nSolid = Thermal\nDashed = Epithermal\nDotted = Fast',
+                bbox=dict(facecolor='white', alpha=0.8))
+
+    # Adjust subplot spacing
+    plt.subplots_adjust(bottom=0.2, wspace=0.4, hspace=0.4 if group_fluxes else 0.2)
+
+    plt.savefig(os.path.join(plot_dir, filename),
                 dpi=300, bbox_inches='tight')
     plt.close()
+
+def plot_normalized_flux_profiles(sp, plot_dir):
+    """Plot normalized radial and axial flux profiles.
+
+    Parameters
+    ----------
+    sp : openmc.StatePoint
+        StatePoint file containing the tally results
+    plot_dir : str
+        Directory to save the plots
+    """
+    # Get the mesh tally
+    mesh_tally = sp.get_tally(name='flux_mesh')
+    flux = mesh_tally.get_slice(scores=['flux'])
+
+    # Calculate actual core dimensions based on maximum fuel assembly row
+    core_layout = np.array(inputs['core_lattice'])
+    # Count actual fuel assemblies (F and E positions) in each row
+    max_fuel_assemblies = max(sum(1 for pos in row if pos in ['F', 'E']) for row in core_layout)
+
+    # Calculate the side length based on assembly type
+    if inputs['assembly_type'] == 'Plate':
+        assembly_unit_width = (inputs['fuel_plate_width'] + 2*inputs['clad_structure_width']) * 100  # cm
+    else:  # Pin type
+        assembly_unit_width = (inputs['pin_pitch'] * inputs['n_side_pins']) * 100  # cm
+
+    total_width = max_fuel_assemblies * assembly_unit_width
+    half_width = total_width / 2
+
+    # Get dimensions from inputs (in cm)
+    active_core_radius = half_width  # Use calculated fuel region radius for core lines
+    tank_radius = inputs['tank_radius'] * 100  # Tank outer boundary
+    reflector_radius = tank_radius + inputs['reflector_thickness'] * 100  # Reflector outer boundary
+    half_height = inputs['fuel_height'] * 50  # Just use fuel height
+
+    # Get mesh dimensions from the tally
+    mesh_filter = mesh_tally.find_filter(openmc.MeshFilter)
+    shape = mesh_filter.mesh.dimension
+
+    # Calculate mesh volume
+    mesh_volume = (2 * reflector_radius / shape[0]) * (2 * reflector_radius / shape[1]) * (2 * half_height / shape[2])
+
+    # Create numpy arrays from tally data and normalize
+    power_mw = inputs.get('core_power', 1.0)
+    norm_factor = calc_norm_factor(power_mw, sp)
+
+    if inputs['Core_Three_Group_Energy_Bins']:
+        # Create directory for energy group plots
+        energy_group_dir = os.path.join(plot_dir, '3_energy_group_maps')
+        os.makedirs(energy_group_dir, exist_ok=True)
+
+        # Get energy boundaries
+        energy_bounds = [0.0, inputs['thermal_cutoff'], inputs['fast_cutoff'], 20.0e6]
+        group_names = ['thermal', 'epithermal', 'fast']
+
+        # Process each energy group
+        n_spatial = np.prod(shape)
+        mean_data = flux.mean.reshape(n_spatial, -1)
+
+        # Create dictionary to store group fluxes
+        group_fluxes = {}
+
+        # Process each energy group
+        for group_idx, group_name in enumerate(group_names):
+            # Extract and reshape data for this group
+            group_mean = mean_data[:, group_idx].reshape(shape) * norm_factor / mesh_volume
+            group_fluxes[group_name] = group_mean
+
+            # Create title prefix with energy range
+            title_prefix = f"{group_names[group_idx].capitalize()} Group ({energy_bounds[group_idx]:.3e} - {energy_bounds[group_idx+1]:.3e} eV)\n"
+
+            # Create individual group plots
+            create_flux_profile_plots(
+                group_mean, shape,
+                energy_group_dir,  # Use energy_group_dir instead of plot_dir
+                f'normalized_flux_profiles_{group_names[group_idx]}.png',
+                title_prefix,
+                active_core_radius, tank_radius, reflector_radius, half_height
+            )
+
+        # Calculate total flux for main plot
+        mean_sum = np.sum(mean_data, axis=1)
+        flux_mean = mean_sum.reshape(shape) * norm_factor / mesh_volume
+    else:
+        # No energy bins - direct reshape
+        flux_mean = flux.mean.reshape(shape) * norm_factor / mesh_volume
+        group_fluxes = None
+
+    # Create main total flux plot
+    create_flux_profile_plots(
+        flux_mean, shape,
+        plot_dir, 'normalized_flux_profiles.png',
+        "Total ",
+        active_core_radius, tank_radius, reflector_radius, half_height,
+        group_fluxes=group_fluxes
+    )
