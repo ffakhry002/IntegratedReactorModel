@@ -1,6 +1,5 @@
-"""
-Functions for creating core-wide tallies (nu-fission, fission, and core flux mesh).
-"""
+import openmc
+from inputs import inputs
 
 import openmc
 from inputs import inputs
@@ -28,7 +27,18 @@ def create_nutotal_tallies():
     return tallies
 
 def create_coreflux_tallys():
-    """Create a mesh tally covering the entire core including shields."""
+    """Create a mesh tally covering the entire core including shields.
+
+    The tally includes three energy groups:
+    - Thermal: E < thermal_cutoff (default: 0.625 eV)
+    - Epithermal: thermal_cutoff < E < fast_cutoff (default: 0.625 eV to 100 keV)
+    - Fast: E > fast_cutoff (default: 100 keV)
+
+    Returns
+    -------
+    openmc.Tallies
+        Collection of mesh tallies for core flux
+    """
     tallies = openmc.Tallies()
 
     # Create mesh covering core + reflector + bioshield
@@ -45,17 +55,23 @@ def create_coreflux_tallys():
     mesh.lower_left = [-total_radius, -total_radius, -half_height]
     mesh.upper_right = [total_radius, total_radius, half_height]
 
-    # Calculate mesh volume for normalization
-    dx = 2 * total_radius / mesh.dimension[0]
-    dy = 2 * total_radius / mesh.dimension[1]
-    dz = 2 * half_height / mesh.dimension[2]
-    mesh_volume = dx * dy * dz
-
-    # Create mesh filter and tally
+    # Create mesh filter
     mesh_filter = openmc.MeshFilter(mesh)
-    mesh_tally = openmc.Tally(name='flux_mesh')
-    mesh_tally.filters = [mesh_filter]
-    mesh_tally.scores = ['flux']
 
+    # Define three energy groups using cutoffs from inputs
+    thermal_cutoff = inputs.get('thermal_cutoff', 0.625)  # Default: 0.625 eV
+    fast_cutoff = inputs.get('fast_cutoff', 100000.0)     # Default: 100 keV
+
+    # Create energy bins for three groups: [0, thermal, fast, 20M]
+    energy_bins = [0.0, thermal_cutoff, fast_cutoff, 20.0e6]
+    energy_filter = openmc.EnergyFilter(energy_bins)
+
+    # Create mesh tally with three energy groups
+    mesh_tally = openmc.Tally(name='flux_mesh')
+    if(inputs['Core_Three_Group_Energy_Bins']):
+        mesh_tally.filters = [mesh_filter, energy_filter]
+    else:
+        mesh_tally.filters = [mesh_filter]
+    mesh_tally.scores = ['flux']
     tallies.append(mesh_tally)
     return tallies

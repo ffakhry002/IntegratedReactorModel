@@ -42,13 +42,33 @@ def plot_flux_maps(sp, plot_dir):
     dz = 2 * half_height / shape[2]  # Use fuel height only
     mesh_volume = dx * dy * dz
 
+    # Process the flux data based on whether energy bins are present
+    if inputs['Core_Three_Group_Energy_Bins']:
+        # Reshape to separate spatial and energy dimensions
+        n_spatial = np.prod(shape)
+        mean_data = flux.mean.reshape(n_spatial, -1)  # -1 for energy groups
+        std_data = flux.std_dev.reshape(n_spatial, -1)
+
+        # Sum over energy groups
+        mean_sum = np.sum(mean_data, axis=1)
+        # Propagate uncertainties (quadrature sum)
+        std_sum = np.sqrt(np.sum(std_data**2, axis=1))
+
+        # Reshape to spatial mesh
+        flux_mean = mean_sum.reshape(shape)
+        flux_std = std_sum.reshape(shape)
+    else:
+        # No energy bins - direct reshape
+        flux_mean = flux.mean.reshape(shape)
+        flux_std = flux.std_dev.reshape(shape)
+
     # Create numpy arrays from tally data and normalize
     power_mw = inputs.get('core_power', 1.0)
     norm_factor = calc_norm_factor(power_mw, sp)
 
     # Normalize by both power and volume
-    flux_mean = flux.mean.reshape(shape) * norm_factor / mesh_volume
-    flux_std = flux.std_dev.reshape(shape) * norm_factor / mesh_volume
+    flux_mean = flux_mean * norm_factor / mesh_volume
+    flux_std = flux_std * norm_factor / mesh_volume
 
     # Calculate axially averaged flux
     flux_mean_axial_avg = np.mean(flux_mean, axis=0)  # Average along Z axis

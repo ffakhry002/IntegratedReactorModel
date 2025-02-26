@@ -29,10 +29,10 @@ base_inputs = {
 
     # Axial Core Geometry
     "bottom_bioshield_thickness": 0.5,  # Bottom bioshield thickness [m]
-    "bottom_reflector_thickness": 0.3,  # Bottom reflector thickness [m]
+    "bottom_reflector_thickness": 0.0,  # Bottom reflector thickness [m]
     "feed_thickness": 2,            # Feed region thickness [m]
     "plenum_height": 2,             # Plenum height [m]
-    "top_reflector_thickness": 0.3,   # Top reflector thickness [m]
+    "top_reflector_thickness": 0.0,   # Top reflector thickness [m]
     "top_bioshield_thickness": 0.5,    # Top bioshield thickness [m]
 
     # Pin Fuel Assembly Parameters
@@ -101,6 +101,8 @@ base_inputs = {
     "thermal_cutoff": 0.625,          # Thermal/epithermal boundary [eV]
     "fast_cutoff": 100.0e3,          # Epithermal/fast boundary [eV]
 
+    # Additional Tallies
+    "Core_Three_Group_Energy_Bins": True, # True: use three energy bins, False: don't tally energy groups
     ###########################################
     # Depletion Calculation Parameters
     ###########################################
