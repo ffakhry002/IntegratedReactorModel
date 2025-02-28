@@ -16,24 +16,24 @@ base_inputs = {
     ],
     # Core Operating Parameters
     "core_power": 10,              # Core power [MW]
-    "fuel_height": 1.5,            # Active fuel height [m]
+    "fuel_height": 0.6,            # Active fuel height [m]
     "assembly_type": 'Plate',        # Assembly type: 'Pin' or 'Plate'
 
     ###########################################
     # Geometry Specifications
     ###########################################
     # Radial Core Geometry
-    "tank_radius": 0.5,            # Reactor tank radius [m]
-    "reflector_thickness": 0.0,    # Radial reflector thickness [m]
+    "tank_radius": 0.25,            # Reactor tank radius [m]
+    "reflector_thickness": 0.1,    # Radial reflector thickness [m]
     "bioshield_thickness": 0.25,    # Radial bioshield thickness [m]
 
     # Axial Core Geometry
-    "bottom_bioshield_thickness": 0.5,  # Bottom bioshield thickness [m]
-    "bottom_reflector_thickness": 0.0,  # Bottom reflector thickness [m]
-    "feed_thickness": 2,            # Feed region thickness [m]
-    "plenum_height": 2,             # Plenum height [m]
+    "bottom_bioshield_thickness": 0.9,  # Bottom bioshield thickness [m]
+    "bottom_reflector_thickness": 0.3,  # Bottom reflector thickness [m]
+    "feed_thickness": 0,            # Feed region thickness [m]
+    "plenum_height": 1.7,             # Plenum height [m]
     "top_reflector_thickness": 0.0,   # Top reflector thickness [m]
-    "top_bioshield_thickness": 0.5,    # Top bioshield thickness [m]
+    "top_bioshield_thickness": 0.0,    # Top bioshield thickness [m]
 
     # Pin Fuel Assembly Parameters
     "pin_pitch": 0.0126,          # Pin-to-pin pitch [m]
@@ -94,7 +94,7 @@ base_inputs = {
     # Standard Transport Settings
     "batches": 150,                   # Number of active batches
     "inactive": 20,                   # Number of inactive batches
-    "particles": int(2.5e4),            # Particles per batch
+    "particles": int(1e4),            # Particles per batch
     "energy_structure": 'log1001',    # Energy group structure
 
     # Energy Group Boundaries
@@ -102,12 +102,14 @@ base_inputs = {
     "fast_cutoff": 100.0e3,          # Epithermal/fast boundary [eV]
 
     # Additional Tallies
-    "Core_Three_Group_Energy_Bins": True, # True: use three energy bins for core tallies, False: don't tally energy groups
+    "Core_Three_Group_Energy_Bins": False, # True: use three energy bins for core tallies, False: don't tally energy groups
+    "element_level_power_tallies": False, # True: tally power for individual fuel elements, False: tally power for assemblies
+
     ###########################################
     # Depletion Calculation Parameters
     ###########################################
     # Depletion Scenario Selection (only one should be True)
-    "deplete_core": True,                    # Full core depletion
+    "deplete_core": False,                    # Full core depletion
     "deplete_assembly": False,               # Single assembly with reflective BC
     "deplete_assembly_enhanced": False,      # Single enhanced assembly with reflective BC
     "deplete_element": False,                # Single fuel element with reflective BC
@@ -151,7 +153,7 @@ base_inputs = {
     # Miscellaneous Settings
     ###########################################
     "outputs_folder": "local_outputs",  # Base output directory
-    "pixels": (1000, 1000),            # Plot resolution
+    "pixels": (8000, 8000),            # Plot resolution
 }
 
 
