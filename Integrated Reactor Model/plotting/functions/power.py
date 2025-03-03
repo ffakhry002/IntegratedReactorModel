@@ -22,7 +22,7 @@ def get_radial_profiles(element_data, core_layout, is_element_level=False):
     -------
     tuple
         Contains x_positions, y_positions and their corresponding power values
-        in format (x_pos, x_powers, x_linear, y_pos, y_powers, y_linear)
+        in format (x_pos, x_powers, x_linear, x_linear_mid, y_pos, y_powers, y_linear, y_linear_mid)
     """
     # Convert core layout to numpy array for easier manipulation
     layout = np.array(core_layout)
@@ -36,8 +36,15 @@ def get_radial_profiles(element_data, core_layout, is_element_level=False):
         assembly_pitch = inputs['fuel_plate_width'] + 2*inputs['clad_structure_width']
 
     # Initialize lists for each direction
-    x_pos, x_powers, x_linear = [], [], []
-    y_pos, y_powers, y_linear = [], [], []
+    x_pos, x_powers, x_linear, x_linear_mid = [], [], [], []
+    y_pos, y_powers, y_linear, y_linear_mid = [], [], [], []
+
+    # Find center z-index for midplane
+    center_z = None
+    for data in element_data.values():
+        if 'axial_distribution' in data:
+            center_z = len(data['axial_distribution']) // 2
+            break
 
     if not is_element_level:
         # Assembly-level data processing (original implementation)
@@ -51,12 +58,16 @@ def get_radial_profiles(element_data, core_layout, is_element_level=False):
                 x_pos.append(x)
                 x_powers.append(data['total_power'])
                 x_linear.append(np.mean(data['axial_distribution']))
+                if center_z is not None:
+                    x_linear_mid.append(data['axial_distribution'][center_z])
 
             # Y direction (x ≈ 0)
             if j == center_j:
                 y_pos.append(y)
                 y_powers.append(data['total_power'])
                 y_linear.append(np.mean(data['axial_distribution']))
+                if center_z is not None:
+                    y_linear_mid.append(data['axial_distribution'][center_z])
     else:
         # Element-level data processing
         if inputs['assembly_type'] == 'Pin':
@@ -94,11 +105,15 @@ def get_radial_profiles(element_data, core_layout, is_element_level=False):
                 x_pos.append(x_pos_m)
                 x_powers.append(data['total_power'])
                 x_linear.append(np.mean(data['axial_distribution']))
+                if center_z is not None:
+                    x_linear_mid.append(data['axial_distribution'][center_z])
 
             for y_pos_m, data in sorted(y_elements.items()):
                 y_pos.append(y_pos_m)
                 y_powers.append(data['total_power'])
                 y_linear.append(np.mean(data['axial_distribution']))
+                if center_z is not None:
+                    y_linear_mid.append(data['axial_distribution'][center_z])
 
         else:
             # For plate-type elements
@@ -137,20 +152,37 @@ def get_radial_profiles(element_data, core_layout, is_element_level=False):
                 x_pos.append(x_pos_m)
                 x_powers.append(data['total_power'])
                 x_linear.append(np.mean(data['axial_distribution']))
+                if center_z is not None:
+                    x_linear_mid.append(data['axial_distribution'][center_z])
 
             for y_pos_m, data in sorted(y_elements.items()):
                 y_pos.append(y_pos_m)
                 y_powers.append(data['total_power'])
                 y_linear.append(np.mean(data['axial_distribution']))
+                if center_z is not None:
+                    y_linear_mid.append(data['axial_distribution'][center_z])
 
     # Convert lists to tuples for return
     if len(x_pos) > 0:
-        x_pos, x_powers, x_linear = zip(*sorted(zip(x_pos, x_powers, x_linear)))
-    if len(y_pos) > 0:
-        y_pos, y_powers, y_linear = zip(*sorted(zip(y_pos, y_powers, y_linear)))
+        # Sort everything together based on x_pos
+        sort_indices = np.argsort(x_pos)
+        x_pos = [x_pos[i] for i in sort_indices]
+        x_powers = [x_powers[i] for i in sort_indices]
+        x_linear = [x_linear[i] for i in sort_indices]
+        if x_linear_mid:
+            x_linear_mid = [x_linear_mid[i] for i in sort_indices]
 
-    return (x_pos, x_powers, x_linear,
-            y_pos, y_powers, y_linear)
+    if len(y_pos) > 0:
+        # Sort everything together based on y_pos
+        sort_indices = np.argsort(y_pos)
+        y_pos = [y_pos[i] for i in sort_indices]
+        y_powers = [y_powers[i] for i in sort_indices]
+        y_linear = [y_linear[i] for i in sort_indices]
+        if y_linear_mid:
+            y_linear_mid = [y_linear_mid[i] for i in sort_indices]
+
+    return (x_pos, x_powers, x_linear, x_linear_mid,
+            y_pos, y_powers, y_linear, y_linear_mid)
 
 def plot_power_distributions(sp, plot_dir):
     """Plot power distributions and save data to CSV.
@@ -351,8 +383,8 @@ def plot_power_distributions(sp, plot_dir):
     print(f"\nSaved detailed power distribution to: {csv_path}")
 
     # Get radial profiles
-    (x_pos, x_powers, x_linear,
-     y_pos, y_powers, y_linear) = get_radial_profiles(element_data, inputs['core_lattice'], is_element_level)
+    (x_pos, x_powers, x_linear, x_linear_mid,
+     y_pos, y_powers, y_linear, y_linear_mid) = get_radial_profiles(element_data, inputs['core_lattice'], is_element_level)
 
     # Create figure with three subplots
     if n_segments > 20 and n_segments % 20 == 0:
@@ -382,80 +414,15 @@ def plot_power_distributions(sp, plot_dir):
 
     # Plot 2: Linear powers comparison
     if len(x_pos) > 0:
-        ax_linear.plot(x_pos, x_linear, 'b--', label='X Direction (Avg)')
+        ax_linear.plot(x_pos, x_linear, 'b-', label='X Direction (Avg)')
     if len(y_pos) > 0:
-        ax_linear.plot(y_pos, y_linear, 'r--', label='Y Direction (Avg)')
+        ax_linear.plot(y_pos, y_linear, 'r-', label='Y Direction (Avg)')
 
-    # Add midplane values if we have enough elements
-    if len(element_data) > 0:
-        center_z = n_segments // 2
-
-        if is_element_level:
-            # For element-level data, we need to filter differently
-            if inputs['assembly_type'] == 'Pin':
-                # Get pins along center row
-                x_linear_mid = []
-                for x_p in x_pos:
-                    for (i, j, pin_i, pin_j), data in element_data.items():
-                        # Calculate global position
-                        assembly_x = (j - len(core_layout[0])/2 + 0.5) * (inputs['pin_pitch'] * inputs['n_side_pins'])
-                        pin_x = (pin_j - inputs['n_side_pins']/2 + 0.5) * inputs['pin_pitch']
-                        global_x = assembly_x + pin_x
-
-                        if abs(global_x - x_p) < 0.0001:  # Close enough to be the same point
-                            x_linear_mid.append(data['axial_distribution'][center_z])
-                            break
-
-                # Get pins along center column
-                y_linear_mid = []
-                for y_p in y_pos:
-                    for (i, j, pin_i, pin_j), data in element_data.items():
-                        # Calculate global position
-                        assembly_y = (i - len(core_layout)/2 + 0.5) * (inputs['pin_pitch'] * inputs['n_side_pins'])
-                        pin_y = (pin_i - inputs['n_side_pins']/2 + 0.5) * inputs['pin_pitch']
-                        global_y = assembly_y + pin_y
-
-                        if abs(global_y - y_p) < 0.0001:  # Close enough to be the same point
-                            y_linear_mid.append(data['axial_distribution'][center_z])
-                            break
-            else:
-                # For plates, which are stacked in y-direction
-                # Get center plates along x-axis
-                x_linear_mid = []
-                for x_p in x_pos:
-                    for (i, j, plate_k), data in element_data.items():
-                        # Calculate global position
-                        assembly_x = (j - len(core_layout[0])/2 + 0.5) * (inputs['fuel_plate_width'] + 2*inputs['clad_structure_width'])
-
-                        if abs(assembly_x - x_p) < 0.0001:  # Close enough to be the same point
-                            x_linear_mid.append(data['axial_distribution'][center_z])
-                            break
-
-                # Get all plates along y-axis
-                y_linear_mid = []
-                for y_p in y_pos:
-                    for (i, j, plate_k), data in element_data.items():
-                        # Calculate global position
-                        assembly_y = (i - len(core_layout)/2 + 0.5) * (inputs['fuel_plate_width'] + 2*inputs['clad_structure_width'])
-                        plate_y = (plate_k - inputs['plates_per_assembly']/2 + 0.5) * inputs['fuel_plate_pitch']
-                        global_y = assembly_y + plate_y
-
-                        if abs(global_y - y_p) < 0.0001:  # Close enough to be the same point
-                            y_linear_mid.append(data['axial_distribution'][center_z])
-                            break
-        else:
-            # Original assembly-level implementation
-            x_linear_mid = [data['axial_distribution'][center_z]
-                           for (i, j), data in element_data.items()
-                           if i == len(core_layout) // 2]
-            y_linear_mid = [data['axial_distribution'][center_z]
-                           for (i, j), data in element_data.items()
-                           if j == len(core_layout[0]) // 2]
-
-        if len(x_pos) > 0 and len(x_linear_mid) > 0:
-            ax_linear.plot(x_pos, x_linear_mid, 'b-', label='X Direction (Midplane)')
-        if len(y_pos) > 0 and len(y_linear_mid) > 0:
-            ax_linear.plot(y_pos, y_linear_mid, 'r-', label='Y Direction (Midplane)')
+    # Add midplane values if available
+    if len(x_pos) > 0 and len(x_linear_mid) > 0:
+        ax_linear.plot(x_pos, x_linear_mid, 'b--', label='X Direction (Midplane)')
+    if len(y_pos) > 0 and len(y_linear_mid) > 0:
+        ax_linear.plot(y_pos, y_linear_mid, 'r--', label='Y Direction (Midplane)')
 
     ax_linear.set_xlabel('Distance from Core Center [m]')
     ax_linear.set_ylabel('Linear Power per Element [kW/m]')

@@ -136,7 +136,18 @@ def plot_flux_trap_distributions(sp, power_mw, plot_dir):
     # Plot axial flux distributions
     colors = plt.cm.viridis(np.linspace(0, 1, len(three_group_data)))
     half_height = inputs['fuel_height'] * 50  # Convert to cm
-    z = np.linspace(-half_height, half_height, 50)  # Match n_axial_segments default
+
+    # Get the number of axial segments from the first axial tally
+    n_axial_segments = None
+    for tally in sp.tallies.values():
+        if tally.name.endswith('_axial'):
+            n_axial_segments = tally.mean.shape[0]
+            break
+
+    if n_axial_segments is None:
+        raise ValueError("No axial tallies found")
+
+    z = np.linspace(-half_height, half_height, n_axial_segments)  # Match actual number of segments
 
     for tally in sp.tallies.values():
         if tally.name.endswith('_axial'):
