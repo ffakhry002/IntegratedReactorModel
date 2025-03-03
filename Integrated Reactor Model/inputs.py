@@ -7,17 +7,17 @@ base_inputs = {
     "core_lattice": [  # C: coolant, F: fuel assembly
         ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
         ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+        ['F', 'F', 'I_1', 'F', 'F', 'I_4', 'F', 'F'],
         ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
         ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-        ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-        ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+        ['F', 'F', 'I_2', 'F', 'F', 'I_3', 'F', 'F'],
         ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
         ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
     ],
     # Core Operating Parameters
     "core_power": 10,              # Core power [MW]
     "fuel_height": 0.6,            # Active fuel height [m]
-    "assembly_type": 'Plate',        # Assembly type: 'Pin' or 'Plate'
+    "assembly_type": 'Pin',        # Assembly type: 'Pin' or 'Plate'
 
     ###########################################
     # Geometry Specifications
@@ -41,7 +41,7 @@ base_inputs = {
     "r_clad_inner": 0.0042,      # Cladding inner radius [m]
     "r_clad_outer": 0.00475,     # Cladding outer radius [m]
     "n_side_pins": 3,            # Number of pins per assembly side
-    "guide_tube_positions": [],   # List of (x,y) tuples for guide tube positions
+    "guide_tube_positions": [(1,1)],   # List of (x,y) tuples for guide tube positions
 
     # Plate Fuel Assembly Parameters
     "fuel_meat_width": 3.91/100,      # Fuel meat width [m]
@@ -102,8 +102,8 @@ base_inputs = {
     "fast_cutoff": 100.0e3,          # Epithermal/fast boundary [eV]
 
     # Additional Tallies
-    "Core_Three_Group_Energy_Bins": False, # True: use three energy bins for core tallies, False: don't tally energy groups
-    "element_level_power_tallies": False, # True: tally power for individual fuel elements, False: tally power for assemblies
+    "Core_Three_Group_Energy_Bins": True, # True: use three energy bins for core tallies, False: don't tally energy groups
+    "element_level_power_tallies": True, # True: tally power for individual fuel elements, False: tally power for assemblies
 
     ###########################################
     # Depletion Calculation Parameters
@@ -153,7 +153,7 @@ base_inputs = {
     # Miscellaneous Settings
     ###########################################
     "outputs_folder": "local_outputs",  # Base output directory
-    "pixels": (8000, 8000),            # Plot resolution
+    "pixels": (1000, 1000),            # Plot resolution
 }
 
 
