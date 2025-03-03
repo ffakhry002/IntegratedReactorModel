@@ -16,7 +16,7 @@ from plotting.functions.flux_maps import plot_flux_maps
 from plotting.functions.normalized_flux_profiles import plot_normalized_flux_profiles
 from plotting.functions.entropy import plot_entropy
 from plotting.functions.depletion import plot_depletion_results
-from plotting.functions.power import plot_power_distributions
+from plotting.functions.power import plot_power_distributions, plot_2d_power_map
 
 def plot_all(plot_dir=None, depletion_plot_dir=None):
     """Plot all distributions from the simulation results.
@@ -109,6 +109,12 @@ def plot_all(plot_dir=None, depletion_plot_dir=None):
         plot_power_distributions(sp, power_plot_dir)
     except Exception as e:
         print(f"Error generating power distribution plots: {str(e)}")
+
+    try:
+        print("\nGenerating 2D power map...")
+        plot_2d_power_map(sp, power_plot_dir)
+    except Exception as e:
+        print(f"Error generating 3D power map: {str(e)}")
 
     print(f"\nFlux plots have been saved to: {flux_plot_dir}")
     print(f"Power plots have been saved to: {power_plot_dir}")

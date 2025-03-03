@@ -17,7 +17,7 @@ base_inputs = {
     # Core Operating Parameters
     "core_power": 10,              # Core power [MW]
     "fuel_height": 0.6,            # Active fuel height [m]
-    "assembly_type": 'Pin',        # Assembly type: 'Pin' or 'Plate'
+    "assembly_type": 'Plate',        # Assembly type: 'Pin' or 'Plate'
 
     ###########################################
     # Geometry Specifications
@@ -153,7 +153,7 @@ base_inputs = {
     # Miscellaneous Settings
     ###########################################
     "outputs_folder": "local_outputs",  # Base output directory
-    "pixels": (1000, 1000),            # Plot resolution
+    "pixels": (8000, 8000),            # Plot resolution
 }
 
 
