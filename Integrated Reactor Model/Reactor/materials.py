@@ -105,7 +105,7 @@ def make_materials(th_system=None, mat_list=None):
 
             u3si2_enhanced = openmc.Material.mix_materials([u_enriched_enhanced, si_material], [0.6, 0.4], 'ao',
                                                          name='U3Si2-Enhanced')
-            u3si2_enhanced.set_density('g/cm3', 12.0)
+            u3si2_enhanced.set_density('g/cm3', 5.7)
             u3si2_enhanced.temperature = np.mean(TH_data['T_fuel_avg_z'])
             u3si2_enhanced.depletable = True  # Mark as depletable
             material_list.append(u3si2_enhanced)
