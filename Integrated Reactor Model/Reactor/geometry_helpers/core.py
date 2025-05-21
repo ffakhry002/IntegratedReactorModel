@@ -51,7 +51,7 @@ def build_core_uni(mat_dict):
 
     # Create core lattice
     lattice_array = np.array(inputs['core_lattice'])
-    n_assemblies = len(lattice_array)
+    n_rows, n_cols = lattice_array.shape
 
     # Calculate assembly pitch
     if inputs['assembly_type'] == 'Pin':
@@ -62,8 +62,14 @@ def build_core_uni(mat_dict):
 
     # Define core lattice
     core_lattice = openmc.RectLattice()
-    core_lattice.lower_left = (-n_assemblies * assembly_pitch / 2,
-                              -n_assemblies * assembly_pitch / 2)
+
+    # Calculate lower left position to ensure the center of the lattice is at (0,0)
+    # For odd-sized grids, the center point is the center of the middle assembly
+    # For even-sized grids, the center point is at the corner where the central assemblies meet
+    ll_x = -assembly_pitch * n_cols / 2
+    ll_y = -assembly_pitch * n_rows / 2
+
+    core_lattice.lower_left = (ll_x, ll_y)
     core_lattice.pitch = (assembly_pitch, assembly_pitch)
 
     # Create universe array with proper bounds
@@ -71,8 +77,8 @@ def build_core_uni(mat_dict):
     first_irr_universe = None
 
     # Fill universe array
-    for i in range(n_assemblies):
-        for j in range(n_assemblies):
+    for i in range(n_rows):
+        for j in range(n_cols):
             position = (i, j)
             if lattice_array[i,j] == 'F':
                 universe_array[i,j] = build_pin_assembly(mat_dict, position=position) if inputs['assembly_type'] == 'Pin' \

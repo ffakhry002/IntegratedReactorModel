@@ -4,7 +4,7 @@ base_inputs = {
     # Core Configuration
     ###########################################
     # Core Layout
-    "core_lattice": [  # C: coolant, F: fuel assembly
+    "core_lattice": [  # C: coolant, F: fuel assembly, E: enriched fuel assembly, I: irradiation position
         ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
         ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
         ['F', 'F', 'I_1', 'F', 'F', 'I_4', 'F', 'F'],
@@ -14,10 +14,10 @@ base_inputs = {
         ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
         ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
     ],
+
     # Core Operating Parameters
     "core_power": 10,              # Core power [MW]
-    "fuel_height": 0.6,            # Active fuel height [m]
-    "assembly_type": 'Plate',        # Assembly type: 'Pin' or 'Plate'
+    "assembly_type": 'Pin',        # Assembly type: 'Pin' or 'Plate'
 
     ###########################################
     # Geometry Specifications
@@ -34,6 +34,8 @@ base_inputs = {
     "plenum_height": 1.7,             # Plenum height [m]
     "top_reflector_thickness": 0.0,   # Top reflector thickness [m]
     "top_bioshield_thickness": 0.0,    # Top bioshield thickness [m]
+
+    "fuel_height": 0.6,            # Active fuel height [m]
 
     # Pin Fuel Assembly Parameters
     "pin_pitch": 0.0126,          # Pin-to-pin pitch [m]
@@ -69,17 +71,18 @@ base_inputs = {
     ###########################################
     # Thermal Hydraulics Parameters
     ###########################################
-    "input_power_density": 100,        # Power density [kW/L]
-    "max_linear_power": 70,           # Maximum linear power [kW/m]
-    "average_linear_power": 50,       # Average linear power [kW/m]
     "reactor_pressure": 3e5,          # System pressure [Pa]
     "flow_rate": 3,                   # Coolant flow rate [m/s]
     "T_inlet": 273.15 + 42,          # Inlet temperature [K]
-    "cos_curve_squeeze": 0,           # Axial power shape parameter [0-1]
 
-    # Power calculation mode for thermal hydraulics
-    "CP_PD_MLP_ALP": "CP",           # CP: core power, PD: power density
+    # Direct Thermal hydraulics calculation mode only
+    "input_power_density": 100,        # Power density [kW/L]
+    "max_linear_power": 70,           # Maximum linear power [kW/m]
+    "average_linear_power": 50,       # Average linear power [kW/m]
+    "cos_curve_squeeze": 0,           # Axial power shape parameter [0-1]
+    "CP_PD_MLP_ALP": "MLP",          # CP: core power, PD: power density
                                      # MLP: max linear power, ALP: avg linear power
+                                     # Only for when running the thermal hydraulics code locally
 
     ###########################################
     # Irradiation Position Parameters
@@ -94,12 +97,18 @@ base_inputs = {
     # Standard Transport Settings
     "batches": 150,                   # Number of active batches
     "inactive": 20,                   # Number of inactive batches
-    "particles": int(1e4),            # Particles per batch
+    "particles": int(2e4),            # Particles per batch
     "energy_structure": 'log1001',    # Energy group structure
 
     # Energy Group Boundaries
     "thermal_cutoff": 0.625,          # Thermal/epithermal boundary [eV]
     "fast_cutoff": 100.0e3,          # Epithermal/fast boundary [eV]
+
+    # Tally Granularity Settings
+    "power_tally_axial_segments": 50,     # Number of axial segments for power tallies
+    "irradiation_axial_segments": 100,    # Number of axial segments for irradiation tallies
+    "core_mesh_dimension": [201, 201, 201], # Mesh resolution for core flux tallies
+    "entropy_mesh_dimension": [20, 20, 20],  # Mesh resolution for entropy calculation
 
     # Additional Tallies
     "Core_Three_Group_Energy_Bins": True, # True: use three energy bins for core tallies, False: don't tally energy groups
@@ -109,7 +118,7 @@ base_inputs = {
     # Depletion Calculation Parameters
     ###########################################
     # Depletion Scenario Selection (only one should be True)
-    "deplete_core": False,                    # Full core depletion
+    "deplete_core": True,                    # Full core depletion
     "deplete_assembly": False,               # Single assembly with reflective BC
     "deplete_assembly_enhanced": False,      # Single enhanced assembly with reflective BC
     "deplete_element": False,                # Single fuel element with reflective BC
@@ -118,16 +127,15 @@ base_inputs = {
     # Time Steps Configuration
     "depletion_timestep_units": "MWd/kgHM",  # Units for timesteps: 'MWd/kgHM' or 'days'
     "depletion_timesteps": [
-        {"steps": 1, "size": 0.1},  # 5 steps of 0.2 MWd/kgHM or days
-        # {"steps": 5, "size": 0.5},  # 10 steps of 1.0 MWd/kgHM or days
-        # {"steps": 5, "size": 2.5},   # 5 steps of 2.0 MWd/kgHM or days
-        # {"steps": 5, "size": 5},   # 5 steps of 2.0 MWd/kgHM or days
-        # {"steps": 5, "size": 10},   # 5 steps of 2.0 MWd/kgHM or days
-        # {"steps": 5, "size": 0}    # 5 steps of 10.0 MWd/kgHM or days
+        {"steps": 5, "size": 0.1},  # 5 steps of 0.2 MWd/kgHM or days
+        {"steps": 5, "size": 0.5},  # 10 steps of 1.0 MWd/kgHM or days
+        {"steps": 5, "size": 2.5},   # 5 steps of 2.0 MWd/kgHM or days
+        {"steps": 5, "size": 5},   # 5 steps of 2.0 MWd/kgHM or days
+        {"steps": 5, "size": 10},   # 5 steps of 2.0 MWd/kgHM or days
     ],
 
     # Transport Settings for Depletion
-    "depletion_particles": 100,       # Particles per batch for depletion
+    "depletion_particles": 1000,       # Particles per batch for depletion
     "depletion_batches": 100,         # Active batches for depletion
     "depletion_inactive": 20,         # Inactive batches for depletion
 

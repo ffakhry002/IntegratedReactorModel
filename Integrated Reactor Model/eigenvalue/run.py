@@ -82,7 +82,15 @@ def run_eigenvalue():
     settings.particles = particles
 
     # Calculate source region based on maximum fuel assembly row
-    max_assemblies = max([len(row) - list(row).count('C') for row in inputs['core_lattice']])
+    lattice_array = np.array(inputs['core_lattice'])
+    n_rows, n_cols = lattice_array.shape
+
+    # Count the effective number of assemblies in each row/column (excluding coolant)
+    row_counts = [np.sum([1 for cell in row if cell != 'C']) for row in lattice_array]
+    col_counts = [np.sum([1 for row in lattice_array if row[j] != 'C']) for j in range(n_cols)]
+
+    max_row_assemblies = max(row_counts)
+    max_col_assemblies = max(col_counts)
 
     # Calculate the side length based on assembly type
     if inputs['assembly_type'] == 'Plate':
@@ -90,14 +98,18 @@ def run_eigenvalue():
     else:  # Pin type
         assembly_unit_width = inputs['pin_pitch'] * inputs['n_side_pins'] * 100  # cm
 
-    total_width = max_assemblies * assembly_unit_width
-    half_width = total_width / 2
+    # Calculate total width of active core region
+    width_x = max_col_assemblies * assembly_unit_width
+    width_y = max_row_assemblies * assembly_unit_width
+
+    half_width_x = width_x / 2
+    half_width_y = width_y / 2
     half_height = inputs['fuel_height'] * 50   # Convert to cm
 
     # Create initial source distribution - use actual fuel region size
     uniform_dist = openmc.stats.Box(
-        [-half_width, -half_width, -half_height],
-        [half_width, half_width, half_height],
+        [-half_width_x, -half_width_y, -half_height],
+        [half_width_x, half_width_y, half_height],
         only_fissionable=True
     )
 
@@ -109,9 +121,9 @@ def run_eigenvalue():
 
     # Create entropy mesh matching the source region
     entropy_mesh = openmc.RegularMesh()
-    entropy_mesh.lower_left = [-half_width, -half_width, -half_height]
-    entropy_mesh.upper_right = [half_width, half_width, half_height]
-    entropy_mesh.dimension = [20, 20, 20]
+    entropy_mesh.lower_left = [-half_width_x, -half_width_y, -half_height]
+    entropy_mesh.upper_right = [half_width_x, half_width_y, half_height]
+    entropy_mesh.dimension = inputs['entropy_mesh_dimension']
     settings.entropy_mesh = entropy_mesh
 
     settings.temperature = {'method': 'interpolation', 'tolerance': 100}

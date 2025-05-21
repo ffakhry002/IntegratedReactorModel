@@ -1,6 +1,6 @@
 import numpy as np
-import pandas as pd
 import os
+from CoolProp.CoolProp import PropsSI
 
 def get_coolant_properties(th_system, temp_vector):
     """Get coolant properties based on type and temperature.
@@ -12,20 +12,23 @@ def get_coolant_properties(th_system, temp_vector):
     Returns:
         tuple: (coolant_density, specific_heat_capacity, thermal_conductivity, viscosity)
     """
-    # Get the path to the coolant data files
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    data_file = 'isobaric_lightwater_1atm.csv' if th_system.material.coolant_type == 'Light Water' else 'isobaric_heavywater_1atm.csv'
-    data_path = os.path.join(current_dir, 'coolant_data', data_file)
+    # Determine coolant fluid name for CoolProp
+    fluid = 'Water' if th_system.material.coolant_type == 'Light Water' else 'HeavyWater'
 
-    # Read and process the data
-    data = pd.read_csv(data_path)
-    data['Temperature [K]'] = data['Temperature [K]'].astype(float)
+    # Get pressure in Pa (default to 1 atm if not specified)
+    pressure = getattr(th_system.thermal_hydraulics, 'reactor_pressure', 101325.0)
 
-    # Interpolate properties
-    coolant_density = np.interp(temp_vector, data['Temperature [K]'], data['Density [g/ml]']) * 1000
-    specific_heat_capacity = np.interp(temp_vector, data['Temperature [K]'], data['Specific Heat Capacity [J/kg.K]'])
-    thermal_conductivity = np.interp(temp_vector, data['Temperature [K]'], data['Thermal Conductivity [W/m.K]'])
-    viscosity = np.interp(temp_vector, data['Temperature [K]'], data['Dynamic Viscosity [Pa.s]'])
+    # Calculate properties using CoolProp
+    coolant_density = np.zeros_like(temp_vector)
+    specific_heat_capacity = np.zeros_like(temp_vector)
+    thermal_conductivity = np.zeros_like(temp_vector)
+    viscosity = np.zeros_like(temp_vector)
+
+    for i, temp in enumerate(temp_vector):
+        coolant_density[i] = PropsSI('D', 'T', temp, 'P', pressure, fluid)  # kg/m^3
+        specific_heat_capacity[i] = PropsSI('C', 'T', temp, 'P', pressure, fluid)  # J/kg-K
+        thermal_conductivity[i] = PropsSI('L', 'T', temp, 'P', pressure, fluid)  # W/m-K
+        viscosity[i] = PropsSI('V', 'T', temp, 'P', pressure, fluid)  # Pa-s
 
     return coolant_density, specific_heat_capacity, thermal_conductivity, viscosity
 
@@ -79,42 +82,21 @@ def get_saturated_values(th_system):
         - mu_f: Dynamic viscosity (Pa-s)
         - Cp_f: Specific heat capacity (J/kg-K)
     """
-    def Ts(P):
-        Tsat = np.array([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200,
-                        210, 220, 230, 240, 250, 260, 270, 280, 290, 300, 310, 320, 330, 340, 350, 360, 370, 374.15]) + 273.15
-        Psat = np.array([0.006112, 0.012271, 0.023368, 0.042418, 0.073750, 0.12335, 0.19919, 0.31161, 0.47358, 0.70109, 1.01325,
-                        1.4327, 1.9854, 2.7011, 3.6136, 4.7597, 6.1804, 7.9202, 10.027, 12.553, 15.550, 19.080, 23.202, 27.979,
-                        33.480, 39.776, 46.941, 55.052, 64.191, 74.449, 85.917, 98.694, 112.89, 128.64, 146.08, 165.37, 186.74,
-                        210.53, 221.2]) * 1e5  # Convert to Pa
-        return np.interp(th_system.thermal_hydraulics.reactor_pressure, Psat, Tsat)
+    pressure = th_system.thermal_hydraulics.reactor_pressure
+    fluid = 'Water' if getattr(th_system.material, 'coolant_type', 'Light Water') == 'Light Water' else 'HeavyWater'
 
-    def hfg(T):
-        Tsat = np.array([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200,
-                        210, 220, 230, 240, 250, 260, 270, 280, 290, 300, 310, 320, 330, 340, 350, 360, 370, 374.15]) + 273.15
-        deltah = np.array([2501, 2477, 2454, 2430, 2406, 2382, 2358, 2333, 2308, 2283, 2257, 2230, 2203, 2174, 2145, 2114, 2083,
-                          2050, 2015, 1979, 1941, 1900, 1857, 1811, 1762, 1709, 1652, 1590, 1523, 1450, 1370, 1282, 1184, 1074,
-                          948, 801, 623, 374, 0]) * 1000  # Convert to J/kg
-        return np.interp(T, Tsat, deltah)
+    # Saturation temperature at the given pressure
+    T_sat = PropsSI('T', 'P', pressure, 'Q', 0, fluid)  # K
 
-    def muf(T):
-        Tsat = np.array([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200,
-                        210, 220, 230, 240, 250, 260, 270, 280, 290, 300, 310, 320, 330, 340, 350, 360, 370, 374.15]) + 273.15
-        muliq = np.array([1786, 1304, 1002, 798.3, 653.9, 547.8, 467.3, 404.8, 355.4, 315.6, 283.1, 254.8, 231.0, 210.9, 194.1, 179.8,
-                         167.7, 157.4, 148.5, 140.7, 133.9, 127.9, 122.4, 117.5, 112.9, 108.7, 104.8, 101.1, 97.5, 94.1, 90.7,
-                         87.2, 83.5, 79.5, 75.4, 69.4, 62.1, 51.8, 41.4]) * 1e-6  # Already in Pa*s
-        return np.interp(T, Tsat, muliq)
+    # Latent heat of vaporization
+    h_f = PropsSI('H', 'P', pressure, 'Q', 0, fluid)  # J/kg (saturated liquid)
+    h_g = PropsSI('H', 'P', pressure, 'Q', 1, fluid)  # J/kg (saturated vapor)
+    h_fg = h_g - h_f  # J/kg
 
-    def Cpf(T):
-        Tsat = np.array([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200,
-                        210, 220, 230, 240, 250, 260, 270, 280, 290, 300, 310, 320, 330, 340, 350, 360, 370, 374.15]) + 273.15
-        Cpliq = np.array([4.218, 4.194, 4.182, 4.179, 4.179, 4.181, 4.185, 4.191, 4.198, 4.207, 4.218, 4.230, 4.244, 4.262,
-                         4.282, 4.306, 4.334, 4.366, 4.403, 4.446, 4.494, 4.550, 4.613, 4.685, 4.769, 4.866, 4.985, 5.134,
-                         5.307, 5.520, 5.794, 6.143, 6.604, 7.241, 8.225, 10.07, 15, 55, 1e6]) * 1000  # Convert to J/(kg*K)
-        return np.interp(T, Tsat, Cpliq)
+    # Dynamic viscosity of saturated liquid
+    mu_f = PropsSI('V', 'P', pressure, 'Q', 0, fluid)  # Pa-s
 
-    T_sat = Ts(th_system.thermal_hydraulics.reactor_pressure)
-    h_fg = hfg(T_sat)
-    mu_f = muf(T_sat)
-    Cp_f = Cpf(T_sat)
+    # Specific heat capacity of saturated liquid
+    Cp_f = PropsSI('C', 'P', pressure, 'Q', 0, fluid)  # J/kg-K
 
     return T_sat, h_fg, mu_f, Cp_f

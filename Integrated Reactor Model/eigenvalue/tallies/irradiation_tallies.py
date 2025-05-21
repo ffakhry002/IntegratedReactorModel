@@ -36,23 +36,21 @@ def create_irradiation_tallies():
 
     return tallies
 
-def create_irradiation_axial_tallies(n_axial_segments=100):
+def create_irradiation_axial_tallies():
     """Create axial flux tallies for irradiation positions.
 
     This creates a mesh tally for each irradiation position that divides
     the position into axial segments to measure flux variation with height.
     Uses a single energy group for total flux.
 
-    Parameters
-    ----------
-    n_axial_segments : int, optional
-        Number of axial segments to divide each position into. Default is 50.
-
     Returns
     -------
     openmc.Tallies
         Collection of axial flux tallies for each irradiation position
     """
+    # Get number of axial segments from inputs
+    n_axial_segments = inputs['irradiation_axial_segments']
+
     tallies = openmc.Tallies()
 
     # Get core dimensions from inputs (in cm)
