@@ -43,7 +43,7 @@ def create_coreflux_tallys():
 
     # Create mesh covering core + reflector + bioshield
     mesh = openmc.RegularMesh()
-    mesh.dimension = [201, 201, 201]  # Higher resolution mesh
+    mesh.dimension = inputs['core_mesh_dimension']  # Use mesh dimensions from inputs
 
     # Calculate mesh boundaries from inputs (in cm)
     core_radius = inputs['tank_radius'] * 100

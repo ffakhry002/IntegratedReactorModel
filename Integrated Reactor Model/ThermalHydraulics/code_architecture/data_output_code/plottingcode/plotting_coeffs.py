@@ -8,6 +8,13 @@ root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.pa
 sys.path.append(root_dir)
 
 from inputs import inputs
+from ThermalHydraulics.code_architecture.helper_codes.material_properties.gap_properties import calculate_h_gap_vector
+
+# Add this class to simulate the th_system structure needed by calculate_h_gap_vector
+class MockTHSystem:
+    def __init__(self, Q_dot_z, gap_width):
+        self.thermal_state = type('obj', (object,), {'Q_dot_z': Q_dot_z})
+        self.geometry = type('obj', (object,), {'gap_width': gap_width})
 
 def initialize_globals():
     global pin_pitch, r_fuel, r_clad_inner, r_clad_outer, n_side_pins, n_guide_tubes
@@ -100,37 +107,81 @@ def plot_conductivity_vs_temperature(calculate_k_fuel, calculate_k_clad, calcula
         output_dir = os.path.join(root_dir, output_folder, 'TH_plots')
         os.makedirs(output_dir, exist_ok=True)
 
-    # Create a figure with two subplots
-    num = 2 if calculate_h_gap_vector else 1
-    fig, axes = plt.subplots(num, 1, figsize=(12, 16))
+    # Create a figure for fuel and cladding conductivity
+    plt.figure(figsize=(12, 8))
 
-    # Subplot 1: Fuel and Clad Conductivity
+    # Plot fuel and clad conductivity
     temperatures = np.linspace(100, 2500, 1200)  # K
     k_fuel = np.vectorize(calculate_k_fuel)(temperatures)
     k_clad = np.vectorize(calculate_k_clad)(temperatures)
 
-    ax1 = axes[0] if num == 2 else axes
-    ax1.plot(temperatures, k_fuel, label='Fuel', color='r')
-    ax1.plot(temperatures, k_clad, label='Cladding', color='b')
-    ax1.set_xlabel('Temperature (K)')
-    ax1.set_ylabel('Thermal Conductivity (W/m-K)')
-    ax1.set_title('Thermal Conductivity vs Temperature for Fuel and Cladding')
-    ax1.legend()
-    ax1.grid(True)
-
-    if calculate_h_gap_vector:
-        # Subplot 2: h_gap vs linear power
-        linear_power_kw_m = np.linspace(0, 50, 1000)  # kW/m
-        h_gap = calculate_h_gap_vector(linear_power_kw_m * 1000)  # Convert to W/m for the function
-
-        ax2 = axes[1]
-        ax2.plot(linear_power_kw_m, h_gap, color='g')
-        ax2.set_xlabel('Linear Power (kW/m)')
-        ax2.set_ylabel('h_gap (W/m^2-K)')
-        ax2.set_title('h_gap vs Linear Power')
-        ax2.grid(True)
+    plt.plot(temperatures, k_fuel, label='Fuel', color='r', linewidth=2)
+    plt.plot(temperatures, k_clad, label='Cladding', color='b', linewidth=2)
+    plt.xlabel('Temperature (K)', fontsize=14)
+    plt.ylabel('Thermal Conductivity (W/m-K)', fontsize=14)
+    plt.title('Thermal Conductivity vs Temperature for Fuel and Cladding', fontsize=16)
+    plt.legend(fontsize=12)
+    plt.grid(True)
 
     # Adjust layout and save the figure
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, 'Conductivity_Coefficients.png'))
+    plt.savefig(os.path.join(output_dir, 'Conductivity_vs_Temperature.png'))
+    plt.close()
+
+    # If gap heat transfer is included, create a separate plot using our specialized function
+    if calculate_h_gap_vector:
+        plot_gap_heat_transfer_coefficient(output_dir)
+
+def plot_gap_heat_transfer_coefficient(output_dir=None):
+    """
+    Plot the gap heat transfer coefficient (h_gap) as a function of linear power
+    for the current gap width, with red dots marking the interpolated points.
+
+    Args:
+        output_dir: Directory to save the plot file. If None, uses default.
+    """
+    initialize_globals()
+    if output_dir is None:
+        # Use default directory if none provided
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        output_dir = os.path.join(root_dir, output_folder, 'TH_plots')
+        os.makedirs(output_dir, exist_ok=True)
+
+    # Get the gap width from inputs (for pin design)
+    gap_width = r_clad_inner - r_fuel
+
+    # Create figure
+    plt.figure(figsize=(12, 8))
+
+    # Define specific linear power points where we want to show the interpolated values
+    # Use the same points as in the data tables (convert W/cm to W/m)
+    key_powers_W_m = np.array([170, 330, 380, 450, 500]) * 100
+
+    # Create a smooth curve with more points for the continuous line
+    linear_power_W_m = np.linspace(1000, 50000, 500)  # 1 to 50 kW/m
+
+    # Plot h_gap for current gap width - continuous line
+    mock_system = MockTHSystem(linear_power_W_m, gap_width)
+    h_gap_values = calculate_h_gap_vector(mock_system)
+    plt.plot(linear_power_W_m/1000, h_gap_values, 'g-', linewidth=2,
+             label=f'Gap width: {gap_width*1e6:.1f} µm')
+
+    # Calculate h_gap values at the specific key points
+    mock_system_key_points = MockTHSystem(key_powers_W_m, gap_width)
+    h_gap_key_points = calculate_h_gap_vector(mock_system_key_points)
+
+    # Plot the interpolated points as red dots
+    plt.plot(key_powers_W_m/1000, h_gap_key_points, 'ro', markersize=8,
+             label='Interpolated data points')
+
+    plt.xlabel('Linear Power (kW/m)', fontsize=14)
+    plt.ylabel('Gap Heat Transfer Coefficient (W/m²-K)', fontsize=14)
+    plt.title('Gap Heat Transfer Coefficient vs. Linear Power', fontsize=16)
+    plt.grid(True)
+    plt.legend(fontsize=12)
+    plt.tight_layout()
+
+    # Save the figure
+    plt.savefig(os.path.join(output_dir, 'Gap_HTC_vs_Power.png'))
     plt.close()

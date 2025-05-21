@@ -12,19 +12,17 @@ import numpy as np
 from inputs import inputs
 from Reactor.geometry_helpers.utils import generate_cell_id
 
-def create_power_tallies(n_axial_segments=200):
+def create_power_tallies():
     """Create power tallies for the entire core and individual assemblies or fuel elements.
-
-    Parameters
-    ----------
-    n_axial_segments : int, optional
-        Number of axial segments for power distributions. Default is 200.
 
     Returns
     -------
     openmc.Tallies
         Collection of power tallies
     """
+    # Get number of axial segments from inputs
+    n_axial_segments = inputs['power_tally_axial_segments']
+
     tallies = openmc.Tallies()
 
     # Get core dimensions from inputs (in cm)
