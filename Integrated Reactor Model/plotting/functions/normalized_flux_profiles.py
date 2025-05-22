@@ -392,8 +392,8 @@ def create_flux_profile_plots(flux_mean, shape, plot_dir, filename, title_prefix
                 dpi=300, bbox_inches='tight')
     plt.close()
 
-def plot_normalized_flux_profiles(sp, plot_dir):
-    """Plot normalized radial and axial flux profiles.
+def plot_normalized_flux_profiles(sp, plot_dir, inputs_dict=None):
+    """Plot normalized flux profiles across the core.
 
     Parameters
     ----------
@@ -401,30 +401,37 @@ def plot_normalized_flux_profiles(sp, plot_dir):
         StatePoint file containing the tally results
     plot_dir : str
         Directory to save the plots
+    inputs_dict : dict, optional
+        Custom inputs dictionary. If None, uses the global inputs.
     """
+    # Use provided inputs or default to global inputs
+    if inputs_dict is None:
+        from inputs import inputs
+        inputs_dict = inputs
+
     # Get the mesh tally
     mesh_tally = sp.get_tally(name='flux_mesh')
     flux = mesh_tally.get_slice(scores=['flux'])
 
     # Calculate actual core dimensions based on maximum fuel assembly row
-    core_layout = np.array(inputs['core_lattice'])
+    core_layout = np.array(inputs_dict['core_lattice'])
     # Count actual fuel assemblies (F and E positions) in each row
     max_fuel_assemblies = max(sum(1 for pos in row if pos in ['F', 'E']) for row in core_layout)
 
     # Calculate the side length based on assembly type
-    if inputs['assembly_type'] == 'Plate':
-        assembly_unit_width = (inputs['fuel_plate_width'] + 2*inputs['clad_structure_width']) * 100  # cm
+    if inputs_dict['assembly_type'] == 'Plate':
+        assembly_unit_width = (inputs_dict['fuel_plate_width'] + 2*inputs_dict['clad_structure_width']) * 100  # cm
     else:  # Pin type
-        assembly_unit_width = (inputs['pin_pitch'] * inputs['n_side_pins']) * 100  # cm
+        assembly_unit_width = (inputs_dict['pin_pitch'] * inputs_dict['n_side_pins']) * 100  # cm
 
     total_width = max_fuel_assemblies * assembly_unit_width
     half_width = total_width / 2
 
     # Get dimensions from inputs (in cm)
     active_core_radius = half_width  # Use calculated fuel region radius for core lines
-    tank_radius = inputs['tank_radius'] * 100  # Tank outer boundary
-    reflector_radius = tank_radius + inputs['reflector_thickness'] * 100  # Reflector outer boundary
-    half_height = inputs['fuel_height'] * 50  # Just use fuel height
+    tank_radius = inputs_dict['tank_radius'] * 100  # Tank outer boundary
+    reflector_radius = tank_radius + inputs_dict['reflector_thickness'] * 100  # Reflector outer boundary
+    half_height = inputs_dict['fuel_height'] * 50  # Just use fuel height
 
     # Get mesh dimensions from the tally
     mesh_filter = mesh_tally.find_filter(openmc.MeshFilter)
@@ -434,16 +441,16 @@ def plot_normalized_flux_profiles(sp, plot_dir):
     mesh_volume = (2 * reflector_radius / shape[0]) * (2 * reflector_radius / shape[1]) * (2 * half_height / shape[2])
 
     # Create numpy arrays from tally data and normalize
-    power_mw = inputs.get('core_power', 1.0)
+    power_mw = inputs_dict.get('core_power', 1.0)
     norm_factor = calc_norm_factor(power_mw, sp)
 
-    if inputs['Core_Three_Group_Energy_Bins']:
-        # Create directory for energy group plots
+    if inputs_dict['Core_Three_Group_Energy_Bins']:
+        # Create directory for energy group plots in the passed plot_dir
         energy_group_dir = os.path.join(plot_dir, '3_energy_group_maps')
         os.makedirs(energy_group_dir, exist_ok=True)
 
         # Get energy boundaries
-        energy_bounds = [0.0, inputs['thermal_cutoff'], inputs['fast_cutoff'], 20.0e6]
+        energy_bounds = [0.0, inputs_dict['thermal_cutoff'], inputs_dict['fast_cutoff'], 20.0e6]
         group_names = ['thermal', 'epithermal', 'fast']
 
         # Process each energy group

@@ -11,27 +11,39 @@ sys.path.append(root_dir)
 from inputs import inputs
 from .utils import generate_cell_id
 
-def build_plate_cell_fuel_uni(mat_dict, is_enhanced=False):
+def build_plate_cell_fuel_uni(mat_dict, is_enhanced=False, inputs_dict=None):
     """Build a single fuel plate universe with proper bounds"""
-    # Calculate total thickness from inputs
-    fuel_thickness = inputs['fuel_meat_thickness']*100
-    clad_thickness = inputs['clad_thickness']*100
-    total_thickness = fuel_thickness + 2*clad_thickness
-    coolant_channel = inputs['fuel_plate_pitch']*100 - total_thickness  # Add this
+    # Use provided inputs or default to global inputs
+    if inputs_dict is None:
+        from inputs import inputs
+        inputs_dict = inputs
 
-    # Define plate dimensions
-    fuel_plate_width = inputs['fuel_plate_width']*100
-    fuel_meat_width = inputs['fuel_meat_width']*100
+    # Get dimensions from inputs - convert m to cm
+    fuel_meat_thickness = inputs_dict['fuel_meat_thickness']*100
+    fuel_plate_width = inputs_dict['fuel_plate_width']*100
+    fuel_plate_pitch = inputs_dict['fuel_plate_pitch']*100
+    clad_thickness = inputs_dict['clad_thickness']*100
 
-    # Map clad type to material name
+    # Map clad type to material
     clad_material_map = {
         'Zirc2': 'Zircaloy',
         'Zirc4': 'Zircaloy',
         'Al6061': 'Al6061'
     }
-    base_clad_material = clad_material_map[inputs['clad_type']]
+    base_clad_material = clad_material_map[inputs_dict['clad_type']]
+
+    # Add -Enhanced suffix for enhanced fuel positions
     clad_material = f"{base_clad_material}-Enhanced" if is_enhanced else base_clad_material
-    fuel_name = f"{inputs['fuel_type']}-Enhanced" if is_enhanced else inputs['fuel_type']
+
+    # Get the appropriate fuel material name based on whether this is enhanced fuel
+    fuel_name = f"{inputs_dict['fuel_type']}-Enhanced" if is_enhanced else inputs_dict['fuel_type']
+
+    # Calculate total thickness from inputs
+    total_thickness = fuel_meat_thickness + 2*clad_thickness
+    coolant_channel = fuel_plate_pitch - total_thickness  # Add this
+
+    # Define plate dimensions
+    fuel_meat_width = inputs_dict['fuel_meat_width']*100
 
     # Define all boundaries explicitly
     x0 = -fuel_plate_width/2
@@ -40,7 +52,7 @@ def build_plate_cell_fuel_uni(mat_dict, is_enhanced=False):
     x3 = fuel_plate_width/2
     y0 = -total_thickness/2
     y1 = y0 + clad_thickness
-    y2 = y1 + fuel_thickness
+    y2 = y1 + fuel_meat_thickness
     y3 = y2 + clad_thickness
 
     # Add coolant channel bounds
@@ -88,12 +100,12 @@ def build_plate_cell_fuel_uni(mat_dict, is_enhanced=False):
     cells.append(right_clad)
 
     # Top coolant channel with explicit bounds
-    top_moderator = openmc.Cell(fill=mat_dict[f"{inputs['coolant_type']} Coolant"],
+    top_moderator = openmc.Cell(fill=mat_dict[f"{inputs_dict['coolant_type']} Coolant"],
                                region=+x0p & -x3p & +y3p & -y_top_p)
     cells.append(top_moderator)
 
     # Bottom coolant channel with explicit bounds
-    bottom_moderator = openmc.Cell(fill=mat_dict[f"{inputs['coolant_type']} Coolant"],
+    bottom_moderator = openmc.Cell(fill=mat_dict[f"{inputs_dict['coolant_type']} Coolant"],
                                   region=+x0p & -x3p & +y_bottom_p & -y0p)
     cells.append(bottom_moderator)
 
@@ -101,13 +113,18 @@ def build_plate_cell_fuel_uni(mat_dict, is_enhanced=False):
     fuel_plate_universe = openmc.Universe(cells=cells)
     return fuel_plate_universe
 
-def build_fuel_assembly_uni(mat_dict, position=None, is_enhanced=False):
+def build_fuel_assembly_uni(mat_dict, position=None, is_enhanced=False, inputs_dict=None):
     """Build a fuel plate assembly universe with proper cell definitions"""
+    # Use provided inputs or default to global inputs
+    if inputs_dict is None:
+        from inputs import inputs
+        inputs_dict = inputs
+
     # Get dimensions from inputs
-    fuel_plate_pitch = inputs['fuel_plate_pitch']*100
-    plates_per_assembly = inputs['plates_per_assembly']
-    fuel_plate_width = inputs['fuel_plate_width']*100
-    assembly_side_width = inputs['clad_structure_width']*100
+    fuel_plate_pitch = inputs_dict['fuel_plate_pitch']*100
+    plates_per_assembly = inputs_dict['plates_per_assembly']
+    fuel_plate_width = inputs_dict['fuel_plate_width']*100
+    assembly_side_width = inputs_dict['clad_structure_width']*100
 
     # Map clad type to material
     clad_material_map = {
@@ -115,7 +132,8 @@ def build_fuel_assembly_uni(mat_dict, position=None, is_enhanced=False):
         'Zirc4': 'Zircaloy',
         'Al6061': 'Al6061'
     }
-    clad_material = clad_material_map[inputs['clad_type']]
+    base_clad_material = clad_material_map[inputs_dict['clad_type']]
+    clad_material = f"{base_clad_material}-Enhanced" if is_enhanced else base_clad_material
 
     # Calculate assembly dimensions
     fuel_region_width = plates_per_assembly * fuel_plate_pitch
@@ -162,7 +180,7 @@ def build_fuel_assembly_uni(mat_dict, position=None, is_enhanced=False):
     cells.append(bottom_structure)
 
     # Build fuel plate universe
-    fuel = build_plate_cell_fuel_uni(mat_dict, is_enhanced)
+    fuel = build_plate_cell_fuel_uni(mat_dict, is_enhanced, inputs_dict)
 
     # Create fuel plate lattice
     yoffset = (assembly_width - fuel_plate_pitch * plates_per_assembly) / 2
@@ -171,7 +189,7 @@ def build_fuel_assembly_uni(mat_dict, position=None, is_enhanced=False):
     fuel_plates.pitch = [fuel_plate_width, fuel_plate_pitch]
 
     # Create coolant universe for outer region
-    coolant_cell = openmc.Cell(fill=mat_dict[f"{inputs['coolant_type']} Coolant"])
+    coolant_cell = openmc.Cell(fill=mat_dict[f"{inputs_dict['coolant_type']} Coolant"])
     coolant_universe = openmc.Universe(cells=[coolant_cell])
     fuel_plates.outer = coolant_universe
 

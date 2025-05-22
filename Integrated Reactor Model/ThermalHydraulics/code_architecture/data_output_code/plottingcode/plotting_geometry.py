@@ -10,47 +10,54 @@ sys.path.append(root_dir)
 
 from inputs import inputs
 
-def initialize_globals():
+def initialize_globals(inputs_dict=None):
     """Initialize global variables for geometry plotting from inputs.
+
+    Args:
+        inputs_dict (dict, optional): Custom inputs dictionary. If None, uses the global inputs.
 
     Sets up global variables for pin pitch, fuel and clad dimensions, output folder,
     and fuel height from the inputs configuration.
     """
+    # Use provided inputs or default to global inputs
+    if inputs_dict is None:
+        inputs_dict = inputs
+
     global pin_pitch, r_fuel, r_clad_inner, r_clad_outer, output_folder, fuel_height
     global fuel_meat_width, fuel_plate_width, fuel_meat_thickness, clad_thickness, fuel_plate_pitch
     global coolant_type, clad_type, fuel_type, plates_per_assembly, fuel_plate_thickness, coolant_thickness
     global clad_structure_width, n_side_pins, n_guide_tubes
 
     # Pin Fuel Geometry (convert from meters to centimeters)
-    pin_pitch = inputs["pin_pitch"] * 100  # Convert to cm
-    r_fuel = inputs["r_fuel"] * 100        # Convert to cm
-    r_clad_inner = inputs["r_clad_inner"] * 100  # Convert to cm
-    r_clad_outer = inputs["r_clad_outer"] * 100  # Convert to cm
+    pin_pitch = inputs_dict["pin_pitch"] * 100  # Convert to cm
+    r_fuel = inputs_dict["r_fuel"] * 100        # Convert to cm
+    r_clad_inner = inputs_dict["r_clad_inner"] * 100  # Convert to cm
+    r_clad_outer = inputs_dict["r_clad_outer"] * 100  # Convert to cm
 
     # Plate Fuel Geometry (convert from meters to centimeters)
-    fuel_meat_width = inputs["fuel_meat_width"] * 100  # Convert to cm
-    fuel_plate_width = inputs["fuel_plate_width"] * 100  # Convert to cm
-    fuel_meat_thickness = inputs["fuel_meat_thickness"] * 100  # Convert to cm
-    clad_thickness = inputs["clad_thickness"] * 100  # Convert to cm
-    fuel_plate_pitch = inputs["fuel_plate_pitch"] * 100  # Convert to cm
+    fuel_meat_width = inputs_dict["fuel_meat_width"] * 100  # Convert to cm
+    fuel_plate_width = inputs_dict["fuel_plate_width"] * 100  # Convert to cm
+    fuel_meat_thickness = inputs_dict["fuel_meat_thickness"] * 100  # Convert to cm
+    clad_thickness = inputs_dict["clad_thickness"] * 100  # Convert to cm
+    fuel_plate_pitch = inputs_dict["fuel_plate_pitch"] * 100  # Convert to cm
     fuel_plate_thickness = fuel_meat_thickness + 2 * clad_thickness  # Calculate total plate thickness
     coolant_thickness = (fuel_plate_pitch - fuel_plate_thickness) / 2  # Coolant thickness above and below
-    fuel_height = inputs["fuel_height"] * 100  # Convert to cm
-    plates_per_assembly = inputs["plates_per_assembly"]  # Number of plates per assembly
+    fuel_height = inputs_dict["fuel_height"] * 100  # Convert to cm
+    plates_per_assembly = inputs_dict["plates_per_assembly"]  # Number of plates per assembly
 
-    # Cladding structure width for assembly
-    clad_structure_width = inputs["clad_structure_width"] * 100  # Convert to cm
+    # Material and geometry properties
+    clad_structure_width = inputs_dict["clad_structure_width"] * 100  # Convert to cm
 
-    # PWR assembly data
-    n_side_pins = inputs["n_side_pins"]
-    n_guide_tubes = inputs["n_guide_tubes"]
+    # Pin assembly geometry
+    n_side_pins = inputs_dict["n_side_pins"]
+    n_guide_tubes = inputs_dict["n_guide_tubes"]
 
-    # Material profile
-    coolant_type = inputs["coolant_type"]
-    clad_type = inputs["clad_type"]
-    fuel_type = inputs["fuel_type"]
+    # Material types
+    coolant_type = inputs_dict["coolant_type"]
+    clad_type = inputs_dict["clad_type"]
+    fuel_type = inputs_dict["fuel_type"]
 
-    output_folder = inputs["outputs_folder"]
+    output_folder = inputs_dict["outputs_folder"]
 
 def get_material_color(material):
     color_map = {
@@ -65,14 +72,15 @@ def get_material_color(material):
     }
     return color_map.get(material, "gray")
 
-def plot_pin(output_dir, file_name='single_channel_pin.png'):
+def plot_pin(output_dir, file_name='single_channel_pin.png', inputs_dict=None):
     """Plot a single fuel pin channel cross section.
 
     Args:
         output_dir (str): Directory to save the plot
         file_name (str, optional): Name of the output file. Defaults to 'single_channel_pin.png'.
+        inputs_dict (dict, optional): Custom inputs dictionary. If None, uses the global inputs.
     """
-    initialize_globals()
+    initialize_globals(inputs_dict)
     # Create figure and axis for the pin plot
     fig, ax = plt.subplots(figsize=(10, 10))
 
@@ -121,14 +129,15 @@ def plot_pin(output_dir, file_name='single_channel_pin.png'):
     plt.close()
     print("Plotted: Pin single channel")
 
-def plot_plate(output_dir, file_name='single_channel_plate.png'):
+def plot_plate(output_dir, file_name='single_channel_plate.png', inputs_dict=None):
     """Plot a single fuel plate channel cross section.
 
     Args:
         output_dir (str): Directory to save the plot
         file_name (str, optional): Name of the output file. Defaults to 'single_channel_plate.png'.
+        inputs_dict (dict, optional): Custom inputs dictionary. If None, uses the global inputs.
     """
-    initialize_globals()
+    initialize_globals(inputs_dict)
 
     # Create figure and axis for the plate plot
     fig, ax = plt.subplots(figsize=(10, 10))
@@ -201,14 +210,15 @@ def plot_plate(output_dir, file_name='single_channel_plate.png'):
     plt.close()
     print("Plotted: Plate single channel")
 
-def plot_plate_assembly(output_dir, file_name='assembly_plot_plate.png'):
+def plot_plate_assembly(output_dir, file_name='assembly_plot_plate.png', inputs_dict=None):
     """Plot an entire plate assembly cross section.
 
     Args:
         output_dir (str): Directory to save the plot
         file_name (str, optional): Name of the output file. Defaults to 'assembly_plot_plate.png'.
+        inputs_dict (dict, optional): Custom inputs dictionary. If None, uses the global inputs.
     """
-    initialize_globals()
+    initialize_globals(inputs_dict)
 
     # Create figure and axis for the assembly plot
     fig, ax = plt.subplots(figsize=(10, plates_per_assembly * 5))
@@ -244,7 +254,7 @@ def plot_plate_assembly(output_dir, file_name='assembly_plot_plate.png'):
         ax.add_patch(coolant_bottom)
 
         # Plot the plate components
-        plot_plate_at_position(ax, y_offset)
+        plot_plate_at_position(ax, y_offset, inputs_dict)
 
     ax.set_aspect('equal')
     ax.set_title('Fuel Plate Assembly Cross Section')
@@ -263,17 +273,18 @@ def plot_plate_assembly(output_dir, file_name='assembly_plot_plate.png'):
     plt.close()
     print("Plotted: Plate assembly")
 
-def plot_plate_at_position(ax, y_offset):
+def plot_plate_at_position(ax, y_offset, inputs_dict=None):
     """Plot a single fuel plate at a specified vertical position.
 
     Args:
         ax (matplotlib.axes.Axes): The axes object to plot on
         y_offset (float): Vertical offset position for the plate
+        inputs_dict (dict, optional): Custom inputs dictionary. If None, uses the global inputs.
 
     Adds the fuel plate components (fuel meat, cladding) to the specified
     matplotlib axes at the given vertical position.
     """
-    initialize_globals()
+    initialize_globals(inputs_dict)
 
     # Calculate the dimensions of the fuel plate components
     x0 = -fuel_plate_width / 2
@@ -310,14 +321,15 @@ def plot_plate_at_position(ax, y_offset):
     fuel_meat = Rectangle((x1, y1), x2 - x1, y2 - y1, color=fuel_color)
     ax.add_patch(fuel_meat)
 
-def plot_pin_assembly(output_dir, file_name='assembly_plot_pin.png'):
+def plot_pin_assembly(output_dir, file_name='assembly_plot_pin.png', inputs_dict=None):
     """Plot an entire pin assembly cross section.
 
     Args:
         output_dir (str): Directory to save the plot
         file_name (str, optional): Name of the output file. Defaults to 'assembly_plot_pin.png'.
+        inputs_dict (dict, optional): Custom inputs dictionary. If None, uses the global inputs.
     """
-    initialize_globals()
+    initialize_globals(inputs_dict)
 
     # Create figure and axis for pin assembly plot
     fig, ax = plt.subplots(figsize=(10, 10))
@@ -370,18 +382,20 @@ def plot_pin_assembly(output_dir, file_name='assembly_plot_pin.png'):
 
 def main():
     """Main function for testing geometry plots."""
-    initialize_globals()
+    # Use global inputs for standalone execution
+    from inputs import inputs
+    initialize_globals(inputs)
     # Create output directory
     root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
     output_dir = os.path.join(root_dir, 'ThermalHydraulics', output_folder, 'geometry_plots')
     os.makedirs(output_dir, exist_ok=True)
 
-    if inputs["assembly_type"] == "Pin":
-        plot_pin(output_dir, file_name='single_channel_pin.png')
-        plot_pin_assembly(output_dir, file_name='assembly_plot_pin.png')
-    elif inputs["assembly_type"] == "Plate":
-        plot_plate(output_dir, file_name='single_channel_plate.png')
-        plot_plate_assembly(output_dir, file_name='assembly_plot_plate.png')
+    if inputs.get("assembly_type") == "Pin":
+        plot_pin(output_dir, file_name='single_channel_pin.png', inputs_dict=inputs)
+        plot_pin_assembly(output_dir, file_name='assembly_plot_pin.png', inputs_dict=inputs)
+    elif inputs.get("assembly_type") == "Plate":
+        plot_plate(output_dir, file_name='single_channel_plate.png', inputs_dict=inputs)
+        plot_plate_assembly(output_dir, file_name='assembly_plot_plate.png', inputs_dict=inputs)
 
 if __name__ == "__main__":
     main()

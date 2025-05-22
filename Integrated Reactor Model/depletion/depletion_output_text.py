@@ -85,7 +85,7 @@ def process_depletion_results(time_seconds, k_eff, power_density):
 
     return results
 
-def write_output(params_file, depletion_type, dep_operator, integrator, timesteps, inputs, results_data):
+def write_output(params_file, depletion_type, dep_operator, integrator, timesteps, inputs_dict, results_data):
     """Write all depletion output to a single file.
 
     Parameters
@@ -100,7 +100,7 @@ def write_output(params_file, depletion_type, dep_operator, integrator, timestep
         The depletion integrator instance
     timesteps : list
         List of timesteps for the calculation
-    inputs : dict
+    inputs_dict : dict
         Dictionary of input parameters
     results_data : dict
         Dictionary of processed results data
@@ -114,17 +114,17 @@ def write_output(params_file, depletion_type, dep_operator, integrator, timestep
         f.write(f"- Total HM mass: {dep_operator.heavy_metal:.2f} g ({dep_operator.heavy_metal/1000:.2f} kg)\n\n")
 
         f.write("Power Settings:\n")
-        f.write(f"- Core power: {inputs['core_power']:.2f} MW ({inputs['core_power']*1e6:.2f} W)\n")
+        f.write(f"- Core power: {inputs_dict['core_power']:.2f} MW ({inputs_dict['core_power']*1e6:.2f} W)\n")
         f.write(f"- Power density: {integrator.power_density:.2f} W/gHM\n")
         total_power = integrator.power_density * dep_operator.heavy_metal
         f.write(f"- Total power being used: {total_power/1e6:.3f} MW\n\n")
 
         f.write("Time Steps:\n")
         f.write(f"- Number of steps: {len(timesteps)}\n")
-        f.write(f"- Units: {inputs['depletion_timestep_units']}\n")
+        f.write(f"- Units: {inputs_dict['depletion_timestep_units']}\n")
         f.write(f"- Step configurations:\n")
-        for i, config in enumerate(inputs['depletion_timesteps'], 1):
-            f.write(f"  {i}. {config['steps']} steps of {config['size']} {inputs['depletion_timestep_units']}\n")
+        for i, config in enumerate(inputs_dict['depletion_timesteps'], 1):
+            f.write(f"  {i}. {config['steps']} steps of {config['size']} {inputs_dict['depletion_timestep_units']}\n")
 
         # Write depletion results
         f.write("\nDepletion Results:\n")

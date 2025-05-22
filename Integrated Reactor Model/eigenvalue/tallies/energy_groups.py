@@ -55,15 +55,25 @@ LOG_501 = np.logspace(np.log10(1e-5), np.log10(20.0e6), 501)
 LOG_1001 = np.logspace(np.log10(1e-5), np.log10(20.0e6), 1001)
 
 
-def get_energy_bins():
+def get_energy_bins(inputs_dict=None):
     """Get the energy group structure based on inputs setting.
+
+    Parameters
+    ----------
+    inputs_dict : dict, optional
+        Custom inputs dictionary. If None, uses the global inputs.
 
     Returns
     -------
     numpy.ndarray
         Energy bin boundaries in eV
     """
-    energy_structure = inputs.get('energy_structure', 'log501')  # Default to log501 if not specified
+    # Use provided inputs or default to global inputs
+    if inputs_dict is None:
+        from inputs import inputs
+        inputs_dict = inputs
+
+    energy_structure = inputs_dict.get('energy_structure', 'log501')  # Default to log501 if not specified
     if energy_structure.lower() == 'scale238':
         return SCALE_238
     elif energy_structure.lower() == 'log1001':
@@ -71,18 +81,20 @@ def get_energy_bins():
     else:  # Default to log501
         return LOG_501
 
-def get_group_indices(energy):
+def get_group_indices(energy, inputs_dict=None):
     """Get the group indices for collapsing into few-group structure.
 
     Parameters
     ----------
     energy : float
         Energy boundary in eV
+    inputs_dict : dict, optional
+        Custom inputs dictionary. If None, uses the global inputs.
 
     Returns
     -------
     numpy.ndarray
         Indices in energy bins array where energies are greater than the boundary
     """
-    energy_bins = get_energy_bins()
+    energy_bins = get_energy_bins(inputs_dict)
     return np.where(energy_bins > energy)[0]

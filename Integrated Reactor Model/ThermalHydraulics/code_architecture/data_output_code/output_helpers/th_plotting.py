@@ -16,7 +16,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 sys.path.append(root_dir)
 
-def generate_plots(th_system, output_dir=None):
+def generate_plots(th_system, output_dir=None, inputs_dict=None):
     """Generate all plots for the thermal-hydraulic analysis.
 
     This function creates a comprehensive set of plots visualizing the thermal-hydraulic
@@ -27,6 +27,7 @@ def generate_plots(th_system, output_dir=None):
         th_system: THSystem object containing all thermal-hydraulic data
         output_dir (str, optional): Directory to save the plots. If None,
             uses the default output directory from th_system. Defaults to None.
+        inputs_dict (dict, optional): Custom inputs dictionary. If None, uses the global inputs.
 
     Generated plots include:
     For both pin and plate assemblies:
@@ -40,6 +41,11 @@ def generate_plots(th_system, output_dir=None):
         - MDNBR distribution
         - Radial temperature profiles
     """
+    # Use provided inputs or default to global inputs
+    if inputs_dict is None:
+        from inputs import inputs
+        inputs_dict = inputs
+
     # Set up output directory
     if output_dir is None:
         # Use the ThermalHydraulics directory as root
@@ -75,7 +81,8 @@ def generate_plots(th_system, output_dir=None):
         T_clad_y = calculate_cladding_temperature_profile(
             th_system.thermal_state.Q_dot_z,
             th_system.thermal_state.T_clad_in_z,
-            th_system.thermal_state.T_clad_out_z
+            th_system.thermal_state.T_clad_out_z,
+            inputs_dict=inputs_dict
         )
 
         # Check if fuel surface and centerline temperatures are available
@@ -100,7 +107,8 @@ def generate_plots(th_system, output_dir=None):
             element_power_mw=element_power_mw,
             avg_element_power_mw=avg_element_power_mw,
             T_fuel_surface_z=T_fuel_surface_z,
-            T_fuel_centerline_z=T_fuel_centerline_z
+            T_fuel_centerline_z=T_fuel_centerline_z,
+            inputs_dict=inputs_dict
         )
         plot_material_properties(
             th_system.z,
@@ -110,17 +118,19 @@ def generate_plots(th_system, output_dir=None):
             th_system.thermal_state.k_clad_in,
             th_system.thermal_state.h_coolant,
             h_gap=None,
-            output_dir=plots_dir
+            output_dir=plots_dir,
+            inputs_dict=inputs_dict
         )
         plot_conductivity_vs_temperature(
             lambda T: calculate_k_fuel(th_system, T),
             lambda T: calculate_k_clad(th_system, T),
             calculate_h_gap_vector=None,
-            output_dir=plots_dir
+            output_dir=plots_dir,
+            inputs_dict=inputs_dict
         )
         # Plot plate geometry
-        plot_plate(geometry_plots_dir)
-        plot_plate_assembly(geometry_plots_dir)
+        plot_plate(geometry_plots_dir, inputs_dict=inputs_dict)
+        plot_plate_assembly(geometry_plots_dir, inputs_dict=inputs_dict)
     else:  # Pin assembly
         # Create radial mesh for pin
         r_fuel_mesh = np.linspace(0, th_system.pin_geometry.r_fuel, th_system.thermal_hydraulics.n_radial)
@@ -128,7 +138,8 @@ def generate_plots(th_system, output_dir=None):
         T_clad_y = calculate_cladding_temperature_profile(
             th_system.thermal_state.Q_dot_z,
             th_system.thermal_state.T_clad_in_z,
-            th_system.thermal_state.T_clad_out_z
+            th_system.thermal_state.T_clad_out_z,
+            inputs_dict=inputs_dict
         )
         plot_results_pin(
             th_system.thermal_state.Q_dot_z,
@@ -143,7 +154,8 @@ def generate_plots(th_system, output_dir=None):
             th_system.thermal_state.MDNBR,
             output_dir=plots_dir,
             element_power_mw=element_power_mw,
-            avg_element_power_mw=avg_element_power_mw
+            avg_element_power_mw=avg_element_power_mw,
+            inputs_dict=inputs_dict
         )
         plot_material_properties(
             th_system.z,
@@ -153,7 +165,8 @@ def generate_plots(th_system, output_dir=None):
             th_system.thermal_state.k_clad_in,
             th_system.thermal_state.h_coolant,
             th_system.thermal_state.h_gap,
-            output_dir=plots_dir
+            output_dir=plots_dir,
+            inputs_dict=inputs_dict
         )
 
         # Create a wrapper class that matches the THSystem interface needed for h_gap calculation
@@ -172,11 +185,12 @@ def generate_plots(th_system, output_dir=None):
             lambda T: calculate_k_fuel(th_system, T),
             lambda T: calculate_k_clad(th_system, T),
             h_gap_function,
-            output_dir=plots_dir
+            output_dir=plots_dir,
+            inputs_dict=inputs_dict
         )
         # Plot pin geometry
-        plot_pin(geometry_plots_dir)
-        plot_pin_assembly(geometry_plots_dir)
+        plot_pin(geometry_plots_dir, inputs_dict=inputs_dict)
+        plot_pin_assembly(geometry_plots_dir, inputs_dict=inputs_dict)
 
     # Close all figures to free memory
     plt.close('all')

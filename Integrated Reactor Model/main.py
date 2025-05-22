@@ -12,6 +12,7 @@ from ThermalHydraulics.TH_refactored import THSystem
 from plotting.plotall import plot_all
 from depletion.run_depletion import run_all_depletions
 from inputs import inputs
+from parametric_study import run_parametric_study
 
 def cleanup_all_pycache():
     """Remove all __pycache__ directories in the entire project structure."""
@@ -27,18 +28,23 @@ def cleanup_all_pycache():
             except Exception as e:
                 print(f"Error removing {pycache_path}: {e}")
 
-def run_additional_th_calculations(root_dir, dirs, th_subdirs):
+def run_additional_th_calculations(root_dir, dirs, th_subdirs, inputs_dict=None):
     """Run additional thermal hydraulics calculations with different power profiles.
 
     Args:
         root_dir: Root directory of the project
         dirs: Dictionary of subdirectories for output
         th_subdirs: Dictionary of thermal hydraulics subdirectories
+        inputs_dict (dict, optional): Custom inputs dictionary. If None, uses the global inputs.
     """
+    # Use provided inputs or default to global inputs
+    if inputs_dict is None:
+        inputs_dict = inputs
+
     # Get element type from inputs
-    is_element_level = inputs.get('element_level_power_tallies', False)
+    is_element_level = inputs_dict.get('element_level_power_tallies', False)
     if is_element_level:
-        if inputs['assembly_type'] == 'Pin':
+        if inputs_dict['assembly_type'] == 'Pin':
             element_type = "pin"
         else:
             element_type = "plate"
@@ -55,7 +61,7 @@ def run_additional_th_calculations(root_dir, dirs, th_subdirs):
     # Run TH calculations for hot element
     print("\nRunning TH with hot element power profile...")
     # Create a deep copy of inputs and modify for hot element
-    hot_inputs = copy.deepcopy(inputs)
+    hot_inputs = copy.deepcopy(inputs_dict)
     # Create a new THSystem with hot element power profile
     th_system_hot = THSystem(hot_inputs)
     th_system_hot.reactor_power.power_source = 'HOT_ELEMENT'
@@ -66,7 +72,7 @@ def run_additional_th_calculations(root_dir, dirs, th_subdirs):
     # Run TH calculations for core average
     print("\nRunning TH with core average power profile...")
     # Create a deep copy of inputs and modify for core average
-    avg_inputs = copy.deepcopy(inputs)
+    avg_inputs = copy.deepcopy(inputs_dict)
     # Create a new THSystem with core average power profile
     th_system_avg = THSystem(avg_inputs)
     th_system_avg.reactor_power.power_source = 'CORE_AVERAGE'
@@ -78,6 +84,12 @@ def run_additional_th_calculations(root_dir, dirs, th_subdirs):
 
 def main():
     """Run the complete reactor simulation workflow."""
+    # Check if parametric study mode is enabled
+    if inputs.get('parametric_study', False):
+        print("Parametric study mode enabled. Running parametric study...")
+        run_parametric_study()
+        return
+
     # Clean up all __pycache__ directories first
     print("\nCleaning up __pycache__ directories...")
     cleanup_all_pycache()
@@ -118,7 +130,7 @@ def main():
 
     # Run geometry and materials generation
     print("\nGenerating geometry and materials...")
-    plot_geometry(dirs['geometry_materials'])
+    plot_geometry(dirs['geometry_materials'], inputs_dict=inputs)
 
     # Run thermal hydraulics with cosine approximation
     print("\nRunning thermal hydraulics analysis with cosine approximation...")
@@ -128,7 +140,7 @@ def main():
 
     # Run OpenMC simulation
     print("\nRunning OpenMC simulation...")
-    k_eff, k_std = run_eigenvalue()
+    k_eff, k_std = run_eigenvalue(inputs_dict=inputs)
     print(f"\nSimulation completed successfully!")
     print(f"k-effective = {k_eff:.6f} ± {k_std:.6f}")
 
@@ -136,16 +148,16 @@ def main():
     any_depletion_enabled = any(v for k, v in inputs.items() if k.startswith('deplete_'))
     if any_depletion_enabled:
         print("\nRunning depletion calculations...")
-        depletion_results = run_all_depletions(output_dir=dirs['depletion_data'])
+        depletion_results = run_all_depletions(output_dir=dirs['depletion_data'], inputs_dict=inputs)
     else:
         print("\nNo depletion calculations enabled in inputs")
 
     # Generate all plots
     print("\nGenerating plots...")
-    plot_all(plot_dir=dirs['flux_plots'], depletion_plot_dir=dirs['depletion_plots'])
+    plot_all(plot_dir=dirs['flux_plots'], depletion_plot_dir=dirs['depletion_plots'], power_plot_dir=dirs['power_plots'], inputs_dict=inputs)
 
     # Run additional thermal hydraulics calculations with different power profiles
-    run_additional_th_calculations(root_dir, dirs, th_subdirs)
+    run_additional_th_calculations(root_dir, dirs, th_subdirs, inputs_dict=inputs)
 
     # Final cleanup of any new __pycache__ directories created during the run
     print("\nFinal cleanup of __pycache__ directories...")

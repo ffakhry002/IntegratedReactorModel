@@ -21,14 +21,20 @@ from geometry_helpers.core import build_core_uni
 from materials import make_materials
 from inputs import inputs
 
-def plot_geometry(output_dir=None):
+def plot_geometry(output_dir=None, inputs_dict=None):
     """Create and plot the reactor geometry.
 
     Parameters
     ----------
     output_dir : str, optional
         Directory to save outputs. If None, saves in local directory.
+    inputs_dict : dict, optional
+        Custom inputs dictionary. If None, uses the global inputs.
     """
+    # Use provided inputs or default to global inputs
+    if inputs_dict is None:
+        inputs_dict = inputs
+
     # Determine output directory
     if output_dir is None:
         script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -40,7 +46,7 @@ def plot_geometry(output_dir=None):
         os.makedirs(output_dir, exist_ok=True)
 
     # Create materials with None for mat_list to get all materials
-    mat_dict, mat_obj = make_materials(mat_list=None)
+    mat_dict, mat_obj = make_materials(mat_list=None, inputs_dict=inputs_dict)
 
     # Save materials to output file
     materials_output = os.path.join(output_dir, 'materials.txt')
@@ -72,10 +78,10 @@ def plot_geometry(output_dir=None):
         mat_dict.get('HT9-Enhanced', mat_dict['HT9']): 'pink',
 
         # Coolant materials
-        mat_dict[f"{inputs['coolant_type']} Coolant"]: 'lightblue',
-        mat_dict[f"{inputs['coolant_type']} Feed"]: 'deepskyblue',
-        mat_dict[f"{inputs['coolant_type']} Outer"]: 'skyblue',
-        mat_dict[f"{inputs['coolant_type']} Plenum"]: 'cornflowerblue',
+        mat_dict[f"{inputs_dict['coolant_type']} Coolant"]: 'lightblue',
+        mat_dict[f"{inputs_dict['coolant_type']} Feed"]: 'deepskyblue',
+        mat_dict[f"{inputs_dict['coolant_type']} Outer"]: 'skyblue',
+        mat_dict[f"{inputs_dict['coolant_type']} Plenum"]: 'cornflowerblue',
         # Gap material
         mat_dict['Helium']: 'white',
 
@@ -94,20 +100,20 @@ def plot_geometry(output_dir=None):
 
     # Common plot parameters
     plot_params = {
-        'pixels': inputs['pixels'],
+        'pixels': inputs_dict['pixels'],
         'colors': mat_colors,
         'color_by': 'material'
     }
 
     # Build and plot core
-    core_universe, first_irr_universe = build_core_uni(mat_dict)  # Get both core and first irradiation cell
+    core_universe, first_irr_universe = build_core_uni(mat_dict, inputs_dict=inputs_dict)  # Get both core and first irradiation cell
 
     # Calculate total core dimensions
-    total_radius = (inputs['tank_radius'] + inputs['reflector_thickness'] +
-                   inputs['bioshield_thickness']) * 100  # m to cm
-    total_height = (inputs['bottom_bioshield_thickness'] + inputs['bottom_reflector_thickness'] +
-                   inputs['feed_thickness'] + inputs['fuel_height'] + inputs['plenum_height'] +
-                   inputs['top_reflector_thickness'] + inputs['top_bioshield_thickness']) * 100  # m to cm
+    total_radius = (inputs_dict['tank_radius'] + inputs_dict['reflector_thickness'] +
+                   inputs_dict['bioshield_thickness']) * 100  # m to cm
+    total_height = (inputs_dict['bottom_bioshield_thickness'] + inputs_dict['bottom_reflector_thickness'] +
+                   inputs_dict['feed_thickness'] + inputs_dict['fuel_height'] + inputs_dict['plenum_height'] +
+                   inputs_dict['top_reflector_thickness'] + inputs_dict['top_bioshield_thickness']) * 100  # m to cm
 
     # Core plots
     core_params = plot_params.copy()
@@ -115,7 +121,7 @@ def plot_geometry(output_dir=None):
     # XY plot at core midplane
     core_params['width'] = (total_radius * 2.2, total_radius * 2.2)  # 10% margin
     core_params['basis'] = 'xy'
-    core_params['origin'] = (0, 0, inputs['fuel_height'] * 50)  # Plot at core midplane
+    core_params['origin'] = (0, 0, inputs_dict['fuel_height'] * 50)  # Plot at core midplane
     plot_core_xy = core_universe.plot(**core_params)
     plot_core_xy.figure.set_size_inches(8, 8)
     plot_core_xy.figure.savefig(os.path.join(output_dir, 'core_xy.png'),
@@ -141,16 +147,16 @@ def plot_geometry(output_dir=None):
     plt.close()
 
     # Calculate irradiation cell dimensions
-    if inputs['assembly_type'] == 'Pin':
-        cell_width = inputs['pin_pitch'] * inputs['n_side_pins'] * 100  # m to cm
+    if inputs_dict['assembly_type'] == 'Pin':
+        cell_width = inputs_dict['pin_pitch'] * inputs_dict['n_side_pins'] * 100  # m to cm
     else:
-        cell_width = (2 * inputs['clad_structure_width'] + inputs['fuel_plate_width']) * 100  # m to cm
+        cell_width = (2 * inputs_dict['clad_structure_width'] + inputs_dict['fuel_plate_width']) * 100  # m to cm
 
     # Irradiation cell plots using the stored universe
     irradiation_params = plot_params.copy()
     irradiation_params['width'] = (cell_width * 1.1, cell_width * 1.1)  # 10% margin
 
-    has_irradiation = any('I' in cell for row in inputs['core_lattice'] for cell in row)
+    has_irradiation = any('I' in cell for row in inputs_dict['core_lattice'] for cell in row)
     if has_irradiation:
         try:
             print("\nGenerating flux trap plots...")
@@ -173,16 +179,16 @@ def plot_geometry(output_dir=None):
         print("\nSkipping flux trap plots (no irradiation positions in core)")
 
 
-    if inputs['assembly_type'] == 'Pin':
+    if inputs_dict['assembly_type'] == 'Pin':
         # Calculate pin dimensions in cm
-        pin_pitch = inputs['pin_pitch'] * 100  # m to cm
-        n_side_pins = inputs['n_side_pins']
+        pin_pitch = inputs_dict['pin_pitch'] * 100  # m to cm
+        n_side_pins = inputs_dict['n_side_pins']
         assembly_width = pin_pitch * n_side_pins
-        pin_radius = inputs['r_clad_outer'] * 100  # m to cm
+        pin_radius = inputs_dict['r_clad_outer'] * 100  # m to cm
 
         # Build universes
-        assembly_universe = build_pin_assembly(mat_dict)
-        pin_universe = build_pin_cell_fuel_uni(mat_dict)
+        assembly_universe = build_pin_assembly(mat_dict, inputs_dict=inputs_dict)
+        pin_universe = build_pin_cell_fuel_uni(mat_dict, inputs_dict=inputs_dict)
 
         # Assembly plots
         assembly_params = plot_params.copy()
@@ -222,14 +228,14 @@ def plot_geometry(output_dir=None):
 
     else:  # Plate assembly
         # Calculate plate dimensions in cm
-        plate_pitch = inputs['fuel_plate_pitch'] * 100  # m to cm
-        assembly_width = inputs['plates_per_assembly'] * plate_pitch
-        plate_width = inputs['fuel_plate_width'] * 100  # m to cm
-        total_assembly_width = assembly_width + 2 * (inputs['clad_structure_width'] * 100)  # Add side plates
+        plate_pitch = inputs_dict['fuel_plate_pitch'] * 100  # m to cm
+        assembly_width = inputs_dict['plates_per_assembly'] * plate_pitch
+        plate_width = inputs_dict['fuel_plate_width'] * 100  # m to cm
+        total_assembly_width = assembly_width + 2 * (inputs_dict['clad_structure_width'] * 100)  # Add side plates
 
         # Build universes
-        assembly_universe = build_plate_assembly(mat_dict)
-        plate_universe = build_plate_cell_fuel_uni(mat_dict)
+        assembly_universe = build_plate_assembly(mat_dict, inputs_dict=inputs_dict)
+        plate_universe = build_plate_cell_fuel_uni(mat_dict, inputs_dict=inputs_dict)
 
         # Assembly plots
         assembly_params = plot_params.copy()

@@ -16,7 +16,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(root_dir)
 
-def collapse_to_three_groups(mean, std_dev):
+def collapse_to_three_groups(mean, std_dev, inputs_dict):
     """Collapse energy group fluxes into three groups (thermal, epithermal, fast).
 
     Parameters
@@ -25,6 +25,8 @@ def collapse_to_three_groups(mean, std_dev):
         Mean values from the energy group tally
     std_dev : numpy.ndarray
         Standard deviations from the energy group tally
+    inputs_dict : dict
+        Custom inputs dictionary.
 
     Returns
     -------
@@ -32,11 +34,11 @@ def collapse_to_three_groups(mean, std_dev):
         (means, std_devs) for the three collapsed groups
     """
     # Get indices for group boundaries from inputs
-    thermal_inds = get_group_indices(inputs['thermal_cutoff'])
-    fast_inds = get_group_indices(inputs['fast_cutoff'])
+    thermal_inds = get_group_indices(inputs_dict['thermal_cutoff'], inputs_dict)
+    fast_inds = get_group_indices(inputs_dict['fast_cutoff'], inputs_dict)
 
     # Create masks for each group
-    energy_bins = get_energy_bins()
+    energy_bins = get_energy_bins(inputs_dict)
     n_bins = len(energy_bins) - 1  # Number of energy bins is one less than boundaries
 
     # Filter out any indices that would be out of bounds
@@ -76,7 +78,7 @@ def collapse_to_three_groups(mean, std_dev):
 
     return means, std_devs
 
-def process_results(sp, k_effective):
+def process_results(sp, k_effective, inputs_dict=None):
     """Process and save all results from the OpenMC calculation.
 
     Parameters
@@ -85,12 +87,23 @@ def process_results(sp, k_effective):
         StatePoint file containing the tally results
     k_effective : openmc.keff
         k-effective result from the simulation
+    inputs_dict : dict, optional
+        Custom inputs dictionary. If None, uses the global inputs.
     """
+    # Use provided inputs or default to global inputs
+    if inputs_dict is None:
+        inputs_dict = inputs
+
     # Determine output directory based on how we're running
     running_directly = os.path.basename(sys.argv[0]) == 'run.py'
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-    if not running_directly and os.path.exists(os.path.join(root_dir, 'simulation_data')):
+    # Check if we're in a parametric study run directory
+    current_dir = os.getcwd()
+    if 'parametric_simulation_' in current_dir and 'run_' in current_dir:
+        # We're in a parametric study run directory - write results.txt directly to run directory
+        output_dir = current_dir
+    elif not running_directly and os.path.exists(os.path.join(root_dir, 'simulation_data')):
         # Running from main.py - write results.txt to simulation_data root
         output_dir = os.path.join(root_dir, 'simulation_data')
     else:
@@ -101,7 +114,7 @@ def process_results(sp, k_effective):
     output_file = os.path.join(output_dir, 'results.txt')
 
     # Get power from inputs
-    power_mw = inputs.get('core_power', 1.0)
+    power_mw = inputs_dict.get('core_power', 1.0)
 
     # Calculate normalization factor using tallied values
     norm_factor = float(calc_norm_factor(power_mw, sp))
@@ -139,14 +152,14 @@ def process_results(sp, k_effective):
                     continue
 
                 # Get volume for normalization
-                volume = get_tally_volume(tally, sp)
+                volume = get_tally_volume(tally, sp, inputs_dict)
 
                 # Get the flux data and normalize
                 mean = tally.mean.ravel() * norm_factor / volume
                 std_dev = tally.std_dev.ravel() * norm_factor / volume
 
                 # Calculate three-group fluxes
-                means, std_devs = collapse_to_three_groups(mean, std_dev)
+                means, std_devs = collapse_to_three_groups(mean, std_dev, inputs_dict)
 
                 # Calculate total flux
                 total_flux = np.sum(means)
