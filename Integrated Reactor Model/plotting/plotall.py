@@ -15,10 +15,10 @@ from plotting.functions.flux_traps import plot_flux_trap_distributions
 from plotting.functions.flux_maps import plot_flux_maps
 from plotting.functions.normalized_flux_profiles import plot_normalized_flux_profiles
 from plotting.functions.entropy import plot_entropy
-from plotting.functions.depletion import plot_depletion_results
+from plotting.functions.depletion import plot_depletion_results, plot_nuclide_evolution
 from plotting.functions.power import plot_power_distributions, plot_2d_power_map
 
-def plot_all(plot_dir=None, depletion_plot_dir=None):
+def plot_all(plot_dir=None, depletion_plot_dir=None, power_plot_dir=None, inputs_dict=None):
     """Plot all distributions from the simulation results.
 
     Parameters
@@ -29,29 +29,46 @@ def plot_all(plot_dir=None, depletion_plot_dir=None):
     depletion_plot_dir : str, optional
         Directory to save depletion-related plots to. If not provided, will use default locations
         based on execution context.
+    power_plot_dir : str, optional
+        Directory to save power plots to. If not provided, will use default locations
+        based on execution context.
+    inputs_dict : dict, optional
+        Custom inputs dictionary. If None, uses the global inputs.
     """
+    # Use provided inputs or default to global inputs
+    if inputs_dict is None:
+        inputs_dict = inputs
+
     # Get root directory
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     # Check if running directly by looking at the script name
     running_directly = os.path.basename(sys.argv[0]) == 'plotall.py'
 
-    # Get base directory for plots
-    if not running_directly and os.path.exists(os.path.join(root_dir, 'simulation_data')):
+    # Check if we're in a parametric study run directory
+    current_dir = os.getcwd()
+    if 'parametric_simulation_' in current_dir and 'run_' in current_dir:
+        # We're in a parametric study run directory - use the passed directories
+        statepoint_path = os.path.join(current_dir, 'transport_data', 'statepoint.eigenvalue.h5')
+        flux_plot_dir = plot_dir  # Should always be provided in parametric mode
+        power_plot_dir = power_plot_dir or os.path.join(current_dir, 'power_plots')  # Use parametric structure
+        depletion_plot_dir = depletion_plot_dir  # Should be provided in parametric mode
+        depletion_dir = os.path.join(current_dir, 'depletion_data')  # Use parametric structure
+    elif not running_directly and os.path.exists(os.path.join(root_dir, 'simulation_data')):
         # Running from main.py
         base_dir = os.path.join(root_dir, 'simulation_data')
         statepoint_path = os.path.join(base_dir, 'transport_data', 'statepoint.eigenvalue.h5')
         flux_plot_dir = plot_dir or os.path.join(base_dir, 'flux_plots')
-        power_plot_dir = os.path.join(base_dir, 'power_plots')
+        power_plot_dir = power_plot_dir or os.path.join(base_dir, 'power_plots')
         depletion_plot_dir = depletion_plot_dir or os.path.join(base_dir, 'depletion_plots')
         depletion_dir = os.path.join(base_dir, 'depletion_data')
     else:
-        # Running directly - put everything under plots/
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        statepoint_path = os.path.join(root_dir, 'eigenvalue', 'Output', 'statepoint.eigenvalue.h5')
+        # Running directly - put everything under eigenvalue folder
+        base_dir = os.path.join(root_dir, 'eigenvalue')
+        statepoint_path = os.path.join(base_dir, 'Output', 'statepoint.eigenvalue.h5')
         plots_dir = os.path.join(base_dir, 'plots')
         flux_plot_dir = plot_dir or os.path.join(plots_dir, 'flux_plots')
-        power_plot_dir = os.path.join(plots_dir, 'power_plots')
+        power_plot_dir = power_plot_dir or os.path.join(plots_dir, 'power_plots')
         depletion_plot_dir = depletion_plot_dir or os.path.join(plots_dir, 'depletion_plots')
         depletion_dir = os.path.join(root_dir, 'depletion', 'outputs')
 
@@ -71,22 +88,22 @@ def plot_all(plot_dir=None, depletion_plot_dir=None):
         os.makedirs(directory, exist_ok=True)
 
     # Get power from inputs, default to 1 MW if not specified
-    power_mw = inputs.get('core_power', 1.0)
+    power_mw = inputs_dict.get('core_power', 1.0)
     print(f"Using reactor power of {power_mw} MW for normalization")
 
     # Generate all flux-related plots
     try:
         print("\nGenerating entropy convergence plot...")
-        plot_entropy(sp, flux_plot_dir)
+        plot_entropy(sp, flux_plot_dir, inputs_dict)
     except Exception as e:
         print(f"Error generating entropy plot: {str(e)}")
 
     # Check if there are any irradiation positions in the core layout
-    has_irradiation = any('I' in cell for row in inputs['core_lattice'] for cell in row)
+    has_irradiation = any('I' in cell for row in inputs_dict['core_lattice'] for cell in row)
     if has_irradiation:
         try:
             print("\nGenerating flux trap plots...")
-            plot_flux_trap_distributions(sp, power_mw, flux_plot_dir)
+            plot_flux_trap_distributions(sp, power_mw, flux_plot_dir, inputs_dict)
         except Exception as e:
             print(f"Error generating flux trap plots: {str(e)}")
     else:
@@ -94,25 +111,25 @@ def plot_all(plot_dir=None, depletion_plot_dir=None):
 
     try:
         print("\nGenerating flux maps...")
-        plot_flux_maps(sp, flux_plot_dir)
+        plot_flux_maps(sp, flux_plot_dir, inputs_dict)
     except Exception as e:
         print(f"Error generating flux maps: {str(e)}")
 
     try:
         print("\nGenerating normalized flux profiles...")
-        plot_normalized_flux_profiles(sp, flux_plot_dir)
+        plot_normalized_flux_profiles(sp, flux_plot_dir, inputs_dict)
     except Exception as e:
         print(f"Error generating normalized flux profiles: {str(e)}")
 
     try:
         print("\nGenerating power distribution plots...")
-        plot_power_distributions(sp, power_plot_dir)
+        plot_power_distributions(sp, power_plot_dir, inputs_dict)
     except Exception as e:
         print(f"Error generating power distribution plots: {str(e)}")
 
     try:
         print("\nGenerating 2D power map...")
-        plot_2d_power_map(sp, power_plot_dir)
+        plot_2d_power_map(sp, power_plot_dir, inputs_dict)
     except Exception as e:
         print(f"Error generating 3D power map: {str(e)}")
 
@@ -129,11 +146,12 @@ def plot_all(plot_dir=None, depletion_plot_dir=None):
         os.makedirs(depletion_plot_dir, exist_ok=True)
 
         try:
-            print("\nGenerating depletion results plots...")
-            plot_depletion_results(depletion_plot_dir, root_dir=root_dir, depletion_dir=depletion_dir)
+            print("\nGenerating depletion plots...")
+            plot_depletion_results(depletion_plot_dir, root_dir, depletion_dir, inputs_dict)
+            plot_nuclide_evolution(depletion_plot_dir, root_dir, depletion_dir, inputs_dict)
             print(f"\nDepletion plots have been saved to: {depletion_plot_dir}")
         except Exception as e:
-            print(f"Error generating depletion results plots: {str(e)}")
+            print(f"Error generating depletion plots: {str(e)}")
     else:
         print("\nSkipping depletion plots (no depletion results found)")
 

@@ -24,7 +24,7 @@ root_dir = os.path.dirname(parent_dir)  # Up another level to IntegratedReactorM
 cross_sections_path = os.path.join(root_dir, "cross_sections", "cross_sections.xml")
 
 
-def calculate_volumes(geometry):
+def calculate_volumes(geometry, inputs_dict):
     """Calculate volumes for all depletable materials considering full core geometry."""
     debug_file = os.path.join(os.path.dirname(__file__), 'outputs', 'volume_debug.txt')
     os.makedirs(os.path.dirname(debug_file), exist_ok=True)
@@ -62,13 +62,13 @@ def calculate_volumes(geometry):
         process_universe(geometry.root_universe)
 
         # Calculate single cell volume
-        fuel_height = inputs['fuel_height'] * 100
-        if inputs['assembly_type'] == 'Plate':
-            fuel_meat_width = inputs['fuel_meat_width'] * 100
-            fuel_meat_thickness = inputs['fuel_meat_thickness'] * 100
+        fuel_height = inputs_dict['fuel_height'] * 100
+        if inputs_dict['assembly_type'] == 'Plate':
+            fuel_meat_width = inputs_dict['fuel_meat_width'] * 100
+            fuel_meat_thickness = inputs_dict['fuel_meat_thickness'] * 100
             single_volume = fuel_meat_width * fuel_meat_thickness * fuel_height
         else:
-            fuel_radius = inputs['r_fuel'] * 100
+            fuel_radius = inputs_dict['r_fuel'] * 100
             single_volume = np.pi * fuel_radius**2 * fuel_height
 
         # Count how many cells use each material
@@ -87,7 +87,7 @@ def calculate_volumes(geometry):
                     f.write(f"  Cells using this material: {material_cell_counts[material.id]}\n")
                     f.write(f"  Total volume: {material.volume:.4f} cm³\n")
 
-def create_operator(model, chain_file=None, depletion_type='core'):
+def create_operator(model, chain_file=None, depletion_type='core', inputs_dict=None):
     """Create a depletion operator for full core calculations.
 
     Parameters
@@ -98,15 +98,21 @@ def create_operator(model, chain_file=None, depletion_type='core'):
         Path to depletion chain XML file. If None, uses the chain specified in inputs.
     depletion_type : str, optional
         Type of depletion: 'core', 'assembly', 'assembly_enhanced', 'element', or 'element_enhanced'
+    inputs_dict : dict, optional
+        Custom inputs dictionary. If None, uses the global inputs.
 
     Returns
     -------
     openmc.deplete.CoupledOperator
         The depletion operator
     """
+    # Use provided inputs or default to global inputs
+    if inputs_dict is None:
+        inputs_dict = inputs
+
     # Select chain file based on inputs if not explicitly provided
     if chain_file is None:
-        chain_type = inputs.get('depletion_chain', 'endfb71').lower()
+        chain_type = inputs_dict.get('depletion_chain', 'endfb71').lower()
         if chain_type == 'endfb71':
             chain_file = os.path.join(
                 os.path.dirname(__file__),
@@ -135,7 +141,7 @@ def create_operator(model, chain_file=None, depletion_type='core'):
             mat.depletable = False
 
     # Calculate volumes for depletable materials
-    calculate_volumes(model.geometry)
+    calculate_volumes(model.geometry, inputs_dict)
 
     # Create operator with recommended settings for full core
     operator = openmc.deplete.CoupledOperator(
@@ -174,7 +180,7 @@ def create_operator(model, chain_file=None, depletion_type='core'):
 
     return operator
 
-def setup_depletion(operator, depletion_type='core'):
+def setup_depletion(operator, depletion_type='core', inputs_dict=None):
     """Set up depletion calculation parameters.
 
     Parameters
@@ -183,15 +189,21 @@ def setup_depletion(operator, depletion_type='core'):
         The depletion operator
     depletion_type : str, optional
         Type of depletion: 'core', 'assembly', 'assembly_enhanced', 'element', or 'element_enhanced'
+    inputs_dict : dict, optional
+        Custom inputs dictionary. If None, uses the global inputs.
 
     Returns
     -------
     tuple
         (integrator, timesteps in seconds or MWd/kgHM)
     """
+    # Use provided inputs or default to global inputs
+    if inputs_dict is None:
+        inputs_dict = inputs
+
     # Get parameters from inputs - use direct access since these are required
-    timestep_units = inputs['depletion_timestep_units']
-    timestep_configs = inputs['depletion_timesteps']
+    timestep_units = inputs_dict['depletion_timestep_units']
+    timestep_configs = inputs_dict['depletion_timesteps']
 
     # Generate timesteps based on configurations
     timesteps = []
@@ -220,10 +232,10 @@ def setup_depletion(operator, depletion_type='core'):
     print(f"- Total number of steps: {len(timesteps)}")
     print("- Step configurations:")
     for i, config in enumerate(timestep_configs, 1):
-        print(f"  Config {i}: {config['steps']} steps of {config['size']} {inputs['depletion_timestep_units']}")
+        print(f"  Config {i}: {config['steps']} steps of {config['size']} {inputs_dict['depletion_timestep_units']}")
 
     # Select integrator based on input
-    integrator_type = inputs['depletion_integrator'].lower()
+    integrator_type = inputs_dict['depletion_integrator'].lower()
 
     # Map of integrator names to their classes
     integrator_map = {
@@ -245,20 +257,20 @@ def setup_depletion(operator, depletion_type='core'):
     integrator_class = integrator_map[integrator_type]
 
     # Calculate power density in W/gHM based on core values
-    core_power = inputs['core_power'] * 1e6  # MW to W
+    core_power = inputs_dict['core_power'] * 1e6  # MW to W
 
     # For assembly and element cases, we want to use the same power density as the core
     if depletion_type == 'core':
         power_density = core_power / operator.heavy_metal  # W/gHM
     else:
         # Get number of assemblies from inputs
-        num_assemblies = inputs['num_assemblies']
+        num_assemblies = inputs_dict['num_assemblies']
         if depletion_type.startswith('element'):
             # For pin fuel, divide by number of pins per assembly
-            if inputs['assembly_type'] == 'Pin':
-                num_elements = inputs['n_side_pins'] ** 2 - len(inputs['guide_tube_positions'])
+            if inputs_dict['assembly_type'] == 'Pin':
+                num_elements = inputs_dict['n_side_pins'] ** 2 - len(inputs_dict['guide_tube_positions'])
             else:  # Plate fuel
-                num_elements = inputs['plates_per_assembly']
+                num_elements = inputs_dict['plates_per_assembly']
             # Scale by both number of assemblies and elements per assembly
             total_elements = num_assemblies * num_elements
             power_density = (core_power / total_elements) / operator.heavy_metal

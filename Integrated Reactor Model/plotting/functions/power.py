@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import scipy.interpolate as interp
 from inputs import inputs
 
-def get_radial_profiles(element_data, core_layout, is_element_level=False):
+def get_radial_profiles(element_data, core_layout, is_element_level=False, inputs_dict=None):
     """Get radial power profiles in X and Y directions.
 
     Parameters
@@ -18,6 +18,8 @@ def get_radial_profiles(element_data, core_layout, is_element_level=False):
         Core layout from inputs
     is_element_level : bool, optional
         Whether the data is at element level (True) or assembly level (False)
+    inputs_dict : dict, optional
+        Custom inputs dictionary. If None, uses the global inputs.
 
     Returns
     -------
@@ -25,16 +27,20 @@ def get_radial_profiles(element_data, core_layout, is_element_level=False):
         Contains x_positions, y_positions and their corresponding power values
         in format (x_pos, x_powers, x_linear, x_linear_mid, y_pos, y_powers, y_linear, y_linear_mid)
     """
+    # Use provided inputs or default to global inputs
+    if inputs_dict is None:
+        inputs_dict = inputs
+
     # Convert core layout to numpy array for easier manipulation
     layout = np.array(core_layout)
     center_i = len(layout) // 2
     center_j = len(layout[0]) // 2
 
     # Get assembly pitch in meters
-    if inputs['assembly_type'] == 'Pin':
-        assembly_pitch = inputs['pin_pitch'] * inputs['n_side_pins']
+    if inputs_dict['assembly_type'] == 'Pin':
+        assembly_pitch = inputs_dict['pin_pitch'] * inputs_dict['n_side_pins']
     else:
-        assembly_pitch = inputs['fuel_plate_width'] + 2*inputs['clad_structure_width']
+        assembly_pitch = inputs_dict['fuel_plate_width'] + 2*inputs_dict['clad_structure_width']
 
     # Initialize lists for each direction
     x_pos, x_powers, x_linear, x_linear_mid = [], [], [], []
@@ -71,10 +77,10 @@ def get_radial_profiles(element_data, core_layout, is_element_level=False):
                     y_linear_mid.append(data['axial_distribution'][center_z])
     else:
         # Element-level data processing
-        if inputs['assembly_type'] == 'Pin':
+        if inputs_dict['assembly_type'] == 'Pin':
             # For pin-type elements
-            pin_pitch = inputs['pin_pitch']
-            n_side_pins = inputs['n_side_pins']
+            pin_pitch = inputs_dict['pin_pitch']
+            n_side_pins = inputs_dict['n_side_pins']
 
             # Group elements by their position along central axes
             x_elements = {}  # Elements along x-axis (center row)
@@ -118,8 +124,8 @@ def get_radial_profiles(element_data, core_layout, is_element_level=False):
 
         else:
             # For plate-type elements
-            plate_pitch = inputs['fuel_plate_pitch']
-            plates_per_assembly = inputs['plates_per_assembly']
+            plate_pitch = inputs_dict['fuel_plate_pitch']
+            plates_per_assembly = inputs_dict['plates_per_assembly']
 
             # Group elements by their position along central axes
             x_elements = {}  # Elements along x-axis
@@ -185,7 +191,7 @@ def get_radial_profiles(element_data, core_layout, is_element_level=False):
     return (x_pos, x_powers, x_linear, x_linear_mid,
             y_pos, y_powers, y_linear, y_linear_mid)
 
-def plot_power_distributions(sp, plot_dir):
+def plot_power_distributions(sp, plot_dir, inputs_dict=None):
     """Plot power distributions and save data to CSV.
 
     Parameters
@@ -194,25 +200,31 @@ def plot_power_distributions(sp, plot_dir):
         StatePoint file containing the tally results
     plot_dir : str
         Directory to save the plots and CSV files
+    inputs_dict : dict, optional
+        Custom inputs dictionary. If None, uses the global inputs.
     """
     print(f"\nStarting power distribution plotting...")
+
+    # Use provided inputs or default to global inputs
+    if inputs_dict is None:
+        inputs_dict = inputs
 
     # Ensure plot directory exists
     os.makedirs(plot_dir, exist_ok=True)
 
     # Get core dimensions
-    half_height = inputs['fuel_height'] * 50  # Convert to cm
+    half_height = inputs_dict['fuel_height'] * 50  # Convert to cm
 
     # Get total core power in MW
-    power_mw = inputs.get('core_power', 1.0)
+    power_mw = inputs_dict.get('core_power', 1.0)
     print(f"Total core power: {power_mw:.2f} MW")
 
     # Check if we're using element-level tallies
-    is_element_level = inputs.get('element_level_power_tallies', False)
+    is_element_level = inputs_dict.get('element_level_power_tallies', False)
 
     # Determine tally name pattern based on tallying mode
     if is_element_level:
-        if inputs['assembly_type'] == 'Pin':
+        if inputs_dict['assembly_type'] == 'Pin':
             tally_pattern = "pin_power"
             element_type = "pin"
         else:
@@ -227,7 +239,7 @@ def plot_power_distributions(sp, plot_dir):
     total_raw_power = 0  # Sum of all raw tally values
 
     # First pass: collect all raw tally data and sum
-    core_layout = inputs['core_lattice']
+    core_layout = inputs_dict['core_lattice']
 
     # Get all tallies that match our pattern
     matching_tallies = [tally for tally in sp.tallies.values()
@@ -238,7 +250,7 @@ def plot_power_distributions(sp, plot_dir):
         parts = tally.name.split('_')
 
         if is_element_level:
-            if inputs['assembly_type'] == 'Pin':
+            if inputs_dict['assembly_type'] == 'Pin':
                 # Format: pin_power_i_j_pin_i_pin_j
                 i, j, pin_i, pin_j = map(int, parts[2:6])
                 key = (i, j, pin_i, pin_j)
@@ -283,10 +295,10 @@ def plot_power_distributions(sp, plot_dir):
         # For assembly-level tallies, we need to divide by number of elements per assembly
         if not is_element_level:
             # Get number of fuel elements per assembly
-            if inputs['assembly_type'] == 'Plate':
-                n_elements = inputs['plates_per_assembly']
+            if inputs_dict['assembly_type'] == 'Plate':
+                n_elements = inputs_dict['plates_per_assembly']
             else:  # Pin type
-                n_elements = inputs['n_side_pins']**2 - inputs['n_guide_tubes']
+                n_elements = inputs_dict['n_side_pins']**2 - inputs_dict['n_guide_tubes']
 
             # Divide by number of elements to get power per element
             power_per_cm = power_per_cm / n_elements
@@ -322,7 +334,7 @@ def plot_power_distributions(sp, plot_dir):
     # Add columns for each element
     for pos, data in element_data.items():
         if is_element_level:
-            if inputs['assembly_type'] == 'Pin':
+            if inputs_dict['assembly_type'] == 'Pin':
                 i, j, pin_i, pin_j = pos
                 col_name = f"Pin_{i}_{j}_{pin_i}_{pin_j}_{data['position']}"
             else:
@@ -340,7 +352,7 @@ def plot_power_distributions(sp, plot_dir):
 
     # Add hot element column with appropriate name
     if is_element_level:
-        if inputs['assembly_type'] == 'Pin':
+        if inputs_dict['assembly_type'] == 'Pin':
             i, j, pin_i, pin_j = max_power_pos
             hot_col_name = f'Hot_Pin_{i}_{j}_{pin_i}_{pin_j}'
         else:
@@ -359,7 +371,7 @@ def plot_power_distributions(sp, plot_dir):
     totals = {'z_position_cm': 'Total Power (MW)'}
     for pos, data in element_data.items():
         if is_element_level:
-            if inputs['assembly_type'] == 'Pin':
+            if inputs_dict['assembly_type'] == 'Pin':
                 i, j, pin_i, pin_j = pos
                 col_name = f"Pin_{i}_{j}_{pin_i}_{pin_j}_{data['position']}"
             else:
@@ -385,7 +397,7 @@ def plot_power_distributions(sp, plot_dir):
 
     # Get radial profiles
     (x_pos, x_powers, x_linear, x_linear_mid,
-     y_pos, y_powers, y_linear, y_linear_mid) = get_radial_profiles(element_data, inputs['core_lattice'], is_element_level)
+     y_pos, y_powers, y_linear, y_linear_mid) = get_radial_profiles(element_data, inputs_dict['core_lattice'], is_element_level, inputs_dict)
 
     # Create figure with three subplots
     if n_segments > 20 and n_segments % 20 == 0:
@@ -439,7 +451,7 @@ def plot_power_distributions(sp, plot_dir):
 
     # Add hot element label with appropriate position info
     if is_element_level:
-        if inputs['assembly_type'] == 'Pin':
+        if inputs_dict['assembly_type'] == 'Pin':
             i, j, pin_i, pin_j = max_power_pos
             hot_label = f'Hot Pin (Assembly {i},{j}, Pin {pin_i},{pin_j})'
         else:
@@ -519,21 +531,31 @@ def plot_power_distributions(sp, plot_dir):
     print(f"Saved power distribution plot to: {plot_path}")
 
 
-def plot_2d_power_map(sp, plot_dir):
-    """Create a 2D power distribution heat map visualization of the reactor core.
+def plot_2d_power_map(sp, plot_dir, inputs_dict=None):
+    """Plot 2D power distribution map.
 
-    This function uses the CSV data created by plot_power_distributions to ensure
-    consistent power values between all plots.
+    Parameters
+    ----------
+    sp : openmc.StatePoint
+        StatePoint file containing the tally results
+    plot_dir : str
+        Directory to save the plot
+    inputs_dict : dict, optional
+        Custom inputs dictionary. If None, uses the global inputs.
     """
+    # Use provided inputs or default to global inputs
+    if inputs_dict is None:
+        inputs_dict = inputs
+
     print("\nCreating power distribution heat map...")
     os.makedirs(plot_dir, exist_ok=True)
 
     # Get basic parameters
-    power_mw = inputs.get('core_power', 1.0)
-    is_element_level = inputs.get('element_level_power_tallies', False)
+    power_mw = inputs_dict.get('core_power', 1.0)
+    is_element_level = inputs_dict.get('element_level_power_tallies', False)
 
     if is_element_level:
-        if inputs['assembly_type'] == 'Pin':
+        if inputs_dict['assembly_type'] == 'Pin':
             element_type = "pin"
         else:
             element_type = "plate"
@@ -571,7 +593,7 @@ def plot_2d_power_map(sp, plot_dir):
 
             # Extract position info from column name
             if is_element_level:
-                if inputs['assembly_type'] == 'Pin':
+                if inputs_dict['assembly_type'] == 'Pin':
                     # Format: Pin_i_j_pin_i_pin_j_position
                     parts = col.split('_')
                     i, j, pin_i, pin_j = map(int, parts[1:5])
@@ -632,7 +654,7 @@ def plot_2d_power_map(sp, plot_dir):
             max_j = j_indices[max_power_idx]
 
             if is_element_level:
-                if inputs['assembly_type'] == 'Pin':
+                if inputs_dict['assembly_type'] == 'Pin':
                     max_pin = pin_indices[max_power_idx]
                     print(f"\nHot Pin: Assembly {max_i},{max_j}, Pin {max_pin[0]},{max_pin[1]}")
                 else:
@@ -654,9 +676,9 @@ def plot_2d_power_map(sp, plot_dir):
             ax = fig.add_subplot(111)
 
             # Plot specific heatmap based on element type
-            if is_element_level and inputs['assembly_type'] == 'Pin':
+            if is_element_level and inputs_dict['assembly_type'] == 'Pin':
                 # Pin-type elements
-                n_side_pins = inputs['n_side_pins']
+                n_side_pins = inputs_dict['n_side_pins']
                 max_i, max_j = max(i_indices) + 1, max(j_indices) + 1
 
                 heatmap_data = np.full((max_i*n_side_pins, max_j*n_side_pins), np.nan)
@@ -683,9 +705,9 @@ def plot_2d_power_map(sp, plot_dir):
 
             elif is_element_level:
                 # Plate-type elements
-                plates_per_assembly = inputs['plates_per_assembly']
-                fuel_plate_width = inputs['fuel_plate_width'] * 100
-                fuel_plate_pitch = inputs['fuel_plate_pitch'] * 100
+                plates_per_assembly = inputs_dict['plates_per_assembly']
+                fuel_plate_width = inputs_dict['fuel_plate_width'] * 100
+                fuel_plate_pitch = inputs_dict['fuel_plate_pitch'] * 100
 
                 assembly_positions = set((data['i'], data['j']) for data in element_data.values())
                 max_i = max(pos[0] for pos in assembly_positions) + 1
