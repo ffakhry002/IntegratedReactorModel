@@ -17,7 +17,7 @@ base_inputs = {
 
     # Core Operating Parameters
     "core_power": 10,              # Core power [MW]
-    "assembly_type": 'Pin',        # Assembly type: 'Pin' or 'Plate'
+    "assembly_type": 'Plate',        # Assembly type: 'Pin' or 'Plate'
 
     ###########################################
     # Geometry Specifications
@@ -80,9 +80,8 @@ base_inputs = {
     "max_linear_power": 70,           # Maximum linear power [kW/m]
     "average_linear_power": 50,       # Average linear power [kW/m]
     "cos_curve_squeeze": 0,           # Axial power shape parameter [0-1]
-    "CP_PD_MLP_ALP": "MLP",          # CP: core power, PD: power density
-                                     # MLP: max linear power, ALP: avg linear power
-                                     # Only for when running the thermal hydraulics code locally
+    "CP_PD_MLP_ALP": "CP",          # CP: core power (MW), PD: power density (kW/L)
+                                    # MLP: max linear power (kW/m), ALP: avg linear power (kW/m)
 
     ###########################################
     # Irradiation Position Parameters
@@ -97,7 +96,7 @@ base_inputs = {
     # Standard Transport Settings
     "batches": 150,                   # Number of active batches
     "inactive": 20,                   # Number of inactive batches
-    "particles": int(2e4),            # Particles per batch
+    "particles": int(2e2),            # Particles per batch
     "energy_structure": 'log1001',    # Energy group structure
 
     # Energy Group Boundaries
@@ -118,7 +117,7 @@ base_inputs = {
     # Depletion Calculation Parameters
     ###########################################
     # Depletion Scenario Selection (only one should be True)
-    "deplete_core": True,                    # Full core depletion
+    "deplete_core": False,                    # Full core depletion
     "deplete_assembly": False,               # Single assembly with reflective BC
     "deplete_assembly_enhanced": False,      # Single enhanced assembly with reflective BC
     "deplete_element": False,                # Single fuel element with reflective BC
@@ -161,7 +160,7 @@ base_inputs = {
     # Miscellaneous Settings
     ###########################################
     "outputs_folder": "local_outputs",  # Base output directory
-    "pixels": (8000, 8000),            # Plot resolution
+    "pixels": (1000, 1000),            # Plot resolution
 }
 
 

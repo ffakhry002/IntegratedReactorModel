@@ -9,9 +9,11 @@ class ReactorPower:
         input_max_lp: Input maximum linear power
         input_avg_lp: Input average linear power
         cos_curve_squeeze: Cosine curve squeeze factor for power distribution
+        power_source: Source of power distribution ('COSINE', 'HOT_ELEMENT', or 'CORE_AVERAGE')
+        csv_path: Path to the power distribution CSV file (only used if power_source is not 'COSINE')
     """
     def __init__(self, core_power, num_assemblies, Q_dot_z_toggle, input_avg_power_density,
-                 input_max_lp, input_avg_lp, cos_curve_squeeze):
+                 input_max_lp, input_avg_lp, cos_curve_squeeze, power_source='COSINE', csv_path=None):
         self.core_power = core_power
         self.num_assemblies = num_assemblies
         self.Q_dot_z_toggle = Q_dot_z_toggle
@@ -19,6 +21,8 @@ class ReactorPower:
         self.input_max_lp = input_max_lp
         self.input_avg_lp = input_avg_lp
         self.cos_curve_squeeze = cos_curve_squeeze
+        self.power_source = power_source
+        self.csv_path = csv_path
 
 class ThermalHydraulics:
     """Class representing thermal-hydraulic parameters and settings.
