@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 import sys
+from scipy.integrate import trapezoid
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -123,7 +124,7 @@ def calculate_cladding_temperature_profile(Q_dot_z, T_clad_in, T_clad_out):
         T_clad_y[i, :] = T_clad_in[i] - (T_clad_in[i] - T_clad_out[i]) * ((y_clad - fuel_plate_thickness / 2) / clad_thickness)
     return T_clad_y
 
-def plot_results_plate(Q_dot_z, T_coolant_z, T_clad_out, T_clad_middle,T_clad_in, T_fuel_y, T_clad_y, output_dir=None):
+def plot_results_plate(Q_dot_z, T_coolant_z, T_clad_out, T_clad_middle, T_clad_in, T_fuel_y, T_clad_y, output_dir=None, element_power_mw=None, avg_element_power_mw=None, T_fuel_surface_z=None, T_fuel_centerline_z=None):
     initialize_globals()
     if output_dir is None:
         # Use default directory if none provided
@@ -142,6 +143,19 @@ def plot_results_plate(Q_dot_z, T_coolant_z, T_clad_out, T_clad_middle,T_clad_in
     plt.legend()
     plt.ylim(0, 1.2 * np.max(Q_dot_z / (1000)))  # Adjust y-axis limits
 
+    # Calculate total element power if not provided
+    if element_power_mw is None:
+        element_power_mw = trapezoid(Q_dot_z, z) / 1e6  # W to MW
+
+    # Add text box with power information
+    power_info = f"Element Power: {element_power_mw:.4f} MW"
+    if avg_element_power_mw is not None:
+        power_info += f"\nAvg Element Power: {avg_element_power_mw:.4f} MW"
+        power_info += f"\nPower Ratio: {element_power_mw/avg_element_power_mw:.2f}"
+
+    plt.text(0.02, 0.95, power_info, transform=plt.gca().transAxes,
+             verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+
     plt.subplot(7, 1, 2)
     plt.plot(z, T_coolant_z, label='T_coolant(z)')
     plt.xlabel('z (m)')
@@ -154,25 +168,49 @@ def plot_results_plate(Q_dot_z, T_coolant_z, T_clad_out, T_clad_middle,T_clad_in
     plt.plot(z, T_clad_out, label='T_clad_out(z)')
     plt.plot(z, T_clad_middle, label='T_clad_middle(z)')
     plt.plot(z, T_clad_in, label='T_clad_in(z)')
+
+    # If no fuel surface temperature is available, add fuel centerline to the cladding plot
+    if T_fuel_surface_z is None and T_fuel_centerline_z is not None:
+        plt.plot(z, T_fuel_centerline_z, label='T_fuel_centerline(z)')
+        plt.title('Cladding and Fuel Centerline Temperatures along Fuel Length')
+    else:
+        plt.title('Cladding Temperatures along Fuel Length (Inner cladding and outer)')
+
     plt.xlabel('z (m)')
     plt.ylabel('Temperature (K)')
-    plt.title('Cladding Temperatures along Fuel Length (Inner cladding and outer)')
     plt.legend()
-    plt.ylim(min(np.min(T_clad_out) - 5, np.min(T_clad_in) - 5), max(np.max(T_clad_out) + 5, np.max(T_clad_in) + 5))
+    plt.ylim(min(np.min(T_clad_out) - 5, np.min(T_clad_in) - 5),
+             max(np.max(T_clad_out) + 5, np.max(T_clad_in) + 5,
+                 np.max(T_fuel_centerline_z) + 5 if T_fuel_centerline_z is not None and T_fuel_surface_z is None else 0))
 
     plt.subplot(7, 1, 4)
-    z_positions = [-0.3, -0.2, -0.1, 0.1, 0.2, 0.3]  # z positions in meters
-    for z_pos in z_positions:
-        i = np.argmin(np.abs(z - z_pos))  # Find the index closest to the desired z position
-        plt.plot(y_fuel * 100, T_fuel_y[i, :], label=f'T_fuel_y at z={z[i] * 100:.0f} cm')
-    plt.xlabel('x (cm)')
-    plt.ylabel('Temperature (K)')
-    plt.title('Fuel Temperature across y at Different z')
-    plt.legend()
-    plt.xlim(0, fuel_plate_thickness / 2 * 100)
-    plt.ylim(np.min(T_fuel_y) - 5, np.max(T_fuel_y) + 5)
 
+    # If both fuel surface and centerline temperatures are available, plot them
+    if T_fuel_surface_z is not None and T_fuel_centerline_z is not None:
+        plt.plot(z, T_fuel_surface_z, label='T_fuel_surface(z)')
+        plt.plot(z, T_fuel_centerline_z, label='T_fuel_centerline(z)')
+        plt.xlabel('z (m)')
+        plt.ylabel('Temperature (K)')
+        plt.title('Fuel Temperatures along Fuel Length')
+        plt.legend()
+        plt.ylim(min(np.min(T_fuel_surface_z) - 5, np.min(T_fuel_centerline_z) - 5),
+                 max(np.max(T_fuel_surface_z) + 5, np.max(T_fuel_centerline_z) + 5))
+    else:
+        # Original fuel temperature cross-section plot
+        z_positions = [-0.3, -0.2, -0.1, 0.1, 0.2, 0.3]  # z positions in meters
+        for z_pos in z_positions:
+            i = np.argmin(np.abs(z - z_pos))  # Find the index closest to the desired z position
+            plt.plot(y_fuel * 100, T_fuel_y[i, :], label=f'T_fuel_y at z={z[i] * 100:.0f} cm')
+        plt.xlabel('x (cm)')
+        plt.ylabel('Temperature (K)')
+        plt.title('Fuel Temperature across y at Different z')
+        plt.legend()
+        plt.xlim(0, fuel_plate_thickness / 2 * 100)
+        plt.ylim(np.min(T_fuel_y) - 5, np.max(T_fuel_y) + 5)
+
+    # Adjust the following subplot numbers to maintain proper order
     plt.subplot(7, 1, 5)
+    z_positions = [-0.3, -0.2, -0.1, 0.1, 0.2, 0.3]  # z positions in meters
     for z_pos in z_positions:
         i = np.argmin(np.abs(z - z_pos))  # Find the index closest to the desired z position
         plt.plot(y_clad * 100, T_clad_y[i, :], label=f'T_clad_y at z={z[i] * 100:.0f} cm')

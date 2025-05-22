@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 import sys
+from scipy.integrate import trapezoid
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -75,7 +76,7 @@ def piecewise_temperature(r, z_positions, T_coolant_z, T_clad_out_z, T_clad_in_z
                 T[i, j] = T_coolant_z[z_index]
     return T
 
-def plot_results_pin(Q_dot_z, T_coolant_z, T_clad_out_z, T_clad_middle_z, T_clad_in_z, T_fuel_surface_z, T_fuel_centerline_z, T_fuel_y, r_fuel_mesh, MDNBR, output_dir=None):
+def plot_results_pin(Q_dot_z, T_coolant_z, T_clad_out_z, T_clad_middle_z, T_clad_in_z, T_fuel_surface_z, T_fuel_centerline_z, T_fuel_y, r_fuel_mesh, MDNBR, output_dir=None, element_power_mw=None, avg_element_power_mw=None):
     initialize_globals()
     if output_dir is None:
         # Use default directory if none provided
@@ -94,6 +95,19 @@ def plot_results_pin(Q_dot_z, T_coolant_z, T_clad_out_z, T_clad_middle_z, T_clad
     plt.title('Axial Power Profile')
     plt.legend()
     plt.ylim(0, 1.2 * np.max(Q_dot_z / 1000))
+
+    # Calculate total element power if not provided
+    if element_power_mw is None:
+        element_power_mw = trapezoid(Q_dot_z, z) / 1e6  # W to MW
+
+    # Add text box with power information
+    power_info = f"Element Power: {element_power_mw:.4f} MW"
+    if avg_element_power_mw is not None:
+        power_info += f"\nAvg Element Power: {avg_element_power_mw:.4f} MW"
+        power_info += f"\nPower Ratio: {element_power_mw/avg_element_power_mw:.2f}"
+
+    plt.text(0.02, 0.95, power_info, transform=plt.gca().transAxes,
+             verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
 
     # Coolant Temperature
     plt.subplot(8, 1, 2)
