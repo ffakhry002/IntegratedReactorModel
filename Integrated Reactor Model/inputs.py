@@ -101,7 +101,7 @@ base_inputs = {
     # Standard Transport Settings
     "batches": 150,                   # Number of active batches
     "inactive": 20,                   # Number of inactive batches
-    "particles": int(2e4),            # Particles per batch
+    "particles": int(2e2),            # Particles per batch
     "energy_structure": 'log1001',    # Energy group structure
 
     # Energy Group Boundaries
@@ -109,20 +109,21 @@ base_inputs = {
     "fast_cutoff": 100.0e3,          # Epithermal/fast boundary [eV]
 
     # Tally Granularity Settings
-    "power_tally_axial_segments": 1,     # Number of axial segments for power tallies
+    "power_tally_axial_segments": 50,     # Number of axial segments for power tallies
     "irradiation_axial_segments": 100,    # Number of axial segments for irradiation tallies
     "core_mesh_dimension": [201, 201, 201], # Mesh resolution for core flux tallies
     "entropy_mesh_dimension": [20, 20, 20],  # Mesh resolution for entropy calculation
 
     # Additional Tallies
     "Core_Three_Group_Energy_Bins": True, # True: use three energy bins for core tallies, False: don't tally energy groups
-    "element_level_power_tallies": False, # True: tally power for individual fuel elements, False: tally power for assemblies
+    "tally_power": False,                  # True: calculate power tallies and TH, False: skip power calculations
+    "element_level_power_tallies": True, # True: tally power for individual fuel elements, False: tally power for assemblies
 
     ###########################################
     # Depletion Calculation Parameters
     ###########################################
     # Depletion Scenario Selection (only one should be True)
-    "deplete_core": True,                    # Full core depletion
+    "deplete_core": False,                    # Full core depletion
     "deplete_assembly": False,               # Single assembly with reflective BC
     "deplete_assembly_enhanced": False,      # Single enhanced assembly with reflective BC
     "deplete_element": False,                # Single fuel element with reflective BC

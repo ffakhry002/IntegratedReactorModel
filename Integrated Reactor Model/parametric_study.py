@@ -116,7 +116,7 @@ def write_base_inputs_log(param_dir, base_inputs):
         'OpenMC Transport Parameters': [
             'batches', 'inactive', 'particles', 'energy_structure', 'thermal_cutoff', 'fast_cutoff',
             'power_tally_axial_segments', 'irradiation_axial_segments', 'core_mesh_dimension',
-            'entropy_mesh_dimension', 'Core_Three_Group_Energy_Bins', 'element_level_power_tallies'
+            'entropy_mesh_dimension', 'Core_Three_Group_Energy_Bins', 'tally_power', 'element_level_power_tallies'
         ],
         'Depletion Calculation Parameters': [
             'deplete_core', 'deplete_assembly', 'deplete_assembly_enhanced', 'deplete_element',
@@ -300,13 +300,20 @@ def run_single_parametric_case(run_num, run_dict, param_dir, log_file):
             print("Running depletion calculations...")
             depletion_results = run_all_depletions(output_dir=subdirs['depletion_data'], inputs_dict=modified_inputs)
 
-        # Generate all plots
-        print("Generating plots...")
-        plot_all(plot_dir=subdirs['flux_plots'], depletion_plot_dir=subdirs['depletion_plots'], power_plot_dir=subdirs['power_plots'], inputs_dict=modified_inputs)
+        # Check if power tallies are enabled
+        if modified_inputs.get('tally_power', True):
+            # Generate all plots (including power plots)
+            print("Generating plots...")
+            plot_all(plot_dir=subdirs['flux_plots'], depletion_plot_dir=subdirs['depletion_plots'], power_plot_dir=subdirs['power_plots'], inputs_dict=modified_inputs)
 
-        # Run additional thermal hydraulics calculations with different power profiles
-        print("Running additional thermal hydraulics calculations...")
-        run_additional_th_calculations(subdirs, th_subdirs, modified_inputs)
+            # Run additional thermal hydraulics calculations with different power profiles
+            print("Running additional thermal hydraulics calculations...")
+            run_additional_th_calculations(subdirs, th_subdirs, modified_inputs)
+        else:
+            # Generate only flux and depletion plots (no power plots)
+            print("Power tallies disabled - generating flux and depletion plots only...")
+            plot_all(plot_dir=subdirs['flux_plots'], depletion_plot_dir=subdirs['depletion_plots'], power_plot_dir=None, inputs_dict=modified_inputs)
+            print("Skipping additional thermal hydraulics calculations (power tallies disabled)")
 
         # Log results
         log_run_results(log_file, run_num, run_dict, modified_inputs, k_eff, k_std, True)

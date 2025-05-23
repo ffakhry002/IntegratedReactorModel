@@ -3,6 +3,7 @@ import pandas as pd
 import os
 from scipy.integrate import trapezoid
 from scipy.interpolate import interp1d
+from scipy import integrate
 
 def read_power_from_csv(th_system):
     """Read power distribution from CSV file.
@@ -111,11 +112,44 @@ def read_power_from_csv(th_system):
         # Convert z_csv from cm to m to match th_system.z
         z_csv_m = z_csv / 100
 
+        # Handle single axial tally case
+        if len(z_csv_m) == 1:
+            print(f"Single axial tally detected. Creating uniform distribution with linear power density.")
+            # For single tally, power_data[0] is already linear power density in W/m
+            # No need to divide by fuel height - just use it directly as uniform distribution
+            linear_power = power_data[0]  # W/m (already linear power density)
+
+            # Create uniform distribution across entire fuel height
+            Q_dot_z = np.full_like(th_system.z, linear_power)
+            fuel_height = th_system.geometry.fuel_height  # in meters
+            print(f"Applied uniform linear power: {linear_power:.2f} W/m over fuel height: {fuel_height:.3f} m")
+            return Q_dot_z
+
         # Use 1D linear interpolation to create a smooth power distribution
         # Sort the z values and corresponding power values to ensure the interpolator works correctly
         sort_indices = np.argsort(z_csv_m)
         z_csv_m_sorted = z_csv_m[sort_indices]
         power_data_sorted = power_data[sort_indices]
+
+        # Store the actual total power from CSV for renormalization
+        # Get the corresponding hot element total power from the CSV (last row)
+        csv_total_power_kw = None
+        if power_source == 'HOT_ELEMENT':
+            hot_col = next((col for col in df.columns if col.startswith('Hot_')), None)
+            if hot_col:
+                # Read the CSV again to get the total power row
+                df_full = pd.read_csv(csv_path)
+                total_row = df_full.iloc[-1]  # Last row contains totals
+                if hot_col in total_row:
+                    csv_total_power_kw = float(total_row[hot_col])  # Actually in MW from CSV
+        elif power_source == 'CORE_AVERAGE':
+            avg_col = next((col for col in df.columns if col.startswith('Average_')), None)
+            if avg_col:
+                # Read the CSV again to get the total power row
+                df_full = pd.read_csv(csv_path)
+                total_row = df_full.iloc[-1]  # Last row contains totals
+                if avg_col in total_row:
+                    csv_total_power_kw = float(total_row[avg_col])  # Actually in MW from CSV
 
         # Create the interpolation function
         # Use 'linear' for linear interpolation between points
@@ -124,7 +158,24 @@ def read_power_from_csv(th_system):
             power_interpolator = interp1d(z_csv_m_sorted, power_data_sorted, kind='linear', bounds_error=False, fill_value='extrapolate')
 
             # Apply the interpolation to get values at each z position in the thermal system
-            Q_dot_z = power_interpolator(th_system.z)
+            Q_dot_z_interpolated = power_interpolator(th_system.z)
+
+            # Calculate total by integrating the interpolated function over the fuel height
+            original_integral = integrate.quad(power_interpolator, 0, th_system.geometry.fuel_height)[0]
+
+            # Renormalize the interpolated power to match the total power from CSV
+            required_total_power = csv_total_power_kw * 1e6  # MW to W
+            renormalization_factor = required_total_power / original_integral
+
+            # Create the renormalized linear power function
+            linear_power_func = lambda z: power_interpolator(z) * renormalization_factor
+
+            # Calculate the renormalized integral for verification
+            final_integral = integrate.quad(linear_power_func, 0, th_system.geometry.fuel_height)[0]
+
+            # Create the renormalized power distribution
+            Q_dot_z = linear_power_func(th_system.z)
+
             return Q_dot_z
 
         except Exception as e:
