@@ -4,11 +4,11 @@ Integrated Reactor Model
 Project Structure:
 ├── inputs.py                     # Core input parameters and configuration
 ├── main.py                      # Main execution script
-├── parametric_study.py          # Parametric study functionality
 ├── run_dictionaries.py          # Parameter dictionaries for parametric studies
 ├── TH_OLD.py                    # Legacy thermal hydraulics code
 ├── remove_pycache.py            # Utility to clean __pycache__ directories
 ├── architecture.txt             # This project structure documentation
+├── __init__.py                  # Package initialization file
 │
 ├── cross_sections/              # Nuclear cross section data
 │   ├── cross_sections.xml      # Main cross section file
@@ -29,9 +29,11 @@ Project Structure:
 │   └── depletion_plots/        # Depletion analysis plots
 │
 ├── eigenvalue/                  # OpenMC transport calculations
+│   ├── __init__.py             # Package initialization file
 │   ├── run.py                  # Main eigenvalue calculation runner
 │   ├── outputs.py              # Results processing and output generation
 │   ├── find_no_checks.py       # Utility functions
+│   ├── parametric_study.py     # Parametric study functionality
 │   └── tallies/                # OpenMC tally definitions
 │       ├── __init__.py
 │       ├── core_tallies.py     # Core flux and reaction rate tallies

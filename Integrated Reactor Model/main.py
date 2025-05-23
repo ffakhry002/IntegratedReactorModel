@@ -12,7 +12,7 @@ from ThermalHydraulics.TH_refactored import THSystem
 from plotting.plotall import plot_all
 from depletion.run_depletion import run_all_depletions
 from inputs import inputs
-from parametric_study import run_parametric_study
+from eigenvalue.parametric_study import run_parametric_study
 
 def cleanup_all_pycache():
     """Remove all __pycache__ directories in the entire project structure."""
