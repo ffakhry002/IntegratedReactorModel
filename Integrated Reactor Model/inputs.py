@@ -3,7 +3,7 @@ base_inputs = {
     ###########################################
     # Parametric Study Configuration
     ###########################################
-    "parametric_study": False,        # Toggle for parametric study mode
+    "parametric_study": True,        # Toggle for parametric study mode
 
     ###########################################
     # Core Configuration
@@ -101,7 +101,7 @@ base_inputs = {
     # Standard Transport Settings
     "batches": 150,                   # Number of active batches
     "inactive": 20,                   # Number of inactive batches
-    "particles": int(2e2),            # Particles per batch
+    "particles": int(2e4),            # Particles per batch
     "energy_structure": 'log1001',    # Energy group structure
 
     # Energy Group Boundaries
@@ -116,7 +116,7 @@ base_inputs = {
 
     # Additional Tallies
     "Core_Three_Group_Energy_Bins": True, # True: use three energy bins for core tallies, False: don't tally energy groups
-    "tally_power": False,                  # True: calculate power tallies and TH, False: skip power calculations
+    "tally_power": True,                  # True: calculate power tallies and TH, False: skip power calculations
     "element_level_power_tallies": True, # True: tally power for individual fuel elements, False: tally power for assemblies
 
     ###########################################
@@ -133,15 +133,15 @@ base_inputs = {
     "depletion_timestep_units": "MWd/kgHM",  # Units for timesteps: 'MWd/kgHM' or 'days'
     "depletion_timesteps": [
         {"steps": 5, "size": 1},  # 5 steps of 0.2 MWd/kgHM or days
-        # {"steps": 5, "size": 0.5},  # 10 steps of 1.0 MWd/kgHM or days
-        # {"steps": 5, "size": 2.5},   # 5 steps of 2.0 MWd/kgHM or days
-        # {"steps": 5, "size": 5},   # 5 steps of 2.0 MWd/kgHM or days
-        # {"steps": 5, "size": 10},   # 5 steps of 2.0 MWd/kgHM or days
+        {"steps": 5, "size": 0.5},  # 10 steps of 1.0 MWd/kgHM or days
+        {"steps": 5, "size": 2.5},   # 5 steps of 2.0 MWd/kgHM or days
+        {"steps": 5, "size": 5},   # 5 steps of 2.0 MWd/kgHM or days
+        {"steps": 5, "size": 10},   # 5 steps of 2.0 MWd/kgHM or days
     ],
 
     # Transport Settings for Depletion
-    "depletion_particles": 1000,       # Particles per batch for depletion
-    "depletion_batches": 100,         # Active batches for depletion
+    "depletion_particles": 5000,       # Particles per batch for depletion
+    "depletion_batches": 120,         # Active batches for depletion
     "depletion_inactive": 20,         # Inactive batches for depletion
 
     # Depletion Options

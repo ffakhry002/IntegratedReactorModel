@@ -3,7 +3,6 @@ import pandas as pd
 import os
 from scipy.integrate import trapezoid
 from scipy.interpolate import interp1d
-from scipy import integrate
 
 def read_power_from_csv(th_system):
     """Read power distribution from CSV file.
@@ -161,7 +160,15 @@ def read_power_from_csv(th_system):
             Q_dot_z_interpolated = power_interpolator(th_system.z)
 
             # Calculate total by integrating the interpolated function over the fuel height
-            original_integral = integrate.quad(power_interpolator, 0, th_system.geometry.fuel_height)[0]
+            # Use the actual z-array bounds instead of 0 to fuel_height
+            z_min = min(th_system.z)
+            z_max = max(th_system.z)
+
+            # Use trapezoid integration instead of quad for better handling of linear interpolation
+            # Create a fine grid for integration
+            z_integration = np.linspace(z_min, z_max, 1000)
+            power_integration = power_interpolator(z_integration)
+            original_integral = trapezoid(power_integration, z_integration)
 
             # Renormalize the interpolated power to match the total power from CSV
             required_total_power = csv_total_power_kw * 1e6  # MW to W
@@ -170,8 +177,9 @@ def read_power_from_csv(th_system):
             # Create the renormalized linear power function
             linear_power_func = lambda z: power_interpolator(z) * renormalization_factor
 
-            # Calculate the renormalized integral for verification
-            final_integral = integrate.quad(linear_power_func, 0, th_system.geometry.fuel_height)[0]
+            # Calculate the renormalized integral for verification using trapezoid
+            final_power_integration = power_integration * renormalization_factor
+            final_integral = trapezoid(final_power_integration, z_integration)
 
             # Create the renormalized power distribution
             Q_dot_z = linear_power_func(th_system.z)

@@ -6,7 +6,15 @@ import os
 import shutil
 import copy
 import time
+import sys
 from datetime import datetime
+
+# Add the parent directory to the path to enable absolute imports
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+
 from inputs import inputs, calculate_derived_values
 from run_dictionaries import all_runs
 from eigenvalue.run import run_eigenvalue
@@ -20,7 +28,8 @@ def create_parametric_directory():
     current_date = datetime.now().strftime("%Y%m%d_%H%M%S")
     param_dir_name = f"parametric_simulation_{current_date}"
 
-    script_dir = os.path.dirname(os.path.abspath(__file__))
+    # Get the root directory (parent of eigenvalue where this script is located)
+    script_dir = parent_dir  # Use the parent_dir we already calculated
     param_dir = os.path.join(script_dir, param_dir_name)
 
     if os.path.exists(param_dir):
