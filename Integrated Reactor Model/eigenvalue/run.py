@@ -144,7 +144,10 @@ def run_eigenvalue(inputs_dict=None):
     tallies.extend(create_irradiation_axial_tallies(inputs_dict=inputs_dict))
     tallies.extend(create_nutotal_tallies())
     tallies.extend(create_coreflux_tallys(inputs_dict=inputs_dict))
-    tallies.extend(create_power_tallies(inputs_dict=inputs_dict))
+
+    # Only add power tallies if tally_power is enabled
+    if inputs_dict.get('tally_power', True):
+        tallies.extend(create_power_tallies(inputs_dict=inputs_dict))
 
     # Create model
     model = openmc.model.Model()

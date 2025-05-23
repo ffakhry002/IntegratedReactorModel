@@ -2,96 +2,165 @@ Integrated Reactor Model
 ======================
 
 Project Structure:
-├── inputs.py                 # Core input parameters and configuration
-├── main.py                  # Main execution script
-├── __init__.py
-├── cross_sections/
-│   └── cross_sections.xml
+├── inputs.py                     # Core input parameters and configuration
+├── main.py                      # Main execution script
+├── parametric_study.py          # Parametric study functionality
+├── run_dictionaries.py          # Parameter dictionaries for parametric studies
+├── TH_OLD.py                    # Legacy thermal hydraulics code
+├── remove_pycache.py            # Utility to clean __pycache__ directories
+├── architecture.txt             # This project structure documentation
 │
-├── depletion/               # Depletion calculation functionality
-│   ├── __init__.py
-│   ├── run_depletion.py    # Main depletion runner
-│   ├── depletion_operator.py # Depletion operator setup
-│   └── depletion chains/
-│       ├── chain_endfb71_pwr.xml
-│       └── chain_casl_pwr.xml
+├── cross_sections/              # Nuclear cross section data
+│   ├── cross_sections.xml      # Main cross section file
+│   ├── neutron/                # Neutron cross section data
+│   └── photon/                 # Photon cross section data
 │
-├── execution/
-│   ├── __init__.py
-│   ├── outputs.py
-│   ├── run.py
-│   └── tallies/
+├── depletion chains/            # Depletion chain data files
+│   ├── chain_casl_pwr.xml      # CASL depletion chain
+│   └── chain_endfb71_pwr.xml   # ENDF/B-VII.1 depletion chain
+│
+├── simulation_data/             # Runtime simulation outputs (created during execution)
+│   ├── Geometry_and_Materials/  # Geometry visualization outputs
+│   ├── ThermalHydraulics/       # TH calculation results
+│   ├── transport_data/          # OpenMC transport calculation data
+│   ├── flux_plots/             # Neutron flux distribution plots
+│   ├── power_plots/            # Power distribution plots
+│   ├── depletion_data/         # Depletion calculation outputs
+│   └── depletion_plots/        # Depletion analysis plots
+│
+├── eigenvalue/                  # OpenMC transport calculations
+│   ├── run.py                  # Main eigenvalue calculation runner
+│   ├── outputs.py              # Results processing and output generation
+│   ├── find_no_checks.py       # Utility functions
+│   └── tallies/                # OpenMC tally definitions
 │       ├── __init__.py
-│       ├── core_tallies.py
-│       ├── energy_groups.py
-│       ├── find_no_checks.py
-│       ├── irradiation_tallies.py
-│       └── normalization.py
+│       ├── core_tallies.py     # Core flux and reaction rate tallies
+│       ├── energy_groups.py    # Energy group definitions
+│       ├── irradiation_tallies.py # Irradiation position tallies
+│       ├── normalization.py    # Tally normalization utilities
+│       └── power_tallies.py    # Power distribution tallies
 │
-├── plotting/
+├── depletion/                   # Fuel depletion calculations
 │   ├── __init__.py
-│   ├── plotall.py
-│   └── functions/
-│       ├── __init__.py
-│       ├── depletion.py
-│       ├── entropy.py
-│       ├── flux_maps.py
-│       ├── flux_traps.py
-│       ├── normalized_flux_profiles.py
-│       └── utils.py
+│   ├── run_depletion.py        # Main depletion calculation runner
+│   ├── depletion_operator.py   # OpenMC depletion operator setup
+│   ├── depletion_output_text.py # Text output formatting for depletion
+│   └── outputs/                # Depletion calculation outputs (created during execution)
 │
-├── Reactor/
-│   ├── __init__.py
-│   ├── materials.py
-│   ├── geometry.py
-│   └── geometry_helpers/
-│       ├── __init__.py
-│       ├── core.py
-│       ├── irradiation_cell.py
-│       ├── pin_fuel.py
-│       ├── plate_fuel.py
-│       └── utils.py
+├── plotting/                    # Visualization and plotting
+│   ├── plotall.py              # Main plotting coordinator
+│   ├── plots/                  # Plot outputs (created during execution)
+│   └── functions/              # Individual plotting functions
+│       ├── depletion.py        # Depletion evolution plots
+│       ├── entropy.py          # Shannon entropy convergence plots
+│       ├── flux_maps.py        # 2D/3D neutron flux maps
+│       ├── flux_traps.py       # Irradiation position flux plots
+│       ├── normalized_flux_profiles.py # Normalized flux profile plots
+│       ├── power.py            # Power distribution plots
+│       └── utils.py            # Plotting utility functions
 │
-└── ThermalHydraulics/
+├── Reactor/                     # Reactor geometry and materials
+│   ├── materials.py            # Material definitions and properties
+│   ├── geometry.py             # Main geometry visualization
+│   ├── output/                 # Geometry visualization outputs (created during execution)
+│   └── geometry_helpers/       # Geometry construction utilities
+│       ├── __init__.py
+│       ├── core.py             # Core lattice and universe construction
+│       ├── irradiation_cell.py # Irradiation position geometry
+│       ├── pin_fuel.py         # Pin-type fuel assembly geometry
+│       ├── plate_fuel.py       # Plate-type fuel assembly geometry
+│       └── utils.py            # Geometry utility functions
+│
+└── ThermalHydraulics/          # Thermal hydraulics calculations
     ├── __init__.py
-    ├── TH.py
-    ├── TH_refactored.py
-    └── code_architecture/
-        ├── data_output_code/
-        │   ├── plottingcode/
-        │   │   ├── plotting_coeffs.py
-        │   │   ├── plotting_geometry.py
-        │   │   ├── plotting_pin.py
-        │   │   └── plotting_plate.py
-        │   └── output_helpers/
-        │       ├── th_data_extractor.py
-        │       ├── th_data_writer.py
-        │       ├── th_plotting.py
-        │       └── th_temperature_profiles.py
-        └── helper_codes/
-            ├── convergence/
-            │   ├── clad_convergence.py
-            │   ├── coolant_convergence.py
-            │   ├── fuel_convergence.py
-            │   ├── iteration.py
-            │   └── temperature_convergence.py
-            ├── material_properties/
-            │   ├── clad_properties.py
-            │   ├── coolant_properties.py
-            │   ├── fuel_properties.py
-            │   ├── gap_properties.py
-            │   └── coolant_data/
-            │       ├── isobaric_heavywater_1atm.csv
-            │       └── isobaric_lightwater_1atm.csv
-            ├── models/
-            │   ├── geometry.py
-            │   ├── geometry_validator.py
-            │   ├── material.py
-            │   ├── reactor.py
-            │   └── thermal_state.py
-            ├── power_calculations/
-            │   ├── heat_flux.py
-            │   └── power_distribution.py
-            └── temperature_points/
-                ├── pin_temperature_points.py
-                └── plate_temperature_points.py
+    ├── TH_refactored.py        # Main thermal hydraulics system
+    ├── local_outputs/          # Local TH outputs (created during execution)
+    └── code_architecture/      # Modular TH code architecture
+        ├── __init__.py
+        ├── data_output_code/   # Data output and visualization
+        │   ├── __init__.py
+        │   ├── output_helpers/ # Output processing utilities
+        │   │   ├── __init__.py
+        │   │   ├── th_data_extractor.py    # Data extraction from TH results
+        │   │   ├── th_data_writer.py       # Data writing utilities
+        │   │   ├── th_plotting.py          # TH plotting functions
+        │   │   └── th_temperature_profiles.py # Temperature profile plotting
+        │   └── plottingcode/   # TH visualization code
+        │       ├── __init__.py
+        │       ├── plotting_coeffs.py      # Heat transfer coefficient plots
+        │       ├── plotting_geometry.py    # Geometry visualization
+        │       ├── plotting_pin.py         # Pin assembly TH plots
+        │       └── plotting_plate.py       # Plate assembly TH plots
+        └── helper_codes/       # Core TH calculation modules
+            ├── __init__.py
+            ├── README.md       # TH module documentation
+            ├── convergence/    # Iterative solution convergence
+            │   ├── __init__.py
+            │   ├── clad_convergence.py     # Cladding temperature convergence
+            │   ├── coolant_convergence.py  # Coolant temperature convergence
+            │   ├── fuel_convergence.py     # Fuel temperature convergence
+            │   ├── iteration.py            # Iteration control
+            │   └── temperature_convergence.py # Overall temperature convergence
+            ├── material_properties/ # Thermophysical properties
+            │   ├── __init__.py
+            │   ├── clad_properties.py      # Cladding material properties
+            │   ├── coolant_properties.py   # Coolant thermophysical properties
+            │   ├── fuel_properties.py      # Fuel material properties
+            │   └── gap_properties.py       # Gap conductance properties
+            ├── models/         # Core TH models and data structures
+            │   ├── geometry.py             # TH geometry model
+            │   ├── geometry_validator.py   # Geometry validation
+            │   ├── material.py             # Material model
+            │   ├── reactor.py              # Reactor model
+            │   └── thermal_state.py        # Thermal state data structure
+            ├── power_calculations/ # Power distribution handling
+            │   ├── __init__.py
+            │   ├── heat_flux.py            # Heat flux calculations
+            │   └── power_distribution.py   # Axial power distribution
+            └── temperature_points/ # Temperature calculation points
+                ├── __init__.py
+                ├── pin_temperature_points.py   # Pin temperature points
+                └── plate_temperature_points.py # Plate temperature points
+
+Key Features:
+=============
+
+Core Functionality:
+- Eigenvalue calculations using OpenMC
+- Fuel depletion simulations
+- Thermal hydraulics analysis
+- Comprehensive plotting and visualization
+- Parametric study capabilities
+
+Supported Fuel Types:
+- Pin-type fuel assemblies (PWR/BWR style)
+- Plate-type fuel assemblies (research reactor style)
+
+Supported Calculations:
+- k-eigenvalue with uncertainty quantification
+- Neutron flux distributions (thermal, epithermal, fast)
+- Power distributions with hot channel analysis
+- Irradiation position flux tallies
+- Fuel burnup and isotopic evolution
+- Temperature distributions in fuel, cladding, and coolant
+- Multi-scenario thermal hydraulics (cosine, hot element, core average)
+
+Output Capabilities:
+- 2D and 3D flux maps
+- Power distribution plots
+- Temperature profile visualization
+- Depletion isotopic evolution plots
+- Shannon entropy convergence analysis
+- Comprehensive data export (CSV, plots, reports)
+
+Execution Modes:
+- Single simulation (main.py)
+- Parametric studies (parametric_study.py)
+- Individual module testing (each module can run standalone)
+
+Configuration:
+- Centralized parameter management in inputs.py
+- Flexible geometry definitions
+- Multiple material options
+- Customizable tally settings
+- Toggle-based feature control

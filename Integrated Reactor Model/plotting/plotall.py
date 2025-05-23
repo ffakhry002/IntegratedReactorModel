@@ -81,11 +81,12 @@ def plot_all(plot_dir=None, depletion_plot_dir=None, power_plot_dir=None, inputs
 
     # Clean up and create plot directories
     for directory in [flux_plot_dir, power_plot_dir]:
-        if os.path.exists(directory):
+        if directory is not None and os.path.exists(directory):
             print(f"\nCleaning up old plotting files in {directory}...")
             import shutil
             shutil.rmtree(directory)
-        os.makedirs(directory, exist_ok=True)
+        if directory is not None:
+            os.makedirs(directory, exist_ok=True)
 
     # Get power from inputs, default to 1 MW if not specified
     power_mw = inputs_dict.get('core_power', 1.0)
@@ -121,20 +122,25 @@ def plot_all(plot_dir=None, depletion_plot_dir=None, power_plot_dir=None, inputs
     except Exception as e:
         print(f"Error generating normalized flux profiles: {str(e)}")
 
-    try:
-        print("\nGenerating power distribution plots...")
-        plot_power_distributions(sp, power_plot_dir, inputs_dict)
-    except Exception as e:
-        print(f"Error generating power distribution plots: {str(e)}")
+    # Only generate power plots if power tallies are enabled
+    if power_plot_dir is not None:
+        try:
+            print("\nGenerating power distribution plots...")
+            plot_power_distributions(sp, power_plot_dir, inputs_dict)
+        except Exception as e:
+            print(f"Error generating power distribution plots: {str(e)}")
 
-    try:
-        print("\nGenerating 2D power map...")
-        plot_2d_power_map(sp, power_plot_dir, inputs_dict)
-    except Exception as e:
-        print(f"Error generating 3D power map: {str(e)}")
+        try:
+            print("\nGenerating 2D power map...")
+            plot_2d_power_map(sp, power_plot_dir, inputs_dict)
+        except Exception as e:
+            print(f"Error generating 3D power map: {str(e)}")
+
+        print(f"\nPower plots have been saved to: {power_plot_dir}")
+    else:
+        print("\nSkipping power plots (power tallies disabled)")
 
     print(f"\nFlux plots have been saved to: {flux_plot_dir}")
-    print(f"Power plots have been saved to: {power_plot_dir}")
 
     # Generate depletion plots if depletion results exist
     if os.path.exists(depletion_dir):

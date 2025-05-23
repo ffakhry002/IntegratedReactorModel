@@ -152,12 +152,19 @@ def main():
     else:
         print("\nNo depletion calculations enabled in inputs")
 
-    # Generate all plots
-    print("\nGenerating plots...")
-    plot_all(plot_dir=dirs['flux_plots'], depletion_plot_dir=dirs['depletion_plots'], power_plot_dir=dirs['power_plots'], inputs_dict=inputs)
+    # Check if power tallies are enabled
+    if inputs.get('tally_power', True):
+        # Generate all plots (including power plots)
+        print("\nGenerating plots...")
+        plot_all(plot_dir=dirs['flux_plots'], depletion_plot_dir=dirs['depletion_plots'], power_plot_dir=dirs['power_plots'], inputs_dict=inputs)
 
-    # Run additional thermal hydraulics calculations with different power profiles
-    run_additional_th_calculations(root_dir, dirs, th_subdirs, inputs_dict=inputs)
+        # Run additional thermal hydraulics calculations with different power profiles
+        run_additional_th_calculations(root_dir, dirs, th_subdirs, inputs_dict=inputs)
+    else:
+        # Generate only flux and depletion plots (no power plots)
+        print("\nGenerating flux and depletion plots only...")
+        plot_all(plot_dir=dirs['flux_plots'], depletion_plot_dir=dirs['depletion_plots'], power_plot_dir=None, inputs_dict=inputs)
+        print("\nSkipping additional thermal hydraulics calculations (power tallies disabled)")
 
     # Final cleanup of any new __pycache__ directories created during the run
     print("\nFinal cleanup of __pycache__ directories...")
