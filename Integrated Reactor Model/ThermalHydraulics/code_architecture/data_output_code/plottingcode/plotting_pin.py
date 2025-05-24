@@ -211,5 +211,5 @@ def plot_results_pin(Q_dot_z, T_coolant_z, T_clad_out_z, T_clad_middle_z, T_clad
     plt.ylim(0, 50)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, f'temperature_profiles.png'))
+    plt.savefig(os.path.join(output_dir, f'temperature_profiles.png'), dpi=300, bbox_inches='tight')
     plt.close()

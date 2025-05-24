@@ -1,3 +1,7 @@
+# Set matplotlib backend for thread safety
+import matplotlib
+matplotlib.use('Agg')
+
 import os
 import numpy as np
 import matplotlib.pyplot as plt

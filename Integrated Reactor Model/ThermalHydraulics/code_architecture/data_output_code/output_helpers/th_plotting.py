@@ -1,3 +1,7 @@
+# Set matplotlib backend before any other matplotlib imports for thread safety
+import matplotlib
+matplotlib.use('Agg')
+
 from ..plottingcode.plotting_plate import plot_results_plate, calculate_cladding_temperature_profile
 from ..plottingcode.plotting_coeffs import plot_material_properties, plot_conductivity_vs_temperature
 from ..plottingcode.plotting_pin import plot_results_pin
