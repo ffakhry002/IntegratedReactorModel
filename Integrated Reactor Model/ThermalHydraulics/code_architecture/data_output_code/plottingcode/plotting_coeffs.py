@@ -1,3 +1,7 @@
+# Set matplotlib backend for thread safety
+import matplotlib
+matplotlib.use('Agg')
+
 import numpy as np
 import matplotlib.pyplot as plt
 import os
@@ -104,7 +108,7 @@ def plot_material_properties(z, k_fuel, k_clad_out, k_clad_mid, k_clad_in, heat_
     ax2.grid(True)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, f'material_properties.png'))
+    plt.savefig(os.path.join(output_dir, f'material_properties.png'), dpi=300, bbox_inches='tight')
     plt.close()
 
 def plot_conductivity_vs_temperature(calculate_k_fuel, calculate_k_clad, calculate_h_gap_vector, output_dir=None, inputs_dict=None):
@@ -134,7 +138,7 @@ def plot_conductivity_vs_temperature(calculate_k_fuel, calculate_k_clad, calcula
 
     # Adjust layout and save the figure
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, 'Conductivity_vs_Temperature.png'))
+    plt.savefig(os.path.join(output_dir, 'Conductivity_vs_Temperature.png'), dpi=300, bbox_inches='tight')
     plt.close()
 
     # If gap heat transfer is included, create a separate plot using our specialized function
@@ -192,5 +196,5 @@ def plot_gap_heat_transfer_coefficient(output_dir=None, inputs_dict=None):
     plt.tight_layout()
 
     # Save the figure
-    plt.savefig(os.path.join(output_dir, 'Gap_HTC_vs_Power.png'))
+    plt.savefig(os.path.join(output_dir, 'Gap_HTC_vs_Power.png'), dpi=300, bbox_inches='tight')
     plt.close()

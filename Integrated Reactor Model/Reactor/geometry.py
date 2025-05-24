@@ -14,11 +14,11 @@ sys.path.append(root_dir)
 reactor_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(reactor_dir)
 
-from geometry_helpers.pin_fuel import build_fuel_assembly_uni as build_pin_assembly, build_pin_cell_fuel_uni
-from geometry_helpers.plate_fuel import build_fuel_assembly_uni as build_plate_assembly, build_plate_cell_fuel_uni
-from geometry_helpers.irradiation_cell import build_irradiation_cell_uni
-from geometry_helpers.core import build_core_uni
-from materials import make_materials
+from Reactor.geometry_helpers.pin_fuel import build_fuel_assembly_uni as build_pin_assembly, build_pin_cell_fuel_uni
+from Reactor.geometry_helpers.plate_fuel import build_fuel_assembly_uni as build_plate_assembly, build_plate_cell_fuel_uni
+from Reactor.geometry_helpers.irradiation_cell import build_irradiation_cell_uni
+from Reactor.geometry_helpers.core import build_core_uni
+from Reactor.materials import make_materials
 from inputs import inputs
 
 def plot_geometry(output_dir=None, inputs_dict=None):

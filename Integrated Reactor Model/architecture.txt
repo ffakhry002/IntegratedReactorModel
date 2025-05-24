@@ -10,6 +10,30 @@ Project Structure:
 ├── architecture.txt             # This project structure documentation
 ├── __init__.py                  # Package initialization file
 │
+├── GUI/                         # Interactive graphical user interface
+│   ├── __init__.py             # Package initialization
+│   ├── main.py                 # GUI application entry point
+│   ├── reactor_gui.py          # Legacy GUI (kept for reference)
+│   ├── components/             # GUI component modules
+│   │   ├── __init__.py
+│   │   ├── visualization_tab.py # Main reactor visualization tab
+│   │   ├── design_tab.py       # Core and pin layout design interface
+│   │   ├── thermal_tab.py      # Thermal hydraulics controls and results
+│   │   └── advanced_tab.py     # Advanced OpenMC and depletion parameters
+│   ├── visualization/          # Visualization engines
+│   │   ├── __init__.py
+│   │   ├── core_view.py        # Core-level reactor visualization
+│   │   ├── assembly_view.py    # Assembly-level visualization
+│   │   ├── element_view.py     # Individual fuel element visualization
+│   │   └── plotting_utils.py   # Common plotting utilities
+│   ├── controls/               # Parameter control widgets
+│   │   ├── __init__.py
+│   │   └── parameter_controls.py # Input parameter controls and validation
+│   └── utils/                  # GUI utility functions
+│       ├── __init__.py
+│       ├── constants.py        # Material colors and GUI constants
+│       └── export_utils.py     # Configuration export utilities
+│
 ├── cross_sections/              # Nuclear cross section data
 │   ├── cross_sections.xml      # Main cross section file
 │   ├── neutron/                # Neutron cross section data
@@ -133,6 +157,21 @@ Core Functionality:
 - Thermal hydraulics analysis
 - Comprehensive plotting and visualization
 - Parametric study capabilities
+- Interactive graphical user interface (GUI)
+
+GUI Features:
+- Real-time reactor visualization (Core XY/YZ/XZ views)
+- Assembly-level visualization (Pin/Plate assemblies)
+- Individual fuel element visualization
+- Interactive core layout designer with drag-and-drop functionality
+- Pin layout designer for guide tube positioning
+- Comprehensive parameter controls with live updates
+- Thermal hydraulics analysis with integrated result viewer
+- Advanced OpenMC and depletion parameter configuration
+- Two-panel layout for efficient parameter management
+- Configuration export capabilities
+- Material property visualization with color-coded legends
+- Zoom, pan, and navigation controls for all visualizations
 
 Supported Fuel Types:
 - Pin-type fuel assemblies (PWR/BWR style)
@@ -158,11 +197,14 @@ Output Capabilities:
 Execution Modes:
 - Single simulation (main.py)
 - Parametric studies (parametric_study.py)
+- Interactive GUI (GUI/main.py)
 - Individual module testing (each module can run standalone)
 
 Configuration:
 - Centralized parameter management in inputs.py
+- Interactive parameter editing via GUI interface
 - Flexible geometry definitions
 - Multiple material options
 - Customizable tally settings
 - Toggle-based feature control
+- Real-time configuration export and validation

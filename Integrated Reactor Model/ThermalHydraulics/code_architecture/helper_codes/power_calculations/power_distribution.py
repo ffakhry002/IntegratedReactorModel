@@ -57,11 +57,33 @@ def read_power_from_csv(th_system):
             hot_col = next((col for col in df.columns if col.startswith('Hot_')), None)
             if hot_col:
                 power_data = df[hot_col].values
+
+                # IMPORTANT: If this is assembly-level data, we need to divide by number of elements per assembly
+                if not is_element_level:
+                    # This is assembly-level data, so divide by number of elements per assembly
+                    if th_system.thermal_hydraulics.assembly_type == 'Pin':
+                        n_elements_per_assembly = th_system.pin_geometry.n_side_pins**2 - th_system.pin_geometry.n_guide_tubes
+                    else:  # Plate
+                        n_elements_per_assembly = th_system.plate_geometry.plates_per_assembly
+
+                    power_data = power_data / float(n_elements_per_assembly)
+                    print(f"Hot assembly power divided by {n_elements_per_assembly} elements per assembly")
+                else:
+                    print("Using element-level hot element power directly")
+
             else:
                 print("Hot element column not found in CSV, using core average")
                 avg_col = next((col for col in df.columns if col.startswith('Average_')), None)
                 if avg_col:
                     power_data = df[avg_col].values
+                    # Also check if this needs division
+                    if not is_element_level:
+                        if th_system.thermal_hydraulics.assembly_type == 'Pin':
+                            n_elements_per_assembly = th_system.pin_geometry.n_side_pins**2 - th_system.pin_geometry.n_guide_tubes
+                        else:  # Plate
+                            n_elements_per_assembly = th_system.plate_geometry.plates_per_assembly
+                        power_data = power_data / float(n_elements_per_assembly)
+
                 elif 'Core_Total' in df.columns:
                     # Calculate per element power
                     if is_element_level:
@@ -84,6 +106,14 @@ def read_power_from_csv(th_system):
             avg_col = next((col for col in df.columns if col.startswith('Average_')), None)
             if avg_col:
                 power_data = df[avg_col].values
+                # Check if this is assembly-level data that needs division
+                if not is_element_level:
+                    if th_system.thermal_hydraulics.assembly_type == 'Pin':
+                        n_elements_per_assembly = th_system.pin_geometry.n_side_pins**2 - th_system.pin_geometry.n_guide_tubes
+                    else:  # Plate
+                        n_elements_per_assembly = th_system.plate_geometry.plates_per_assembly
+                    power_data = power_data / float(n_elements_per_assembly)
+                    print(f"Average assembly power divided by {n_elements_per_assembly} elements per assembly")
             else:
                 # If no Average column, take Core_Total and divide by number of elements
                 if 'Core_Total' in df.columns:
@@ -141,6 +171,14 @@ def read_power_from_csv(th_system):
                 total_row = df_full.iloc[-1]  # Last row contains totals
                 if hot_col in total_row:
                     csv_total_power_kw = float(total_row[hot_col])  # Actually in MW from CSV
+                    # If assembly-level data, divide the total by number of elements per assembly
+                    if not is_element_level:
+                        if th_system.thermal_hydraulics.assembly_type == 'Pin':
+                            n_elements_per_assembly = th_system.pin_geometry.n_side_pins**2 - th_system.pin_geometry.n_guide_tubes
+                        else:  # Plate
+                            n_elements_per_assembly = th_system.plate_geometry.plates_per_assembly
+                        csv_total_power_kw = csv_total_power_kw / float(n_elements_per_assembly)
+
         elif power_source == 'CORE_AVERAGE':
             avg_col = next((col for col in df.columns if col.startswith('Average_')), None)
             if avg_col:
@@ -149,6 +187,13 @@ def read_power_from_csv(th_system):
                 total_row = df_full.iloc[-1]  # Last row contains totals
                 if avg_col in total_row:
                     csv_total_power_kw = float(total_row[avg_col])  # Actually in MW from CSV
+                    # If assembly-level data, divide the total by number of elements per assembly
+                    if not is_element_level:
+                        if th_system.thermal_hydraulics.assembly_type == 'Pin':
+                            n_elements_per_assembly = th_system.pin_geometry.n_side_pins**2 - th_system.pin_geometry.n_guide_tubes
+                        else:  # Plate
+                            n_elements_per_assembly = th_system.plate_geometry.plates_per_assembly
+                        csv_total_power_kw = csv_total_power_kw / float(n_elements_per_assembly)
 
         # Create the interpolation function
         # Use 'linear' for linear interpolation between points

@@ -1,3 +1,7 @@
+# Set matplotlib backend for thread safety
+import matplotlib
+matplotlib.use('Agg')
+
 import numpy as np
 import matplotlib.pyplot as plt
 import os
@@ -287,4 +291,4 @@ def plot_results_plate(Q_dot_z, T_coolant_z, T_clad_out, T_clad_middle, T_clad_i
         plt.legend()
 
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, f'temperature_profiles.png'))
+    plt.savefig(os.path.join(output_dir, f'temperature_profiles.png'), dpi=300, bbox_inches='tight')
