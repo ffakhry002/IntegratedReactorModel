@@ -4,17 +4,18 @@
 Main ReactorGUI class that coordinates all GUI components
 """
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 import copy
 import queue
 import sys
 import os
+import subprocess
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
-    from inputs import inputs as base_inputs
+    from utils.base_inputs import inputs as base_inputs
 except ImportError as e:
     print(f"Import error: {e}")
     print("Make sure you're running this from the Integrated Reactor Model directory")
@@ -64,7 +65,10 @@ class ReactorGUI:
         self.check_update_queue()
 
     def setup_gui(self):
-        """Setup the main GUI layout with tabs"""
+        """Setup the main GUI layout with tabs and menu"""
+        # Create menu bar
+        self.setup_menu_bar()
+
         # Create notebook for tabs
         self.notebook = ttk.Notebook(self.root)
         self.notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
@@ -84,6 +88,73 @@ class ReactorGUI:
 
         self.geometry_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.geometry_frame, text="OpenMC Geometry")
+
+    def setup_menu_bar(self):
+        """Setup the menu bar"""
+        menubar = tk.Menu(self.root)
+        self.root.config(menu=menubar)
+
+        # Tools menu
+        tools_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Tools", menu=tools_menu)
+
+        tools_menu.add_command(label="Parametric Study Generator",
+                              command=self.launch_parametric_gui)
+        tools_menu.add_separator()
+        tools_menu.add_command(label="Export Inputs", command=self.export_inputs)
+        tools_menu.add_command(label="Import Inputs", command=self.import_inputs)
+
+        # Help menu
+        help_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Help", menu=help_menu)
+
+        help_menu.add_command(label="About", command=self.show_about)
+
+    def launch_parametric_gui(self):
+        """Launch the separate parametric study GUI"""
+        try:
+            # Get the path to the parametric GUI
+            current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            parametric_gui_path = os.path.join(current_dir, "Parametric_GUI", "main.py")
+
+            if os.path.exists(parametric_gui_path):
+                # Launch the parametric GUI as a separate process
+                subprocess.Popen([sys.executable, parametric_gui_path])
+                messagebox.showinfo("Parametric GUI",
+                                   "Parametric Study Generator launched in a separate window.")
+            else:
+                messagebox.showerror("Error",
+                                   f"Parametric GUI not found at: {parametric_gui_path}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to launch Parametric GUI: {e}")
+
+    def export_inputs(self):
+        """Export current inputs to a file"""
+        # Placeholder for export functionality
+        messagebox.showinfo("Export", "Export functionality coming soon!")
+
+    def import_inputs(self):
+        """Import inputs from a file"""
+        # Placeholder for import functionality
+        messagebox.showinfo("Import", "Import functionality coming soon!")
+
+    def show_about(self):
+        """Show about dialog"""
+        about_text = """Interactive Reactor Design Studio
+
+A comprehensive tool for reactor design and analysis.
+
+Features:
+• Visual reactor core layout design
+• Real-time geometry visualization
+• Thermal hydraulics analysis
+• Advanced parameter configuration
+• OpenMC geometry generation
+• Parametric study generation (separate tool)
+
+Version: 1.0.0
+"""
+        messagebox.showinfo("About", about_text)
 
     def init_components(self):
         """Initialize all tab components"""

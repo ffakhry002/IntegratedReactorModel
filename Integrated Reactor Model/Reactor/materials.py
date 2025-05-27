@@ -6,7 +6,7 @@ import pandas as pd
 
 # Add parent directory to Python path to access inputs.py and ThermalHydraulics
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from inputs import inputs
+from utils.base_inputs import inputs
 from ThermalHydraulics.TH_refactored import THSystem
 from ThermalHydraulics.code_architecture.helper_codes.material_properties.coolant_properties import get_coolant_properties
 

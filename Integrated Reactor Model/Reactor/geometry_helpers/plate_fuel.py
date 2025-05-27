@@ -8,7 +8,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(root_dir)
 
-from inputs import inputs
+from utils.base_inputs import inputs
 from .utils import generate_cell_id
 
 def build_plate_cell_fuel_uni(mat_dict, is_enhanced=False, inputs_dict=None):

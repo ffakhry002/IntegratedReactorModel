@@ -12,7 +12,7 @@ import sys
 
 # Add parent directory to Python path to access inputs.py
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from inputs import inputs
+from utils.base_inputs import inputs
 
 # Use absolute imports for code_architecture
 from ThermalHydraulics.code_architecture.data_output_code.output_helpers.th_data_writer import write_TH_results

@@ -19,7 +19,7 @@ from Reactor.geometry_helpers.plate_fuel import build_fuel_assembly_uni as build
 from Reactor.geometry_helpers.irradiation_cell import build_irradiation_cell_uni
 from Reactor.geometry_helpers.core import build_core_uni
 from Reactor.materials import make_materials
-from inputs import inputs
+from utils.base_inputs import inputs
 
 def plot_geometry(output_dir=None, inputs_dict=None):
     """Create and plot the reactor geometry.
