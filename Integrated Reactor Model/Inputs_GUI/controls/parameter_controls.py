@@ -272,7 +272,7 @@ class ParameterControls:
         # Update design tab visibility if it exists
         if hasattr(self.main_gui, 'design_tab'):
             self.main_gui.design_tab.design_inputs["assembly_type"] = self.assembly_var.get()
-            self.main_gui.design_tab.update_pin_layout_visibility()
+            self.main_gui.design_tab.update_pin_designer_visibility()
 
         self.schedule_update()
 

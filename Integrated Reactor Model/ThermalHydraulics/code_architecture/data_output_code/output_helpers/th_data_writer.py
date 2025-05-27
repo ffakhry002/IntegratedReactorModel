@@ -8,7 +8,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 sys.path.append(root_dir)
 
-from inputs import inputs
+from utils.base_inputs import inputs
 
 def write_TH_results(th_system, output_dir=None, inputs_dict=None):
     """Write thermal-hydraulic analysis results to a text file.

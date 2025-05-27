@@ -2,24 +2,30 @@ Integrated Reactor Model
 ======================
 
 Project Structure:
-├── inputs.py                     # Core input parameters and configuration
+├── inputs.py                     # Legacy input parameters (still used by main.py)
 ├── main.py                      # Main execution script
 ├── run_dictionaries.py          # Parameter dictionaries for parametric studies
-├── TH_OLD.py                    # Legacy thermal hydraulics code
+├── TH_OLD.py                    # Legacy thermal hydraulics code (external, not in main directory)
 ├── remove_pycache.py            # Utility to clean __pycache__ directories
 ├── architecture.txt             # This project structure documentation
 ├── __init__.py                  # Package initialization file
 │
-├── GUI/                         # Interactive graphical user interface
+├── utils/                       # Centralized utilities and base configuration (lowercase)
+│   ├── __init__.py             # Package initialization
+│   ├── base_inputs.py          # Centralized input parameters and configuration
+│   └── run_dictionaries.py    # Additional run dictionary utilities
+│
+├── Inputs_GUI/                  # Main interactive graphical user interface
 │   ├── __init__.py             # Package initialization
 │   ├── main.py                 # GUI application entry point
-│   ├── reactor_gui.py          # Legacy GUI (kept for reference)
+│   ├── reactor_gui.py          # Main GUI application controller
 │   ├── components/             # GUI component modules
 │   │   ├── __init__.py
 │   │   ├── visualization_tab.py # Main reactor visualization tab
-│   │   ├── design_tab.py       # Core and pin layout design interface
-│   │   ├── thermal_tab.py      # Thermal hydraulics controls and results
-│   │   └── advanced_tab.py     # Advanced OpenMC and depletion parameters
+│   │   ├── design_tab.py       # Core and pin layout design interface with enhanced core designer
+│   │   ├── thermal_tab.py      # Thermal hydraulics controls and results viewer
+│   │   ├── advanced_tab.py     # Advanced OpenMC and depletion parameters
+│   │   └── geometry_tab.py     # OpenMC geometry configuration and visualization
 │   ├── visualization/          # Visualization engines
 │   │   ├── __init__.py
 │   │   ├── core_view.py        # Core-level reactor visualization
@@ -34,18 +40,35 @@ Project Structure:
 │       ├── constants.py        # Material colors and GUI constants
 │       └── export_utils.py     # Configuration export utilities
 │
-├── cross_sections/              # Nuclear cross section data
-│   ├── cross_sections.xml      # Main cross section file
-│   ├── neutron/                # Neutron cross section data
-│   └── photon/                 # Photon cross section data
-│
-├── depletion chains/            # Depletion chain data files
-│   ├── chain_casl_pwr.xml      # CASL depletion chain
-│   └── chain_endfb71_pwr.xml   # ENDF/B-VII.1 depletion chain
+├── Parametric_GUI/              # Dedicated parametric study generator
+│   ├── __init__.py             # Package initialization
+│   ├── main.py                 # Standalone parametric GUI entry point
+│   ├── parametric_app.py       # Main parametric application controller
+│   ├── parametric_gui_standalone.py # Standalone parametric GUI application
+│   ├── components/             # Parametric GUI component modules
+│   │   ├── __init__.py
+│   │   ├── simple_tab.py       # Simple parameter studies interface
+│   │   ├── complex_tab.py      # Multi-parameter loops interface
+│   │   └── preview_tab.py      # Preview and export interface
+│   ├── designers/              # Visual parameter designers
+│   │   ├── __init__.py
+│   │   ├── core_lattice_designer.py # Interactive core lattice designer
+│   │   └── depletion_timesteps_designer.py # Depletion timesteps designer
+│   ├── models/                 # Data models for parametric studies
+│   │   ├── __init__.py
+│   │   ├── parameter_model.py  # Parameter data and metadata model
+│   │   └── run_configuration.py # Run configuration data model
+│   └── utils/                  # Parametric GUI utilities
+│       ├── __init__.py
+│       ├── parameter_utils.py  # Parameter processing utilities
+│       └── export_utils.py     # Export functionality for run dictionaries
 │
 ├── simulation_data/             # Runtime simulation outputs (created during execution)
 │   ├── Geometry_and_Materials/  # Geometry visualization outputs
-│   ├── ThermalHydraulics/       # TH calculation results
+│   ├── ThermalHydraulics/       # TH calculation results with scenario subdirectories
+│   │   ├── cosine_calculation/ # Cosine power approximation results
+│   │   ├── hot_element/        # Hot element power profile results
+│   │   └── core_average/       # Core average power profile results
 │   ├── transport_data/          # OpenMC transport calculation data
 │   ├── flux_plots/             # Neutron flux distribution plots
 │   ├── power_plots/            # Power distribution plots
@@ -70,12 +93,10 @@ Project Structure:
 │   ├── __init__.py
 │   ├── run_depletion.py        # Main depletion calculation runner
 │   ├── depletion_operator.py   # OpenMC depletion operator setup
-│   ├── depletion_output_text.py # Text output formatting for depletion
-│   └── outputs/                # Depletion calculation outputs (created during execution)
+│   └── depletion_output_text.py # Text output formatting for depletion
 │
 ├── plotting/                    # Visualization and plotting
 │   ├── plotall.py              # Main plotting coordinator
-│   ├── plots/                  # Plot outputs (created during execution)
 │   └── functions/              # Individual plotting functions
 │       ├── depletion.py        # Depletion evolution plots
 │       ├── entropy.py          # Shannon entropy convergence plots
@@ -88,7 +109,6 @@ Project Structure:
 ├── Reactor/                     # Reactor geometry and materials
 │   ├── materials.py            # Material definitions and properties
 │   ├── geometry.py             # Main geometry visualization
-│   ├── output/                 # Geometry visualization outputs (created during execution)
 │   └── geometry_helpers/       # Geometry construction utilities
 │       ├── __init__.py
 │       ├── core.py             # Core lattice and universe construction
@@ -100,7 +120,6 @@ Project Structure:
 └── ThermalHydraulics/          # Thermal hydraulics calculations
     ├── __init__.py
     ├── TH_refactored.py        # Main thermal hydraulics system
-    ├── local_outputs/          # Local TH outputs (created during execution)
     └── code_architecture/      # Modular TH code architecture
         ├── __init__.py
         ├── data_output_code/   # Data output and visualization
@@ -148,30 +167,105 @@ Project Structure:
                 ├── pin_temperature_points.py   # Pin temperature points
                 └── plate_temperature_points.py # Plate temperature points
 
+External Dependencies:
+======================
+The following directories are located outside the "Integrated Reactor Model" directory
+and are required for proper operation:
+
+├── cross_sections/              # Nuclear cross section data (external)
+│   ├── cross_sections.xml      # Main cross section file
+│   ├── neutron/                # Neutron cross section data
+│   └── photon/                 # Photon cross section data
+│
+├── depletion chains/            # Depletion chain data files (external)
+    ├── chain_casl_pwr.xml      # CASL depletion chain
+    └── chain_endfb71_pwr.xml   # ENDF/B-VII.1 depletion chain
+
 Key Features:
 =============
 
 Core Functionality:
 - Eigenvalue calculations using OpenMC
 - Fuel depletion simulations
-- Thermal hydraulics analysis
+- Thermal hydraulics analysis with multiple power profiles
 - Comprehensive plotting and visualization
-- Parametric study capabilities
-- Interactive graphical user interface (GUI)
+- Advanced parametric study capabilities
+- Interactive graphical user interface (Inputs_GUI v1.0.0)
+- Dedicated parametric study generator (Parametric_GUI v2.0.0)
+- Centralized configuration management (utils/base_inputs.py)
 
-GUI Features:
+Configuration Management:
+- Dual configuration system: legacy inputs.py and centralized utils/base_inputs.py
+- Single source of truth for default parameters in utils/base_inputs.py
+- Consistent parameter access across all modules
+- Automatic derived value calculations (num_assemblies, n_guide_tubes)
+- Easy maintenance and parameter updates
+- Both GUIs can import from either configuration system
+
+Main GUI Features (Inputs_GUI v1.0.0):
 - Real-time reactor visualization (Core XY/YZ/XZ views)
 - Assembly-level visualization (Pin/Plate assemblies)
 - Individual fuel element visualization
 - Interactive core layout designer with drag-and-drop functionality
+- Enhanced core lattice designer with live matplotlib preview
 - Pin layout designer for guide tube positioning
 - Comprehensive parameter controls with live updates
 - Thermal hydraulics analysis with integrated result viewer
 - Advanced OpenMC and depletion parameter configuration
+- OpenMC geometry configuration and visualization tab
 - Two-panel layout for efficient parameter management
 - Configuration export capabilities
 - Material property visualization with color-coded legends
 - Zoom, pan, and navigation controls for all visualizations
+- Tools menu integration with Parametric Study Generator
+
+Parametric Study Features (Parametric_GUI v2.0.0):
+- Modular architecture with separate components, designers, models, and utils
+- Categorized parameter tree view with 66+ supported parameters
+- Real-time search functionality across all parameters
+- Three-tab interface: Simple Studies, Multi-Parameter Loops, Preview & Export
+- Enhanced complex tab with multi-parameter loop sets
+- Visual core lattice designer with interactive grid and multi-lattice support
+- Depletion timesteps designer for complex depletion scenarios
+- Simple parameter studies with single/range/list inputs
+- Multi-parameter loops with automatic combination generation
+- Parameter stacking and run management with loop sets
+- Core lattice designer integration for multi-parameter studies
+- Live preview with matplotlib visualization and lattice counting
+- Timestamped export to run_dictionaries.py files
+- Cross-platform compatibility (Windows, macOS, Linux)
+- Standalone operation or integration with main GUI
+- Predefined core configurations (4x4, 6x6, 7x7, 8x8)
+- Real-time run count estimation and configuration summary
+
+Enhanced Complex Tab Features:
+- Multiple loop set management with add/remove functionality
+- Scrollable parameter configuration interface
+- Dynamic button generation for special parameters (core_lattice, depletion_timesteps)
+- Multi-lattice preview with visual grid representation
+- Intelligent lattice counting and parsing
+- Loop set preview with total run calculations
+- Parameter-specific handling for different data types
+
+Core Lattice Designer Features:
+- Interactive click-to-edit grid interface
+- Cell types: C (Coolant), F (Fuel), E (Enhanced), I_X (Irradiation)
+- Color-coded visualization with live preview
+- Grid sizing from 1x1 to 20x20
+- Preset configurations for common reactor designs
+- Automatic irradiation position numbering
+- Real-time matplotlib preview with proper aspect ratio
+- Scrollable interface for large grids
+- Integration with both main GUI and parametric studies
+- Multi-lattice support for parametric studies
+
+Thermal Hydraulics Enhancements:
+- Multi-scenario thermal hydraulics calculations
+- Three power profile modes: cosine approximation, hot element, core average
+- Automatic power distribution CSV integration
+- Separate output directories for each TH scenario
+- Enhanced temperature profile visualization
+- Cleanup utilities for local outputs
 
 Supported Fuel Types:
 - Pin-type fuel assemblies (PWR/BWR style)
@@ -189,22 +283,70 @@ Supported Calculations:
 Output Capabilities:
 - 2D and 3D flux maps
 - Power distribution plots
-- Temperature profile visualization
+- Temperature profile visualization with pan/zoom controls
 - Depletion isotopic evolution plots
 - Shannon entropy convergence analysis
 - Comprehensive data export (CSV, plots, reports)
+- Parametric study run dictionaries with Python code generation
+- Timestamped file exports to prevent conflicts
 
 Execution Modes:
 - Single simulation (main.py)
-- Parametric studies (parametric_study.py)
-- Interactive GUI (GUI/main.py)
+- Parametric studies (parametric_study.py or Parametric_GUI)
+- Interactive main GUI (Inputs_GUI/main.py)
+- Standalone parametric GUI (Parametric_GUI/main.py)
 - Individual module testing (each module can run standalone)
 
 Configuration:
-- Centralized parameter management in inputs.py
-- Interactive parameter editing via GUI interface
-- Flexible geometry definitions
-- Multiple material options
+- Dual configuration system for backward compatibility
+- Interactive parameter editing via main GUI interface
+- Dedicated parametric study configuration via Parametric_GUI
+- Flexible geometry definitions with visual designers
+- Multiple material options with real-time preview
 - Customizable tally settings
 - Toggle-based feature control
 - Real-time configuration export and validation
+- Cross-platform file dialog compatibility
+- Local outputs management with cleanup utilities
+
+Recent Enhancements:
+- Enhanced Parametric_GUI to version 2.0.0 with improved architecture
+- Multi-loop set support in complex tab for advanced parametric studies
+- Improved lattice parsing and preview capabilities
+- Dynamic button generation for parameter-specific actions
+- Enhanced scrolling and UI responsiveness in parametric interfaces
+- Multi-scenario thermal hydraulics with automatic power profile integration
+- Improved error handling and validation in parametric studies
+- Better integration between main GUI and parametric study generator
+- Enhanced core lattice designer with multi-lattice support
+- Timestamped export functionality to prevent file conflicts
+- Cross-platform compatibility improvements
+- Consistent import structure across all modules
+- Single source of truth for parameter definitions in utils/base_inputs.py
+- Automatic simulation directory structure creation
+- Enhanced cleanup utilities for __pycache__ and local outputs
+
+Runtime Directory Structure:
+============================
+The following directories are created automatically during simulation execution:
+
+simulation_data/                 # Main simulation output directory
+├── Geometry_and_Materials/      # Geometry plots and material definitions
+├── ThermalHydraulics/          # Thermal hydraulics results
+│   ├── cosine_calculation/     # Cosine power approximation results
+│   ├── hot_element/           # Hot element power profile results
+│   └── core_average/          # Core average power profile results
+├── transport_data/             # OpenMC eigenvalue calculation data
+├── flux_plots/                # Neutron flux visualization plots
+├── power_plots/               # Power distribution plots
+├── depletion_data/            # Depletion calculation outputs
+└── depletion_plots/           # Depletion evolution plots
+
+local_outputs/                  # Local TH outputs (configurable location)
+└── (various TH calculation files)
+
+Version Information:
+===================
+- Main Package: v1.0.0
+- Inputs_GUI: v1.0.0
+- Parametric_GUI: v2.0.0

@@ -1,489 +1,502 @@
-# Design tab component
-
 """
 Design Tab Component
-Handles core layout and pin layout design
+Handles core layout and pin layout design with unified visual tools
 """
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 import copy
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
 
 
 class DesignTab:
+    """Unified design tab for core and pin layouts"""
+
     def __init__(self, parent, main_gui):
         self.parent = parent
         self.main_gui = main_gui
 
-        # Design state
+        # Design state - copy from main GUI
         self.design_inputs = copy.deepcopy(main_gui.current_inputs)
-        self.core_buttons = []
-        self.pin_buttons = []
+
+        # Core lattice state
+        self.core_lattice = copy.deepcopy(self.design_inputs['core_lattice'])
+
+        # Pin layout state
+        self.n_side_pins = int(self.design_inputs.get('n_side_pins', 17))
+        self.guide_tube_positions = copy.deepcopy(self.design_inputs.get('guide_tube_positions', []))
 
     def setup(self):
-        """Setup the design tab with combined layout"""
+        """Setup the unified design interface"""
         # Main container
-        design_main = ttk.Frame(self.parent)
-        design_main.pack(fill=tk.BOTH, expand=True)
-
-        # Combined layout (core + pin in same tab)
-        self.setup_combined_layout_tab(design_main)
-
-    def setup_combined_layout_tab(self, parent):
-        """Setup combined core and pin layout tab"""
-        # Main horizontal split
-        main_frame = ttk.Frame(parent)
+        main_frame = ttk.Frame(self.parent)
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # Left side - Core Layout
-        core_frame = ttk.LabelFrame(main_frame, text="Core Layout Designer", padding=10)
-        core_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
+        # Title and description
+        header_frame = ttk.Frame(main_frame)
+        header_frame.pack(fill=tk.X, pady=(0, 10))
 
-        self.setup_core_layout_content(core_frame)
+        ttk.Label(header_frame, text="Reactor Core Designer",
+                 font=('TkDefaultFont', 14, 'bold')).pack(anchor=tk.W)
+        ttk.Label(header_frame,
+                 text="Design core layouts and pin configurations with real-time preview",
+                 font=('TkDefaultFont', 10)).pack(anchor=tk.W)
 
-        # Right side - Pin Layout (conditionally shown)
-        self.pin_layout_frame = ttk.LabelFrame(main_frame, text="Pin Layout Designer", padding=10)
-        self.pin_layout_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(5, 0))
-
-        self.setup_pin_layout_content(self.pin_layout_frame)
-
-        # Update visibility based on assembly type
-        self.update_pin_layout_visibility()
-
-    def setup_core_layout_content(self, parent):
-        """Setup core layout content"""
-        # Grid area
-        grid_frame = ttk.Frame(parent)
-        grid_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
-
-        # Controls below grid
-        control_frame = ttk.Frame(parent)
-        control_frame.pack(fill=tk.X)
-
-        # Instructions
-        instr_frame = ttk.LabelFrame(control_frame, text="Instructions", padding=5)
-        instr_frame.pack(fill=tk.X, pady=(0, 5))
-
-        instructions = """Click cells to cycle through:
-1 click: Irradiation Position
-2 clicks: Fuel Assembly
-3 clicks: Enhanced Fuel Assembly
-4 clicks: Coolant (empty)"""
-
-        ttk.Label(instr_frame, text=instructions, justify=tk.LEFT, font=('Arial', 8)).pack()
-
-        # Core size controls in a row
-        size_frame = ttk.LabelFrame(control_frame, text="Core Size", padding=5)
-        size_frame.pack(fill=tk.X, pady=(0, 5))
-
-        size_row = ttk.Frame(size_frame)
-        size_row.pack(fill=tk.X)
-
-        ttk.Label(size_row, text="Rows:").pack(side=tk.LEFT)
-        self.rows_var = tk.StringVar(value=str(len(self.design_inputs['core_lattice'])))
-        rows_entry = ttk.Entry(size_row, textvariable=self.rows_var, width=8)
-        rows_entry.pack(side=tk.LEFT, padx=(5, 10))
-
-        ttk.Label(size_row, text="Columns:").pack(side=tk.LEFT)
-        self.cols_var = tk.StringVar(value=str(len(self.design_inputs['core_lattice'][0])))
-        cols_entry = ttk.Entry(size_row, textvariable=self.cols_var, width=8)
-        cols_entry.pack(side=tk.LEFT, padx=(5, 10))
-
-        ttk.Button(size_row, text="Resize", command=self.resize_core).pack(side=tk.LEFT, padx=(10, 0))
-
-        # Assembly type
-        assembly_frame = ttk.LabelFrame(control_frame, text="Assembly Type", padding=5)
-        assembly_frame.pack(fill=tk.X, pady=(0, 5))
-
-        self.design_assembly_var = tk.StringVar(value=self.design_inputs["assembly_type"])
-        assembly_combo = ttk.Combobox(assembly_frame, textvariable=self.design_assembly_var,
-                                    values=["Pin", "Plate"], state="readonly")
-        assembly_combo.pack(fill=tk.X)
-        assembly_combo.bind('<<ComboboxSelected>>', self.on_design_assembly_change)
-
-        # Apply button
-        ttk.Button(control_frame, text="Apply Core Design",
-                  command=self.apply_design).pack(fill=tk.X, pady=(5, 0))
-
-        # Setup the grid
-        self.setup_core_grid(grid_frame)
-
-    def setup_pin_layout_content(self, parent):
-        """Setup pin layout content"""
-        # Grid area
-        grid_frame = ttk.Frame(parent)
-        grid_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
-
-        # Controls below grid
-        control_frame = ttk.Frame(parent)
-        control_frame.pack(fill=tk.X)
-
-        # Instructions
-        instr_frame = ttk.LabelFrame(control_frame, text="Instructions", padding=5)
-        instr_frame.pack(fill=tk.X, pady=(0, 5))
-
-        instructions = """Click pin positions to cycle:
-1 click: Fuel Pin (default)
-2 clicks: Guide Tube"""
-
-        ttk.Label(instr_frame, text=instructions, justify=tk.LEFT, font=('Arial', 8)).pack()
-
-        # Note about pin size
-        note_frame = ttk.LabelFrame(control_frame, text="Note", padding=5)
-        note_frame.pack(fill=tk.X, pady=(0, 5))
-
-        ttk.Label(note_frame, text="Change 'Pins per Side' in the Reactor Visualization tab",
-                 font=('Arial', 8), foreground='gray').pack()
-
-        # Apply button
-        ttk.Button(control_frame, text="Apply Pin Layout",
-                  command=self.apply_pin_design).pack(fill=tk.X, pady=(5, 0))
-
-        # Setup the pin grid
-        self.setup_pin_grid(grid_frame)
-
-    def setup_core_layout_tab(self, parent):
-        """Setup the core layout designer"""
-        # Main container
-        core_main = ttk.Frame(parent)
-        core_main.pack(fill=tk.BOTH, expand=True)
-
-        # Left panel for core grid
-        grid_frame = ttk.LabelFrame(core_main, text="Core Layout Grid", padding=10)
-        grid_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
-
-        # Right panel for controls
-        control_frame = ttk.Frame(core_main)
-        control_frame.pack(side=tk.RIGHT, fill=tk.Y)
-
-        # Instructions
-        instr_frame = ttk.LabelFrame(control_frame, text="Instructions", padding=10)
-        instr_frame.pack(fill=tk.X, pady=(0, 10))
-
-        instructions = """Click on grid cells to cycle through:
-1 click: Irradiation Position
-2 clicks: Fuel Assembly
-3 clicks: Enhanced Fuel Assembly
-4 clicks: Coolant (empty)
-
-For irradiation positions, use the
-panel below to add labels."""
-
-        ttk.Label(instr_frame, text=instructions, justify=tk.LEFT).pack()
-
-        # Core size controls
-        size_frame = ttk.LabelFrame(control_frame, text="Core Size", padding=10)
-        size_frame.pack(fill=tk.X, pady=(0, 10))
-
-        ttk.Label(size_frame, text="Rows:").pack(anchor=tk.W)
-        self.rows_var = tk.StringVar(value=str(len(self.design_inputs['core_lattice'])))
-        rows_entry = ttk.Entry(size_frame, textvariable=self.rows_var, width=10)
-        rows_entry.pack(fill=tk.X)
-
-        ttk.Label(size_frame, text="Columns:").pack(anchor=tk.W)
-        self.cols_var = tk.StringVar(value=str(len(self.design_inputs['core_lattice'][0])))
-        cols_entry = ttk.Entry(size_frame, textvariable=self.cols_var, width=10)
-        cols_entry.pack(fill=tk.X)
-
-        ttk.Button(size_frame, text="Resize Core", command=self.resize_core).pack(pady=5)
-
-        # Assembly type toggle
-        assembly_frame = ttk.LabelFrame(control_frame, text="Assembly Type", padding=10)
+        # Assembly type selector at top
+        assembly_frame = ttk.LabelFrame(main_frame, text="Assembly Type", padding=10)
         assembly_frame.pack(fill=tk.X, pady=(0, 10))
 
-        self.design_assembly_var = tk.StringVar(value=self.design_inputs["assembly_type"])
-        assembly_combo = ttk.Combobox(assembly_frame, textvariable=self.design_assembly_var,
-                                    values=["Pin", "Plate"], state="readonly")
-        assembly_combo.pack(fill=tk.X)
-        assembly_combo.bind('<<ComboboxSelected>>', self.on_design_assembly_change)
+        assembly_row = ttk.Frame(assembly_frame)
+        assembly_row.pack()
 
-        # Apply button
-        ttk.Button(control_frame, text="Apply to Visualization",
-                  command=self.apply_design).pack(fill=tk.X, pady=5)
+        ttk.Label(assembly_row, text="Type:").pack(side=tk.LEFT, padx=(0, 10))
+        self.assembly_type_var = tk.StringVar(value=self.design_inputs["assembly_type"])
+        assembly_combo = ttk.Combobox(assembly_row, textvariable=self.assembly_type_var,
+                                    values=["Pin", "Plate"], state="readonly", width=15)
+        assembly_combo.pack(side=tk.LEFT)
+        assembly_combo.bind('<<ComboboxSelected>>', self.on_assembly_type_change)
 
-        # Setup the grid
-        self.setup_core_grid(grid_frame)
+        ttk.Label(assembly_row, text="(Pin assemblies allow guide tube configuration)",
+                 font=('TkDefaultFont', 9), foreground='gray').pack(side=tk.LEFT, padx=(20, 0))
 
-    def setup_pin_layout_tab(self, parent):
-        """Setup the pin layout designer tab"""
-        # Main container
-        pin_main = ttk.Frame(parent)
-        pin_main.pack(fill=tk.BOTH, expand=True)
+        # Main content area with two panes
+        content_frame = ttk.Frame(main_frame)
+        content_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Left panel for pin grid
-        pin_grid_frame = ttk.LabelFrame(pin_main, text="Pin Layout Grid", padding=10)
-        pin_grid_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
+        # Left pane - Core Layout Designer
+        self.setup_core_designer(content_frame)
 
-        # Right panel for controls
-        pin_control_frame = ttk.Frame(pin_main)
-        pin_control_frame.pack(side=tk.RIGHT, fill=tk.Y)
+        # Right pane - Pin Layout Designer (conditional)
+        self.pin_frame_container = ttk.Frame(content_frame)
+        self.pin_frame_container.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(10, 0))
 
-        # Instructions
-        pin_instr_frame = ttk.LabelFrame(pin_control_frame, text="Instructions", padding=10)
-        pin_instr_frame.pack(fill=tk.X, pady=(0, 10))
+        self.setup_pin_designer(self.pin_frame_container)
 
-        instructions = """Click on pin positions to cycle:
-1 click: Fuel Pin (default)
-2 clicks: Guide Tube
-3 clicks: Fuel Pin"""
+        # Bottom action buttons
+        action_frame = ttk.Frame(main_frame)
+        action_frame.pack(fill=tk.X, pady=(10, 0))
 
-        ttk.Label(pin_instr_frame, text=instructions, justify=tk.LEFT).pack()
+        ttk.Button(action_frame, text="Apply All Changes to Reactor",
+                  command=self.apply_all_changes,
+                  style='Accent.TButton').pack(side=tk.LEFT, padx=(0, 10))
 
-        # Pin array size controls
-        size_frame = ttk.LabelFrame(pin_control_frame, text="Assembly Size", padding=10)
-        size_frame.pack(fill=tk.X, pady=(0, 10))
+        ttk.Button(action_frame, text="Reset to Current",
+                  command=self.reset_to_current).pack(side=tk.LEFT)
 
-        ttk.Label(size_frame, text="Pins per Side:").pack(anchor=tk.W)
-        self.pin_size_var = tk.StringVar(value=str(int(self.design_inputs['n_side_pins'])))
-        pin_size_entry = ttk.Entry(size_frame, textvariable=self.pin_size_var, width=10)
-        pin_size_entry.pack(fill=tk.X)
+        self.status_label = ttk.Label(action_frame, text="", foreground='green')
+        self.status_label.pack(side=tk.RIGHT)
 
-        ttk.Button(size_frame, text="Resize Pin Array", command=self.resize_pin_array).pack(pady=5)
+        # Update visibility based on assembly type
+        self.update_pin_designer_visibility()
 
-        # Apply button
-        ttk.Button(pin_control_frame, text="Apply to Visualization",
-                  command=self.apply_pin_design).pack(fill=tk.X, pady=5)
+    def setup_core_designer(self, parent):
+        """Setup the core layout designer panel"""
+        # Core designer frame
+        core_frame = ttk.LabelFrame(parent, text="Core Layout Designer", padding=10)
+        core_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        # Setup the pin grid
-        self.setup_pin_grid(pin_grid_frame)
+        # Controls
+        controls_frame = ttk.Frame(core_frame)
+        controls_frame.pack(fill=tk.X, pady=(0, 10))
 
-    def setup_core_grid(self, parent):
-        """Create the core layout grid"""
-        # Clear existing buttons
-        for widget in parent.winfo_children():
+        # Size controls
+        size_frame = ttk.LabelFrame(controls_frame, text="Grid Size", padding=5)
+        size_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 10))
+
+        size_grid = ttk.Frame(size_frame)
+        size_grid.pack()
+
+        ttk.Label(size_grid, text="Rows:").grid(row=0, column=0, sticky=tk.W, padx=(0, 5))
+        self.core_rows_var = tk.IntVar(value=len(self.core_lattice))
+        rows_spin = ttk.Spinbox(size_grid, from_=2, to=20, textvariable=self.core_rows_var,
+                               width=8, command=self.update_core_size)
+        rows_spin.grid(row=0, column=1)
+
+        ttk.Label(size_grid, text="Columns:").grid(row=1, column=0, sticky=tk.W, padx=(0, 5))
+        self.core_cols_var = tk.IntVar(value=len(self.core_lattice[0]) if self.core_lattice else 4)
+        cols_spin = ttk.Spinbox(size_grid, from_=2, to=20, textvariable=self.core_cols_var,
+                               width=8, command=self.update_core_size)
+        cols_spin.grid(row=1, column=1)
+
+        # Preset buttons
+        preset_frame = ttk.LabelFrame(controls_frame, text="Presets", padding=5)
+        preset_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        preset_grid = ttk.Frame(preset_frame)
+        preset_grid.pack()
+
+        presets = [
+            ("4x4 Simple", self.load_4x4_preset),
+            ("6x6 Standard", self.load_6x6_preset),
+            ("7x7 Research", self.load_7x7_preset),
+            ("8x8 Complex", self.load_8x8_preset)
+        ]
+
+        for i, (name, command) in enumerate(presets):
+            row = i // 2
+            col = i % 2
+            ttk.Button(preset_grid, text=name, command=command,
+                      width=15).grid(row=row, column=col, padx=2, pady=2)
+
+        # Quick actions
+        action_frame = ttk.LabelFrame(controls_frame, text="Quick Fill", padding=5)
+        action_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(10, 0))
+
+        ttk.Button(action_frame, text="All Fuel",
+                  command=lambda: self.fill_all_core('F')).pack(fill=tk.X, pady=1)
+        ttk.Button(action_frame, text="All Control",
+                  command=lambda: self.fill_all_core('C')).pack(fill=tk.X, pady=1)
+
+        # Core grid container with scrolling
+        grid_container = ttk.LabelFrame(core_frame, text="Core Grid (Click to Edit)", padding=10)
+        grid_container.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+
+        # Create scrollable area
+        canvas = tk.Canvas(grid_container, bg='white')
+        v_scrollbar = ttk.Scrollbar(grid_container, orient="vertical", command=canvas.yview)
+        h_scrollbar = ttk.Scrollbar(grid_container, orient="horizontal", command=canvas.xview)
+
+        self.core_grid_frame = ttk.Frame(canvas)
+
+        self.core_grid_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=self.core_grid_frame, anchor="nw")
+        canvas.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
+
+        canvas.grid(row=0, column=0, sticky="nsew")
+        v_scrollbar.grid(row=0, column=1, sticky="ns")
+        h_scrollbar.grid(row=1, column=0, sticky="ew")
+
+        grid_container.grid_rowconfigure(0, weight=1)
+        grid_container.grid_columnconfigure(0, weight=1)
+
+        # Create initial grid
+        self.create_core_grid()
+
+    def setup_pin_designer(self, parent):
+        """Setup the pin layout designer panel"""
+        # Pin designer frame
+        self.pin_designer_frame = ttk.LabelFrame(parent, text="Pin Layout Designer", padding=10)
+        self.pin_designer_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Info frame
+        info_frame = ttk.LabelFrame(self.pin_designer_frame, text="Information", padding=5)
+        info_frame.pack(fill=tk.X, pady=(0, 10))
+
+        info_text = f"""Current assembly size: {self.n_side_pins}x{self.n_side_pins} pins
+(Change pin count in Reactor Visualization tab)
+
+Click pins to toggle between:
+- Fuel Pin (green)
+- Guide Tube (white)"""
+
+        self.info_label = ttk.Label(info_frame, text=info_text, justify=tk.LEFT)
+        self.info_label.pack()
+
+        # Pin grid container
+        grid_container = ttk.LabelFrame(self.pin_designer_frame, text="Pin Grid (Click to Toggle)", padding=10)
+        grid_container.pack(fill=tk.BOTH, expand=True)
+
+        # Create scrollable area
+        canvas = tk.Canvas(grid_container, bg='white')
+        scrollbar = ttk.Scrollbar(grid_container, orient="vertical", command=canvas.yview)
+
+        self.pin_grid_frame = ttk.Frame(canvas)
+
+        self.pin_grid_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=self.pin_grid_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Create initial grid
+        self.create_pin_grid()
+
+    def create_core_grid(self):
+        """Create the interactive core grid"""
+        # Clear existing widgets
+        for widget in self.core_grid_frame.winfo_children():
             widget.destroy()
-        self.core_buttons = []
 
-        lattice = self.design_inputs['core_lattice']
-        n_rows, n_cols = len(lattice), len(lattice[0])
+        rows = len(self.core_lattice)
+        cols = len(self.core_lattice[0]) if rows > 0 else 0
 
-        # Create grid
-        grid_container = ttk.Frame(parent)
-        grid_container.pack(expand=True)
+        for i in range(rows):
+            for j in range(cols):
+                cell_value = self.core_lattice[i][j]
 
-        for i in range(n_rows):
-            row_buttons = []
-            for j in range(n_cols):
-                cell_type = lattice[i][j]
+                # Create cell button
+                cell = tk.Label(self.core_grid_frame, text=cell_value,
+                              width=5, height=2,
+                              relief=tk.RAISED, bd=2,
+                              bg=self.get_core_cell_color(cell_value),
+                              font=('TkDefaultFont', 10, 'bold'),
+                              cursor="hand2")
+                cell.grid(row=i, column=j, padx=2, pady=2)
+                cell.bind('<Button-1>', lambda e, r=i, c=j: self.toggle_core_cell(r, c))
 
-                # Create button
-                btn = tk.Button(grid_container, text=cell_type, width=5, height=2)
-                btn.grid(row=i, column=j, padx=1, pady=1)
-
-                # Set initial color
-                self.update_cell_color(btn, cell_type)
-
-                # Bind click event
-                btn.bind('<Button-1>', lambda e, r=i, c=j: self.on_core_cell_click(r, c))
-
-                row_buttons.append(btn)
-            self.core_buttons.append(row_buttons)
-
-    def setup_pin_grid(self, parent):
-        """Create the pin layout grid"""
-        # Clear existing buttons
-        for widget in parent.winfo_children():
+    def create_pin_grid(self):
+        """Create the interactive pin grid"""
+        # Clear existing widgets
+        for widget in self.pin_grid_frame.winfo_children():
             widget.destroy()
-        self.pin_buttons = []
 
-        # Use main GUI inputs to get current pin count
-        n_pins = int(self.main_gui.current_inputs['n_side_pins'])
-        guide_tube_positions = self.main_gui.current_inputs.get('guide_tube_positions', [])
+        # Update pin count from main GUI
+        self.n_side_pins = int(self.main_gui.current_inputs.get('n_side_pins', 17))
 
-        # Update design inputs to match
-        self.design_inputs['n_side_pins'] = n_pins
-        self.design_inputs['guide_tube_positions'] = guide_tube_positions[:]
+        # Update info label
+        if hasattr(self, 'info_label'):
+            info_text = f"""Current assembly size: {self.n_side_pins}x{self.n_side_pins} pins
+(Change pin count in Reactor Visualization tab)
 
-        # Create grid
-        grid_container = ttk.Frame(parent)
-        grid_container.pack(expand=True)
+Click pins to toggle between:
+- Fuel Pin (green)
+- Guide Tube (white)"""
+            self.info_label.config(text=info_text)
 
-        for i in range(n_pins):
-            row_buttons = []
-            for j in range(n_pins):
-                is_guide_tube = (i, j) in guide_tube_positions
+        for i in range(self.n_side_pins):
+            for j in range(self.n_side_pins):
+                is_guide = (i, j) in self.guide_tube_positions
 
-                # Create button
-                btn = tk.Button(grid_container,
-                              text='G' if is_guide_tube else 'F',
-                              width=3, height=1)
-                btn.grid(row=i, column=j, padx=1, pady=1)
+                # Create pin button
+                pin = tk.Label(self.pin_grid_frame,
+                             text='G' if is_guide else 'F',
+                             width=3, height=1,
+                             relief=tk.RAISED, bd=2,
+                             bg='white' if is_guide else '#90EE90',
+                             font=('TkDefaultFont', 8),
+                             cursor="hand2")
+                pin.grid(row=i, column=j, padx=1, pady=1)
+                pin.bind('<Button-1>', lambda e, r=i, c=j: self.toggle_pin(r, c))
 
-                # Set initial color
-                if is_guide_tube:
-                    btn.configure(bg='white', fg='black')  # White background for guide tubes
-                else:
-                    btn.configure(bg='#32CD32', fg='black')
+    def get_core_cell_color(self, value):
+        """Get color for core cell based on value"""
+        if value == 'C':
+            return '#87CEEB'  # Sky blue for control
+        elif value == 'F':
+            return '#90EE90'  # Light green for fuel
+        elif value == 'E':
+            return '#FFB6C1'  # Light pink for enhanced
+        elif value.startswith('I_'):
+            return '#F0F0F0'  # Light gray for irradiation
+        else:
+            return '#FFFFFF'  # White for unknown
 
-                # Bind click event
-                btn.bind('<Button-1>', lambda e, r=i, c=j: self.on_pin_cell_click(r, c))
+    def toggle_core_cell(self, row, col):
+        """Toggle core cell value on click"""
+        current = self.core_lattice[row][col]
 
-                row_buttons.append(btn)
-            self.pin_buttons.append(row_buttons)
-
-    def on_core_cell_click(self, row, col):
-        """Handle core cell click"""
-        current = self.design_inputs['core_lattice'][row][col]
-
-        # Cycle through cell types
-        if current == 'C':
-            new_type = 'I_1'  # Start with I_1
-        elif current.startswith('I_'):
-            new_type = 'F'
-        elif current == 'F':
-            new_type = 'E'
+        # Define toggle sequence
+        if current == 'F':
+            new_value = 'C'
+        elif current == 'C':
+            new_value = 'E'
         elif current == 'E':
-            new_type = 'C'
+            new_value = self.get_next_irradiation_position()
+        elif current.startswith('I_'):
+            new_value = 'F'
         else:
-            new_type = 'C'
+            new_value = 'F'
 
-        # Handle irradiation position naming
-        if new_type == 'I_1':
-            # Find next available irradiation number
-            irrad_nums = []
-            for row_data in self.design_inputs['core_lattice']:
-                for cell in row_data:
-                    if cell.startswith('I_'):
-                        try:
-                            num = int(cell.split('_')[1])
-                            irrad_nums.append(num)
-                        except:
-                            pass
+        # Update lattice
+        self.core_lattice[row][col] = new_value
 
-            next_num = 1
-            if irrad_nums:
-                next_num = max(irrad_nums) + 1
-            new_type = f'I_{next_num}'
+        # If we removed an irradiation position, renumber
+        if current.startswith('I_') and not new_value.startswith('I_'):
+            self.renumber_irradiation_positions()
 
-        # Update the lattice
-        self.design_inputs['core_lattice'][row][col] = new_type
+        # Refresh display
+        self.create_core_grid()
 
-        # Update button
-        btn = self.core_buttons[row][col]
-        btn.config(text=new_type)
-        self.update_cell_color(btn, new_type)
-
-    def on_pin_cell_click(self, row, col):
-        """Handle pin cell click"""
-        guide_tubes = self.design_inputs.get('guide_tube_positions', [])
-
-        if (row, col) in guide_tubes:
-            # Remove guide tube
-            guide_tubes.remove((row, col))
-            self.pin_buttons[row][col].configure(text='F', bg='#32CD32', fg='black')
+    def toggle_pin(self, row, col):
+        """Toggle pin between fuel and guide tube"""
+        if (row, col) in self.guide_tube_positions:
+            self.guide_tube_positions.remove((row, col))
         else:
-            # Add guide tube
-            guide_tubes.append((row, col))
-            self.pin_buttons[row][col].configure(text='G', bg='white', fg='black')  # White background for guide tubes
+            self.guide_tube_positions.append((row, col))
 
-        self.design_inputs['guide_tube_positions'] = guide_tubes
+        # Refresh display
+        self.create_pin_grid()
 
-        # Update the main GUI inputs to sync
-        self.main_gui.current_inputs['guide_tube_positions'] = guide_tubes[:]
+    def get_next_irradiation_position(self):
+        """Get the next available irradiation position number"""
+        irradiation_nums = []
+        for row in self.core_lattice:
+            for cell in row:
+                if cell.startswith('I_'):
+                    num = int(cell.split('_')[1])
+                    irradiation_nums.append(num)
 
-    def update_cell_color(self, button, cell_type):
-        """Update button color based on cell type"""
-        colors = {
-            'C': ('#40E0D0', 'black'),     # Coolant - Turquoise
-            'F': ('#32CD32', 'black'),     # Fuel - Lime Green
-            'E': ('#8B0000', 'black'),     # Enhanced fuel - Dark Red with black text
-        }
-
-        if cell_type.startswith('I_'):
-            bg, fg = ('#FFD700', 'black')  # Irradiation - Gold
+        if irradiation_nums:
+            return f'I_{max(irradiation_nums) + 1}'
         else:
-            bg, fg = colors.get(cell_type, ('#808080', 'white'))
+            return 'I_1'
 
-        button.configure(bg=bg, fg=fg)
+    def renumber_irradiation_positions(self):
+        """Renumber all irradiation positions to be sequential"""
+        # Find all irradiation positions
+        irradiation_positions = []
+        for i, row in enumerate(self.core_lattice):
+            for j, cell in enumerate(row):
+                if cell.startswith('I_'):
+                    num = int(cell.split('_')[1])
+                    irradiation_positions.append((i, j, num))
 
-    def resize_core(self):
-        """Resize the core lattice"""
-        try:
-            new_rows = int(self.rows_var.get())
-            new_cols = int(self.cols_var.get())
+        # Sort by current number
+        irradiation_positions.sort(key=lambda x: x[2])
 
-            if new_rows < 1 or new_cols < 1:
-                raise ValueError("Size must be positive")
+        # Renumber sequentially
+        for idx, (i, j, old_num) in enumerate(irradiation_positions):
+            new_num = idx + 1
+            self.core_lattice[i][j] = f'I_{new_num}'
 
-            # Get current lattice
-            current = self.design_inputs['core_lattice']
-            old_rows = len(current)
-            old_cols = len(current[0]) if old_rows > 0 else 0
+    def update_core_size(self):
+        """Update core lattice size based on spinbox values"""
+        new_rows = self.core_rows_var.get()
+        new_cols = self.core_cols_var.get()
 
-            # Create new lattice
-            new_lattice = []
-            for i in range(new_rows):
-                row = []
-                for j in range(new_cols):
-                    if i < old_rows and j < old_cols:
-                        row.append(current[i][j])
-                    else:
-                        row.append('C')  # Default to coolant
-                new_lattice.append(row)
+        old_rows = len(self.core_lattice)
+        old_cols = len(self.core_lattice[0]) if old_rows > 0 else 0
 
-            self.design_inputs['core_lattice'] = new_lattice
-            self.setup_core_grid(self.core_buttons[0][0].master.master)
+        # Create new lattice
+        new_lattice = []
+        for i in range(new_rows):
+            row = []
+            for j in range(new_cols):
+                if i < old_rows and j < old_cols:
+                    row.append(self.core_lattice[i][j])
+                else:
+                    row.append('F')  # Default to fuel
+            new_lattice.append(row)
 
-        except ValueError:
-            from tkinter import messagebox
-            messagebox.showerror("Invalid Size", "Please enter valid positive integers")
+        self.core_lattice = new_lattice
+        self.create_core_grid()
 
-    def resize_pin_array(self):
-        """Resize the pin array"""
-        try:
-            new_size = int(self.pin_size_var.get())
+    def fill_all_core(self, cell_type):
+        """Fill all core cells with specified type"""
+        for i in range(len(self.core_lattice)):
+            for j in range(len(self.core_lattice[0])):
+                self.core_lattice[i][j] = cell_type
 
-            if new_size < 1:
-                raise ValueError("Size must be positive")
+        self.create_core_grid()
 
-            self.design_inputs['n_side_pins'] = new_size
+    def clear_guide_tubes(self):
+        """Clear all guide tube positions"""
+        self.guide_tube_positions = []
+        self.create_pin_grid()
 
-            # Clear guide tubes that are out of bounds
-            guide_tubes = self.design_inputs.get('guide_tube_positions', [])
-            valid_tubes = [(r, c) for r, c in guide_tubes if r < new_size and c < new_size]
-            self.design_inputs['guide_tube_positions'] = valid_tubes
+    def load_4x4_preset(self):
+        """Load 4x4 preset"""
+        self.core_lattice = [
+            ['C', 'F', 'F', 'C'],
+            ['F', 'I_1', 'I_2', 'F'],
+            ['F', 'I_3', 'I_4', 'F'],
+            ['C', 'F', 'F', 'C']
+        ]
+        self.core_rows_var.set(4)
+        self.core_cols_var.set(4)
+        self.create_core_grid()
 
-            self.setup_pin_grid(self.pin_buttons[0][0].master.master)
+    def load_6x6_preset(self):
+        """Load 6x6 preset"""
+        self.core_lattice = [
+            ['C', 'C', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'I_2', 'F', 'C'],
+            ['F', 'I_3', 'F', 'F', 'I_4', 'F'],
+            ['F', 'I_5', 'F', 'F', 'I_6', 'F'],
+            ['C', 'F', 'I_7', 'I_8', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'C', 'C']
+        ]
+        self.core_rows_var.set(6)
+        self.core_cols_var.set(6)
+        self.create_core_grid()
 
-        except ValueError:
-            from tkinter import messagebox
-            messagebox.showerror("Invalid Size", "Please enter a valid positive integer")
+    def load_7x7_preset(self):
+        """Load 7x7 research preset"""
+        self.core_lattice = [
+            ['C', 'C', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'I_1', 'F', 'F', 'C'],
+            ['F', 'F', 'E', 'I_2', 'E', 'F', 'F'],
+            ['F', 'I_3', 'I_4', 'C', 'I_5', 'I_6', 'F'],
+            ['F', 'F', 'E', 'I_7', 'E', 'F', 'F'],
+            ['C', 'F', 'F', 'I_8', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'C', 'C']
+        ]
+        self.core_rows_var.set(7)
+        self.core_cols_var.set(7)
+        self.create_core_grid()
 
-    def apply_design(self):
-        """Apply design to main visualization"""
+    def load_8x8_preset(self):
+        """Load 8x8 complex preset"""
+        self.core_lattice = [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'I_1', 'I_2', 'F', 'F', 'C'],
+            ['F', 'F', 'I_3', 'F', 'F', 'I_4', 'F', 'F'],
+            ['F', 'I_5', 'F', 'C', 'C', 'F', 'I_6', 'F'],
+            ['F', 'I_7', 'F', 'C', 'C', 'F', 'I_8', 'F'],
+            ['F', 'F', 'I_9', 'F', 'F', 'I_10', 'F', 'F'],
+            ['C', 'F', 'F', 'I_11', 'I_12', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+        self.core_rows_var.set(8)
+        self.core_cols_var.set(8)
+        self.create_core_grid()
+
+    def on_assembly_type_change(self, event=None):
+        """Handle assembly type change"""
+        self.update_pin_designer_visibility()
+
+    def update_pin_designer_visibility(self):
+        """Show/hide pin designer based on assembly type"""
+        if self.assembly_type_var.get() == "Pin":
+            self.pin_frame_container.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(10, 0))
+        else:
+            self.pin_frame_container.pack_forget()
+
+    def apply_all_changes(self):
+        """Apply all design changes to the main GUI"""
         # Update main GUI inputs
-        self.main_gui.current_inputs['core_lattice'] = copy.deepcopy(
-            self.design_inputs['core_lattice']
-        )
-        self.main_gui.current_inputs['assembly_type'] = self.design_assembly_var.get()
+        self.main_gui.current_inputs['core_lattice'] = copy.deepcopy(self.core_lattice)
+        self.main_gui.current_inputs['assembly_type'] = self.assembly_type_var.get()
 
-        # Update and schedule visualization
+        if self.assembly_type_var.get() == "Pin":
+            self.main_gui.current_inputs['guide_tube_positions'] = copy.deepcopy(self.guide_tube_positions)
+
+        # Update visualization
         self.main_gui.schedule_update()
 
-        from tkinter import messagebox
-        messagebox.showinfo("Design Applied", "Core design has been applied to visualization")
+        # Show status
+        self.status_label.config(text="✓ Changes applied to reactor", foreground='green')
+        self.parent.after(3000, lambda: self.status_label.config(text=""))
 
-    def apply_pin_design(self):
-        """Apply pin design to main visualization"""
-        # Update main GUI inputs
-        self.main_gui.current_inputs['n_side_pins'] = self.design_inputs['n_side_pins']
-        self.main_gui.current_inputs['guide_tube_positions'] = copy.deepcopy(
-            self.design_inputs.get('guide_tube_positions', [])
-        )
+    def reset_to_current(self):
+        """Reset all designs to current reactor configuration"""
+        # Reset from main GUI
+        self.design_inputs = copy.deepcopy(self.main_gui.current_inputs)
+        self.core_lattice = copy.deepcopy(self.design_inputs['core_lattice'])
+        self.n_side_pins = int(self.design_inputs.get('n_side_pins', 17))
+        self.guide_tube_positions = copy.deepcopy(self.design_inputs.get('guide_tube_positions', []))
 
-        # Update and schedule visualization
-        self.main_gui.schedule_update()
+        # Update UI
+        self.assembly_type_var.set(self.design_inputs["assembly_type"])
+        self.core_rows_var.set(len(self.core_lattice))
+        self.core_cols_var.set(len(self.core_lattice[0]) if self.core_lattice else 4)
 
-        from tkinter import messagebox
-        messagebox.showinfo("Design Applied", "Pin layout has been applied to visualization")
+        # Refresh displays
+        self.create_core_grid()
+        self.create_pin_grid()
+        self.update_pin_designer_visibility()
 
-    def on_design_assembly_change(self, event=None):
-        """Handle assembly type change in designer"""
-        self.design_inputs["assembly_type"] = self.design_assembly_var.get()
-        self.update_pin_layout_visibility()
-
-    def update_pin_layout_visibility(self):
-        """Show/hide pin layout frame based on assembly type"""
-        if self.design_inputs["assembly_type"] == "Pin":
-            self.pin_layout_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(5, 0))
-        else:
-            self.pin_layout_frame.pack_forget()
+        # Show status
+        self.status_label.config(text="✓ Reset to current configuration", foreground='blue')
+        self.parent.after(3000, lambda: self.status_label.config(text=""))

@@ -8,7 +8,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 sys.path.append(root_dir)
 
-from inputs import inputs
+from utils.base_inputs import inputs
 from .pin_fuel import build_fuel_assembly_uni as build_pin_assembly
 from .plate_fuel import build_fuel_assembly_uni as build_plate_assembly
 from .irradiation_cell import build_irradiation_cell_uni

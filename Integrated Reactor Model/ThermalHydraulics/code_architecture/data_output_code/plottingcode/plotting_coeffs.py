@@ -11,7 +11,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 sys.path.append(root_dir)
 
-from inputs import inputs
+from utils.base_inputs import inputs
 from ThermalHydraulics.code_architecture.helper_codes.material_properties.gap_properties import calculate_h_gap_vector
 
 # Add this class to simulate the th_system structure needed by calculate_h_gap_vector

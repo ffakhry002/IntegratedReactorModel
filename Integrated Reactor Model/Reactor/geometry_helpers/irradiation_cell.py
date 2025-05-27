@@ -13,7 +13,7 @@ sys.path.append(root_dir)
 reactor_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(reactor_dir)
 
-from inputs import inputs
+from utils.base_inputs import inputs
 
 def build_irradiation_cell_uni(mat_dict, position=None, inputs_dict=None):
     """Build an irradiation cell universe.

@@ -24,13 +24,24 @@ def calculate_derived_values(core_lattice, guide_tube_positions):
 
 def export_current_values(inputs):
     """Export current parameter values in the exact format of inputs.py"""
-    filename = f"reactor_config_{int(time.time())}.py"
-    export_inputs_to_file(inputs, filename)
-    return filename
+    # Get the Integrated Reactor Model directory (parent of parent of current file)
+    current_file_dir = os.path.dirname(os.path.abspath(__file__))  # Inputs_GUI/utils/
+    inputs_gui_dir = os.path.dirname(current_file_dir)  # Inputs_GUI/
+    integrated_reactor_dir = os.path.dirname(inputs_gui_dir)  # Integrated Reactor Model/
+
+    filename = f"inputs_{int(time.time())}.py"
+    filepath = os.path.join(integrated_reactor_dir, filename)
+    export_inputs_to_file(inputs, filepath)
+    return filepath
 
 
-def export_inputs_to_file(inputs, filename):
-    """Export inputs to a file in the exact format of inputs.py"""
+def export_inputs_to_file(inputs, filepath):
+    """Export inputs to a file in the exact format of inputs.py
+
+    Args:
+        inputs: Dictionary of input parameters
+        filepath: Full path where to save the file
+    """
     # Calculate derived values
     num_assemblies, n_guide_tubes = calculate_derived_values(
         inputs["core_lattice"],
@@ -138,14 +149,14 @@ base_inputs = {{
     # OpenMC Transport Parameters
     ###########################################
     # Standard Transport Settings
-    "batches": {inputs['batches']},                   # Number of active batches
-    "inactive": {inputs['inactive']},                   # Number of inactive batches
-    "particles": {inputs['particles']},            # Particles per batch
+    "batches": int({inputs['batches']}),                   # Number of active batches
+    "inactive": int({inputs['inactive']}),                   # Number of inactive batches
+    "particles": int({inputs['particles']}),            # Particles per batch
     "energy_structure": '{inputs['energy_structure']}',    # Energy group structure
 
     # Energy Group Boundaries
-    "thermal_cutoff": {inputs['thermal_cutoff']},          # Thermal/epithermal boundary [eV]
-    "fast_cutoff": {inputs['fast_cutoff']},          # Epithermal/fast boundary [eV]
+    "thermal_cutoff": float({inputs['thermal_cutoff']}),          # Thermal/epithermal boundary [eV]
+    "fast_cutoff": float({inputs['fast_cutoff']}),          # Epithermal/fast boundary [eV]
 
     # Tally Granularity Settings
     "power_tally_axial_segments": {inputs['power_tally_axial_segments']},     # Number of axial segments for power tallies
@@ -173,9 +184,9 @@ base_inputs = {{
     "depletion_timesteps": {inputs['depletion_timesteps']},
 
     # Transport Settings for Depletion
-    "depletion_particles": {inputs['depletion_particles']},       # Particles per batch for depletion
-    "depletion_batches": {inputs['depletion_batches']},         # Active batches for depletion
-    "depletion_inactive": {inputs['depletion_inactive']},         # Inactive batches for depletion
+    "depletion_particles": int({inputs['depletion_particles']}),       # Particles per batch for depletion
+    "depletion_batches": int({inputs['depletion_batches']}),         # Active batches for depletion
+    "depletion_inactive": int({inputs['depletion_inactive']}),         # Inactive batches for depletion
 
     # Depletion Options
     "depletion_integrator": "{inputs['depletion_integrator']}",  # Integration algorithm
@@ -232,5 +243,5 @@ inputs = {{
 '''
 
     # Write to file
-    with open(filename, 'w') as f:
+    with open(filepath, 'w') as f:
         f.write(output)
