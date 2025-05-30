@@ -1,11 +1,13 @@
 Integrated Reactor Model
 ======================
+Total Python files: 112
+Total lines of code: 18220
+
 
 Project Structure:
 ├── inputs.py                     # Legacy input parameters (still used by main.py)
 ├── main.py                      # Main execution script
 ├── run_dictionaries.py          # Parameter dictionaries for parametric studies
-├── TH_OLD.py                    # Legacy thermal hydraulics code (external, not in main directory)
 ├── remove_pycache.py            # Utility to clean __pycache__ directories
 ├── architecture.txt             # This project structure documentation
 ├── __init__.py                  # Package initialization file
@@ -181,152 +183,7 @@ and are required for proper operation:
     ├── chain_casl_pwr.xml      # CASL depletion chain
     └── chain_endfb71_pwr.xml   # ENDF/B-VII.1 depletion chain
 
-Key Features:
-=============
-
-Core Functionality:
-- Eigenvalue calculations using OpenMC
-- Fuel depletion simulations
-- Thermal hydraulics analysis with multiple power profiles
-- Comprehensive plotting and visualization
-- Advanced parametric study capabilities
-- Interactive graphical user interface (Inputs_GUI v1.0.0)
-- Dedicated parametric study generator (Parametric_GUI v2.0.0)
-- Centralized configuration management (utils/base_inputs.py)
-
-Configuration Management:
-- Dual configuration system: legacy inputs.py and centralized utils/base_inputs.py
-- Single source of truth for default parameters in utils/base_inputs.py
-- Consistent parameter access across all modules
-- Automatic derived value calculations (num_assemblies, n_guide_tubes)
-- Easy maintenance and parameter updates
-- Both GUIs can import from either configuration system
-
-Main GUI Features (Inputs_GUI v1.0.0):
-- Real-time reactor visualization (Core XY/YZ/XZ views)
-- Assembly-level visualization (Pin/Plate assemblies)
-- Individual fuel element visualization
-- Interactive core layout designer with drag-and-drop functionality
-- Enhanced core lattice designer with live matplotlib preview
-- Pin layout designer for guide tube positioning
-- Comprehensive parameter controls with live updates
-- Thermal hydraulics analysis with integrated result viewer
-- Advanced OpenMC and depletion parameter configuration
-- OpenMC geometry configuration and visualization tab
-- Two-panel layout for efficient parameter management
-- Configuration export capabilities
-- Material property visualization with color-coded legends
-- Zoom, pan, and navigation controls for all visualizations
-- Tools menu integration with Parametric Study Generator
-
-Parametric Study Features (Parametric_GUI v2.0.0):
-- Modular architecture with separate components, designers, models, and utils
-- Categorized parameter tree view with 66+ supported parameters
-- Real-time search functionality across all parameters
-- Three-tab interface: Simple Studies, Multi-Parameter Loops, Preview & Export
-- Enhanced complex tab with multi-parameter loop sets
-- Visual core lattice designer with interactive grid and multi-lattice support
-- Depletion timesteps designer for complex depletion scenarios
-- Simple parameter studies with single/range/list inputs
-- Multi-parameter loops with automatic combination generation
-- Parameter stacking and run management with loop sets
-- Core lattice designer integration for multi-parameter studies
-- Live preview with matplotlib visualization and lattice counting
-- Timestamped export to run_dictionaries.py files
-- Cross-platform compatibility (Windows, macOS, Linux)
-- Standalone operation or integration with main GUI
-- Predefined core configurations (4x4, 6x6, 7x7, 8x8)
-- Real-time run count estimation and configuration summary
-
-Enhanced Complex Tab Features:
-- Multiple loop set management with add/remove functionality
-- Scrollable parameter configuration interface
-- Dynamic button generation for special parameters (core_lattice, depletion_timesteps)
-- Multi-lattice preview with visual grid representation
-- Intelligent lattice counting and parsing
-- Loop set preview with total run calculations
-- Parameter-specific handling for different data types
-
-Core Lattice Designer Features:
-- Interactive click-to-edit grid interface
-- Cell types: C (Coolant), F (Fuel), E (Enhanced), I_X (Irradiation)
-- Color-coded visualization with live preview
-- Grid sizing from 1x1 to 20x20
-- Preset configurations for common reactor designs
-- Automatic irradiation position numbering
-- Real-time matplotlib preview with proper aspect ratio
-- Scrollable interface for large grids
-- Integration with both main GUI and parametric studies
-- Multi-lattice support for parametric studies
-
-Thermal Hydraulics Enhancements:
-- Multi-scenario thermal hydraulics calculations
-- Three power profile modes: cosine approximation, hot element, core average
-- Automatic power distribution CSV integration
-- Separate output directories for each TH scenario
-- Enhanced temperature profile visualization
-- Cleanup utilities for local outputs
-
-Supported Fuel Types:
-- Pin-type fuel assemblies (PWR/BWR style)
-- Plate-type fuel assemblies (research reactor style)
-
-Supported Calculations:
-- k-eigenvalue with uncertainty quantification
-- Neutron flux distributions (thermal, epithermal, fast)
-- Power distributions with hot channel analysis
-- Irradiation position flux tallies
-- Fuel burnup and isotopic evolution
-- Temperature distributions in fuel, cladding, and coolant
-- Multi-scenario thermal hydraulics (cosine, hot element, core average)
-
-Output Capabilities:
-- 2D and 3D flux maps
-- Power distribution plots
-- Temperature profile visualization with pan/zoom controls
-- Depletion isotopic evolution plots
-- Shannon entropy convergence analysis
-- Comprehensive data export (CSV, plots, reports)
-- Parametric study run dictionaries with Python code generation
-- Timestamped file exports to prevent conflicts
-
-Execution Modes:
-- Single simulation (main.py)
-- Parametric studies (parametric_study.py or Parametric_GUI)
-- Interactive main GUI (Inputs_GUI/main.py)
-- Standalone parametric GUI (Parametric_GUI/main.py)
-- Individual module testing (each module can run standalone)
-
-Configuration:
-- Dual configuration system for backward compatibility
-- Interactive parameter editing via main GUI interface
-- Dedicated parametric study configuration via Parametric_GUI
-- Flexible geometry definitions with visual designers
-- Multiple material options with real-time preview
-- Customizable tally settings
-- Toggle-based feature control
-- Real-time configuration export and validation
-- Cross-platform file dialog compatibility
-- Local outputs management with cleanup utilities
-
-Recent Enhancements:
-- Enhanced Parametric_GUI to version 2.0.0 with improved architecture
-- Multi-loop set support in complex tab for advanced parametric studies
-- Improved lattice parsing and preview capabilities
-- Dynamic button generation for parameter-specific actions
-- Enhanced scrolling and UI responsiveness in parametric interfaces
-- Multi-scenario thermal hydraulics with automatic power profile integration
-- Improved error handling and validation in parametric studies
-- Better integration between main GUI and parametric study generator
-- Enhanced core lattice designer with multi-lattice support
-- Timestamped export functionality to prevent file conflicts
-- Cross-platform compatibility improvements
-- Consistent import structure across all modules
-- Single source of truth for parameter definitions in utils/base_inputs.py
-- Automatic simulation directory structure creation
-- Enhanced cleanup utilities for __pycache__ and local outputs
-
-Runtime Directory Structure:
+Single Runtime Directory Structure:
 ============================
 The following directories are created automatically during simulation execution:
 
@@ -342,11 +199,41 @@ simulation_data/                 # Main simulation output directory
 ├── depletion_data/            # Depletion calculation outputs
 └── depletion_plots/           # Depletion evolution plots
 
-local_outputs/                  # Local TH outputs (configurable location)
-└── (various TH calculation files)
 
-Version Information:
-===================
-- Main Package: v1.0.0
-- Inputs_GUI: v1.0.0
-- Parametric_GUI: v2.0.0
+
+Parametric Runtime Directory Structure:
+============================
+The following directories are created automatically during a parametric study execution:
+
+
+parametric_simulation_20250527_031447/           # Timestamped parametric study directory
+├── parametric_study_log.txt                     # Log file containing run parameters and results
+├── run_1/                                       # Individual parameter case directory
+│   ├── Geometry_and_Materials/                  # Case-specific geometry plots
+│   ├── ThermalHydraulics/
+│   │   ├── cosine_calculation/
+│   │   ├── hot_element/
+│   │   └── core_average/
+│   ├── transport_data/
+│   ├── flux_plots/
+│   ├── power_plots/
+│   ├── depletion_data/
+│   └── depletion_plots/
+├── run_2/                                       # Second parameter case
+│   └── [Same structure as run_1]
+├── run_3/                                       # Third parameter case
+│   └── [Same structure as run_1]
+├── run_4/                                       # Fourth parameter case
+│   └── [Same structure as run_1]
+├── run_5/                                       # Fifth parameter case
+│   └── [Same structure as run_1]
+├── run_6/                                       # Sixth parameter case
+│   └── [Same structure as run_1]
+├── run_7/                                       # Seventh parameter case
+│   └── [Same structure as run_1]
+├── run_8/                                       # Eighth parameter case
+│   └── [Same structure as run_1]
+└── run_9/                                       # Ninth parameter case
+    └── [Same structure as run_1]
+
+etc.

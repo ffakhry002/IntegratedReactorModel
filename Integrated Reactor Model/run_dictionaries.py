@@ -13,17 +13,9 @@ all_runs = [
 
     # Simple parameter runs
     ,{
-        "description": "core_power = 10.0",
-        "core_power": 10.0
-    }
-    ,{
-        "description": "core_power = 20.0",
+        "description": "fuel_height = 0.6 + core_power = 20.0",
+        "fuel_height": 0.6,
         "core_power": 20.0
-    }
-    ,{
-        "description": "core_power = 20.0 + fuel_height = 0.5",
-        "core_power": 20.0,
-        "fuel_height": 0.5
     }
 ]
 
@@ -31,8 +23,9 @@ all_runs = [
 # Generate parametric combinations automatically
 # Loop set 1: Loop Set 1
 loop_set_1_params = {
-    "core_lattice": [[['C', 'F', 'F', 'C'], ['F', 'F', 'I_1', 'F'], ['F', 'F', 'F', 'F'], ['C', 'F', 'F', 'C']], [['C', 'F', 'F', 'C', 'F'], ['F', 'E', 'F', 'F', 'F'], ['F', 'E', 'E', 'F', 'F'], ['C', 'F', 'I_1', 'C', 'F'], ['F', 'F', 'F', 'F', 'F']]],
-    "core_power": [10, 20]
+    "core_power": [10, 20, 30],
+    "fuel_height": [1, 2, 3],
+    "n%": [10, 20, 30]
 }
 
 # Generate all combinations for Loop Set 1
@@ -52,8 +45,8 @@ all_runs.extend(loop_set_1_combinations)
 
 # Loop set 2: Loop Set 2
 loop_set_2_params = {
-    "tank_radius": [2, 3],
-    "reflector_thickness": [4, 5]
+    "n%E": [30, 50],
+    "T_inlet": [400, 600]
 }
 
 # Generate all combinations for Loop Set 2
