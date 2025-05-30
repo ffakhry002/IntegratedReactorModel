@@ -67,7 +67,6 @@ def read_power_from_csv(th_system):
                         n_elements_per_assembly = th_system.plate_geometry.plates_per_assembly
 
                     power_data = power_data / float(n_elements_per_assembly)
-                    print(f"Hot assembly power divided by {n_elements_per_assembly} elements per assembly")
                 else:
                     print("Using element-level hot element power directly")
 
@@ -113,7 +112,6 @@ def read_power_from_csv(th_system):
                     else:  # Plate
                         n_elements_per_assembly = th_system.plate_geometry.plates_per_assembly
                     power_data = power_data / float(n_elements_per_assembly)
-                    print(f"Average assembly power divided by {n_elements_per_assembly} elements per assembly")
             else:
                 # If no Average column, take Core_Total and divide by number of elements
                 if 'Core_Total' in df.columns:
