@@ -125,7 +125,7 @@ base_inputs = {
     "deplete_assembly": False,               # Single assembly with reflective BC
     "deplete_assembly_enhanced": False,      # Single enhanced assembly with reflective BC
     "deplete_element": False,                # Single fuel element with reflective BC
-    "deplete_element_enhanced": True,       # Single enhanced fuel element with reflective BC
+    "deplete_element_enhanced": False,       # Single enhanced fuel element with reflective BC
 
     # Time Steps Configuration
     "depletion_timestep_units": "days",  # Units for timesteps: 'MWd/kgHM' or 'days'
