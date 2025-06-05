@@ -32,6 +32,7 @@ depletion\ chains/*.xml
 # Core selection outputs
 core_selection/output/
 core_selection/visualizations/
+core_selection/dictionaries_exported.py
 
 # Simulation outputs
 simulation_data/
