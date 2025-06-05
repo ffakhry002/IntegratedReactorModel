@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Cross section data files (but keep folder structure)
+cross_sections/neutron/*.h5
+cross_sections/photon/*.h5
+
+# Depletion chain data files (but keep folder structure)
+depletion\ chains/*.xml
+!depletion\ chains/.gitkeep
+
+# Core selection outputs
+core_selection/output/
+core_selection/visualizations/
+
+# Simulation outputs
+simulation_data/
+parametric_simulation_*/
+Integrated\ Reactor\ Model/depletion/outputs/
