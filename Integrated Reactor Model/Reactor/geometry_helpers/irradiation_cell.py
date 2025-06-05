@@ -13,9 +13,9 @@ sys.path.append(root_dir)
 reactor_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(reactor_dir)
 
-from inputs import inputs
+from utils.base_inputs import inputs
 
-def build_irradiation_cell_uni(mat_dict, position=None):
+def build_irradiation_cell_uni(mat_dict, position=None, inputs_dict=None):
     """Build an irradiation cell universe.
 
     Parameters
@@ -24,18 +24,23 @@ def build_irradiation_cell_uni(mat_dict, position=None):
         Dictionary of materials
     position : tuple, optional
         (i, j) position in core lattice. If provided, assigns unique ID.
+    inputs_dict : dict, optional
+        Custom inputs dictionary. If None, uses the global inputs.
 
     Returns
     -------
     openmc.Universe
         Universe containing the irradiation cell
     """
+    # Use provided inputs or default to global inputs
+    if inputs_dict is None:
+        inputs_dict = inputs
 
     # Calculate cell dimensions based on assembly type
-    if inputs['assembly_type'] == 'Pin':
-        cell_width = inputs['pin_pitch'] * inputs['n_side_pins'] * 100  # m to cm
+    if inputs_dict['assembly_type'] == 'Pin':
+        cell_width = inputs_dict['pin_pitch'] * inputs_dict['n_side_pins'] * 100  # m to cm
     else:  # Plate assembly
-        cell_width = (2 * inputs['clad_structure_width'] + inputs['fuel_plate_width']) * 100  # m to cm
+        cell_width = (2 * inputs_dict['clad_structure_width'] + inputs_dict['fuel_plate_width']) * 100  # m to cm
 
     # Define the dimensions
     x0 = -cell_width/2
@@ -43,9 +48,9 @@ def build_irradiation_cell_uni(mat_dict, position=None):
     y0 = -cell_width/2
     y3 = cell_width/2
 
-    if inputs['irradiation_clad']:
+    if inputs_dict['irradiation_clad']:
         # Calculate inner dimensions with cladding
-        clad_thickness = inputs['irradiation_clad_thickness'] * 100  # m to cm
+        clad_thickness = inputs_dict['irradiation_clad_thickness'] * 100  # m to cm
         x1 = x0 + clad_thickness
         x2 = x3 - clad_thickness
         y1 = y0 + clad_thickness
@@ -67,7 +72,7 @@ def build_irradiation_cell_uni(mat_dict, position=None):
             'Zirc4': 'Zircaloy',
             'Al6061': 'Al6061'
         }
-        clad_material = clad_material_map[inputs['clad_type']]
+        clad_material = clad_material_map[inputs_dict['clad_type']]
 
         # Create cells with cladding - ensuring no overlaps
         # Define regions for each part of the irradiation cell
@@ -94,8 +99,8 @@ def build_irradiation_cell_uni(mat_dict, position=None):
         center_cell.region = center_region
         if position is not None:
             center_cell.id = generate_cell_id('irradiation', position)  # Center cell (type 3)
-            center_cell.name = get_irradiation_cell_name(position, inputs['core_lattice'])
-        center_cell.fill = mat_dict['Test pos'] if inputs['irradiation_cell_fill'] == 'fill' \
+            center_cell.name = get_irradiation_cell_name(position, inputs_dict['core_lattice'])
+        center_cell.fill = mat_dict['Test pos'] if inputs_dict['irradiation_cell_fill'] == 'fill' \
                           else mat_dict['Vacuum']
 
         # Create the cladding cells
@@ -124,7 +129,7 @@ def build_irradiation_cell_uni(mat_dict, position=None):
             right_clad.id = generate_cell_id('irradiation', position, clad_part='right')
 
             # Also assign names
-            pos_name = get_irradiation_cell_name(position, inputs['core_lattice'])
+            pos_name = get_irradiation_cell_name(position, inputs_dict['core_lattice'])
             bottom_clad.name = f"{pos_name}_bottom_clad"
             top_clad.name = f"{pos_name}_top_clad"
             left_clad.name = f"{pos_name}_left_clad"
@@ -153,9 +158,9 @@ def build_irradiation_cell_uni(mat_dict, position=None):
         if position is not None:
             cell_id = generate_cell_id('irradiation', position)
             main_cell.id = cell_id
-            main_cell.name = get_irradiation_cell_name(position, inputs['core_lattice'])
+            main_cell.name = get_irradiation_cell_name(position, inputs_dict['core_lattice'])
 
-        main_cell.fill = mat_dict['Test pos'] if inputs['irradiation_cell_fill'] == 'fill' \
+        main_cell.fill = mat_dict['Test pos'] if inputs_dict['irradiation_cell_fill'] == 'fill' \
                         else mat_dict['Vacuum']
 
         irradiation_universe = openmc.Universe(name='irradiation_universe', cells=[main_cell])

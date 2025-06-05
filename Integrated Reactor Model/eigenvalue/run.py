@@ -53,24 +53,33 @@ def make_and_run_openmc_model(model, statepoint_name, folder='Output/'):
     # Reset auto IDs for next run
     openmc.mixin.reset_auto_ids()
 
-def run_eigenvalue():
+def run_eigenvalue(inputs_dict=None):
     """Run eigenvalue calculation.
+
+    Parameters
+    ----------
+    inputs_dict : dict, optional
+        Custom inputs dictionary. If None, uses the global inputs.
 
     Returns
     -------
     tuple
         (k_effective, standard_deviation)
     """
+    # Use provided inputs or default to global inputs
+    if inputs_dict is None:
+        inputs_dict = inputs
+
     # Use values from inputs file
-    batches = inputs['batches']
-    inactive = inputs['inactive']
-    particles = inputs['particles']
+    batches = inputs_dict['batches']
+    inactive = inputs_dict['inactive']
+    particles = inputs_dict['particles']
 
     print(f"Starting eigenvalue calculation with {batches} batches, {inactive} inactive, {particles} particles")
 
     # Create materials and geometry
-    mat_dict, materials = make_materials(mat_list=None)
-    core_universe, first_irr_universe = build_core_uni(mat_dict)
+    mat_dict, materials = make_materials(mat_list=None, inputs_dict=inputs_dict)
+    core_universe, first_irr_universe = build_core_uni(mat_dict, inputs_dict=inputs_dict)
     geometry = openmc.Geometry(core_universe)
 
     # Create settings
@@ -82,7 +91,7 @@ def run_eigenvalue():
     settings.particles = particles
 
     # Calculate source region based on maximum fuel assembly row
-    lattice_array = np.array(inputs['core_lattice'])
+    lattice_array = np.array(inputs_dict['core_lattice'])
     n_rows, n_cols = lattice_array.shape
 
     # Count the effective number of assemblies in each row/column (excluding coolant)
@@ -93,10 +102,10 @@ def run_eigenvalue():
     max_col_assemblies = max(col_counts)
 
     # Calculate the side length based on assembly type
-    if inputs['assembly_type'] == 'Plate':
-        assembly_unit_width = (inputs['fuel_plate_width'] + 2*inputs['clad_structure_width']) * 100  # cm
+    if inputs_dict['assembly_type'] == 'Plate':
+        assembly_unit_width = (inputs_dict['fuel_plate_width'] + 2*inputs_dict['clad_structure_width']) * 100  # cm
     else:  # Pin type
-        assembly_unit_width = inputs['pin_pitch'] * inputs['n_side_pins'] * 100  # cm
+        assembly_unit_width = inputs_dict['pin_pitch'] * inputs_dict['n_side_pins'] * 100  # cm
 
     # Calculate total width of active core region
     width_x = max_col_assemblies * assembly_unit_width
@@ -104,7 +113,7 @@ def run_eigenvalue():
 
     half_width_x = width_x / 2
     half_width_y = width_y / 2
-    half_height = inputs['fuel_height'] * 50   # Convert to cm
+    half_height = inputs_dict['fuel_height'] * 50   # Convert to cm
 
     # Create initial source distribution - use actual fuel region size
     uniform_dist = openmc.stats.Box(
@@ -123,7 +132,7 @@ def run_eigenvalue():
     entropy_mesh = openmc.RegularMesh()
     entropy_mesh.lower_left = [-half_width_x, -half_width_y, -half_height]
     entropy_mesh.upper_right = [half_width_x, half_width_y, half_height]
-    entropy_mesh.dimension = inputs['entropy_mesh_dimension']
+    entropy_mesh.dimension = inputs_dict['entropy_mesh_dimension']
     settings.entropy_mesh = entropy_mesh
 
     settings.temperature = {'method': 'interpolation', 'tolerance': 100}
@@ -131,11 +140,14 @@ def run_eigenvalue():
 
     # Add tallies
     tallies = openmc.Tallies()
-    tallies.extend(create_irradiation_tallies())
-    tallies.extend(create_irradiation_axial_tallies())
+    tallies.extend(create_irradiation_tallies(inputs_dict=inputs_dict))
+    tallies.extend(create_irradiation_axial_tallies(inputs_dict=inputs_dict))
     tallies.extend(create_nutotal_tallies())
-    tallies.extend(create_coreflux_tallys())
-    tallies.extend(create_power_tallies())
+    tallies.extend(create_coreflux_tallys(inputs_dict=inputs_dict))
+
+    # Only add power tallies if tally_power is enabled
+    if inputs_dict.get('tally_power', True):
+        tallies.extend(create_power_tallies(inputs_dict=inputs_dict))
 
     # Create model
     model = openmc.model.Model()
@@ -147,7 +159,12 @@ def run_eigenvalue():
     running_directly = os.path.basename(sys.argv[0]) == 'run.py'
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-    if not running_directly and os.path.exists(os.path.join(root_dir, 'simulation_data')):
+    # Check if we're in a parametric study run directory
+    current_dir = os.getcwd()
+    if 'parametric_simulation_' in current_dir and 'run_' in current_dir:
+        # We're in a parametric study run directory - use transport_data subdirectory
+        output_dir = os.path.join(current_dir, 'transport_data')
+    elif not running_directly and os.path.exists(os.path.join(root_dir, 'simulation_data')):
         # Running from main.py
         output_dir = os.path.join(root_dir, 'simulation_data', 'transport_data')
     else:
@@ -166,7 +183,7 @@ def run_eigenvalue():
     with openmc.StatePoint(sp_path) as sp:
         k_effective = sp.keff
         # Process and save results
-        process_results(sp, k_effective)
+        process_results(sp, k_effective, inputs_dict)
 
     return k_effective.nominal_value, k_effective.std_dev
 

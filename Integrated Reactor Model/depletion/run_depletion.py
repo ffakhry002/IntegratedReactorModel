@@ -26,7 +26,7 @@ root_dir = os.path.dirname(parent_dir)  # Up another level to IntegratedReactorM
 # List of possible cross_sections.xml locations
 cross_sections_path = os.path.join(root_dir, "cross_sections", "cross_sections.xml")
 
-def create_model(depletion_type='core'):
+def create_model(depletion_type='core', inputs_dict=None):
     """Create a new OpenMC model for depletion calculations.
 
     Parameters
@@ -34,14 +34,20 @@ def create_model(depletion_type='core'):
     depletion_type : str
         Type of depletion model to create: 'core', 'assembly', 'assembly_enhanced',
         'element', or 'element_enhanced'
+    inputs_dict : dict, optional
+        Custom inputs dictionary. If None, uses the global inputs.
 
     Returns
     -------
     openmc.Model
         The OpenMC model instance
     """
+    # Use provided inputs or default to global inputs
+    if inputs_dict is None:
+        inputs_dict = inputs
+
     # Create materials and geometry
-    mat_dict, materials = make_materials(None)  # Get both materials dict and collection
+    mat_dict, materials = make_materials(None, inputs_dict=inputs_dict)  # Get both materials dict and collection
     os.environ['OPENMC_CROSS_SECTIONS'] = cross_sections_path
     materials.cross_sections = cross_sections_path
 
@@ -61,24 +67,24 @@ def create_model(depletion_type='core'):
     # Create geometry based on depletion type
     if depletion_type == 'core':
         print("\nCreating full core model for depletion...")
-        root_universe, _ = build_core_uni(mat_dict)
-        max_assemblies = max([len(row) - list(row).count('C') for row in inputs['core_lattice']])
-        if inputs['assembly_type'] == 'Plate':
-            assembly_unit_width = (inputs['fuel_plate_width'] + 2*inputs['clad_structure_width']) * 100  # cm
+        root_universe, _ = build_core_uni(mat_dict, inputs_dict=inputs_dict)
+        max_assemblies = max([len(row) - list(row).count('C') for row in inputs_dict['core_lattice']])
+        if inputs_dict['assembly_type'] == 'Plate':
+            assembly_unit_width = (inputs_dict['fuel_plate_width'] + 2*inputs_dict['clad_structure_width']) * 100  # cm
         else:  # Pin type
-            assembly_unit_width = inputs['pin_pitch'] * inputs['n_side_pins'] * 100  # cm
+            assembly_unit_width = inputs_dict['pin_pitch'] * inputs_dict['n_side_pins'] * 100  # cm
         total_width = max_assemblies * assembly_unit_width
         half_width = total_width / 2
     elif depletion_type in ['assembly', 'assembly_enhanced']:
         is_enhanced = (depletion_type == 'assembly_enhanced')
         print(f"\nCreating single {'enhanced ' if is_enhanced else ''}assembly model for {calc_type} calculation...")
-        if inputs['assembly_type'] == 'Pin':
+        if inputs_dict['assembly_type'] == 'Pin':
             from Reactor.geometry_helpers.pin_fuel import build_fuel_assembly_uni
-            root_universe = build_fuel_assembly_uni(mat_dict, is_enhanced=is_enhanced)
+            root_universe = build_fuel_assembly_uni(mat_dict, is_enhanced=is_enhanced, inputs_dict=inputs_dict)
 
             # Calculate assembly bounds
-            pin_pitch = inputs['pin_pitch'] * 100  # m to cm
-            n_pins = inputs['n_side_pins']
+            pin_pitch = inputs_dict['pin_pitch'] * 100  # m to cm
+            n_pins = inputs_dict['n_side_pins']
             half_width = (pin_pitch * n_pins) / 2
 
             # Create bounding surfaces with specified BC
@@ -88,7 +94,7 @@ def create_model(depletion_type='core'):
             top = openmc.YPlane(y0=half_width, boundary_type=boundary_type)
 
             # Create bottom and top axial surfaces
-            fuel_height = inputs['fuel_height'] * 100  # m to cm
+            fuel_height = inputs_dict['fuel_height'] * 100  # m to cm
             bottom_z = openmc.ZPlane(z0=-fuel_height/2, boundary_type=boundary_type)
             top_z = openmc.ZPlane(z0=fuel_height/2, boundary_type=boundary_type)
 
@@ -99,12 +105,12 @@ def create_model(depletion_type='core'):
 
         else:  # Plate assembly
             from Reactor.geometry_helpers.plate_fuel import build_fuel_assembly_uni
-            root_universe = build_fuel_assembly_uni(mat_dict, is_enhanced=is_enhanced)
+            root_universe = build_fuel_assembly_uni(mat_dict, is_enhanced=is_enhanced, inputs_dict=inputs_dict)
 
             # Calculate assembly bounds
-            plate_pitch = inputs['fuel_plate_pitch'] * 100  # m to cm
-            n_plates = inputs['plates_per_assembly']
-            clad_width = inputs['clad_structure_width'] * 100  # m to cm
+            plate_pitch = inputs_dict['fuel_plate_pitch'] * 100  # m to cm
+            n_plates = inputs_dict['plates_per_assembly']
+            clad_width = inputs_dict['clad_structure_width'] * 100  # m to cm
             assembly_width = n_plates * plate_pitch + 2 * clad_width
             half_width = assembly_width / 2
 
@@ -115,7 +121,7 @@ def create_model(depletion_type='core'):
             top = openmc.YPlane(y0=half_width, boundary_type=boundary_type)
 
             # Create bottom and top axial surfaces
-            fuel_height = inputs['fuel_height'] * 100  # m to cm
+            fuel_height = inputs_dict['fuel_height'] * 100  # m to cm
             bottom_z = openmc.ZPlane(z0=-fuel_height/2, boundary_type=boundary_type)
             top_z = openmc.ZPlane(z0=fuel_height/2, boundary_type=boundary_type)
 
@@ -125,23 +131,23 @@ def create_model(depletion_type='core'):
             root_universe = openmc.Universe(cells=[main_cell])
     elif depletion_type in ['element', 'element_enhanced']:
         is_enhanced = (depletion_type == 'element_enhanced')
-        element_type = 'pin' if inputs['assembly_type'] == 'Pin' else 'plate'
+        element_type = 'pin' if inputs_dict['assembly_type'] == 'Pin' else 'plate'
         print(f"\nCreating single {'enhanced ' if is_enhanced else ''}{element_type} model for {calc_type} calculation...")
 
-        if inputs['assembly_type'] == 'Pin':
+        if inputs_dict['assembly_type'] == 'Pin':
             from Reactor.geometry_helpers.pin_fuel import build_pin_cell_fuel_uni
-            root_universe = build_pin_cell_fuel_uni(mat_dict, is_enhanced=is_enhanced)
+            root_universe = build_pin_cell_fuel_uni(mat_dict, is_enhanced=is_enhanced, inputs_dict=inputs_dict)
 
             # Calculate pin bounds
-            pin_pitch = inputs['pin_pitch'] * 100  # m to cm
+            pin_pitch = inputs_dict['pin_pitch'] * 100  # m to cm
             half_width = pin_pitch / 2
 
         else:  # Plate
             from Reactor.geometry_helpers.plate_fuel import build_plate_cell_fuel_uni
-            root_universe = build_plate_cell_fuel_uni(mat_dict, is_enhanced=is_enhanced)
+            root_universe = build_plate_cell_fuel_uni(mat_dict, is_enhanced=is_enhanced, inputs_dict=inputs_dict)
 
             # Calculate plate bounds
-            plate_pitch = inputs['fuel_plate_pitch'] * 100  # m to cm
+            plate_pitch = inputs_dict['fuel_plate_pitch'] * 100  # m to cm
             half_width = plate_pitch / 2
 
         # Create bounding surfaces with specified BC
@@ -151,7 +157,7 @@ def create_model(depletion_type='core'):
         top = openmc.YPlane(y0=half_width, boundary_type=boundary_type)
 
         # Create bottom and top axial surfaces
-        fuel_height = inputs['fuel_height'] * 100  # m to cm
+        fuel_height = inputs_dict['fuel_height'] * 100  # m to cm
         bottom_z = openmc.ZPlane(z0=-fuel_height/2, boundary_type=boundary_type)
         top_z = openmc.ZPlane(z0=fuel_height/2, boundary_type=boundary_type)
 
@@ -168,12 +174,12 @@ def create_model(depletion_type='core'):
     settings = openmc.Settings()
 
     # Set particles and batches from inputs
-    settings.particles = inputs.get('depletion_particles', 10000)
-    settings.batches = inputs.get('depletion_batches', 100)
-    settings.inactive = inputs.get('depletion_inactive', 20)
+    settings.particles = inputs_dict.get('depletion_particles', 10000)
+    settings.batches = inputs_dict.get('depletion_batches', 100)
+    settings.inactive = inputs_dict.get('depletion_inactive', 20)
 
 
-    half_height = inputs['fuel_height'] * 50   # Convert to cm
+    half_height = inputs_dict['fuel_height'] * 50   # Convert to cm
 
     # Create initial source distribution - use actual fuel region size
     uniform_dist = openmc.stats.Box(
@@ -203,19 +209,25 @@ def create_model(depletion_type='core'):
 
     return model
 
-def run_all_depletions(output_dir=None):
+def run_all_depletions(output_dir=None, inputs_dict=None):
     """Run all enabled depletion calculations.
 
     Parameters
     ----------
     output_dir : str, optional
         Base directory to write output files. If None, uses ./depletion/outputs/
+    inputs_dict : dict, optional
+        Custom inputs dictionary. If None, uses the global inputs.
 
     Returns
     -------
     dict
         Dictionary containing results for each enabled depletion type
     """
+    # Use provided inputs or default to global inputs
+    if inputs_dict is None:
+        inputs_dict = inputs
+
     results = {}
     # Set up base output directory
     if output_dir is None:
@@ -233,21 +245,21 @@ def run_all_depletions(output_dir=None):
         'core': 'full core',
         'assembly': 'fuel assembly k-infinity',
         'assembly_enhanced': 'enhanced fuel assembly k-infinity',
-        'element': f"single {'pin' if inputs['assembly_type'] == 'Pin' else 'plate'} k-infinity",
-        'element_enhanced': f"enhanced single {'pin' if inputs['assembly_type'] == 'Pin' else 'plate'} k-infinity"
+        'element': f"single {'pin' if inputs_dict['assembly_type'] == 'Pin' else 'plate'} k-infinity",
+        'element_enhanced': f"enhanced single {'pin' if inputs_dict['assembly_type'] == 'Pin' else 'plate'} k-infinity"
     }
 
     # Run each enabled depletion type
     for dep_type, description in depletion_configs.items():
-        if inputs[f'deplete_{dep_type}']:
+        if inputs_dict[f'deplete_{dep_type}']:
             print("\n" + "="*80)
             print(f"Starting {description} depletion calculation")
             print("="*80)
-            results[dep_type] = run_depletion(output_dir=output_dir, depletion_type=dep_type)
+            results[dep_type] = run_depletion(output_dir=output_dir, depletion_type=dep_type, inputs_dict=inputs_dict)
 
     return results
 
-def run_depletion(model=None, output_dir=None, depletion_type='core'):
+def run_depletion(model=None, output_dir=None, depletion_type='core', inputs_dict=None):
     """Run a depletion calculation.
 
     Parameters
@@ -259,12 +271,18 @@ def run_depletion(model=None, output_dir=None, depletion_type='core'):
     depletion_type : str
         Type of depletion to run: 'core', 'assembly', 'assembly_enhanced',
         'element', or 'element_enhanced'
+    inputs_dict : dict, optional
+        Custom inputs dictionary. If None, uses the global inputs.
 
     Returns
     -------
     openmc.deplete.Results
         The depletion calculation results
     """
+    # Use provided inputs or default to global inputs
+    if inputs_dict is None:
+        inputs_dict = inputs
+
     # Set default output directory
     base_output_dir = output_dir or os.path.join(os.path.dirname(__file__), 'outputs')
     calc_type = 'keff' if depletion_type == 'core' else 'k∞'
@@ -280,13 +298,13 @@ def run_depletion(model=None, output_dir=None, depletion_type='core'):
     # Create new model if not provided
     if model is None:
         print(f"\nCreating new OpenMC model for {depletion_type} {calc_type} depletion...")
-        model = create_model(depletion_type)
+        model = create_model(depletion_type, inputs_dict)
 
     # Update transport settings from inputs
     for setting in ['particles', 'batches', 'inactive']:
         input_key = f'depletion_{setting}'
-        if input_key in inputs:
-            setattr(model.settings, setting, inputs[input_key])
+        if input_key in inputs_dict:
+            setattr(model.settings, setting, inputs_dict[input_key])
 
     # Print transport settings
     print(f"\n{depletion_type.capitalize()} {calc_type} depletion transport settings:")
@@ -295,7 +313,7 @@ def run_depletion(model=None, output_dir=None, depletion_type='core'):
     print(f"- Inactive batches: {model.settings.inactive}")
 
     # Set up depletion calculation
-    chain_type = inputs.get('depletion_chain', 'endfb71')  # Default to ENDF/B-VII.1 chain
+    chain_type = inputs_dict.get('depletion_chain', 'endfb71')  # Default to ENDF/B-VII.1 chain
     chain_file = os.path.join(root_dir, "depletion chains", f"chain_{chain_type}_pwr.xml")
 
     # Configure output paths
@@ -303,8 +321,8 @@ def run_depletion(model=None, output_dir=None, depletion_type='core'):
     model.export_to_xml(directory=output_dir)
 
     # Create operator and set up integrator
-    dep_operator = depletion_operator.create_operator(model=model, chain_file=chain_file, depletion_type=depletion_type)
-    integrator, timesteps = depletion_operator.setup_depletion(dep_operator, depletion_type=depletion_type)
+    dep_operator = depletion_operator.create_operator(model=model, chain_file=chain_file, depletion_type=depletion_type, inputs_dict=inputs_dict)
+    integrator, timesteps = depletion_operator.setup_depletion(dep_operator, depletion_type=depletion_type, inputs_dict=inputs_dict)
 
     # Configure integrator output paths
     integrator.output_dir = os.path.abspath(output_dir)
@@ -338,7 +356,7 @@ def run_depletion(model=None, output_dir=None, depletion_type='core'):
 
     # Write all output to parameter file
     params_file = os.path.join(output_dir, "simulation_outputs.txt")
-    write_output(params_file, depletion_type, dep_operator, integrator, timesteps, inputs, results_data)
+    write_output(params_file, depletion_type, dep_operator, integrator, timesteps, inputs_dict, results_data)
 
     return results
 

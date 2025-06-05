@@ -11,16 +11,20 @@ from inputs import inputs
 from Reactor.geometry_helpers.utils import generate_cell_id
 from eigenvalue.tallies.energy_groups import get_energy_bins
 
-def create_irradiation_tallies():
+def create_irradiation_tallies(inputs_dict=None):
     """Create tallies for irradiation positions."""
+    # Use provided inputs or default to global inputs
+    if inputs_dict is None:
+        inputs_dict = inputs
+
     tallies = openmc.Tallies()
 
     # Get energy group structure
-    energy_bins = get_energy_bins()
+    energy_bins = get_energy_bins(inputs_dict)
     energy_filter = openmc.EnergyFilter(energy_bins)
 
     # Create tallies for each irradiation position in the core
-    core_layout = inputs['core_lattice']
+    core_layout = inputs_dict['core_lattice']
     for i, row in enumerate(core_layout):
         for j, pos in enumerate(row):
             if pos.startswith('I_'):  # This is an irradiation position
@@ -36,37 +40,46 @@ def create_irradiation_tallies():
 
     return tallies
 
-def create_irradiation_axial_tallies():
+def create_irradiation_axial_tallies(inputs_dict=None):
     """Create axial flux tallies for irradiation positions.
 
     This creates a mesh tally for each irradiation position that divides
     the position into axial segments to measure flux variation with height.
     Uses a single energy group for total flux.
 
+    Parameters
+    ----------
+    inputs_dict : dict, optional
+        Custom inputs dictionary. If None, uses the global inputs.
+
     Returns
     -------
     openmc.Tallies
         Collection of axial flux tallies for each irradiation position
     """
+    # Use provided inputs or default to global inputs
+    if inputs_dict is None:
+        inputs_dict = inputs
+
     # Get number of axial segments from inputs
-    n_axial_segments = inputs['irradiation_axial_segments']
+    n_axial_segments = inputs_dict['irradiation_axial_segments']
 
     tallies = openmc.Tallies()
 
     # Get core dimensions from inputs (in cm)
-    half_height = inputs['fuel_height'] * 50  # Convert to cm
-    if inputs['assembly_type'] == 'Pin':
-        width = inputs['pin_pitch'] * inputs['n_side_pins'] * 100  # Convert to cm
+    half_height = inputs_dict['fuel_height'] * 50  # Convert to cm
+    if inputs_dict['assembly_type'] == 'Pin':
+        width = inputs_dict['pin_pitch'] * inputs_dict['n_side_pins'] * 100  # Convert to cm
     else:
-        width = (inputs['fuel_plate_width'] + 2 * inputs['clad_structure_width']) * 100  # Convert to cm
+        width = (inputs_dict['fuel_plate_width'] + 2 * inputs_dict['clad_structure_width']) * 100  # Convert to cm
 
     # Subtract cladding thickness if present
-    if inputs.get('irradiation_clad', False):
-        clad_thickness = inputs['irradiation_clad_thickness'] * 100  # Convert to cm
+    if inputs_dict.get('irradiation_clad', False):
+        clad_thickness = inputs_dict['irradiation_clad_thickness'] * 100  # Convert to cm
         width = width - (2 * clad_thickness)  # Subtract cladding from both sides
 
     # Create tallies for each irradiation position
-    core_layout = inputs['core_lattice']
+    core_layout = inputs_dict['core_lattice']
     for i, row in enumerate(core_layout):
         for j, pos in enumerate(row):
             if pos.startswith('I_'):

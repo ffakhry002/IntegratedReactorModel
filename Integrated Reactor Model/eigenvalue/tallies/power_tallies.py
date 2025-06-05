@@ -12,27 +12,36 @@ import numpy as np
 from inputs import inputs
 from Reactor.geometry_helpers.utils import generate_cell_id
 
-def create_power_tallies():
+def create_power_tallies(inputs_dict=None):
     """Create power tallies for the entire core and individual assemblies or fuel elements.
+
+    Parameters
+    ----------
+    inputs_dict : dict, optional
+        Custom inputs dictionary. If None, uses the global inputs.
 
     Returns
     -------
     openmc.Tallies
         Collection of power tallies
     """
+    # Use provided inputs or default to global inputs
+    if inputs_dict is None:
+        inputs_dict = inputs
+
     # Get number of axial segments from inputs
-    n_axial_segments = inputs['power_tally_axial_segments']
+    n_axial_segments = inputs_dict['power_tally_axial_segments']
 
     tallies = openmc.Tallies()
 
     # Get core dimensions from inputs (in cm)
-    half_height = inputs['fuel_height'] * 50  # Convert to cm
+    half_height = inputs_dict['fuel_height'] * 50  # Convert to cm
 
     # Calculate assembly width
-    if inputs['assembly_type'] == 'Pin':
-        assembly_width = inputs['pin_pitch'] * inputs['n_side_pins'] * 100  # Convert to cm
+    if inputs_dict['assembly_type'] == 'Pin':
+        assembly_width = inputs_dict['pin_pitch'] * inputs_dict['n_side_pins'] * 100  # Convert to cm
     else:
-        assembly_width = (inputs['fuel_plate_width'] + 2 * inputs['clad_structure_width']) * 100  # Convert to cm
+        assembly_width = (inputs_dict['fuel_plate_width'] + 2 * inputs_dict['clad_structure_width']) * 100  # Convert to cm
 
     # Create total core power tally
     total_power_tally = openmc.Tally(name='total_power')
@@ -40,21 +49,21 @@ def create_power_tallies():
     tallies.append(total_power_tally)
 
     # Check if we're doing element-level or assembly-level tallying
-    if inputs.get('element_level_power_tallies', False):
+    if inputs_dict.get('element_level_power_tallies', False):
         # Element-level tallying
-        if inputs['assembly_type'] == 'Pin':
+        if inputs_dict['assembly_type'] == 'Pin':
             # Pin-type fuel elements
-            create_pin_element_tallies(tallies, n_axial_segments, half_height, assembly_width)
+            create_pin_element_tallies(tallies, n_axial_segments, half_height, assembly_width, inputs_dict)
         else:
             # Plate-type fuel elements
-            create_plate_element_tallies(tallies, n_axial_segments, half_height, assembly_width)
+            create_plate_element_tallies(tallies, n_axial_segments, half_height, assembly_width, inputs_dict)
     else:
         # Assembly-level tallying (original implementation)
-        create_assembly_tallies(tallies, n_axial_segments, half_height, assembly_width)
+        create_assembly_tallies(tallies, n_axial_segments, half_height, assembly_width, inputs_dict)
 
     return tallies
 
-def create_assembly_tallies(tallies, n_axial_segments, half_height, assembly_width):
+def create_assembly_tallies(tallies, n_axial_segments, half_height, assembly_width, inputs_dict):
     """Create assembly-level power tallies.
 
     Parameters
@@ -67,9 +76,11 @@ def create_assembly_tallies(tallies, n_axial_segments, half_height, assembly_wid
         Half-height of the core in cm
     assembly_width : float
         Width of an assembly in cm
+    inputs_dict : dict
+        Custom inputs dictionary
     """
     # Create assembly-wise power tallies
-    core_layout = inputs['core_lattice']
+    core_layout = inputs_dict['core_lattice']
     for i, row in enumerate(core_layout):
         for j, pos in enumerate(row):
             if pos in ['F', 'E']:  # This is a fuel assembly position
@@ -95,7 +106,7 @@ def create_assembly_tallies(tallies, n_axial_segments, half_height, assembly_wid
                 tally.scores = ['kappa-fission']
                 tallies.append(tally)
 
-def create_pin_element_tallies(tallies, n_axial_segments, half_height, assembly_width):
+def create_pin_element_tallies(tallies, n_axial_segments, half_height, assembly_width, inputs_dict):
     """Create pin-level power tallies.
 
     Parameters
@@ -108,14 +119,16 @@ def create_pin_element_tallies(tallies, n_axial_segments, half_height, assembly_
         Half-height of the core in cm
     assembly_width : float
         Width of an assembly in cm
+    inputs_dict : dict
+        Custom inputs dictionary
     """
     # Get pin dimensions
-    pin_pitch = inputs['pin_pitch'] * 100  # Convert to cm
-    n_side_pins = inputs['n_side_pins']
-    guide_tube_positions = inputs['guide_tube_positions']
+    pin_pitch = inputs_dict['pin_pitch'] * 100  # Convert to cm
+    n_side_pins = inputs_dict['n_side_pins']
+    guide_tube_positions = inputs_dict['guide_tube_positions']
 
     # Create pin-wise power tallies
-    core_layout = inputs['core_lattice']
+    core_layout = inputs_dict['core_lattice']
     for i, row in enumerate(core_layout):
         for j, pos in enumerate(row):
             if pos in ['F', 'E']:  # This is a fuel assembly position
@@ -157,7 +170,7 @@ def create_pin_element_tallies(tallies, n_axial_segments, half_height, assembly_
                         tally.scores = ['kappa-fission']
                         tallies.append(tally)
 
-def create_plate_element_tallies(tallies, n_axial_segments, half_height, assembly_width):
+def create_plate_element_tallies(tallies, n_axial_segments, half_height, assembly_width, inputs_dict):
     """Create plate-level power tallies.
 
     Parameters
@@ -170,15 +183,17 @@ def create_plate_element_tallies(tallies, n_axial_segments, half_height, assembl
         Half-height of the core in cm
     assembly_width : float
         Width of an assembly in cm
+    inputs_dict : dict
+        Custom inputs dictionary
     """
     # Get plate dimensions
-    plates_per_assembly = inputs['plates_per_assembly']
-    fuel_plate_pitch = inputs['fuel_plate_pitch'] * 100  # Convert to cm
-    fuel_plate_width = inputs['fuel_plate_width'] * 100  # Convert to cm
-    clad_structure_width = inputs['clad_structure_width'] * 100  # Convert to cm
+    plates_per_assembly = inputs_dict['plates_per_assembly']
+    fuel_plate_pitch = inputs_dict['fuel_plate_pitch'] * 100  # Convert to cm
+    fuel_plate_width = inputs_dict['fuel_plate_width'] * 100  # Convert to cm
+    clad_structure_width = inputs_dict['clad_structure_width'] * 100  # Convert to cm
 
     # Create plate-wise power tallies
-    core_layout = inputs['core_lattice']
+    core_layout = inputs_dict['core_lattice']
     for i, row in enumerate(core_layout):
         for j, pos in enumerate(row):
             if pos in ['F', 'E']:  # This is a fuel assembly position

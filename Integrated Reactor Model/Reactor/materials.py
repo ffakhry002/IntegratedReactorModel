@@ -6,24 +6,29 @@ import pandas as pd
 
 # Add parent directory to Python path to access inputs.py and ThermalHydraulics
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from inputs import inputs
+from utils.base_inputs import inputs
 from ThermalHydraulics.TH_refactored import THSystem
 from ThermalHydraulics.code_architecture.helper_codes.material_properties.coolant_properties import get_coolant_properties
 
-def make_materials(th_system=None, mat_list=None):
+def make_materials(th_system=None, mat_list=None, inputs_dict=None):
     """Create materials for the reactor model.
 
     Args:
         th_system (THSystem, optional): THSystem object containing thermal data. If None, creates new one from inputs.
         mat_list (list, optional): List of specific materials to create. If None, creates all materials.
+        inputs_dict (dict, optional): Custom inputs dictionary. If None, uses the global inputs.
 
     Returns:
         tuple: (material dictionary, materials collection)
             - Dictionary mapping material names to Material objects
             - OpenMC Materials collection containing all created materials
     """
+    # Use provided inputs or default to global inputs
+    if inputs_dict is None:
+        inputs_dict = inputs
+
     if th_system is None:
-        th_system = THSystem(inputs)
+        th_system = THSystem(inputs_dict)
         thermal_state = th_system.calculate_temperature_distribution()
 
     TH_data = th_system.get_data()
@@ -39,10 +44,10 @@ def make_materials(th_system=None, mat_list=None):
     # UO2 Fuel (Standard and Enhanced)
     if (mat_list is None) or ('UO2' in mat_list) or ('UO2-Enhanced' in mat_list):
         # Create standard enrichment fuel
-        if 'n%' in inputs:
-            enrichment = float(inputs['n%'])
+        if 'n%' in inputs_dict:
+            enrichment = float(inputs_dict['n%'])
         else:
-            if inputs['fuel_type'] == 'UO2':
+            if inputs_dict['fuel_type'] == 'UO2':
                 raise Exception("must use 'n%' parameter to define enrichment")
             else:
                 enrichment = 5  # arbitrary; only get here when plotting
@@ -61,8 +66,8 @@ def make_materials(th_system=None, mat_list=None):
         material_list.append(uo2)
 
         # Create enhanced enrichment UO2 if n%E is specified
-        if 'n%E' in inputs:
-            enrichment_enhanced = float(inputs['n%E'])
+        if 'n%E' in inputs_dict:
+            enrichment_enhanced = float(inputs_dict['n%E'])
             u_enriched_enhanced = openmc.Material(name='u_enriched_enhanced')
             u_enriched_enhanced.add_element('U', 1.0, enrichment=enrichment_enhanced)
 
@@ -76,10 +81,10 @@ def make_materials(th_system=None, mat_list=None):
     # U3Si2 Fuel (Standard and Enhanced)
     if (mat_list is None) or ('U3Si2' in mat_list) or ('U3Si2-Enhanced' in mat_list):
         # Create standard enrichment fuel
-        if 'n%' in inputs:
-            enrichment = float(inputs['n%'])
+        if 'n%' in inputs_dict:
+            enrichment = float(inputs_dict['n%'])
         else:
-            if inputs['fuel_type'] == 'U3Si2':
+            if inputs_dict['fuel_type'] == 'U3Si2':
                 raise Exception("must use 'n%' parameter to define enrichment")
             else:
                 enrichment = 19.75  # arbitrary; only get here when plotting
@@ -98,8 +103,8 @@ def make_materials(th_system=None, mat_list=None):
         material_list.append(u3si2)
 
         # Create enhanced enrichment U3Si2 if n%E is specified
-        if 'n%E' in inputs:
-            enrichment_enhanced = float(inputs['n%E'])
+        if 'n%E' in inputs_dict:
+            enrichment_enhanced = float(inputs_dict['n%E'])
             u_enriched_enhanced = openmc.Material(name='u_enriched_enhanced')
             u_enriched_enhanced.add_element('U', 1.0, enrichment=enrichment_enhanced)
 
@@ -124,10 +129,10 @@ def make_materials(th_system=None, mat_list=None):
     # U10Mo Fuel (Standard and Enhanced)
     if (mat_list is None) or ('U10Mo' in mat_list) or ('U10Mo-Enhanced' in mat_list):
         # Create standard enrichment fuel
-        if 'n%' in inputs:
-            enrichment = float(inputs['n%'])
+        if 'n%' in inputs_dict:
+            enrichment = float(inputs_dict['n%'])
         else:
-            if inputs['fuel_type'] == 'U10Mo':
+            if inputs_dict['fuel_type'] == 'U10Mo':
                 raise Exception("must use 'n%' parameter to define enrichment")
             else:
                 enrichment = 19.75  # arbitrary; only get here when plotting
@@ -150,8 +155,8 @@ def make_materials(th_system=None, mat_list=None):
         material_list.append(u10mo)
 
         # Create enhanced enrichment U10Mo if n%E is specified
-        if 'n%E' in inputs:
-            enrichment_enhanced = float(inputs['n%E'])
+        if 'n%E' in inputs_dict:
+            enrichment_enhanced = float(inputs_dict['n%E'])
             u_enriched_enhanced = openmc.Material(name='u_enriched_enhanced')
             u_enriched_enhanced.add_element('U', 0.90, enrichment=enrichment_enhanced)
 
@@ -261,7 +266,7 @@ def make_materials(th_system=None, mat_list=None):
         helium.set_density('g/cm3', 0.0001785)  # Density at STP
 
         # Set temperature based on assembly type
-        if inputs['assembly_type'] == 'Pin':
+        if inputs_dict['assembly_type'] == 'Pin':
             helium.temperature = np.mean(TH_data['T_gap_z'])
         else:  # Plate fuel doesn't have a gap
             helium.temperature = default_T
@@ -273,26 +278,26 @@ def make_materials(th_system=None, mat_list=None):
     #############################################
 
     # Water materials based on coolant type
-    coolant_type = inputs.get('coolant_type', 'Light Water')
+    coolant_type = inputs_dict.get('coolant_type', 'Light Water')
 
     # Calculate total plate thickness for plate fuel
-    if inputs['assembly_type'] == 'Plate':
+    if inputs_dict['assembly_type'] == 'Plate':
         # Total plate thickness is fuel meat plus cladding on both sides
-        fuel_plate_thickness = inputs['fuel_meat_thickness'] + 2*inputs['clad_thickness']
+        fuel_plate_thickness = inputs_dict['fuel_meat_thickness'] + 2*inputs_dict['clad_thickness']
 
         # Calculate total channel volume for plate assembly
-        channel_thickness = inputs['fuel_plate_pitch'] - fuel_plate_thickness
-        channel_width = inputs['fuel_plate_width']
-        channel_height = inputs['fuel_height']
-        n_channels = inputs['plates_per_assembly'] + 1  # One more channel than plates
+        channel_thickness = inputs_dict['fuel_plate_pitch'] - fuel_plate_thickness
+        channel_width = inputs_dict['fuel_plate_width']
+        channel_height = inputs_dict['fuel_height']
+        n_channels = inputs_dict['plates_per_assembly'] + 1  # One more channel than plates
 
         total_channel_volume = channel_thickness * channel_width * channel_height * n_channels
     else:
         # Pin fuel - calculate pin assembly coolant volume
-        pin_area = np.pi * inputs['r_clad_outer']**2
-        assembly_area = inputs['pin_pitch']**2 * inputs['n_side_pins']**2
-        coolant_area = assembly_area - (inputs['n_side_pins']**2 - inputs['n_guide_tubes']) * pin_area
-        total_channel_volume = coolant_area * inputs['fuel_height']
+        pin_area = np.pi * inputs_dict['r_clad_outer']**2
+        assembly_area = inputs_dict['pin_pitch']**2 * inputs_dict['n_side_pins']**2
+        coolant_area = assembly_area - (inputs_dict['n_side_pins']**2 - inputs_dict['n_guide_tubes']) * pin_area
+        total_channel_volume = coolant_area * inputs_dict['fuel_height']
 
     coolant_config = {
         'Light Water': {
@@ -348,13 +353,13 @@ def make_materials(th_system=None, mat_list=None):
         plenum.add_nuclide(config['h_nuclide'], 2.0)
         plenum.add_nuclide('O16', 1.0)
 
-        if inputs['assembly_type'] == 'Pin':
+        if inputs_dict['assembly_type'] == 'Pin':
             # Use outlet temperature for plenum
-            coolant_volume = inputs['num_assemblies']*inputs['fuel_height'] * ((inputs['n_side_pins'] * inputs['pin_pitch'])**2-(inputs['n_side_pins']**2 * np.pi*inputs['r_clad_outer']**2))
-            outer_volume = inputs['fuel_height']*(np.pi * inputs['tank_radius']**2) - inputs['num_assemblies']*(inputs['n_side_pins']**2 * inputs['pin_pitch'])
-        elif inputs['assembly_type'] == 'Plate':
-            coolant_volume = inputs['plates_per_assembly']*inputs['num_assemblies']*inputs['fuel_height']*inputs['fuel_plate_width']*(inputs['fuel_plate_pitch']-inputs['fuel_meat_thickness']-2*inputs['clad_thickness'])
-            outer_volume = inputs['fuel_height']*((np.pi * inputs['tank_radius']**2) - inputs['num_assemblies']*(inputs['fuel_plate_width']+2*inputs['clad_structure_width'])**2)
+            coolant_volume = inputs_dict['num_assemblies']*inputs_dict['fuel_height'] * ((inputs_dict['n_side_pins'] * inputs_dict['pin_pitch'])**2-(inputs_dict['n_side_pins']**2 * np.pi*inputs_dict['r_clad_outer']**2))
+            outer_volume = inputs_dict['fuel_height']*(np.pi * inputs_dict['tank_radius']**2) - inputs_dict['num_assemblies']*(inputs_dict['n_side_pins']**2 * inputs_dict['pin_pitch'])
+        elif inputs_dict['assembly_type'] == 'Plate':
+            coolant_volume = inputs_dict['plates_per_assembly']*inputs_dict['num_assemblies']*inputs_dict['fuel_height']*inputs_dict['fuel_plate_width']*(inputs_dict['fuel_plate_pitch']-inputs_dict['fuel_meat_thickness']-2*inputs_dict['clad_thickness'])
+            outer_volume = inputs_dict['fuel_height']*((np.pi * inputs_dict['tank_radius']**2) - inputs_dict['num_assemblies']*(inputs_dict['fuel_plate_width']+2*inputs_dict['clad_structure_width'])**2)
         plenum_volume = coolant_volume + outer_volume
         # plenum_temp = (coolant_volume*TH_data['T_outlet'] + outer_volume*TH_data['T_inlet'])/plenum_volume
         plenum_temp = TH_data['T_inlet']
@@ -514,7 +519,7 @@ def make_materials(th_system=None, mat_list=None):
     return mat_dict, materials
 
 if __name__ == "__main__":
-    mat_dict, materials = make_materials()
+    mat_dict, materials = make_materials(inputs_dict=inputs)
 
     # Create output directory if it doesn't exist
     output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'outputs')

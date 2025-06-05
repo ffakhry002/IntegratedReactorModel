@@ -12,7 +12,7 @@ import sys
 
 # Add parent directory to Python path to access inputs.py
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from inputs import inputs
+from utils.base_inputs import inputs
 
 # Use absolute imports for code_architecture
 from ThermalHydraulics.code_architecture.data_output_code.output_helpers.th_data_writer import write_TH_results
@@ -71,6 +71,9 @@ def cleanup_local_outputs():
 
 class THSystem:
     def __init__(self, inputs_dict):
+        # Store the inputs_dict for later use
+        self.inputs_dict = inputs_dict
+
         self.material = Material(
             inputs_dict["coolant_type"],
             inputs_dict["clad_type"],
@@ -180,7 +183,7 @@ class THSystem:
         write_TH_results(self, output_dir)
         extract_temperature_profiles_to_csv(self, output_dir)
         if plotting:
-            generate_plots(self, output_dir)
+            generate_plots(self, output_dir, inputs_dict=self.inputs_dict)
 
     def get_data(self):
         """Get all thermal-hydraulic data as a dictionary."""

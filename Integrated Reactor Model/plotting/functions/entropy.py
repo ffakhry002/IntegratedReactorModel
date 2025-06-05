@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from inputs import inputs
 
-def plot_entropy(sp, plot_dir):
+def plot_entropy(sp, plot_dir, inputs_dict=None):
     """Plot k-effective and Shannon entropy convergence over batches.
 
     Parameters
@@ -16,7 +16,14 @@ def plot_entropy(sp, plot_dir):
         StatePoint file containing the simulation results
     plot_dir : str
         Directory to save the plot
+    inputs_dict : dict, optional
+        Custom inputs dictionary. If None, uses the global inputs.
     """
+    # Use provided inputs or default to global inputs
+    if inputs_dict is None:
+        from inputs import inputs
+        inputs_dict = inputs
+
     # Get entropy data and batch numbers
     entropy = sp.entropy
     n_batches = len(entropy)
@@ -26,7 +33,7 @@ def plot_entropy(sp, plot_dir):
     k_data = sp.k_generation
 
     # Get number of inactive batches from inputs
-    n_inactive = inputs['inactive']
+    n_inactive = inputs_dict['inactive']
 
     # Create figure with two subplots
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), height_ratios=[1, 1])

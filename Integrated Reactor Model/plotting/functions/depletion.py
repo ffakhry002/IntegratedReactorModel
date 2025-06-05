@@ -120,7 +120,7 @@ def load_depletion_data(results_file):
         print(f"Error loading depletion data: {str(e)}")
         return None, None, None
 
-def plot_depletion_results(plot_dir, root_dir=None, depletion_dir=None):
+def plot_depletion_results(plot_dir, root_dir=None, depletion_dir=None, inputs_dict=None):
     """Plot results from depletion calculation.
 
     Parameters
@@ -132,7 +132,13 @@ def plot_depletion_results(plot_dir, root_dir=None, depletion_dir=None):
     depletion_dir : str, optional
         Directory containing depletion results. If provided, will look here instead
         of the default locations.
+    inputs_dict : dict, optional
+        Custom inputs dictionary. If None, uses the global inputs.
     """
+    # Use provided inputs or default to global inputs
+    if inputs_dict is None:
+        inputs_dict = inputs
+
     # Get root directory if not provided
     if root_dir is None:
         root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -156,7 +162,7 @@ def plot_depletion_results(plot_dir, root_dir=None, depletion_dir=None):
         input_flag = f"deplete_{depletion_type}"
 
         # Only try to plot if the depletion type is enabled in inputs
-        if not inputs.get(input_flag, False):
+        if not inputs_dict.get(input_flag, False):
             return None
 
         # Load depletion data
@@ -218,11 +224,11 @@ def plot_depletion_results(plot_dir, root_dir=None, depletion_dir=None):
 
     # Create list of plots to generate
     plots_with_data = []
-    if inputs.get('deplete_core', False):
+    if inputs_dict.get('deplete_core', False):
         plots_with_data.append('core')
-    if inputs.get('deplete_assembly', False) or inputs.get('deplete_assembly_enhanced', False):
+    if inputs_dict.get('deplete_assembly', False) or inputs_dict.get('deplete_assembly_enhanced', False):
         plots_with_data.append('assembly')
-    if inputs.get('deplete_element', False) or inputs.get('deplete_element_enhanced', False):
+    if inputs_dict.get('deplete_element', False) or inputs_dict.get('deplete_element_enhanced', False):
         plots_with_data.append('element')
 
     if not plots_with_data:
@@ -243,7 +249,7 @@ def plot_depletion_results(plot_dir, root_dir=None, depletion_dir=None):
             core_keff = plot_depletion_type('core', ax, 'red', 'k-effective')
             if core_keff:
                 lines.append(core_keff)
-                ax.set_title(f'Core Multiplication Factors ({inputs["fuel_type"]} Fuel)')
+                ax.set_title(f'Core Multiplication Factors ({inputs_dict["fuel_type"]} Fuel)')
 
         elif plot_type == 'assembly':
             # Plot assembly results
@@ -253,18 +259,18 @@ def plot_depletion_results(plot_dir, root_dir=None, depletion_dir=None):
             assembly_enhanced_line = plot_depletion_type('assembly_enhanced', ax, 'blue', 'Enhanced Assembly')
             if assembly_enhanced_line:
                 lines.append(assembly_enhanced_line)
-            ax.set_title(f'Assembly Multiplication Factors ({inputs["fuel_type"]} Fuel)')
+            ax.set_title(f'Assembly Multiplication Factors ({inputs_dict["fuel_type"]} Fuel)')
 
         else:  # element
             # Plot element results
-            element_type = inputs['assembly_type']
+            element_type = inputs_dict['assembly_type']
             element_line = plot_depletion_type('element', ax, 'red', f'Standard {element_type}')
             if element_line:
                 lines.append(element_line)
             element_enhanced_line = plot_depletion_type('element_enhanced', ax, 'blue', f'Enhanced {element_type}')
             if element_enhanced_line:
                 lines.append(element_enhanced_line)
-            ax.set_title(f'{element_type} Multiplication Factors ({inputs["fuel_type"]} Fuel)')
+            ax.set_title(f'{element_type} Multiplication Factors ({inputs_dict["fuel_type"]} Fuel)')
 
         if lines:
             ax.set_ylabel('Multiplication Factor')
@@ -277,14 +283,12 @@ def plot_depletion_results(plot_dir, root_dir=None, depletion_dir=None):
     plt.close()
 
     # Plot nuclide concentrations if specified
-    if 'depletion_nuclides' in inputs:
-        nuclide_plot_dir = os.path.join(plot_dir, 'nuclide_depletion')
-        os.makedirs(nuclide_plot_dir, exist_ok=True)
-        plot_nuclide_evolution(nuclide_plot_dir, root_dir=root_dir, depletion_dir=depletion_dir)
+    if 'depletion_nuclides' in inputs_dict:
+        plot_nuclide_evolution(plot_dir, root_dir=root_dir, depletion_dir=depletion_dir, inputs_dict=inputs_dict)
 
     return True
 
-def plot_nuclide_evolution(plot_dir, root_dir=None, depletion_dir=None):
+def plot_nuclide_evolution(plot_dir, root_dir=None, depletion_dir=None, inputs_dict=None):
     """Plot nuclide evolution for each depletion type.
 
     Parameters
@@ -296,12 +300,18 @@ def plot_nuclide_evolution(plot_dir, root_dir=None, depletion_dir=None):
     depletion_dir : str, optional
         Directory containing depletion results. If provided, will look here instead
         of the default locations.
+    inputs_dict : dict, optional
+        Custom inputs dictionary. If None, uses the global inputs.
     """
+    # Use provided inputs or default to global inputs
+    if inputs_dict is None:
+        inputs_dict = inputs
+
     if root_dir is None:
         root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
     # Get active depletion types
-    active_depletions = [k for k, v in inputs.items()
+    active_depletions = [k for k, v in inputs_dict.items()
                         if k.startswith('deplete_') and v]
     if not active_depletions:
         return
@@ -330,7 +340,7 @@ def plot_nuclide_evolution(plot_dir, root_dir=None, depletion_dir=None):
             if depletion_type == 'core':
                 plot_title = 'Full Core'
             else:
-                element_type = inputs['assembly_type']
+                element_type = inputs_dict['assembly_type']
                 plot_title = f"{'Enhanced ' if 'enhanced' in depletion_type else 'Standard '}{element_type}"
 
         # Load depletion data
@@ -356,7 +366,7 @@ def plot_nuclide_evolution(plot_dir, root_dir=None, depletion_dir=None):
             fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 12), height_ratios=[1, 1])
 
             # Plot each nuclide
-            for nuc in inputs['depletion_nuclides']:
+            for nuc in inputs_dict['depletion_nuclides']:
                 try:
                     time_seconds, atoms = results.get_atoms(mat_id, nuc)
                     time_days = time_seconds / (24 * 60 * 60)

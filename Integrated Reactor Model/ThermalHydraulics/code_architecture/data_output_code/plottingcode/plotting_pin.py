@@ -2,44 +2,54 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 import sys
+from scipy.integrate import trapezoid
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 sys.path.append(root_dir)
 
-from inputs import inputs
+from utils.base_inputs import inputs
 
-def initialize_globals():
+def initialize_globals(inputs_dict=None):
+    """Initialize global variables for pin plotting from inputs.
+
+    Args:
+        inputs_dict (dict, optional): Custom inputs dictionary. If None, uses the global inputs.
+    """
+    # Use provided inputs or default to global inputs
+    if inputs_dict is None:
+        inputs_dict = inputs
+
     global pin_pitch, r_fuel, r_clad_inner, r_clad_outer, n_side_pins, n_guide_tubes
     global coolant_type, clad_type, fuel_type
     global core_power, num_assemblies, reactor_pressure, flow_rate, T_inlet, fuel_height, cos_curve_squeeze, assembly_type
     global z, output_folder
 
     # Pin Fuel Geometry
-    pin_pitch = inputs["pin_pitch"]
-    r_fuel = inputs["r_fuel"]
-    r_clad_inner = inputs["r_clad_inner"]
-    r_clad_outer = inputs["r_clad_outer"]
-    n_side_pins = inputs["n_side_pins"]
-    n_guide_tubes = inputs["n_guide_tubes"]
+    pin_pitch = inputs_dict["pin_pitch"]
+    r_fuel = inputs_dict["r_fuel"]
+    r_clad_inner = inputs_dict["r_clad_inner"]
+    r_clad_outer = inputs_dict["r_clad_outer"]
+    n_side_pins = inputs_dict["n_side_pins"]
+    n_guide_tubes = inputs_dict["n_guide_tubes"]
 
     # Material profile
-    coolant_type = inputs["coolant_type"]
-    clad_type = inputs["clad_type"]
-    fuel_type = inputs["fuel_type"]
+    coolant_type = inputs_dict["coolant_type"]
+    clad_type = inputs_dict["clad_type"]
+    fuel_type = inputs_dict["fuel_type"]
 
     # Reactor Parameters
-    core_power = inputs["core_power"]
-    num_assemblies = inputs["num_assemblies"]
-    reactor_pressure = inputs["reactor_pressure"]
-    flow_rate = inputs["flow_rate"]
-    T_inlet = inputs["T_inlet"]
-    fuel_height = inputs["fuel_height"]
-    cos_curve_squeeze = inputs["cos_curve_squeeze"]
-    assembly_type = inputs["assembly_type"]
+    core_power = inputs_dict["core_power"]
+    num_assemblies = inputs_dict["num_assemblies"]
+    reactor_pressure = inputs_dict["reactor_pressure"]
+    flow_rate = inputs_dict["flow_rate"]
+    T_inlet = inputs_dict["T_inlet"]
+    fuel_height = inputs_dict["fuel_height"]
+    cos_curve_squeeze = inputs_dict["cos_curve_squeeze"]
+    assembly_type = inputs_dict["assembly_type"]
 
     z = np.linspace(-fuel_height/2, fuel_height/2, 1000)
-    output_folder = inputs['outputs_folder']
+    output_folder = inputs_dict['outputs_folder']
 
 def setup_radial_grid(n_points=500):
     r_fuel_local = np.linspace(0, r_fuel, n_points)
@@ -75,8 +85,8 @@ def piecewise_temperature(r, z_positions, T_coolant_z, T_clad_out_z, T_clad_in_z
                 T[i, j] = T_coolant_z[z_index]
     return T
 
-def plot_results_pin(Q_dot_z, T_coolant_z, T_clad_out_z, T_clad_middle_z, T_clad_in_z, T_fuel_surface_z, T_fuel_centerline_z, T_fuel_y, r_fuel_mesh, MDNBR, output_dir=None):
-    initialize_globals()
+def plot_results_pin(Q_dot_z, T_coolant_z, T_clad_out_z, T_clad_middle_z, T_clad_in_z, T_fuel_surface_z, T_fuel_centerline_z, T_fuel_y, r_fuel_mesh, MDNBR, output_dir=None, element_power_mw=None, avg_element_power_mw=None, inputs_dict=None):
+    initialize_globals(inputs_dict)
     if output_dir is None:
         # Use default directory if none provided
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -94,6 +104,19 @@ def plot_results_pin(Q_dot_z, T_coolant_z, T_clad_out_z, T_clad_middle_z, T_clad
     plt.title('Axial Power Profile')
     plt.legend()
     plt.ylim(0, 1.2 * np.max(Q_dot_z / 1000))
+
+    # Calculate total element power if not provided
+    if element_power_mw is None:
+        element_power_mw = trapezoid(Q_dot_z, z) / 1e6  # W to MW
+
+    # Add text box with power information
+    power_info = f"Element Power: {element_power_mw:.4f} MW"
+    if avg_element_power_mw is not None:
+        power_info += f"\nAvg Element Power: {avg_element_power_mw:.4f} MW"
+        power_info += f"\nPower Ratio: {element_power_mw/avg_element_power_mw:.2f}"
+
+    plt.text(0.02, 0.95, power_info, transform=plt.gca().transAxes,
+             verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
 
     # Coolant Temperature
     plt.subplot(8, 1, 2)
@@ -188,5 +211,5 @@ def plot_results_pin(Q_dot_z, T_coolant_z, T_clad_out_z, T_clad_middle_z, T_clad
     plt.ylim(0, 50)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, f'temperature_profiles.png'))
+    plt.savefig(os.path.join(output_dir, f'temperature_profiles.png'), dpi=300, bbox_inches='tight')
     plt.close()

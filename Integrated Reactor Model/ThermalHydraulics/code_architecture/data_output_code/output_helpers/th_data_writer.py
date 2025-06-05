@@ -8,9 +8,9 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 sys.path.append(root_dir)
 
-from inputs import inputs
+from utils.base_inputs import inputs
 
-def write_TH_results(th_system, output_dir=None):
+def write_TH_results(th_system, output_dir=None, inputs_dict=None):
     """Write thermal-hydraulic analysis results to a text file.
 
     This function writes a comprehensive report of the thermal-hydraulic analysis
@@ -21,6 +21,7 @@ def write_TH_results(th_system, output_dir=None):
         th_system: THSystem object containing all thermal-hydraulic data
         output_dir (str, optional): Directory to save the output file. If None,
             uses the default output directory from th_system. Defaults to None.
+        inputs_dict (dict, optional): Custom inputs dictionary. If None, uses the global inputs.
 
     The output file includes the following sections:
     1. Geometry and Flow Parameters
@@ -34,6 +35,10 @@ def write_TH_results(th_system, output_dir=None):
     9. Axial Power Profile
     10. Reactor Parameters
     """
+    # Use provided inputs or default to global inputs
+    if inputs_dict is None:
+        inputs_dict = inputs
+
     TH_data = th_system.get_data()
 
     if output_dir is None:
@@ -156,9 +161,9 @@ def write_TH_results(th_system, output_dir=None):
             avg_power_density_kW_L = TH_data['total_power_per_assembly'] / assembly_volume  # kW/L
         else:  # Plate assembly
             # For plate assembly, use the assembly volume (including all plates)
-            assembly_width = TH_data['fuel_plate_width'] + 2*(inputs['clad_structure_width']*1000)  # mm
+            assembly_width = TH_data['fuel_plate_width'] + 2*(inputs_dict['clad_structure_width']*1000)  # mm
             plate_pitch = TH_data['fuel_plate_pitch']  # mm
-            n_plates = inputs['plates_per_assembly']
+            n_plates = inputs_dict['plates_per_assembly']
             # Convert to L: (mm->m) * (mm->m) * m * n_plates * 1000 L/m³
             assembly_volume = (assembly_width/1000) * (plate_pitch/1000) * fuel_height * n_plates * 1000  # L
             avg_power_density_kW_L = TH_data['total_power_per_assembly'] / assembly_volume  # kW/L

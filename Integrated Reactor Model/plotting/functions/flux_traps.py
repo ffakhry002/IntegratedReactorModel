@@ -13,8 +13,25 @@ from plotting.functions.utils import get_tally_volume
 from eigenvalue.outputs import collapse_to_three_groups
 from eigenvalue.tallies.energy_groups import get_energy_bins
 
-def plot_flux_trap_distributions(sp, power_mw, plot_dir):
-    """Plot flux distributions for all irradiation positions."""
+def plot_flux_trap_distributions(sp, power_mw, plot_dir, inputs_dict=None):
+    """Plot flux distributions in irradiation positions/flux traps.
+
+    Parameters
+    ----------
+    sp : openmc.StatePoint
+        StatePoint file containing the tally results
+    power_mw : float
+        Reactor power in MW for normalization
+    plot_dir : str
+        Directory to save plots
+    inputs_dict : dict, optional
+        Custom inputs dictionary. If None, uses the global inputs.
+    """
+    # Use provided inputs or default to global inputs
+    if inputs_dict is None:
+        from inputs import inputs
+        inputs_dict = inputs
+
     # Calculate normalization factor
     norm_factor = calc_norm_factor(power_mw, sp)
 
@@ -30,8 +47,8 @@ def plot_flux_trap_distributions(sp, power_mw, plot_dir):
     # Get energy boundaries from inputs
     three_group_energies = [
         1e-11,  # Lower bound
-        inputs['thermal_cutoff'] * 1e-6,  # Thermal/epithermal boundary (eV -> MeV)
-        inputs['fast_cutoff'] * 1e-6,     # Epithermal/fast boundary (eV -> MeV)
+        inputs_dict['thermal_cutoff'] * 1e-6,  # Thermal/epithermal boundary (eV -> MeV)
+        inputs_dict['fast_cutoff'] * 1e-6,     # Epithermal/fast boundary (eV -> MeV)
         20.0   # Upper bound (20 MeV)
     ]
 
@@ -51,7 +68,7 @@ def plot_flux_trap_distributions(sp, power_mw, plot_dir):
     for tally in sp.tallies.values():
         if tally.name.startswith('I_') and not tally.name.endswith('_axial'):
             # Get volume for normalization
-            volume = get_tally_volume(tally, sp)
+            volume = get_tally_volume(tally, sp, inputs_dict)
 
             # Get the flux data and normalize
             mean = tally.mean.ravel() * norm_factor / volume
@@ -71,7 +88,7 @@ def plot_flux_trap_distributions(sp, power_mw, plot_dir):
             plot_data.append((energy_mids_mev, mean, tally.name))
 
             # Calculate three-group data
-            means, std_devs = collapse_to_three_groups(mean, std_dev)
+            means, std_devs = collapse_to_three_groups(mean, std_dev, inputs_dict)
             three_group_data.append((means, std_devs, tally.name))
 
     # Configure fine-group log-log plot
@@ -135,7 +152,7 @@ def plot_flux_trap_distributions(sp, power_mw, plot_dir):
 
     # Plot axial flux distributions
     colors = plt.cm.viridis(np.linspace(0, 1, len(three_group_data)))
-    half_height = inputs['fuel_height'] * 50  # Convert to cm
+    half_height = inputs_dict['fuel_height'] * 50  # Convert to cm
 
     # Get the number of axial segments from the first axial tally
     n_axial_segments = None
@@ -153,7 +170,7 @@ def plot_flux_trap_distributions(sp, power_mw, plot_dir):
         if tally.name.endswith('_axial'):
             base_name = tally.name[:-6]  # Remove '_axial' suffix
             # Get mesh volume for normalization
-            volume = get_tally_volume(tally, sp)
+            volume = get_tally_volume(tally, sp, inputs_dict)
 
             # Get the flux data and normalize
             # For axial tallies, we need to reshape to get the axial profile
