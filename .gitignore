@@ -38,3 +38,5 @@ core_selection/dictionaries_exported.py
 simulation_data/
 parametric_simulation_*/
 Integrated\ Reactor\ Model/depletion/outputs/
+Integrated\ Reactor\ Model/inputs.py
+Integrated\ Reactor\ Model/run_dictionaries.py
