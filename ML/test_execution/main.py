@@ -53,12 +53,16 @@ def run_testing(outputs_dir=None):
     if not training_file:
         training_file = "ML/data/train.txt"
 
+    # Ask if user wants detailed matching information
+    show_details = input("\nShow detailed matching information? (y/n, default: n): ").strip().lower()
+    show_match_details = show_details == 'y'
+
     # Run tests
     print("\n" + "="*60)
     print("RUNNING TESTS")
     print("="*60)
 
-    results = tester.test_file(test_file, training_file)
+    results = tester.test_file(test_file, training_file, show_match_details)
 
     # Create Excel report
     print("\n" + "-"*40)

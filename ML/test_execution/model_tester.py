@@ -49,6 +49,18 @@ class ReactorModelTester:
             self.training_lattices = []
             return False
 
+    def normalize_lattice_for_comparison(self, lattice):
+        """
+        Normalize a lattice for geometric comparison by replacing all irradiation
+        labels with a generic 'I' marker
+        """
+        normalized = lattice.copy()
+        for i in range(normalized.shape[0]):
+            for j in range(normalized.shape[1]):
+                if normalized[i, j].startswith('I_'):
+                    normalized[i, j] = 'I'  # Generic irradiation marker
+        return normalized
+
     def lattices_match(self, lattice1, lattice2):
         """Check if two lattices are identical"""
         if lattice1.shape != lattice2.shape:
@@ -61,12 +73,86 @@ class ReactorModelTester:
                     return False
         return True
 
+    def lattices_match_geometrically(self, lattice1, lattice2):
+        """
+        Check if two lattices have the same geometric configuration,
+        ignoring specific irradiation labels (I_1, I_2, etc.)
+        """
+        if lattice1.shape != lattice2.shape:
+            return False
+
+        # Normalize both lattices
+        norm1 = self.normalize_lattice_for_comparison(lattice1)
+        norm2 = self.normalize_lattice_for_comparison(lattice2)
+
+        return self.lattices_match(norm1, norm2)
+
+    def get_all_symmetries(self, lattice):
+        """
+        Generate all 8 symmetries of a lattice
+        Returns list of (transformed_lattice, transformation_name) tuples
+        """
+        symmetries = []
+
+        # Original
+        symmetries.append((lattice.copy(), "original"))
+
+        # 90 degree rotation
+        symmetries.append((np.rot90(lattice, k=1), "rot90"))
+
+        # 180 degree rotation
+        symmetries.append((np.rot90(lattice, k=2), "rot180"))
+
+        # 270 degree rotation
+        symmetries.append((np.rot90(lattice, k=3), "rot270"))
+
+        # Horizontal flip
+        symmetries.append((np.fliplr(lattice), "flip_h"))
+
+        # Vertical flip
+        symmetries.append((np.flipud(lattice), "flip_v"))
+
+        # Diagonal flip (transpose)
+        symmetries.append((lattice.T, "transpose"))
+
+        # Anti-diagonal flip
+        symmetries.append((np.fliplr(lattice.T), "anti_diag"))
+
+        return symmetries
+
     def is_in_training_set(self, test_lattice):
-        """Check if a test lattice exists in the training set"""
+        """
+        Check if a test lattice exists in the training set,
+        considering all symmetries and ignoring irradiation label differences
+        """
+        # Get all symmetries of the test lattice
+        test_symmetries = self.get_all_symmetries(test_lattice)
+
+        # Check each training lattice
         for train_lattice in self.training_lattices:
-            if self.lattices_match(test_lattice, train_lattice):
-                return True
+            # Check if any symmetry of the test lattice matches the training lattice geometrically
+            for test_sym, _ in test_symmetries:
+                if self.lattices_match_geometrically(test_sym, train_lattice):
+                    return True
+
         return False
+
+    def find_matching_training_config(self, test_lattice):
+        """
+        Find which training configuration matches the test lattice (if any).
+        Returns: (match_found, training_idx, transformation) or (False, None, None)
+        """
+        # Get all symmetries of the test lattice
+        test_symmetries = self.get_all_symmetries(test_lattice)
+
+        # Check each training lattice
+        for train_idx, train_lattice in enumerate(self.training_lattices):
+            # Check if any symmetry of the test lattice matches the training lattice geometrically
+            for test_sym, transform_name in test_symmetries:
+                if self.lattices_match_geometrically(test_sym, train_lattice):
+                    return True, train_idx, transform_name
+
+        return False, None, None
 
     def find_available_models(self):
         """Find all trained models in the models directory"""
@@ -252,7 +338,7 @@ class ReactorModelTester:
 
         return results
 
-    def test_file(self, test_file_path, training_file_path="ML/data/train.txt"):
+    def test_file(self, test_file_path, training_file_path="ML/data/train.txt", show_match_details=False):
         """Test all models on a test file"""
         print(f"\nLoading test data from {test_file_path}...")
 
@@ -279,14 +365,26 @@ class ReactorModelTester:
 
         # Test each configuration
         all_results = []
+        match_count = 0
+
         for i, (lattice, flux, keff, desc) in enumerate(zip(lattices, flux_data, k_effectives, descriptions)):
             print(f"\rTesting configuration {i+1}/{len(lattices)}...", end='')
 
             # Check if this configuration was in training set
             in_training = self.is_in_training_set(lattice)
 
+            if in_training:
+                match_count += 1
+
+            # Optionally show detailed match information
+            if show_match_details and in_training:
+                match_found, train_idx, transform = self.find_matching_training_config(lattice)
+                print(f"\n  Config {i+1} matches training config {train_idx+1} with transform: {transform}")
+
             results = self.test_single_configuration(lattice, flux, keff, i, desc, in_training)
             all_results.extend(results)
 
-        print("\nTesting complete!")
+        print(f"\nTesting complete!")
+        print(f"\nSummary: {match_count}/{len(lattices)} test configurations were seen during training (considering symmetries)")
+
         return all_results
