@@ -4,6 +4,8 @@ from hyperparameter_tuning.optuna_optimization import optimize_flux_model, optim
 from hyperparameter_tuning.three_stage_optimization import three_stage_optimization
 import joblib
 import os
+import time
+from datetime import datetime
 
 class ModelTrainer:
     """Handle model training and evaluation"""
@@ -14,6 +16,11 @@ class ModelTrainer:
 
     def train_model(self, model_type, target, data_splits, config, encoding):
         """Train a single model with hyperparameter optimization"""
+
+        print(f"\n{'='*60}")
+        print(f"Training {model_type.upper()} for {target.upper()}")
+        print(f"Optimization method: {config.optimization}")
+        print(f"{'='*60}")
 
         # Get appropriate data
         X_train = data_splits['X_train']
@@ -27,7 +34,10 @@ class ModelTrainer:
             y_test = data_splits['y_keff_test']
 
         # Get best hyperparameters
+        optimization_start = time.time()
+
         if config.optimization == 'optuna':
+            print(f"Starting Optuna optimization...")
             if target == 'flux':
                 best_params, study = optimize_flux_model(
                     X_train, y_train,
@@ -42,9 +52,20 @@ class ModelTrainer:
                     n_trials=config.n_trials,
                     n_jobs=config.n_jobs
                 )
-            print(f"  Best parameters found: {best_params}")
+
+            # Check if optimization completed or timed out
+            if not best_params:
+                print(f"  Optimization failed or timed out. Using default parameters.")
+                best_params = self._get_default_params(model_type)
+            else:
+                print(f" Optimization complete!")
+                # Transform neural network parameters if needed
+                if model_type == 'neural_net' and 'n_layers' in best_params:
+                    best_params = self._transform_nn_params(best_params)
+                print(f"  Best parameters found: {best_params}")
 
         elif config.optimization == 'three_stage':
+            print(f"Starting three-stage optimization...")
             # Three-stage optimization
             model_class = self._get_model_class(model_type, target)
             best_params, search = three_stage_optimization(
@@ -54,19 +75,71 @@ class ModelTrainer:
                 n_jobs=config.n_jobs
             )
 
+            # Check if optimization completed or timed out
+            if not best_params:
+                print(f"  Optimization failed or timed out. Using default parameters.")
+                best_params = self._get_default_params(model_type)
+            else:
+                print(f" Optimization complete!")
+                # Transform neural network parameters if needed
+                if model_type == 'neural_net' and 'n_layers' in best_params:
+                    best_params = self._transform_nn_params(best_params)
+
         else:  # No optimization
             best_params = self._get_default_params(model_type)
             print(f"  Using default parameters: {best_params}")
 
+        optimization_time = time.time() - optimization_start
+        print(f"\nOptimization took {optimization_time/60:.1f} minutes")
+
         # Train final model
-        print(f"  Training final model...")
+        print(f"\n Training final model...")
+        training_start = time.time()
+
         model = self._create_and_train_model(model_type, target, X_train, y_train, best_params)
 
+        training_time = time.time() - training_start
+        print(f"  Final model training took {training_time:.1f} seconds")
+
         # Evaluate
-        print(f"  Evaluating on test set...")
+        print(f"\n Evaluating on test set...")
+        eval_start = time.time()
+
         metrics = self._evaluate_model(model, X_test, y_test, target)
 
+        eval_time = time.time() - eval_start
+        print(f"  Evaluation took {eval_time:.1f} seconds")
+
+        total_time = time.time() - optimization_start
+        print(f"\n Total time for {model_type} {target}: {total_time/60:.1f} minutes")
+
         return model, metrics, best_params
+
+    def _transform_nn_params(self, params):
+        """Transform Optuna neural network parameters to MLPRegressor format"""
+        transformed = {}
+
+        # Extract n_layers if present
+        if 'n_layers' in params:
+            n_layers = params['n_layers']
+            # Build the hidden_layer_sizes tuple
+            layers = []
+            for i in range(n_layers):
+                layer_key = f'layer_{i}_size'
+                if layer_key in params:
+                    layers.append(params[layer_key])
+
+            transformed['hidden_layer_sizes'] = tuple(layers)
+
+            # Copy other parameters (excluding layer-specific ones)
+            for key, value in params.items():
+                if not key.startswith('layer_') and key != 'n_layers':
+                    transformed[key] = value
+        else:
+            # If no n_layers, params are already in correct format
+            transformed = params.copy()
+
+        return transformed
 
     def _get_model_class(self, model_type, target):
         """Get appropriate model class for three-stage optimization"""
@@ -97,33 +170,46 @@ class ModelTrainer:
                 return MLPRegressor
 
     def _get_default_params(self, model_type):
-        """Get default parameters for each model type"""
+        """Get default parameters for each model type - updated with better defaults"""
         defaults = {
             'xgboost': {
-                'n_estimators': 100,
-                'max_depth': 5,
+                'n_estimators': 200,
+                'max_depth': 6,
                 'learning_rate': 0.1,
                 'subsample': 0.8,
-                'colsample_bytree': 0.8
+                'colsample_bytree': 0.8,
+                'reg_alpha': 0.01,
+                'reg_lambda': 0.01,
+                'min_child_weight': 1,
+                'verbosity': 1
             },
             'random_forest': {
-                'n_estimators': 100,
-                'max_depth': None,
-                'min_samples_split': 2,
-                'min_samples_leaf': 1
+                'n_estimators': 200,
+                'max_depth': 20,
+                'min_samples_split': 5,
+                'min_samples_leaf': 2,
+                'max_features': 'sqrt',
+                'verbose': 1
             },
             'svm': {
                 'kernel': 'rbf',
-                'C': 1.0,
-                'gamma': 'scale',
-                'epsilon': 0.1
+                'C': 10.0,
+                'gamma': 0.01,
+                'epsilon': 0.1,
+                'cache_size': 500,
+                'max_iter': 5000,
+                'verbose': True
             },
             'neural_net': {
                 'hidden_layer_sizes': (100, 50),
                 'activation': 'relu',
                 'solver': 'adam',
                 'alpha': 0.001,
-                'learning_rate_init': 0.001
+                'learning_rate_init': 0.001,
+                'max_iter': 1000,
+                'early_stopping': True,
+                'n_iter_no_change': 20,
+                'verbose': True
             }
         }
         return defaults.get(model_type, {})
@@ -150,11 +236,14 @@ class ModelTrainer:
         else:
             raise ValueError(f"Unknown model type: {model_type}")
 
-        # Train the appropriate target
+        # Train the appropriate target with progress tracking
+        print(f"  Training {model_type} model...")
         if target == 'flux':
             model.fit_flux(X_train, y_train)
         else:  # keff
             model.fit_keff(X_train, y_train)
+
+        print(f"  Training complete!")
 
         return model
 
@@ -207,6 +296,8 @@ class ModelTrainer:
         }
 
         print(f"  Test MSE: {mse:.6f}")
+        print(f"  Test RMSE: {np.sqrt(mse):.6f}")
+        print(f"  Test MAE: {mae:.6f}")
         print(f"  Test R²: {r2:.4f}")
         print(f"  Test MAPE: {mape:.2f}%")
 
@@ -234,7 +325,9 @@ class ModelTrainer:
             **metadata  # Pass any additional metadata
         )
 
-        print(f"  Model saved with flux metadata:")
+        print(f"\n Model saved:")
+        print(f"  Path: {saved_path}")
+        print(f"  Flux metadata:")
         print(f"    - use_log_flux: {use_log_flux}")
         print(f"    - flux_scale: {flux_scale}")
 

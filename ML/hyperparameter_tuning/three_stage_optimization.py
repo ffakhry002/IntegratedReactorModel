@@ -6,30 +6,135 @@ from scipy.stats import uniform, randint
 import joblib
 import time
 from datetime import datetime
+import warnings
+from functools import wraps
+import signal
+
+# Global timeout settings
+STAGE_TIMEOUT = 3600*2  # 1 hour per stage
+TOTAL_TIMEOUT = 7200*3  # 2 hours total
+
+class TimeoutException(Exception):
+    pass
+
+def timeout_handler(signum, frame):
+    raise TimeoutException("Operation timed out")
+
+def with_timeout(timeout_seconds):
+    """Decorator to add timeout to functions"""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            # Set the signal handler and a timeout alarm
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(timeout_seconds)
+            try:
+                result = func(*args, **kwargs)
+            finally:
+                # Disable the alarm
+                signal.alarm(0)
+            return result
+        return wrapper
+    return decorator
 
 def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost', n_jobs=-1):
     """
     Three-stage hyperparameter optimization: Random → Grid → Bayesian
-    Complete implementation for all model types
+    Complete implementation for all model types with timeouts and verbosity
     """
 
     print(f"\n{'='*60}")
     print(f"Three-Stage Optimization for {model_type}")
+    print(f"Stage timeout: {STAGE_TIMEOUT}s, Total timeout: {TOTAL_TIMEOUT}s")
     print(f"{'='*60}")
 
     # Track overall progress
     optimization_start_time = time.time()
+    best_params_so_far = {}
+    best_score_so_far = float('inf')
 
     # Check if this is multi-output (flux) or single output (keff)
     is_multi_output = len(y_train.shape) > 1 and y_train.shape[1] > 1
 
-    print(f"\n📊 Data Info:")
+    print(f"\n Data Info:")
     print(f"   - Training samples: {X_train.shape[0]}")
     print(f"   - Features: {X_train.shape[1]}")
     print(f"   - Output type: {'Multi-output' if is_multi_output else 'Single output'}")
     if is_multi_output:
         print(f"   - Number of outputs: {y_train.shape[1]}")
     print(f"   - Using {n_jobs} parallel jobs")
+
+    # Helper function to safely fit with timeout
+    def safe_fit_with_progress(search_cv, X, y, stage_name):
+        """Fit with timeout and progress tracking"""
+        try:
+            print(f"\n Starting {stage_name} at {datetime.now().strftime('%H:%M:%S')}...")
+
+            # Add custom scoring wrapper for verbose output
+            original_fit = search_cv.fit
+            fit_count = [0]
+            total_fits = search_cv.n_iter * search_cv.cv if hasattr(search_cv, 'n_iter') else len(search_cv.param_grid) * search_cv.cv
+
+            def verbose_fit(*args, **kwargs):
+                start_time = time.time()
+                result = original_fit(*args, **kwargs)
+                fit_count[0] += 1
+
+                # Print progress every 10%
+                if fit_count[0] % max(1, total_fits // 10) == 0:
+                    elapsed = time.time() - start_time
+                    print(f"   Progress: {fit_count[0]}/{total_fits} fits ({fit_count[0]/total_fits*100:.0f}%) - {elapsed:.1f}s")
+
+                return result
+
+            # Temporarily replace fit method
+            search_cv.fit = verbose_fit
+
+            # Set verbose to 2 for underlying estimators if they support it
+            if hasattr(search_cv.estimator, 'set_params'):
+                try:
+                    if model_type == 'xgboost':
+                        search_cv.estimator.set_params(verbosity=2)
+                    elif model_type == 'random_forest':
+                        search_cv.estimator.set_params(verbose=1)
+                    elif model_type == 'svm':
+                        search_cv.estimator.set_params(verbose=True)
+                    elif model_type == 'neural_net':
+                        search_cv.estimator.set_params(verbose=True)
+                except:
+                    pass  # Some estimators might not support verbose
+
+            # Fit with timeout
+            with warnings.catch_warnings():
+                warnings.filterwarnings('ignore')
+                signal.signal(signal.SIGALRM, timeout_handler)
+                signal.alarm(STAGE_TIMEOUT)
+                try:
+                    search_cv.fit(X, y)
+                    print(f"\n {stage_name} completed successfully!")
+                finally:
+                    signal.alarm(0)
+
+            return True, search_cv.best_params_, search_cv.best_score_
+
+        except TimeoutException:
+            print(f"\n  {stage_name} timed out after {STAGE_TIMEOUT}s")
+            # Try to get partial results if available
+            if hasattr(search_cv, 'cv_results_'):
+                # Find best score from completed iterations
+                scores = search_cv.cv_results_['mean_test_score']
+                if len(scores) > 0:
+                    best_idx = np.argmax(scores)
+                    best_params = search_cv.cv_results_['params'][best_idx]
+                    best_score = scores[best_idx]
+                    print(f"   Partial results: {len(scores)} combinations tested")
+                    print(f"   Best score so far: {best_score:.6f}")
+                    return True, best_params, best_score
+            return False, {}, float('inf')
+
+        except Exception as e:
+            print(f"\n {stage_name} failed with error: {str(e)[:100]}")
+            return False, {}, float('inf')
 
     # Stage 1: Random Search - Cast wide net
     print(f"\n{'='*60}")
@@ -114,7 +219,7 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
     print(f"   - Candidates to test: 150")
     print(f"   - Cross-validation folds: 10")
     print(f"   - Total fits: 1,500")
-    print(f"   - Estimated time: {2 if model_type in ['xgboost', 'random_forest'] else 10}-{5 if model_type in ['xgboost', 'random_forest'] else 30} minutes")
+    print(f"   - Timeout: {STAGE_TIMEOUT}s")
 
     random_search = RandomizedSearchCV(
         model_class(),
@@ -123,19 +228,27 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
         cv=10,
         scoring='neg_mean_squared_error',
         n_jobs=n_jobs,
-        verbose=1,
+        verbose=2,  # Increased verbosity
         random_state=42
     )
 
-    print(f"\n⏳ Starting Random Search at {datetime.now().strftime('%H:%M:%S')}...")
-    random_search.fit(X_train, y_train)
-    best_random_params = random_search.best_params_
-    best_random_score = random_search.best_score_
+    success, best_random_params, best_random_score = safe_fit_with_progress(
+        random_search, X_train, y_train, "Random Search"
+    )
+
+    if success and best_random_params:
+        best_params_so_far = best_random_params
+        best_score_so_far = best_random_score
 
     stage1_time = time.time() - stage1_start
-    print(f"\n✅ Stage 1 Complete! (took {stage1_time/60:.1f} minutes)")
-    print(f"   Best score: {best_random_score:.6f}")
-    print(f"   Best params: {best_random_params}")
+    print(f"\nStage 1 took {stage1_time/60:.1f} minutes")
+    print(f"Best score: {best_random_score:.6f}")
+    print(f"Best params: {best_random_params}")
+
+    # Check total timeout
+    if time.time() - optimization_start_time > TOTAL_TIMEOUT:
+        print(f"\n⚠️  Total timeout reached. Returning best parameters found so far.")
+        return best_params_so_far, None
 
     # Stage 2: Grid Search - Focus on promising region
     print(f"\n{'='*60}")
@@ -260,7 +373,7 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
     print(f"   - Parameter combinations: {total_combinations}")
     print(f"   - Cross-validation folds: 10")
     print(f"   - Total fits: {total_combinations * 10}")
-    print(f"   - Estimated time: {total_combinations * 10 // 100}-{total_combinations * 10 // 50} minutes")
+    print(f"   - Timeout: {STAGE_TIMEOUT}s")
 
     # Create a new model instance with best random params
     grid_model = model_class()
@@ -271,20 +384,28 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
         cv=10,
         scoring='neg_mean_squared_error',
         n_jobs=n_jobs,
-        verbose=1
+        verbose=2  # Increased verbosity
     )
 
-    print(f"\n⏳ Starting Grid Search at {datetime.now().strftime('%H:%M:%S')}...")
-    grid_search.fit(X_train, y_train)
-    best_grid_params = grid_search.best_params_
-    best_grid_score = grid_search.best_score_
+    success, best_grid_params, best_grid_score = safe_fit_with_progress(
+        grid_search, X_train, y_train, "Grid Search"
+    )
+
+    if success and best_grid_params:
+        best_params_so_far = best_grid_params
+        best_score_so_far = best_grid_score
 
     stage2_time = time.time() - stage2_start
-    improvement = (best_random_score - best_grid_score) / abs(best_random_score) * 100
+    improvement = (best_random_score - best_grid_score) / abs(best_random_score) * 100 if best_random_score != 0 else 0
 
-    print(f"\n✅ Stage 2 Complete! (took {stage2_time/60:.1f} minutes)")
-    print(f"   Best score: {best_grid_score:.6f}")
-    print(f"   Improvement from Stage 1: {improvement:.2f}%")
+    print(f"\nStage 2 took {stage2_time/60:.1f} minutes")
+    print(f"Best score: {best_grid_score:.6f}")
+    print(f"Improvement from Stage 1: {improvement:.2f}%")
+
+    # Check total timeout
+    if time.time() - optimization_start_time > TOTAL_TIMEOUT:
+        print(f"\n⚠️  Total timeout reached. Returning best parameters found so far.")
+        return best_params_so_far, None
 
     # Stage 3: Bayesian Optimization - Fine tuning
     print(f"\n{'='*60}")
@@ -300,7 +421,7 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
     print(f"   - Iterations: 50")
     print(f"   - Cross-validation folds: 10")
     print(f"   - Total fits: 500")
-    print(f"   - Estimated time: 5-15 minutes")
+    print(f"   - Timeout: {STAGE_TIMEOUT}s")
 
     # Define search spaces for Bayesian optimization
     if model_type == 'xgboost':
@@ -391,27 +512,33 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
         cv=10,
         scoring='neg_mean_squared_error',
         n_jobs=n_jobs,
-        verbose=1,
+        verbose=2,  # Increased verbosity
         random_state=42
     )
 
-    print(f"\n⏳ Starting Bayesian Optimization at {datetime.now().strftime('%H:%M:%S')}...")
-    bayes_search.fit(X_train, y_train)
-    best_bayes_params = bayes_search.best_params_
-    best_bayes_score = bayes_search.best_score_
+    success, best_bayes_params, best_bayes_score = safe_fit_with_progress(
+        bayes_search, X_train, y_train, "Bayesian Optimization"
+    )
+
+    if success and best_bayes_params:
+        best_params_so_far = best_bayes_params
+        best_score_so_far = best_bayes_score
 
     stage3_time = time.time() - stage3_start
     total_time = time.time() - optimization_start_time
-    final_improvement = (best_random_score - best_bayes_score) / abs(best_random_score) * 100
+    final_improvement = (best_random_score - best_score_so_far) / abs(best_random_score) * 100 if best_random_score != 0 else 0
 
-    print(f"\n✅ Stage 3 Complete! (took {stage3_time/60:.1f} minutes)")
+    print(f"\nStage 3 took {stage3_time/60:.1f} minutes")
     print(f"\n{'='*60}")
     print("OPTIMIZATION COMPLETE!")
     print(f"{'='*60}")
     print(f"\n📊 Final Results:")
     print(f"   Stage 1 (Random):   {best_random_score:.6f}")
-    print(f"   Stage 2 (Grid):     {best_grid_score:.6f}")
-    print(f"   Stage 3 (Bayesian): {best_bayes_score:.6f}")
+    if 'best_grid_score' in locals():
+        print(f"   Stage 2 (Grid):     {best_grid_score:.6f}")
+    if 'best_bayes_score' in locals():
+        print(f"   Stage 3 (Bayesian): {best_bayes_score:.6f}")
+    print(f"   Final best score:   {best_score_so_far:.6f}")
     print(f"\n🎯 Total improvement: {final_improvement:.2f}%")
     print(f"⏱️  Total time: {total_time/60:.1f} minutes")
 
@@ -419,7 +546,7 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
     # Remove 'estimator__' prefix for the final parameters
     if is_multi_output and model_type in ['xgboost', 'svm', 'neural_net']:
         clean_params = {}
-        for key, value in best_bayes_params.items():
+        for key, value in best_params_so_far.items():
             if key.startswith('estimator__'):
                 clean_params[key.replace('estimator__', '')] = value
             else:
@@ -427,9 +554,9 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
         print(f"\n🔧 Best parameters (cleaned):")
         for param, value in clean_params.items():
             print(f"   - {param}: {value}")
-        return clean_params, bayes_search
+        return clean_params, None  # Return None for search object if incomplete
     else:
         print(f"\n🔧 Best parameters:")
-        for param, value in best_bayes_params.items():
+        for param, value in best_params_so_far.items():
             print(f"   - {param}: {value}")
-        return best_bayes_params, bayes_search
+        return best_params_so_far, None
