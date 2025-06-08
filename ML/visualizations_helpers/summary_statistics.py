@@ -28,6 +28,8 @@ def create_summary_statistics_plots(df, output_dir):
     except Exception as e:
         print(f"    ✗ Error in error distribution: {e}")
 
+# summary_statistics.py - UPDATED create_best_model_summary function
+
 def create_best_model_summary(df, output_dir):
     """Create summary showing best model for each metric"""
 
@@ -45,7 +47,6 @@ def create_best_model_summary(df, output_dir):
                 ]
 
                 if not subset.empty:
-                    # Calculate metrics
                     result = {
                         'model': model,
                         'encoding': encoding,
@@ -53,31 +54,53 @@ def create_best_model_summary(df, output_dir):
                         'combination': f'{model}-{encoding}-{optimization}'
                     }
 
-                    # Flux metrics
-                    if 'avg_flux_rel_error' in subset.columns:
-                        result['mean_flux_error'] = subset['avg_flux_rel_error'].mean()
-                        result['max_flux_error'] = subset['avg_flux_rel_error'].max()
-                        result['p95_flux_error'] = subset['avg_flux_rel_error'].quantile(0.95)
+                    # Calculate mean flux error from individual position errors
+                    # This matches how your rel_error graphs calculate it
+                    all_rel_errors = []
+                    for _, row in subset.iterrows():
+                        for i in range(1, 5):
+                            if f'I_{i}_rel_error' in row:
+                                error = row[f'I_{i}_rel_error']
+                                if pd.notna(error):
+                                    all_rel_errors.append(error)
+
+                    if all_rel_errors:
+                        result['mean_flux_error'] = np.mean(all_rel_errors)
+
+                    # Mean of maximum flux errors
+                    max_errors = []
+                    for _, row in subset.iterrows():
+                        errors = []
+                        for i in range(1, 5):
+                            if f'I_{i}_rel_error' in row:
+                                error = row[f'I_{i}_rel_error']
+                                if pd.notna(error):
+                                    errors.append(error)
+                        if errors:
+                            max_errors.append(max(errors))
+
+                    if max_errors:
+                        result['mean_max_flux_error'] = np.mean(max_errors)
 
                     # K-eff metrics
                     if 'keff_rel_error' in subset.columns:
                         result['mean_keff_error'] = subset['keff_rel_error'].mean()
-                        result['max_keff_error'] = subset['keff_rel_error'].max()
 
                     summary_data.append(result)
 
     summary_df = pd.DataFrame(summary_data)
 
-    # Create figure with only 3 subplots (removing overall ranking)
-    fig, axes = plt.subplots(1, 3, figsize=(18, 6))
+    # Create figure with 3 subplots
+    fig, axes = plt.subplots(1, 3, figsize=(20, 8))
     fig.suptitle('Model Performance Summary - Best Combinations', fontsize=16, fontweight='bold')
 
     # Plot 1: Best by mean flux error
     ax = axes[0]
     if 'mean_flux_error' in summary_df.columns:
         top_10 = summary_df.nsmallest(10, 'mean_flux_error')
-        ax.barh(range(len(top_10)), top_10['mean_flux_error'])
-        ax.set_yticks(range(len(top_10)))
+        y_pos = np.arange(len(top_10))
+        ax.barh(y_pos, top_10['mean_flux_error'])
+        ax.set_yticks(y_pos)
         ax.set_yticklabels(top_10['combination'], fontsize=8)
         ax.set_xlabel('Mean Flux Error (%)')
         ax.set_title('Top 10 Models by Mean Flux Error')
@@ -85,28 +108,30 @@ def create_best_model_summary(df, output_dir):
 
         # Add value labels
         for i, v in enumerate(top_10['mean_flux_error']):
-            ax.text(v + 0.05, i, f'{v:.2f}%', va='center', fontsize=8)
+            ax.text(v + 0.05, i, f'{v:.3f}%', va='center', fontsize=8)
 
-    # Plot 2: Best by max flux error
+    # Plot 2: Best by mean of max flux errors
     ax = axes[1]
-    if 'max_flux_error' in summary_df.columns:
-        top_10 = summary_df.nsmallest(10, 'max_flux_error')
-        ax.barh(range(len(top_10)), top_10['max_flux_error'])
-        ax.set_yticks(range(len(top_10)))
+    if 'mean_max_flux_error' in summary_df.columns:
+        top_10 = summary_df.nsmallest(10, 'mean_max_flux_error')
+        y_pos = np.arange(len(top_10))
+        ax.barh(y_pos, top_10['mean_max_flux_error'])
+        ax.set_yticks(y_pos)
         ax.set_yticklabels(top_10['combination'], fontsize=8)
-        ax.set_xlabel('Max Flux Error (%)')
-        ax.set_title('Top 10 Models by Maximum Flux Error')
+        ax.set_xlabel('Mean of Maximum Flux Errors (%)')
+        ax.set_title('Top 10 Models by Mean Maximum Flux Error')
         ax.invert_yaxis()
 
-        for i, v in enumerate(top_10['max_flux_error']):
-            ax.text(v + 0.05, i, f'{v:.2f}%', va='center', fontsize=8)
+        for i, v in enumerate(top_10['mean_max_flux_error']):
+            ax.text(v + 0.05, i, f'{v:.3f}%', va='center', fontsize=8)
 
     # Plot 3: Best by mean k-eff error
     ax = axes[2]
     if 'mean_keff_error' in summary_df.columns:
         top_10 = summary_df.nsmallest(10, 'mean_keff_error')
-        ax.barh(range(len(top_10)), top_10['mean_keff_error'])
-        ax.set_yticks(range(len(top_10)))
+        y_pos = np.arange(len(top_10))
+        ax.barh(y_pos, top_10['mean_keff_error'])
+        ax.set_yticks(y_pos)
         ax.set_yticklabels(top_10['combination'], fontsize=8)
         ax.set_xlabel('Mean K-eff Error (%)')
         ax.set_title('Top 10 Models by Mean K-eff Error')

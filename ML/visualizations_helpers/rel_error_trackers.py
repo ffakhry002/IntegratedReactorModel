@@ -25,6 +25,8 @@ def create_rel_error_tracker_plots(df, output_dir, encodings):
         create_encoding_error_plot(df, output_dir, encoding, 'keff',
                                  os.path.join(output_dir, 'keff_rel_error'))
 
+# rel_error_trackers.py - UPDATED create_encoding_error_plot function
+
 def create_encoding_error_plot(df, output_dir, encoding, error_type, subfolder):
     """Create error plot for a specific encoding method with statistics table"""
 
@@ -68,6 +70,13 @@ def create_encoding_error_plot(df, output_dir, encoding, error_type, subfolder):
         'none': '^'
     }
 
+    # Line styles for optimization methods
+    optimization_lines = {
+        'optuna': '-',        # solid
+        'three_stage': '--',  # dashed
+        'none': ':'          # dotted
+    }
+
     # Get unique values
     models = plot_data['model'].unique()
     optimizations = plot_data['optimization'].unique()
@@ -87,7 +96,7 @@ def create_encoding_error_plot(df, output_dir, encoding, error_type, subfolder):
                 ax1.plot(subset['config_id'], subset['error'],
                         color=model_colors.get(model, 'black'),
                         marker=optimization_markers.get(optimization, 'o'),
-                        linestyle='-',
+                        linestyle=optimization_lines.get(optimization, '-'),  # Use line style mapping
                         markersize=8,
                         linewidth=2,
                         alpha=0.8,
@@ -104,7 +113,7 @@ def create_encoding_error_plot(df, output_dir, encoding, error_type, subfolder):
     ax2 = plt.subplot2grid((4, 1), (3, 0))
     ax2.axis('off')
 
-    # Calculate statistics for table - now including optimization method
+    # Calculate statistics for table
     stats_data = []
     for model in models:
         for optimization in optimizations:
@@ -117,10 +126,10 @@ def create_encoding_error_plot(df, output_dir, encoding, error_type, subfolder):
                 stats_data.append([
                     model,
                     optimization,
-                    f'{error_data.mean():.2f}%',
-                    f'{error_data.max():.2f}%',
-                    f'{error_data.min():.2f}%',
-                    f'{error_data.std():.2f}%'
+                    f'{error_data.mean():.3f}%',  # Changed to 3 decimal places
+                    f'{error_data.max():.3f}%',
+                    f'{error_data.min():.3f}%',
+                    f'{error_data.std():.3f}%'
                 ])
 
     # Sort stats_data for consistent ordering
