@@ -16,7 +16,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 # Import visualization modules
 from visualizations_helpers.performance_heatmaps import create_performance_heatmaps
 from visualizations_helpers.spatial_error_heatmaps import create_spatial_error_heatmaps
-# from visualizations_helpers.feature_importance import create_feature_importance_plots
+from visualizations_helpers.feature_importance import create_feature_importance_plots
 from visualizations_helpers.config_error_plots import create_config_error_plots
 from visualizations_helpers.rel_error_trackers import create_rel_error_tracker_plots
 from visualizations_helpers.summary_statistics import create_summary_statistics_plots
@@ -28,7 +28,9 @@ def ensure_directories(base_output_dir):
         base_output_dir,
         os.path.join(base_output_dir, 'performance_heatmaps'),
         os.path.join(base_output_dir, 'spatial_error_heatmaps'),
-        # os.path.join(base_output_dir, 'feature_importance'),
+        os.path.join(base_output_dir, 'feature_importance'),
+        os.path.join(base_output_dir, 'feature_importance', 'flux'),
+        os.path.join(base_output_dir, 'feature_importance', 'keff'),
         os.path.join(base_output_dir, 'config_error_plots'),
         os.path.join(base_output_dir, 'rel_error_trackers'),
         os.path.join(base_output_dir, 'rel_error_trackers', 'max_rel_error'),

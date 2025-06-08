@@ -104,41 +104,50 @@ def create_encoding_error_plot(df, output_dir, encoding, error_type, subfolder):
     ax2 = plt.subplot2grid((4, 1), (3, 0))
     ax2.axis('off')
 
-    # Calculate statistics for table
+    # Calculate statistics for table - now including optimization method
     stats_data = []
     for model in models:
-        model_data = plot_data[plot_data['model'] == model]['error']
-        if len(model_data) > 0:
-            stats_data.append([
-                model,
-                f'{model_data.mean():.2f}%',
-                f'{model_data.max():.2f}%',
-                f'{model_data.min():.2f}%',
-                f'{model_data.std():.2f}%'
-            ])
+        for optimization in optimizations:
+            subset = plot_data[
+                (plot_data['model'] == model) &
+                (plot_data['optimization'] == optimization)
+            ]
+            if len(subset) > 0:
+                error_data = subset['error']
+                stats_data.append([
+                    model,
+                    optimization,
+                    f'{error_data.mean():.2f}%',
+                    f'{error_data.max():.2f}%',
+                    f'{error_data.min():.2f}%',
+                    f'{error_data.std():.2f}%'
+                ])
+
+    # Sort stats_data for consistent ordering
+    stats_data.sort(key=lambda x: (x[0], x[1]))
 
     # Create table
     if stats_data:
         table = ax2.table(cellText=stats_data,
-                         colLabels=['Model', 'Mean', 'Max', 'Min', 'Std Dev'],
+                         colLabels=['Model', 'Optimization', 'Mean', 'Max', 'Min', 'Std Dev'],
                          cellLoc='center',
                          loc='center',
-                         bbox=[0.1, 0, 0.8, 1])
+                         bbox=[0.05, 0, 0.9, 1])
 
         # Style the table
         table.auto_set_font_size(False)
-        table.set_fontsize(10)
+        table.set_fontsize(9)
         table.scale(1.2, 1.5)
 
         # Header styling
-        for i in range(5):
+        for i in range(6):
             cell = table[(0, i)]
             cell.set_facecolor('#4472C4')
             cell.set_text_props(weight='bold', color='white')
 
         # Row coloring
         for i in range(1, len(stats_data) + 1):
-            for j in range(5):
+            for j in range(6):
                 if i % 2 == 0:
                     table[(i, j)].set_facecolor('#E9EDF5')
 

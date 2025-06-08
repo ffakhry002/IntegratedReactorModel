@@ -142,6 +142,12 @@ def create_simplified_error_plot(plot_data, title):
         'neural_net': '#d62728'
     }
 
+    # Create figure with space for table
+    fig = plt.figure(figsize=(12, 10))
+
+    # Main plot
+    ax1 = plt.subplot2grid((4, 1), (0, 0), rowspan=3)
+
     # Group by model and calculate aggregated errors
     model_groups = plot_data.groupby('model')
 
@@ -156,7 +162,7 @@ def create_simplified_error_plot(plot_data, title):
         colors.append(model_colors.get(model, 'gray'))
 
     # Create box plot
-    bp = plt.boxplot(errors, labels=models, patch_artist=True,
+    bp = ax1.boxplot(errors, labels=models, patch_artist=True,
                      showmeans=True, meanline=True)
 
     # Color the boxes
@@ -170,23 +176,55 @@ def create_simplified_error_plot(plot_data, title):
         line.set_linewidth(2)
 
     # Add grid
-    plt.grid(True, alpha=0.3, axis='y')
+    ax1.grid(True, alpha=0.3, axis='y')
 
     # Labels and title
-    plt.xlabel('Model Type', fontsize=12)
-    plt.ylabel('Relative Error (%)', fontsize=12)
-    plt.title(title, fontsize=14, fontweight='bold')
+    ax1.set_xlabel('Model Type', fontsize=12)
+    ax1.set_ylabel('Relative Error (%)', fontsize=12)
+    ax1.set_title(title, fontsize=14, fontweight='bold')
 
-    # Add statistics below the plot
-    stats_text = "Statistics by Model:\n"
+    # Create statistics table
+    ax2 = plt.subplot2grid((4, 1), (3, 0))
+    ax2.axis('off')
+
+    # Calculate statistics for table
+    stats_data = []
     for model, group in model_groups:
         mean_err = group['error'].mean()
         std_err = group['error'].std()
         min_err = group['error'].min()
         max_err = group['error'].max()
-        stats_text += f"{model}: Mean={mean_err:.2f}%, Std={std_err:.2f}%, Min={min_err:.2f}%, Max={max_err:.2f}%\n"
+        stats_data.append([
+            model,
+            f'{mean_err:.2f}%',
+            f'{std_err:.2f}%',
+            f'{min_err:.2f}%',
+            f'{max_err:.2f}%'
+        ])
 
-    plt.figtext(0.5, 0.01, stats_text, ha='center', fontsize=10,
-                bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+    # Create table
+    if stats_data:
+        table = ax2.table(cellText=stats_data,
+                         colLabels=['Model', 'Mean Error', 'Std Dev', 'Min Error', 'Max Error'],
+                         cellLoc='center',
+                         loc='center',
+                         bbox=[0.1, 0, 0.8, 1])
+
+        # Style the table
+        table.auto_set_font_size(False)
+        table.set_fontsize(10)
+        table.scale(1.2, 1.5)
+
+        # Header styling
+        for i in range(5):
+            cell = table[(0, i)]
+            cell.set_facecolor('#4472C4')
+            cell.set_text_props(weight='bold', color='white')
+
+        # Row coloring
+        for i in range(1, len(stats_data) + 1):
+            for j in range(5):
+                if i % 2 == 0:
+                    table[(i, j)].set_facecolor('#E9EDF5')
 
     plt.tight_layout()
