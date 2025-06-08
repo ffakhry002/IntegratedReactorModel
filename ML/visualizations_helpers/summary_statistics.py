@@ -150,66 +150,155 @@ def create_best_model_summary(df, output_dir):
     print(f"  Saved: {output_file}")
 
 def create_error_distribution_comparison(df, output_dir):
-    """Create violin plots comparing error distributions with support for multiple optimizations"""
+    """Create violin plots comparing error distributions organized by optimization and error type"""
 
-    # Get unique optimization methods
-    optimizations = df['optimization_method'].unique()
+    # Calculate mean and max flux errors from individual positions
+    mean_flux_errors = []
+    max_flux_errors = []
+
+    for _, row in df.iterrows():
+        # Collect individual position errors
+        position_errors = []
+        for i in range(1, 5):
+            if f'I_{i}_rel_error' in row:
+                error = row[f'I_{i}_rel_error']
+                if pd.notna(error):
+                    position_errors.append(error)
+
+        if position_errors:
+            # Mean of individual errors
+            mean_flux_errors.append(np.mean(position_errors))
+            # Maximum error among positions
+            max_flux_errors.append(max(position_errors))
+        else:
+            mean_flux_errors.append(np.nan)
+            max_flux_errors.append(np.nan)
+
+    # Add these to dataframe
+    df = df.copy()  # Don't modify original
+    df['mean_flux_error'] = mean_flux_errors
+    df['max_flux_error'] = max_flux_errors
+
+    # Get unique values
+    optimizations = sorted(df['optimization_method'].unique())
+    models = sorted(df['model_class'].unique())
     n_opts = len(optimizations)
+    n_models = len(models)
 
-    # Adjust figure size based on number of optimizations
-    fig_height = 6
-    if n_opts > 1:
-        fig_height = 4 * n_opts  # More height for multiple rows
+    # Create figure with rows for each optimization×error_type, columns for each model + top6
+    n_rows = n_opts * 2  # 2 error types (mean, max)
+    n_cols = n_models + 1  # models + top 6 combinations
 
-    # Create subplots - one row per optimization method
-    fig, axes = plt.subplots(n_opts, 3, figsize=(18, fig_height))
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(7*n_cols, 4*n_rows))
 
-    # Handle single optimization case
-    if n_opts == 1:
+    # Ensure axes is 2D
+    if n_rows == 1:
         axes = axes.reshape(1, -1)
+    if n_cols == 1:
+        axes = axes.reshape(-1, 1)
 
-    fig.suptitle('Error Distribution Comparison by Model Components', fontsize=16, fontweight='bold')
+    fig.suptitle('Error Distribution Comparison - All Model/Encoding Combinations',
+                 fontsize=16, fontweight='bold')
 
+    # Process each optimization method
     for opt_idx, optimization in enumerate(optimizations):
         # Filter data for this optimization
         opt_df = df[df['optimization_method'] == optimization]
 
-        # Plot 1: By model type
-        ax = axes[opt_idx, 0]
-        if 'avg_flux_rel_error' in opt_df.columns:
-            sns.violinplot(data=opt_df, x='model_class', y='avg_flux_rel_error', ax=ax)
-            ax.set_xlabel('Model Type')
-            ax.set_ylabel('Flux Relative Error (%)')
-            ax.set_title(f'Error by Model ({optimization})')
+        # Row for mean errors
+        mean_row_idx = opt_idx * 2
+
+        # Plot each model type for mean errors
+        for model_idx, model in enumerate(models):
+            ax = axes[mean_row_idx, model_idx]
+
+            # Filter for this model
+            model_df = opt_df[opt_df['model_class'] == model]
+
+            if not model_df.empty:
+                sns.violinplot(data=model_df, x='encoding', y='mean_flux_error', ax=ax)
+                ax.set_xlabel('Encoding Method')
+                ax.set_ylabel('Mean Flux Error (%)')
+                ax.set_title(f'{model}\n{optimization} - Mean Error', fontsize=10)
+                ax.tick_params(axis='x', rotation=45)
+
+                # Add grid for readability
+                ax.grid(True, alpha=0.3, axis='y')
+            else:
+                ax.text(0.5, 0.5, 'No Data', ha='center', va='center',
+                       transform=ax.transAxes)
+                ax.set_xticks([])
+                ax.set_yticks([])
+
+        # Top 6 combinations for mean error
+        ax = axes[mean_row_idx, -1]
+        opt_df['model_encoding'] = opt_df['model_class'].str[:3] + '-' + opt_df['encoding'].str[:3]
+        mean_errors_by_combo = opt_df.groupby('model_encoding')['mean_flux_error'].mean().sort_values()
+        top_combinations = mean_errors_by_combo.head(6).index
+        filtered_df = opt_df[opt_df['model_encoding'].isin(top_combinations)]
+
+        if not filtered_df.empty:
+            sns.boxplot(data=filtered_df, x='model_encoding', y='mean_flux_error', ax=ax)
+            ax.set_xlabel('Model-Encoding')
+            ax.set_ylabel('Mean Flux Error (%)')
+            ax.set_title(f'Top 6 Combinations\n{optimization} - Mean Error', fontsize=10)
             ax.tick_params(axis='x', rotation=45)
+            ax.grid(True, alpha=0.3, axis='y')
 
-        # Plot 2: By encoding
-        ax = axes[opt_idx, 1]
-        if 'avg_flux_rel_error' in opt_df.columns:
-            sns.violinplot(data=opt_df, x='encoding', y='avg_flux_rel_error', ax=ax)
-            ax.set_xlabel('Encoding Method')
-            ax.set_ylabel('Flux Relative Error (%)')
-            ax.set_title(f'Error by Encoding ({optimization})')
+        # Row for max errors
+        max_row_idx = opt_idx * 2 + 1
+
+        # Plot each model type for max errors
+        for model_idx, model in enumerate(models):
+            ax = axes[max_row_idx, model_idx]
+
+            # Filter for this model
+            model_df = opt_df[opt_df['model_class'] == model]
+
+            if not model_df.empty:
+                sns.violinplot(data=model_df, x='encoding', y='max_flux_error', ax=ax)
+                ax.set_xlabel('Encoding Method')
+                ax.set_ylabel('Max Flux Error (%)')
+                ax.set_title(f'{model}\n{optimization} - Max Error', fontsize=10)
+                ax.tick_params(axis='x', rotation=45)
+
+                # Add grid for readability
+                ax.grid(True, alpha=0.3, axis='y')
+            else:
+                ax.text(0.5, 0.5, 'No Data', ha='center', va='center',
+                       transform=ax.transAxes)
+                ax.set_xticks([])
+                ax.set_yticks([])
+
+        # Top 6 combinations for max error
+        ax = axes[max_row_idx, -1]
+        max_errors_by_combo = opt_df.groupby('model_encoding')['max_flux_error'].mean().sort_values()
+        top_combinations_max = max_errors_by_combo.head(6).index
+        filtered_df_max = opt_df[opt_df['model_encoding'].isin(top_combinations_max)]
+
+        if not filtered_df_max.empty:
+            sns.boxplot(data=filtered_df_max, x='model_encoding', y='max_flux_error', ax=ax)
+            ax.set_xlabel('Model-Encoding')
+            ax.set_ylabel('Max Flux Error (%)')
+            ax.set_title(f'Top 6 Combinations\n{optimization} - Max Error', fontsize=10)
             ax.tick_params(axis='x', rotation=45)
+            ax.grid(True, alpha=0.3, axis='y')
 
-        # Plot 3: Combined comparison
-        ax = axes[opt_idx, 2]
-        if 'avg_flux_rel_error' in opt_df.columns:
-            # Create a combined label for model+encoding
-            opt_df['model_encoding'] = opt_df['model_class'].str[:3] + '-' + opt_df['encoding'].str[:3]
+    # Add row labels on the left
+    for opt_idx, optimization in enumerate(optimizations):
+        # Mean error row
+        mean_row_idx = opt_idx * 2
+        axes[mean_row_idx, 0].annotate(f'{optimization}\nMean Error',
+                                       xy=(-0.3, 0.5), xycoords='axes fraction',
+                                       fontsize=12, fontweight='bold',
+                                       ha='right', va='center', rotation=90)
 
-            # Get top 6 combinations by performance
-            mean_errors = opt_df.groupby('model_encoding')['avg_flux_rel_error'].mean().sort_values()
-            top_combinations = mean_errors.head(6).index
-
-            # Filter to show only top combinations
-            filtered_df = opt_df[opt_df['model_encoding'].isin(top_combinations)]
-
-            sns.boxplot(data=filtered_df, x='model_encoding', y='avg_flux_rel_error', ax=ax)
-            ax.set_xlabel('Model-Encoding Combination')
-            ax.set_ylabel('Flux Relative Error (%)')
-            ax.set_title(f'Top 6 Combinations ({optimization})')
-            ax.tick_params(axis='x', rotation=45)
+        # Max error row
+        max_row_idx = opt_idx * 2 + 1
+        axes[max_row_idx, 0].annotate(f'{optimization}\nMax Error',
+                                      xy=(-0.3, 0.5), xycoords='axes fraction',
+                                      fontsize=12, fontweight='bold',
+                                      ha='right', va='center', rotation=90)
 
     plt.tight_layout()
 

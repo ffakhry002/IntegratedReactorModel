@@ -133,7 +133,7 @@ def create_cell_position_heatmap_with_positions(df, output_dir, models, encoding
             ax.invert_yaxis()
 
     # Add colorbar
-    cbar_ax = fig.add_axes([0.92, 0.15, 0.02, 0.7])
+    cbar_ax = fig.add_axes([1, 0.15, 0.02, 0.7])
     sm = plt.cm.ScalarMappable(cmap='RdYlGn_r',
                                norm=plt.Normalize(vmin=0, vmax=15))
     sm.set_array([])
