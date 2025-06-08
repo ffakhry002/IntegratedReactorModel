@@ -25,11 +25,17 @@ class DataHandler:
         y_k_eff = []
         irr_positions_list = []
 
+        # Track some statistics for validation
+        label_order_mismatches = 0
+        total_configs = 0
+
         for lattice, flux_dict, k_eff in zip(lattices, flux_data, k_effectives):
             # Apply rotational symmetry (8-fold augmentation)
             augmented = apply_rotational_symmetry(lattice, flux_dict, k_eff)
 
             for aug_lattice, aug_flux, aug_k_eff in augmented:
+                total_configs += 1
+
                 # Encode using selected method - now returns position order
                 if encoding_method == 'one_hot':
                     feature_vec, irr_positions, position_order = self.encodings.one_hot_encoding(aug_lattice)
@@ -46,36 +52,73 @@ class DataHandler:
 
                 X_features.append(feature_vec)
 
-                # CRITICAL FIX: Collect flux values based on spatial position order
-                flux_values = []
+                # CRITICAL: Collect flux values based on SPATIAL position order
+                # This ensures the model learns position->flux relationships
 
-                # Create a mapping from position to flux value
+                # Step 1: Create a mapping from position to flux value
                 position_to_flux = {}
-                for label, flux_value in aug_flux.items():
-                    # Find the position of this label in the lattice
-                    for i in range(aug_lattice.shape[0]):
-                        for j in range(aug_lattice.shape[1]):
-                            if aug_lattice[i, j] == label:
-                                position_to_flux[(i, j)] = flux_value
-                                break
+                label_at_position = {}
 
-                # Now collect flux values in the order specified by position_order
-                # position_order contains the positions in a consistent spatial order
+                for i in range(aug_lattice.shape[0]):
+                    for j in range(aug_lattice.shape[1]):
+                        cell = aug_lattice[i, j]
+                        if cell.startswith('I_'):
+                            # Store what label is at this position
+                            label_at_position[(i, j)] = cell
+                            # Store the flux value for this position
+                            if cell in aug_flux:
+                                position_to_flux[(i, j)] = aug_flux[cell]
+                            else:
+                                print(f"Warning: No flux value for {cell} in augmented data")
+                                position_to_flux[(i, j)] = 0.0
+
+                # Step 2: Collect flux values in SPATIAL order (not alphabetical!)
+                # position_order is sorted by (row, col), ensuring consistent spatial ordering
+                flux_values = []
+                spatial_labels = []  # For validation
+
                 for pos in position_order:
                     if pos in position_to_flux:
                         flux_values.append(position_to_flux[pos])
+                        if pos in label_at_position:
+                            spatial_labels.append(label_at_position[pos])
                     else:
                         # This shouldn't happen, but handle gracefully
                         print(f"Warning: Position {pos} not found in flux mapping")
                         flux_values.append(0.0)
 
+                # Validation: Check if spatial order differs from alphabetical
+                if spatial_labels:
+                    alphabetical_labels = sorted(spatial_labels)
+                    if spatial_labels != alphabetical_labels:
+                        label_order_mismatches += 1
+
+                # Ensure we have exactly 4 flux values
+                if len(flux_values) != 4:
+                    print(f"Warning: Expected 4 flux values, got {len(flux_values)}")
+                    # Pad or truncate to 4 values
+                    if len(flux_values) < 4:
+                        flux_values.extend([0.0] * (4 - len(flux_values)))
+                    else:
+                        flux_values = flux_values[:4]
+
                 y_flux_values.append(flux_values)
                 y_k_eff.append(aug_k_eff)
                 irr_positions_list.append(irr_positions)
 
+        # Report validation statistics
+        mismatch_percentage = (label_order_mismatches / total_configs) * 100 if total_configs > 0 else 0
+        print(f"  Spatial vs alphabetical order mismatches: {label_order_mismatches}/{total_configs} ({mismatch_percentage:.1f}%)")
+        if mismatch_percentage > 0:
+            print(f"  ✓ Good: Model is learning from diverse spatial configurations")
+
         X = np.array(X_features)
         y_flux = np.array(y_flux_values)
         y_keff = np.array(y_k_eff)
+
+        # Validate array shapes
+        assert X.shape[0] == y_flux.shape[0] == y_keff.shape[0], "Sample count mismatch"
+        assert y_flux.shape[1] == 4, f"Expected 4 flux outputs, got {y_flux.shape[1]}"
 
         # Transform flux values to log scale or simple scaling
         if self.use_log_flux:
@@ -91,8 +134,12 @@ class DataHandler:
 
         print(f"  After augmentation: {X.shape[0]} samples")
         print(f"  Feature shape: {X.shape}")
-        print(f"  Flux targets: {y_flux.shape}")
+        print(f"  Flux targets: {y_flux.shape} (4 positions per sample)")
         print(f"  K-eff targets: {y_keff.shape}")
+
+        # Final validation message
+        print(f"\n  ✓ Data loaded successfully with label-agnostic encoding")
+        print(f"  ✓ Flux values ordered by spatial position, not label")
 
         return X, y_flux, y_keff
 

@@ -9,50 +9,39 @@ class ReactorEncodings:
     def one_hot_encoding(lattice: np.ndarray) -> Tuple[np.ndarray, List[Tuple], List[Tuple]]:
         """
         Method 1: One-hot encoding with position features
-        Now also encodes WHICH irradiation position (I_1, I_2, etc.) is at each location
+        FIXED: All irradiation positions encoded identically - no label-specific features
         Returns: (features, irr_positions, position_order)
         """
         feature_vec = []
         irr_positions = []
-        irr_labels = {}  # Map position to label
 
-        # First pass: identify irradiation positions and their labels
+        # First pass: identify all irradiation positions
         for i in range(lattice.shape[0]):
             for j in range(lattice.shape[1]):
-                cell = lattice[i, j]
-                if cell.startswith('I'):
+                if lattice[i, j].startswith('I'):
                     irr_positions.append((i, j))
-                    irr_labels[(i, j)] = cell
 
         # Sort positions by row first, then column for consistent ordering
         position_order = sorted(irr_positions)
 
-        # Cell type encoding with extended features for irradiation positions
+        # Cell type encoding - NO LABEL-SPECIFIC FEATURES
         for i in range(lattice.shape[0]):
             for j in range(lattice.shape[1]):
                 cell = lattice[i, j]
                 if cell == 'F':
-                    feature_vec.extend([1, 0, 0, 0, 0, 0, 0])  # Fuel
+                    feature_vec.extend([1, 0, 0])  # Fuel
                 elif cell == 'C':
-                    feature_vec.extend([0, 1, 0, 0, 0, 0, 0])  # Control
+                    feature_vec.extend([0, 1, 0])  # Control
                 elif cell.startswith('I'):
-                    # Extended encoding for irradiation positions
-                    if cell == 'I_1':
-                        feature_vec.extend([0, 0, 1, 1, 0, 0, 0])
-                    elif cell == 'I_2':
-                        feature_vec.extend([0, 0, 1, 0, 1, 0, 0])
-                    elif cell == 'I_3':
-                        feature_vec.extend([0, 0, 1, 0, 0, 1, 0])
-                    elif cell == 'I_4':
-                        feature_vec.extend([0, 0, 1, 0, 0, 0, 1])
-                    else:
-                        feature_vec.extend([0, 0, 1, 0, 0, 0, 0])  # Unknown I
+                    # ALL IRRADIATION POSITIONS ENCODED THE SAME
+                    feature_vec.extend([0, 0, 1])  # Just mark as irradiation
                 else:
-                    feature_vec.extend([0, 0, 0, 0, 0, 0, 0])
+                    feature_vec.extend([0, 0, 0])  # Empty/Other
 
-        # Position encoding
+        # Position encoding - this provides the spatial information
         for i in range(lattice.shape[0]):
             for j in range(lattice.shape[1]):
+                # Normalized position features
                 feature_vec.extend([i/7, j/7])
 
         return np.array(feature_vec), irr_positions, position_order
@@ -61,7 +50,7 @@ class ReactorEncodings:
     def categorical_encoding(lattice: np.ndarray) -> Tuple[np.ndarray, List[Tuple], List[Tuple]]:
         """
         Method 2: Simple categorical encoding
-        Enhanced to distinguish between different irradiation positions
+        FIXED: All irradiation positions get the same categorical value
         """
         feature_vec = []
         irr_positions = []
@@ -74,7 +63,7 @@ class ReactorEncodings:
 
         position_order = sorted(irr_positions)
 
-        # Categorical encoding with distinct values for each I_x
+        # Categorical encoding - ALL IRRADIATION POSITIONS GET VALUE 2
         for i in range(lattice.shape[0]):
             for j in range(lattice.shape[1]):
                 cell = lattice[i, j]
@@ -82,18 +71,13 @@ class ReactorEncodings:
                     feature_vec.append(0)
                 elif cell == 'F':
                     feature_vec.append(1)
-                elif cell == 'I_1':
+                elif cell.startswith('I'):
+                    # ALL irradiation positions get the same value
                     feature_vec.append(2)
-                elif cell == 'I_2':
-                    feature_vec.append(3)
-                elif cell == 'I_3':
-                    feature_vec.append(4)
-                elif cell == 'I_4':
-                    feature_vec.append(5)
                 else:
                     feature_vec.append(-1)  # Unknown
 
-        # Add radial distance for each cell
+        # Add radial distance for each cell - spatial feature
         center = 3.5
         for i in range(lattice.shape[0]):
             for j in range(lattice.shape[1]):
@@ -106,20 +90,18 @@ class ReactorEncodings:
     def physics_based_encoding(lattice: np.ndarray) -> Tuple[np.ndarray, List[Tuple], List[Tuple]]:
         """
         Method 3: Physics-based encoding with global and local features
-        Enhanced to include irradiation position identity
+        FIXED: No label-specific features, only spatial physics
         """
         irr_positions = []
-        irr_labels = {}
 
         for i in range(lattice.shape[0]):
             for j in range(lattice.shape[1]):
                 if lattice[i, j].startswith('I'):
                     irr_positions.append((i, j))
-                    irr_labels[(i, j)] = lattice[i, j]
 
         position_order = sorted(irr_positions)
 
-        # Global features
+        # Global features based on positions only
         global_features = ReactorEncodings._compute_global_features(irr_positions)
 
         # Local features for each irradiation position in spatial order
@@ -127,20 +109,7 @@ class ReactorEncodings:
         for pos in position_order:
             i, j = pos
             local_feat = ReactorEncodings._compute_local_features(lattice, i, j)
-
-            # Add irradiation position identity features
-            label = irr_labels[pos]
-            if label == 'I_1':
-                local_feat.extend([1, 0, 0, 0])
-            elif label == 'I_2':
-                local_feat.extend([0, 1, 0, 0])
-            elif label == 'I_3':
-                local_feat.extend([0, 0, 1, 0])
-            elif label == 'I_4':
-                local_feat.extend([0, 0, 0, 1])
-            else:
-                local_feat.extend([0, 0, 0, 0])
-
+            # NO LABEL-SPECIFIC FEATURES - just spatial physics
             local_features.extend(local_feat)
 
         # Combine
@@ -213,7 +182,7 @@ class ReactorEncodings:
     def spatial_convolution_encoding(lattice: np.ndarray) -> Tuple[np.ndarray, List[Tuple], List[Tuple]]:
         """
         Method 4: Spatial convolution-like encoding
-        Enhanced to distinguish between irradiation positions
+        FIXED: All irradiation positions encoded identically
         """
         feature_vec = []
         irr_positions = []
@@ -235,24 +204,17 @@ class ReactorEncodings:
                 pi, pj = i + 1, j + 1
                 neighborhood = padded[pi-1:pi+2, pj-1:pj+2].flatten()
 
-                # Encode neighborhood with distinct irradiation encodings
+                # Encode neighborhood - NO LABEL-SPECIFIC ENCODING
                 for cell in neighborhood:
                     if cell == 'C':
-                        feature_vec.extend([1, 0, 0, 0, 0, 0, 0, 0])
+                        feature_vec.extend([1, 0, 0, 0])
                     elif cell == 'F':
-                        feature_vec.extend([0, 1, 0, 0, 0, 0, 0, 0])
-                    elif cell == 'I_1':
-                        feature_vec.extend([0, 0, 1, 1, 0, 0, 0, 0])
-                    elif cell == 'I_2':
-                        feature_vec.extend([0, 0, 1, 0, 1, 0, 0, 0])
-                    elif cell == 'I_3':
-                        feature_vec.extend([0, 0, 1, 0, 0, 1, 0, 0])
-                    elif cell == 'I_4':
-                        feature_vec.extend([0, 0, 1, 0, 0, 0, 1, 0])
+                        feature_vec.extend([0, 1, 0, 0])
                     elif cell.startswith('I'):
-                        feature_vec.extend([0, 0, 1, 0, 0, 0, 0, 0])
-                    else:  # padding 'X'
-                        feature_vec.extend([0, 0, 0, 0, 0, 0, 0, 1])
+                        # ALL irradiation positions encoded the same
+                        feature_vec.extend([0, 0, 1, 0])
+                    else:  # padding 'X' or empty
+                        feature_vec.extend([0, 0, 0, 1])
 
         return np.array(feature_vec), irr_positions, position_order
 
@@ -260,7 +222,7 @@ class ReactorEncodings:
     def graph_based_encoding(lattice: np.ndarray) -> Tuple[np.ndarray, List[Tuple], List[Tuple]]:
         """
         Method 5: Graph-based encoding
-        Enhanced to include irradiation position identity
+        FIXED: No label-specific features
         """
         G = nx.Graph()
         irr_positions = []
@@ -277,29 +239,22 @@ class ReactorEncodings:
 
         position_order = sorted(irr_positions)
 
-        # Create nodes with enhanced features
+        # Create nodes - NO LABEL-SPECIFIC FEATURES
         for i in range(n_rows):
             for j in range(n_cols):
                 node_id = i * n_cols + j
                 cell = lattice[i, j]
 
-                # Node features with irradiation position identity
+                # Node features - all irradiation positions get same encoding
                 if cell == 'C':
-                    features = [1, 0, 0, 0, 0, 0, 0]
+                    features = [1, 0, 0]
                 elif cell == 'F':
-                    features = [0, 1, 0, 0, 0, 0, 0]
-                elif cell == 'I_1':
-                    features = [0, 0, 1, 1, 0, 0, 0]
-                elif cell == 'I_2':
-                    features = [0, 0, 1, 0, 1, 0, 0]
-                elif cell == 'I_3':
-                    features = [0, 0, 1, 0, 0, 1, 0]
-                elif cell == 'I_4':
-                    features = [0, 0, 1, 0, 0, 0, 1]
+                    features = [0, 1, 0]
                 elif cell.startswith('I'):
-                    features = [0, 0, 1, 0, 0, 0, 0]
+                    # ALL irradiation positions encoded the same
+                    features = [0, 0, 1]
                 else:
-                    features = [0, 0, 0, 0, 0, 0, 0]
+                    features = [0, 0, 0]
 
                 node_features[node_id] = features
                 G.add_node(node_id, features=features, pos=(i, j))
@@ -329,7 +284,7 @@ class ReactorEncodings:
                 neighbor_avg = np.mean([node_features[n] for n in neighbors], axis=0)
                 feature_vec.extend(neighbor_avg)
             else:
-                feature_vec.extend([0, 0, 0, 0, 0, 0, 0])
+                feature_vec.extend([0, 0, 0])
 
             # Add centrality measure
             degree_centrality = G.degree(node) / 4  # Max degree is still 4
@@ -341,13 +296,13 @@ class ReactorEncodings:
     def raw_2d_grid(lattice: np.ndarray) -> Tuple[np.ndarray, List[Tuple], List[Tuple]]:
         """
         Method 6: Raw 2D grid for CNN input
-        Enhanced to distinguish irradiation positions
+        FIXED: All irradiation positions in same channel
         """
         irr_positions = []
 
         # Dynamic size based on lattice
         n_rows, n_cols = lattice.shape
-        grid = np.zeros((n_rows, n_cols, 7))  # 7 channels for C, F, I, I_1, I_2, I_3, I_4
+        grid = np.zeros((n_rows, n_cols, 3))  # 3 channels: C, F, I (any irradiation)
 
         for i in range(n_rows):
             for j in range(n_cols):
@@ -356,23 +311,8 @@ class ReactorEncodings:
                     grid[i, j, 0] = 1
                 elif cell == 'F':
                     grid[i, j, 1] = 1
-                elif cell == 'I_1':
-                    grid[i, j, 2] = 1
-                    grid[i, j, 3] = 1
-                    irr_positions.append((i, j))
-                elif cell == 'I_2':
-                    grid[i, j, 2] = 1
-                    grid[i, j, 4] = 1
-                    irr_positions.append((i, j))
-                elif cell == 'I_3':
-                    grid[i, j, 2] = 1
-                    grid[i, j, 5] = 1
-                    irr_positions.append((i, j))
-                elif cell == 'I_4':
-                    grid[i, j, 2] = 1
-                    grid[i, j, 6] = 1
-                    irr_positions.append((i, j))
                 elif cell.startswith('I'):
+                    # ALL irradiation positions in the same channel
                     grid[i, j, 2] = 1
                     irr_positions.append((i, j))
 

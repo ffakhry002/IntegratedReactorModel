@@ -3,19 +3,21 @@ base_inputs = {
     ###########################################
     # Parametric Study Configuration
     ###########################################
-    "parametric_study": False,        # Toggle for parametric study mode
+    "parametric_study": True,        # Toggle for parametric study mode
 
     ###########################################
     # Core Configuration
     ###########################################
     # Core Layout
     "core_lattice": [  # C: coolant, F: fuel assembly, E: enriched fuel assembly, I: irradiation position
-        ['C', 'C', 'F', 'F', 'C', 'C'],
-        ['C', 'F', 'F', 'F', 'F', 'C'],
-        ['F', 'F', 'F', 'F', 'F', 'F'],
-        ['F', 'F', 'F', 'F', 'F', 'F'],
-        ['C', 'F', 'F', 'F', 'F', 'C'],
-        ['C', 'C', 'F', 'F', 'C', 'C'],
+        ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+        ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+        ['F', 'F', 'I_1', 'F', 'F', 'I_4', 'F', 'F'],
+        ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+        ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+        ['F', 'F', 'I_2', 'F', 'F', 'I_3', 'F', 'F'],
+        ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+        ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
     ],
 
     # Core Operating Parameters
@@ -26,8 +28,8 @@ base_inputs = {
     # Geometry Specifications
     ###########################################
     # Radial Core Geometry
-    "tank_radius": 0.2,            # Reactor tank radius [m]
-    "reflector_thickness": 0.3,    # Radial reflector thickness [m]
+    "tank_radius": 0.25,            # Reactor tank radius [m]
+    "reflector_thickness": 0.1,    # Radial reflector thickness [m]
     "bioshield_thickness": 0.25,    # Radial bioshield thickness [m]
 
     # Axial Core Geometry
@@ -35,8 +37,8 @@ base_inputs = {
     "bottom_reflector_thickness": 0.3,  # Bottom reflector thickness [m]
     "feed_thickness": 0,            # Feed region thickness [m]
     "plenum_height": 1.7,             # Plenum height [m]
-    "top_reflector_thickness": 1.0,   # Top reflector thickness [m]
-    "top_bioshield_thickness": 0.5,    # Top bioshield thickness [m]
+    "top_reflector_thickness": 0.0,   # Top reflector thickness [m]
+    "top_bioshield_thickness": 0.0,    # Top bioshield thickness [m]
 
     "fuel_height": 0.6,            # Active fuel height [m]
 
@@ -62,9 +64,9 @@ base_inputs = {
     ###########################################
     # Material Choices
     "coolant_type": 'Light Water',     # Coolant: 'Light Water' or 'Heavy Water'
-    "clad_type": 'Zirc2',             # Cladding: 'Al6061', 'Zirc2', or 'Zirc4'
-    "fuel_type": 'UO2',             # Fuel: 'U3Si2', 'UO2', or 'U10Mo'
-    "reflector_material": "beryllium", # Reflector material
+    "clad_type": 'Al6061',             # Cladding: 'Al6061', 'Zirc2', or 'Zirc4'
+    "fuel_type": 'U3Si2',             # Fuel: 'U3Si2', 'UO2', or 'U10Mo'
+    "reflector_material": "mgo", # Reflector material
     "bioshield_material": "Concrete",  # Bioshield material
 
     # Fuel Specifications
@@ -99,7 +101,7 @@ base_inputs = {
     # Standard Transport Settings
     "batches": int(150),                   # Number of active batches
     "inactive": int(20),                   # Number of inactive batches
-    "particles": int(2e2),            # Particles per batch
+    "particles": int(10000),            # Particles per batch
     "energy_structure": 'log1001',    # Energy group structure
 
     # Energy Group Boundaries
@@ -108,7 +110,7 @@ base_inputs = {
 
     # Tally Granularity Settings
     "power_tally_axial_segments": 50,     # Number of axial segments for power tallies
-    "irradiation_axial_segments": 100,    # Number of axial segments for irradiation tallies
+    "irradiation_axial_segments": 200,    # Number of axial segments for irradiation tallies
     "core_mesh_dimension": [201, 201, 201], # Mesh resolution for core flux tallies
     "entropy_mesh_dimension": [20, 20, 20],  # Mesh resolution for entropy calculation
 
@@ -128,11 +130,11 @@ base_inputs = {
     "deplete_element_enhanced": False,       # Single enhanced fuel element with reflective BC
 
     # Time Steps Configuration
-    "depletion_timestep_units": "days",  # Units for timesteps: 'MWd/kgHM' or 'days'
+    "depletion_timestep_units": "MWd/kgHM",  # Units for timesteps: 'MWd/kgHM' or 'days'
     "depletion_timesteps": [{'steps': 5, 'size': 1}, {'steps': 5, 'size': 0.5}, {'steps': 5, 'size': 2.5}, {'steps': 5, 'size': 5}, {'steps': 5, 'size': 10}],
 
     # Transport Settings for Depletion
-    "depletion_particles": int(4000),       # Particles per batch for depletion
+    "depletion_particles": int(5000),       # Particles per batch for depletion
     "depletion_batches": int(120),         # Active batches for depletion
     "depletion_inactive": int(20),         # Inactive batches for depletion
 
@@ -143,13 +145,13 @@ base_inputs = {
     "depletion_chain": "casl",       # Depletion chain type ('casl' or 'endfb71')
 
     # Nuclides to Extract and Plot
-    "depletion_nuclides": ['U235', 'U238', 'Pu239', 'Xe135'],
+    "depletion_nuclides": ['U235', 'U238', 'Pu239', 'Xe135', 'Sm149', 'Cs137', 'Sr90', 'I131'],
 
     ###########################################
     # Miscellaneous Settings
     ###########################################
     "outputs_folder": "local_outputs",  # Base output directory
-    "pixels": (8000, 8000),            # Plot resolution
+    "pixels": (1000, 1000),            # Plot resolution
 }
 
 
@@ -186,5 +188,5 @@ num_assemblies, n_guide_tubes = calculate_derived_values(base_inputs["core_latti
 inputs = {
     **base_inputs,
     "n_guide_tubes": 1,  # number of guide tubes per assembly
-    "num_assemblies": 20  # Automatically calculated from core_lattice
+    "num_assemblies": 48  # Automatically calculated from core_lattice
 }

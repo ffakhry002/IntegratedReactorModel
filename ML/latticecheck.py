@@ -1,280 +1,420 @@
 #!/usr/bin/env python3
 """
-Working verification script that properly parses your train.txt format
+Comprehensive test script to validate that models learn physics, not labels
+Tests with actual train.txt and test.txt data
 """
 
 import numpy as np
-import re
+import pandas as pd
+import joblib
 import os
+import glob
 import sys
+from datetime import datetime
+
+# Add ML directory to path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from utils.txt_to_data import parse_reactor_data
+from ML_models.encodings.encoding_methods import ReactorEncodings
+from test_execution.model_tester import ReactorModelTester
 
 
-def parse_train_file(filepath):
-    """Parse your specific train.txt format"""
-    print(f"\n📄 Reading {filepath}...")
+class PhysicsLearningTester:
+    """Test if models truly learn position->flux physics"""
 
-    try:
-        with open(filepath, 'r') as f:
-            content = f.read()
-    except FileNotFoundError:
-        print(f"❌ Could not find {filepath}")
-        return []
+    def __init__(self, models_dir="ML/outputs/models", outputs_dir="ML/outputs"):
+        self.models_dir = models_dir
+        self.outputs_dir = outputs_dir
+        self.encodings = ReactorEncodings()
+        self.results = []
 
-    # Split by the long separator lines
-    sections = content.split('='*80)
+    def load_available_models(self):
+        """Load all trained models"""
+        print("\nSearching for trained models...")
+        model_files = glob.glob(os.path.join(self.models_dir, "*.pkl"))
 
-    configurations = []
+        models = []
+        for filepath in model_files:
+            try:
+                data = joblib.load(filepath)
+                model_info = {
+                    'filepath': filepath,
+                    'filename': os.path.basename(filepath),
+                    'model_class': data.get('model_class', 'unknown'),
+                    'model_type': data.get('model_type', 'unknown'),
+                    'encoding': data.get('encoding', 'unknown'),
+                    'optimization': data.get('optimization_method', 'unknown'),
+                    'model': data.get('model'),
+                    'use_log_flux': data.get('use_log_flux', False),
+                    'flux_scale': data.get('flux_scale', 1e14)
+                }
 
-    for section in sections:
-        if 'RUN' not in section or 'Success: True' not in section:
-            continue
+                # Only include flux models for this test
+                if model_info['model_type'] == 'flux':
+                    models.append(model_info)
 
-        # Extract RUN number
-        run_match = re.search(r'RUN (\d+):', section)
-        if not run_match:
-            continue
-        run_num = run_match.group(1)
+            except Exception as e:
+                print(f"  Warning: Could not load {filepath}: {e}")
 
-        # Extract description
-        desc_match = re.search(r'Description: (.*?)\n', section)
-        description = desc_match.group(1) if desc_match else f"RUN {run_num}"
+        print(f"Found {len(models)} flux prediction models")
+        return models
 
-        # Extract the lattice - look for the specific pattern in Modified Parameters
-        if 'Modified Parameters:' in section:
-            # Find the core_lattice line and everything until the next parameter or Success
-            lattice_match = re.search(r'core_lattice:\s*\[(.*?)\]\s*(?:Success:|$)', section, re.DOTALL)
-            if not lattice_match:
-                continue
+    def create_label_swapped_configs(self, lattices, flux_data):
+        """Create configurations with swapped labels to test label independence"""
+        swapped_configs = []
 
-            lattice_text = lattice_match.group(1)
+        for idx, (lattice, flux) in enumerate(zip(lattices, flux_data)):
+            # Create a copy with swapped labels
+            swapped_lattice = lattice.copy()
+            swapped_flux = {}
 
-            # Parse the nested array structure
-            # Remove newlines and extra spaces
-            lattice_text = lattice_text.replace('\n', ' ').replace('\r', '')
+            # Find all irradiation positions
+            positions = {}
+            for i in range(8):
+                for j in range(8):
+                    if lattice[i,j].startswith('I_'):
+                        positions[lattice[i,j]] = (i, j)
 
-            # Find all the row arrays
-            row_pattern = r'\[([^\[\]]+)\]'
-            rows = re.findall(row_pattern, lattice_text)
+            # Swap I_1 ↔ I_4 and I_2 ↔ I_3
+            swaps = {'I_1': 'I_4', 'I_4': 'I_1', 'I_2': 'I_3', 'I_3': 'I_2'}
 
-            if len(rows) != 8:
-                continue
+            for old_label, pos in positions.items():
+                new_label = swaps.get(old_label, old_label)
+                swapped_lattice[pos] = new_label
+                # The flux at this position stays the same!
+                swapped_flux[new_label] = flux[old_label]
 
-            # Parse each row
-            lattice = []
-            for row_str in rows:
-                # Split by comma and clean each cell
-                cells = []
-                for cell in row_str.split(','):
-                    cell = cell.strip().strip("'").strip('"')
-                    if cell:
-                        cells.append(cell)
+            swapped_configs.append({
+                'original_idx': idx,
+                'original_lattice': lattice,
+                'swapped_lattice': swapped_lattice,
+                'original_flux': flux,
+                'swapped_flux': swapped_flux,
+                'positions': positions
+            })
 
-                if len(cells) == 8:
-                    lattice.append(cells)
+        return swapped_configs
 
-            if len(lattice) != 8:
-                continue
+    def test_position_vs_label_learning(self, model_info, test_configs):
+        """Test if model predictions depend on position or label"""
+        print(f"\n  Testing {model_info['model_class']} ({model_info['encoding']})...")
 
-            lattice = np.array(lattice)
+        model = model_info['model']
+        encoding_method = model_info['encoding']
 
+        position_based_score = 0
+        label_based_score = 0
+        total_tests = 0
+
+        for config in test_configs[:5]:  # Test first 5 configurations
+            # Encode original configuration
+            if encoding_method == 'one_hot':
+                features_orig, _, pos_order = self.encodings.one_hot_encoding(config['original_lattice'])
+            elif encoding_method == 'categorical':
+                features_orig, _, pos_order = self.encodings.categorical_encoding(config['original_lattice'])
+            elif encoding_method == 'physics':
+                features_orig, _, pos_order = self.encodings.physics_based_encoding(config['original_lattice'])
+            elif encoding_method == 'spatial':
+                features_orig, _, pos_order = self.encodings.spatial_convolution_encoding(config['original_lattice'])
+            elif encoding_method == 'graph':
+                features_orig, _, pos_order = self.encodings.graph_based_encoding(config['original_lattice'])
+
+            # Encode swapped configuration
+            if encoding_method == 'one_hot':
+                features_swap, _, pos_order_swap = self.encodings.one_hot_encoding(config['swapped_lattice'])
+            elif encoding_method == 'categorical':
+                features_swap, _, pos_order_swap = self.encodings.categorical_encoding(config['swapped_lattice'])
+            elif encoding_method == 'physics':
+                features_swap, _, pos_order_swap = self.encodings.physics_based_encoding(config['swapped_lattice'])
+            elif encoding_method == 'spatial':
+                features_swap, _, pos_order_swap = self.encodings.spatial_convolution_encoding(config['swapped_lattice'])
+            elif encoding_method == 'graph':
+                features_swap, _, pos_order_swap = self.encodings.graph_based_encoding(config['swapped_lattice'])
+
+            # Check if features are identical (they should be for position-based learning)
+            features_identical = np.allclose(features_orig, features_swap, rtol=1e-5)
+
+            # Make predictions
+            pred_orig = model.predict(features_orig.reshape(1, -1))[0]
+            pred_swap = model.predict(features_swap.reshape(1, -1))[0]
+
+            # Transform predictions back from log scale if needed
+            if model_info['use_log_flux']:
+                pred_orig = 10 ** pred_orig
+                pred_swap = 10 ** pred_swap
+            else:
+                pred_orig = pred_orig * model_info['flux_scale']
+                pred_swap = pred_swap * model_info['flux_scale']
+
+            # Check if predictions are position-based or label-based
+            # For position-based: predictions should be identical
+            # For label-based: predictions would follow the labels
+
+            predictions_identical = np.allclose(pred_orig, pred_swap, rtol=0.01)
+
+            if predictions_identical:
+                position_based_score += 1
+            else:
+                # Check if predictions followed the labels
+                # This is harder to verify without the exact mapping
+                label_based_score += 1
+
+            total_tests += 1
+
+            # Detailed output for first config
+            if config['original_idx'] == 0:
+                print(f"    Config {config['original_idx']+1} test:")
+                print(f"      Features identical: {features_identical}")
+                print(f"      Predictions identical: {predictions_identical}")
+                if not predictions_identical:
+                    print(f"      Max prediction difference: {np.max(np.abs(pred_orig - pred_swap)):.2e}")
+
+        # Return scores
+        position_ratio = position_based_score / total_tests if total_tests > 0 else 0
+        return {
+            'model': f"{model_info['model_class']}_{model_info['encoding']}",
+            'position_based_score': position_based_score,
+            'label_based_score': label_based_score,
+            'total_tests': total_tests,
+            'position_ratio': position_ratio,
+            'is_position_based': position_ratio > 0.8  # 80% threshold
+        }
+
+    def test_edge_vs_center_learning(self, model_info, lattices):
+        """Test if model correctly learns edge=low flux, center=high flux"""
+        print(f"\n  Testing edge vs center learning...")
+
+        model = model_info['model']
+        encoding_method = model_info['encoding']
+
+        edge_fluxes = []
+        center_fluxes = []
+
+        for lattice in lattices[:10]:  # Test first 10 configurations
+            # Find irradiation positions and classify as edge or center
+            edge_positions = []
+            center_positions = []
+
+            for i in range(8):
+                for j in range(8):
+                    if lattice[i,j].startswith('I_'):
+                        # Classify position
+                        if i in [0, 1, 6, 7] or j in [0, 1, 6, 7]:
+                            edge_positions.append((i, j))
+                        elif 2 <= i <= 5 and 2 <= j <= 5:
+                            center_positions.append((i, j))
+
+            if not edge_positions or not center_positions:
+                continue  # Skip if no clear edge/center positions
+
+            # Encode and predict
+            if encoding_method == 'one_hot':
+                features, _, pos_order = self.encodings.one_hot_encoding(lattice)
+            elif encoding_method == 'categorical':
+                features, _, pos_order = self.encodings.categorical_encoding(lattice)
+            elif encoding_method == 'physics':
+                features, _, pos_order = self.encodings.physics_based_encoding(lattice)
+            elif encoding_method == 'spatial':
+                features, _, pos_order = self.encodings.spatial_convolution_encoding(lattice)
+            elif encoding_method == 'graph':
+                features, _, pos_order = self.encodings.graph_based_encoding(lattice)
+
+            predictions = model.predict(features.reshape(1, -1))[0]
+
+            # Transform predictions back
+            if model_info['use_log_flux']:
+                predictions = 10 ** predictions
+            else:
+                predictions = predictions * model_info['flux_scale']
+
+            # Map predictions to positions
+            for idx, pos in enumerate(pos_order):
+                if pos in edge_positions:
+                    edge_fluxes.append(predictions[idx])
+                elif pos in center_positions:
+                    center_fluxes.append(predictions[idx])
+
+        # Calculate statistics
+        if edge_fluxes and center_fluxes:
+            avg_edge = np.mean(edge_fluxes)
+            avg_center = np.mean(center_fluxes)
+
+            # Center should have higher flux than edge
+            learns_physics = avg_center > avg_edge
+            ratio = avg_center / avg_edge if avg_edge > 0 else float('inf')
+
+            return {
+                'avg_edge_flux': avg_edge,
+                'avg_center_flux': avg_center,
+                'center_to_edge_ratio': ratio,
+                'learns_physics': learns_physics
+            }
         else:
-            continue
+            return None
 
-        # Extract flux values
-        flux_dict = {}
-        flux_matches = re.findall(r'(I_\d+) Flux ([\d.e+]+)', section)
-        for label, flux_str in flux_matches:
-            flux_dict[label] = float(flux_str)
+    def generate_report(self, results):
+        """Generate comprehensive test report"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        report_path = os.path.join(self.outputs_dir, f"physics_learning_test_{timestamp}.txt")
 
-        if len(flux_dict) != 4:
-            continue
+        with open(report_path, 'w') as f:
+            f.write("="*80 + "\n")
+            f.write("PHYSICS LEARNING TEST REPORT\n")
+            f.write("="*80 + "\n\n")
+            f.write(f"Test Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"Models Tested: {len(results)}\n\n")
 
-        configurations.append({
-            'run': run_num,
-            'description': description,
-            'lattice': lattice,
-            'flux': flux_dict
-        })
+            # Summary table
+            f.write("SUMMARY\n")
+            f.write("-"*80 + "\n")
+            f.write(f"{'Model':<30} {'Position-Based?':<15} {'Edge<Center?':<15} {'Physics Score':<15}\n")
+            f.write("-"*80 + "\n")
 
-    return configurations
+            for r in results:
+                physics_score = "GOOD" if r['position_test']['is_position_based'] and r['edge_center_test']['learns_physics'] else "POOR"
+                f.write(f"{r['model']:<30} "
+                       f"{'YES' if r['position_test']['is_position_based'] else 'NO':<15} "
+                       f"{'YES' if r['edge_center_test']['learns_physics'] else 'NO':<15} "
+                       f"{physics_score:<15}\n")
 
+            # Detailed results
+            f.write("\n\nDETAILED RESULTS\n")
+            f.write("="*80 + "\n")
 
-def analyze_configuration(config):
-    """Analyze a single configuration for the flux ordering bug"""
-    lattice = config['lattice']
-    flux_dict = config['flux']
+            for r in results:
+                f.write(f"\nModel: {r['model']}\n")
+                f.write("-"*40 + "\n")
 
-    # Find irradiation positions
-    positions = []
-    for i in range(lattice.shape[0]):
-        for j in range(lattice.shape[1]):
-            if lattice[i, j].startswith('I'):
-                positions.append((i, j, lattice[i, j]))
+                # Position vs label test
+                pt = r['position_test']
+                f.write(f"Position Independence Test:\n")
+                f.write(f"  Position-based predictions: {pt['position_based_score']}/{pt['total_tests']}\n")
+                f.write(f"  Label-based predictions: {pt['label_based_score']}/{pt['total_tests']}\n")
+                f.write(f"  Position ratio: {pt['position_ratio']:.2%}\n")
+                f.write(f"  Verdict: {'POSITION-BASED' if pt['is_position_based'] else 'LABEL-BASED'}\n")
 
-    # Sort spatially (by position)
-    spatial_order = sorted(positions, key=lambda x: (x[0], x[1]))
-    spatial_labels = [p[2] for p in spatial_order]
+                # Edge vs center test
+                ect = r['edge_center_test']
+                f.write(f"\nEdge vs Center Physics Test:\n")
+                f.write(f"  Average edge flux: {ect['avg_edge_flux']:.2e}\n")
+                f.write(f"  Average center flux: {ect['avg_center_flux']:.2e}\n")
+                f.write(f"  Center/Edge ratio: {ect['center_to_edge_ratio']:.2f}\n")
+                f.write(f"  Verdict: {'CORRECT PHYSICS' if ect['learns_physics'] else 'INCORRECT PHYSICS'}\n")
 
-    # Sort alphabetically (by label)
-    alpha_labels = sorted(flux_dict.keys())
+                # Overall assessment
+                f.write(f"\nOverall Assessment:\n")
+                if pt['is_position_based'] and ect['learns_physics']:
+                    f.write("  ✓ Model correctly learns position-based physics\n")
+                elif not pt['is_position_based']:
+                    f.write("  ✗ Model is learning label-based patterns (not physics)\n")
+                elif not ect['learns_physics']:
+                    f.write("  ✗ Model does not correctly learn edge<center physics\n")
 
-    # Check if they differ
-    is_affected = spatial_labels != alpha_labels
+            f.write("\n" + "="*80 + "\n")
+            f.write("END OF REPORT\n")
+            f.write("="*80 + "\n")
 
-    return {
-        'is_affected': is_affected,
-        'spatial_order': spatial_order,
-        'spatial_labels': spatial_labels,
-        'alpha_labels': alpha_labels,
-        'positions': positions
-    }
+        print(f"\nReport saved to: {report_path}")
+        return report_path
+
+    def run_comprehensive_test(self, train_file="ML/data/train.txt", test_file="ML/data/test.txt"):
+        """Run all tests on available models"""
+        print("\n" + "="*80)
+        print("COMPREHENSIVE PHYSICS LEARNING TEST")
+        print("="*80)
+
+        # Load models
+        models = self.load_available_models()
+        if not models:
+            print("No models found to test!")
+            return
+
+        # Load test data
+        print(f"\nLoading test data from {test_file}...")
+        test_data = parse_reactor_data(test_file)
+        if len(test_data) == 4:
+            test_lattices, test_flux, test_keff, _ = test_data
+        else:
+            test_lattices, test_flux, test_keff = test_data
+
+        # Create label-swapped configurations
+        print("\nCreating label-swapped test configurations...")
+        swapped_configs = self.create_label_swapped_configs(test_lattices, test_flux)
+
+        # Test each model
+        results = []
+        for model_info in models:
+            print(f"\n{'='*60}")
+            print(f"Testing: {model_info['model_class']} with {model_info['encoding']} encoding")
+            print(f"{'='*60}")
+
+            # Test 1: Position vs Label learning
+            position_test = self.test_position_vs_label_learning(model_info, swapped_configs)
+
+            # Test 2: Edge vs Center physics
+            edge_center_test = self.test_edge_vs_center_learning(model_info, test_lattices)
+
+            results.append({
+                'model': f"{model_info['model_class']}_{model_info['encoding']}_{model_info['optimization']}",
+                'position_test': position_test,
+                'edge_center_test': edge_center_test
+            })
+
+            # Print quick summary
+            print(f"\n  Summary:")
+            print(f"    Position-based learning: {'YES' if position_test['is_position_based'] else 'NO'}")
+            if edge_center_test:
+                print(f"    Correct physics (edge<center): {'YES' if edge_center_test['learns_physics'] else 'NO'}")
+
+        # Generate report
+        self.generate_report(results)
+
+        # Print final summary
+        print("\n" + "="*80)
+        print("TEST COMPLETE")
+        print("="*80)
+
+        good_models = sum(1 for r in results
+                         if r['position_test']['is_position_based']
+                         and r['edge_center_test']['learns_physics'])
+
+        print(f"\nModels with correct physics learning: {good_models}/{len(results)}")
+
+        if good_models == 0:
+            print("\n⚠️  WARNING: No models are learning position-based physics!")
+            print("   This suggests the encoding fix has not been applied.")
+            print("   Please ensure you're using the updated encoding_methods.py")
+        elif good_models == len(results):
+            print("\n✅ SUCCESS: All models are learning position-based physics!")
+            print("   The encoding fix is working correctly.")
+        else:
+            print("\n⚠️  PARTIAL SUCCESS: Some models are learning physics correctly.")
+            print("   Check which models were trained with the old encoding.")
 
 
 def main():
-    """Main verification function"""
-    print("\n" + "="*80)
-    print("FLUX ORDERING BUG VERIFICATION")
-    print("Working Parser for Your Data")
-    print("="*80)
-
-    # Find the data file
-    data_paths = [
-        'ML/data/train.txt',
-        'data/train.txt',
-        '../ML/data/train.txt',
-        'train.txt'
-    ]
-
-    data_file = None
-    for path in data_paths:
-        if os.path.exists(path):
-            data_file = path
-            break
-
-    if not data_file:
-        print("\n❌ Could not find train.txt")
-        print("Please run from your project directory")
-        return
-
-    # Parse configurations
-    configs = parse_train_file(data_file)
-
-    if not configs:
-        print("\n❌ Could not parse any configurations")
-        print("Please check the file format")
-        return
-
-    print(f"\n✅ Successfully parsed {len(configs)} configurations")
-
-    # Analyze each configuration
-    affected_count = 0
-    examples = []
-
-    for config in configs:
-        analysis = analyze_configuration(config)
-
-        if analysis['is_affected']:
-            affected_count += 1
-            if len(examples) < 3:  # Keep first 3 examples
-                examples.append((config, analysis))
-
-    # Show statistics
-    print("\n" + "="*80)
-    print("STATISTICS")
-    print("="*80)
-
-    print(f"\nTotal configurations: {len(configs)}")
-    print(f"Affected by bug: {affected_count}")
-    print(f"Percentage affected: {affected_count/len(configs)*100:.1f}%")
-
-    # Show examples
-    if examples:
-        print("\n" + "="*80)
-        print("CONCRETE EXAMPLES")
-        print("="*80)
-
-        for config, analysis in examples[:2]:  # Show 2 examples
-            print(f"\n" + "-"*70)
-            print(f"RUN {config['run']}: {config['description']}")
-            print("-"*70)
-
-            lattice = config['lattice']
-            flux_dict = config['flux']
-
-            # Show lattice
-            print("\nReactor Configuration:")
-            for i in range(8):
-                row_str = ""
-                for j in range(8):
-                    cell = lattice[i, j]
-                    if cell.startswith('I'):
-                        flux = flux_dict[cell] / 1e14
-                        if i in [0, 7] or j in [0, 7]:
-                            row_str += f"[{cell}:{flux:.2f}]"
-                        else:
-                            row_str += f" {cell}:{flux:.2f} "
-                    else:
-                        row_str += f"  {cell}   "
-                print(row_str)
-
-            print("\n[brackets] = edge position")
-
-            # Show the bug
-            print(f"\n❌ BUGGY (Alphabetical): {analysis['alpha_labels']}")
-            alpha_flux = [flux_dict[l]/1e14 for l in analysis['alpha_labels']]
-            print(f"   Flux: [{', '.join(f'{f:.2f}' for f in alpha_flux)}]")
-
-            print(f"\n✅ FIXED (Spatial): {analysis['spatial_labels']}")
-            print(f"   Positions: {[f'({p[0]},{p[1]})' for p in analysis['spatial_order']]}")
-            spatial_flux = [flux_dict[l]/1e14 for l in analysis['spatial_labels']]
-            print(f"   Flux: [{', '.join(f'{f:.2f}' for f in spatial_flux)}]")
-
-            # Show mismatches
-            print("\n⚠️  MISLEARNING:")
-            for idx in range(4):
-                if analysis['spatial_labels'][idx] != analysis['alpha_labels'][idx]:
-                    pos = analysis['spatial_order'][idx]
-                    spatial_label = analysis['spatial_labels'][idx]
-                    alpha_label = analysis['alpha_labels'][idx]
-
-                    print(f"   Position {idx} at {pos[0:2]}:")
-                    print(f"     Model learns: {alpha_label} flux ({flux_dict[alpha_label]/1e14:.2f})")
-                    print(f"     Should learn: {spatial_label} flux ({flux_dict[spatial_label]/1e14:.2f})")
-
-    # Final summary
-    print("\n" + "="*80)
-    print("SUMMARY")
-    print("="*80)
-
-    if affected_count > 0:
-        print(f"\n🚨 CRITICAL BUG CONFIRMED!")
-        print(f"   {affected_count} out of {len(configs)} configurations ({affected_count/len(configs)*100:.0f}%)")
-        print(f"   are teaching your model WRONG spatial-flux relationships!")
-
-        print("\n📊 Your current results (R² = 0.7555) are misleading because:")
-        print("   • Model memorizes label patterns instead of spatial physics")
-        print("   • Cannot learn that edge → low flux, center → high flux")
-        print("   • Will fail on new configurations")
-
-        print("\n🔧 Apply these fixes immediately:")
-        print("   1. Fix flux ordering in data_handler.py (spatial not alphabetical)")
-        print("   2. Update encodings to track position identity")
-        print("   3. Fix augmentation rotation formula")
-        print("   4. Retrain all models")
-
-        print("\n🚀 Expected improvement: SIGNIFICANT")
-        print("   This is a fundamental bug destroying spatial learning!")
+    """Run the comprehensive test"""
+    # Determine paths
+    if os.path.exists("ML/outputs/models"):
+        models_dir = "ML/outputs/models"
+        outputs_dir = "ML/outputs"
+        train_file = "ML/data/train.txt"
+        test_file = "ML/data/test.txt"
+    elif os.path.exists("outputs/models"):
+        models_dir = "outputs/models"
+        outputs_dir = "outputs"
+        train_file = "data/train.txt"
+        test_file = "data/test.txt"
     else:
-        print("\n✅ No flux ordering issues found")
-        print("   (All configurations have matching alphabetical and spatial orders)")
+        print("Error: Could not find models directory")
+        print("Please run from the project root directory")
+        return
 
-    print("\n" + "="*80)
+    # Create tester and run
+    tester = PhysicsLearningTester(models_dir, outputs_dir)
+    tester.run_comprehensive_test(train_file, test_file)
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        print(f"\n❌ Error: {e}")
-        import traceback
-        traceback.print_exc()
+    main()

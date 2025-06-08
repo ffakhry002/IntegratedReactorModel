@@ -1,5 +1,6 @@
 """
 Model testing functionality - Fixed to handle position ordering and training data comparison
+UPDATED: Ensures label-agnostic testing with proper label mapping for output
 """
 
 import sys
@@ -270,23 +271,29 @@ class ReactorModelTester:
                         # Scale back if needed
                         flux_pred_original = flux_pred * flux_scale
 
-                    # Map predictions to positions
+                    # CRITICAL: Map predictions (which are in spatial order) to positions
+                    # The model outputs predictions in the same spatial order as position_order
                     position_to_flux_pred = {}
                     for idx, pos in enumerate(position_order):
                         if idx < len(flux_pred_original):
                             position_to_flux_pred[pos] = flux_pred_original[idx]
+                        else:
+                            print(f"Warning: Not enough predictions for position {pos}")
 
-                    # Now map positions back to labels in the test lattice
+                    # Now map positions back to specific labels in the test lattice
+                    # This is where we reconnect to the actual labels for output purposes
                     label_to_flux_pred = {}
                     for i in range(lattice.shape[0]):
                         for j in range(lattice.shape[1]):
-                            if lattice[i, j].startswith('I') and (i, j) in position_to_flux_pred:
-                                label_to_flux_pred[lattice[i, j]] = position_to_flux_pred[(i, j)]
+                            if lattice[i, j].startswith('I_') and (i, j) in position_to_flux_pred:
+                                label = lattice[i, j]  # Get the actual label at this position
+                                label_to_flux_pred[label] = position_to_flux_pred[(i, j)]
 
-                    # Store flux results for each irradiation position
+                    # Store flux results for each specific irradiation label
                     flux_pred_list = []
                     flux_actual_list = []
 
+                    # Output results for each label I_1 through I_4
                     for i in range(1, 5):
                         label = f'I_{i}'
                         if label in label_to_flux_pred and label in flux_actual:
