@@ -6,7 +6,7 @@ from .constants import SAMPLER_MAP, get_sampler_map
 from .task_runner import save_sampling_results
 
 
-def run_serial_execution(selected_methods, n_samples, n_runs, base_seed, use_6x6_restriction=False):
+def run_serial_execution(selected_methods, n_samples, n_runs, base_seed, use_6x6_restriction=False, selected_parameters=None):
     """Run sampling methods in serial mode."""
     results_dict = {}
 
@@ -14,7 +14,14 @@ def run_serial_execution(selected_methods, n_samples, n_runs, base_seed, use_6x6
     sampler_map = get_sampler_map(use_6x6_restriction)
 
     # Initialize samplers
-    samplers = {method: sampler_map[method]() for method in selected_methods}
+    samplers = {}
+    for method in selected_methods:
+        # Check if this is a geometric method that needs selected parameters
+        if selected_parameters and method in ['lhs', 'sobol', 'halton', 'jaccard_geometric',
+                                              'euclidean_geometric', 'manhattan_geometric', 'random_geometric']:
+            samplers[method] = sampler_map[method](selected_parameters=selected_parameters)
+        else:
+            samplers[method] = sampler_map[method]()
 
     # Run each sampling method
     for name, sampler in samplers.items():

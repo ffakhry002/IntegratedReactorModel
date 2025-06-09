@@ -27,36 +27,36 @@ def get_sampler_map(use_6x6_restriction=False):
     """Get sampler map with optional 6x6 restriction."""
     return {
         # Sequence-based methods (LHS, Sobol, Halton)
-        'lhs': lambda: lhs.LHSSampler(use_6x6_restriction=use_6x6_restriction),
-        'sobol': lambda: sobol.SobolSampler(use_6x6_restriction=use_6x6_restriction),
-        'halton': lambda: halton.HaltonSampler(use_6x6_restriction=use_6x6_restriction),
-        'random_geometric': lambda: random_geometric.RandomGeometricSampler(use_6x6_restriction=use_6x6_restriction),
+        'lhs': lambda selected_parameters=None: lhs.LHSSampler(use_6x6_restriction=use_6x6_restriction, selected_parameters=selected_parameters),
+        'sobol': lambda selected_parameters=None: sobol.SobolSampler(use_6x6_restriction=use_6x6_restriction, selected_parameters=selected_parameters),
+        'halton': lambda selected_parameters=None: halton.HaltonSampler(use_6x6_restriction=use_6x6_restriction, selected_parameters=selected_parameters),
+        'random_geometric': lambda selected_parameters=None: random_geometric.RandomGeometricSampler(use_6x6_restriction=use_6x6_restriction, selected_parameters=selected_parameters),
 
-        'lhs_lattice': lambda: lhs_lattice.LHSLatticeSampler(use_6x6_restriction=use_6x6_restriction),
-        'sobol_lattice': lambda: sobol_lattice.SobolLatticeSampler(use_6x6_restriction=use_6x6_restriction),
-        'halton_lattice': lambda: halton_lattice.HaltonLatticeSampler(use_6x6_restriction=use_6x6_restriction),
-        'random_lattice': lambda: random_lattice.RandomLatticeSampler(use_6x6_restriction=use_6x6_restriction),
+        'lhs_lattice': lambda selected_parameters=None: lhs_lattice.LHSLatticeSampler(use_6x6_restriction=use_6x6_restriction),
+        'sobol_lattice': lambda selected_parameters=None: sobol_lattice.SobolLatticeSampler(use_6x6_restriction=use_6x6_restriction),
+        'halton_lattice': lambda selected_parameters=None: halton_lattice.HaltonLatticeSampler(use_6x6_restriction=use_6x6_restriction),
+        'random_lattice': lambda selected_parameters=None: random_lattice.RandomLatticeSampler(use_6x6_restriction=use_6x6_restriction),
 
         # Greedy max-min algorithms with different distances
-        'euclidean_geometric': lambda: GeometricUnifiedSampler('greedy', 'euclidean', use_6x6_restriction=use_6x6_restriction),
-        'manhattan_geometric': lambda: GeometricUnifiedSampler('greedy', 'manhattan', use_6x6_restriction=use_6x6_restriction),
-        'jaccard_geometric': lambda: GeometricUnifiedSampler('greedy', 'jaccard', use_6x6_restriction=use_6x6_restriction),
+        'euclidean_geometric': lambda selected_parameters=None: GeometricUnifiedSampler('greedy', 'euclidean', use_6x6_restriction=use_6x6_restriction, selected_parameters=selected_parameters),
+        'manhattan_geometric': lambda selected_parameters=None: GeometricUnifiedSampler('greedy', 'manhattan', use_6x6_restriction=use_6x6_restriction, selected_parameters=selected_parameters),
+        'jaccard_geometric': lambda selected_parameters=None: GeometricUnifiedSampler('greedy', 'jaccard', use_6x6_restriction=use_6x6_restriction, selected_parameters=selected_parameters),
 
-        'euclidean_lattice': lambda: LatticeUnifiedSampler('greedy', 'euclidean', use_6x6_restriction=use_6x6_restriction),
-        'manhattan_lattice': lambda: LatticeUnifiedSampler('greedy', 'manhattan', use_6x6_restriction=use_6x6_restriction),
-        'jaccard_lattice': lambda: LatticeUnifiedSampler('greedy', 'jaccard', use_6x6_restriction=use_6x6_restriction),
+        'euclidean_lattice': lambda selected_parameters=None: LatticeUnifiedSampler('greedy', 'euclidean', use_6x6_restriction=use_6x6_restriction),
+        'manhattan_lattice': lambda selected_parameters=None: LatticeUnifiedSampler('greedy', 'manhattan', use_6x6_restriction=use_6x6_restriction),
+        'jaccard_lattice': lambda selected_parameters=None: LatticeUnifiedSampler('greedy', 'jaccard', use_6x6_restriction=use_6x6_restriction),
 
         # NEW: Euclidean lattice with geometric diversity evaluation
-        'euclidean_lattice_geometric_diversity': lambda: LatticeUnifiedSampler('greedy', 'euclidean', use_geometric_diversity=True, use_6x6_restriction=use_6x6_restriction),
+        'euclidean_lattice_geometric_diversity': lambda selected_parameters=None: LatticeUnifiedSampler('greedy', 'euclidean', use_geometric_diversity=True, use_6x6_restriction=use_6x6_restriction),
 
         # K-means algorithms (method IDs kept as 'kmedoids' for backwards compatibility)
         # These use k-means clustering to find centers, then select nearest actual points
         # IMPORTANT: Despite the method names, these are K-MEANS algorithms, NOT k-medoids!
-        'euclidean_geometric_kmedoids': lambda: GeometricUnifiedSampler('kmedoids', 'euclidean', use_6x6_restriction=use_6x6_restriction),
+        'euclidean_geometric_kmedoids': lambda selected_parameters=None: GeometricUnifiedSampler('kmedoids', 'euclidean', use_6x6_restriction=use_6x6_restriction, selected_parameters=selected_parameters),
         # 'manhattan_geometric_kmedoids': lambda: GeometricUnifiedSampler('kmedoids', 'manhattan'),
         # 'jaccard_geometric_kmedoids': lambda: GeometricUnifiedSampler('kmedoids', 'jaccard'),
 
-        'euclidean_lattice_kmedoids': lambda: LatticeUnifiedSampler('kmedoids', 'euclidean', use_6x6_restriction=use_6x6_restriction),
+        'euclidean_lattice_kmedoids': lambda selected_parameters=None: LatticeUnifiedSampler('kmedoids', 'euclidean', use_6x6_restriction=use_6x6_restriction),
         # 'manhattan_lattice_kmedoids': lambda: LatticeUnifiedSampler('kmedoids', 'manhattan'),
         # 'jaccard_lattice_kmedoids': lambda: LatticeUnifiedSampler('kmedoids', 'jaccard'),
     }

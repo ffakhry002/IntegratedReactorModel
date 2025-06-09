@@ -11,9 +11,10 @@ from .base_qmc import BaseQMCSampler
 class LHSSampler(BaseQMCSampler):
     """Latin Hypercube Sampling in physics-informed parameter space."""
 
-    def __init__(self, use_6x6_restriction=False):
+    def __init__(self, use_6x6_restriction=False, selected_parameters=None):
         self.method_name = "lhs"
-        super().__init__(use_6x6_restriction=use_6x6_restriction)
+        super().__init__(use_6x6_restriction=use_6x6_restriction,
+                        selected_parameters=selected_parameters)
 
     def sample(self, n_samples: int, n_runs: int = 10, base_seed: int = 42) -> Dict:
         """

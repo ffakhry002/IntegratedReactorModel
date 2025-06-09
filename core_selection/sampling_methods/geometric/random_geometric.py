@@ -11,9 +11,10 @@ from ..base import BaseSampler
 class RandomGeometricSampler(BaseSampler):
     """Random sampling in physics parameter space for baseline comparison."""
 
-    def __init__(self, use_6x6_restriction=False):
+    def __init__(self, use_6x6_restriction=False, selected_parameters=None):
         self.method_name = "random_geometric"
-        super().__init__(use_6x6_restriction=use_6x6_restriction)
+        super().__init__(use_6x6_restriction=use_6x6_restriction,
+                        selected_parameters=selected_parameters)
 
     def sample(self, n_samples: int, n_runs: int = 10, base_seed: int = 42) -> Dict:
         """
