@@ -1,6 +1,7 @@
 """
 Configuration error plots showing error trends across test configurations
 UPDATED: Multiple optimizations as subplots, all encodings shown, separate table images
+UPDATED: Added support for energy-discretized results
 """
 
 import matplotlib.pyplot as plt
@@ -9,40 +10,59 @@ import pandas as pd
 import os
 from matplotlib.patches import Rectangle
 
-def create_config_error_plots(df, output_dir):
-    """Create config vs error plots for max flux, mean flux, and k-eff"""
+def create_config_error_plots(df, output_dir, energy_group=None, target_type=None):
+    """
+    Create config vs error plots for max flux, mean flux, and k-eff
+
+    Args:
+        df: DataFrame with test results
+        output_dir: Directory to save plots
+        energy_group: Energy group to analyze ('thermal', 'epithermal', 'fast', 'total')
+        target_type: 'flux' or 'keff' - if specified, only create that type
+    """
 
     # Get unique optimization methods
     optimizations = df['optimization_method'].unique()
 
-    # Create three plot types
-    create_max_flux_error_plot(df, output_dir, optimizations)
-    create_mean_flux_error_plot(df, output_dir, optimizations)
-    create_keff_error_plot(df, output_dir, optimizations)
+    if target_type == 'keff':
+        # Only create k-eff plot
+        create_keff_error_plot(df, output_dir, optimizations)
+    elif target_type:
+        # Create flux plots for specific energy group
+        create_max_flux_error_plot(df, output_dir, optimizations, energy_group)
+        create_mean_flux_error_plot(df, output_dir, optimizations, energy_group)
+    else:
+        # Create all three plot types
+        create_max_flux_error_plot(df, output_dir, optimizations, energy_group)
+        create_mean_flux_error_plot(df, output_dir, optimizations, energy_group)
+        if not energy_group:  # K-eff doesn't have energy groups
+            create_keff_error_plot(df, output_dir, optimizations)
 
-def create_max_flux_error_plot(df, output_dir, optimizations):
+def create_max_flux_error_plot(df, output_dir, optimizations, energy_group=None):
     """Create plot showing maximum flux error for each configuration"""
 
     # Prepare data
-    plot_data = prepare_flux_error_data(df, 'max')
+    plot_data = prepare_flux_error_data(df, 'max', energy_group)
 
     # Create plots with subplots for each optimization
-    create_multi_optimization_plot(plot_data, optimizations, output_dir,
-                                   'max_flux_error_by_config',
-                                   'Maximum Flux Relative Error by Configuration',
-                                   'max')
+    filename_base = f'max_{energy_group}_flux_error_by_config' if energy_group else 'max_flux_error_by_config'
+    title_base = f'Maximum {energy_group.capitalize()} Flux Relative Error by Configuration' if energy_group else 'Maximum Flux Relative Error by Configuration'
 
-def create_mean_flux_error_plot(df, output_dir, optimizations):
+    create_multi_optimization_plot(plot_data, optimizations, output_dir,
+                                   filename_base, title_base, 'max')
+
+def create_mean_flux_error_plot(df, output_dir, optimizations, energy_group=None):
     """Create plot showing mean flux error for each configuration"""
 
     # Prepare data
-    plot_data = prepare_flux_error_data(df, 'mean')
+    plot_data = prepare_flux_error_data(df, 'mean', energy_group)
 
     # Create plots with subplots for each optimization
+    filename_base = f'mean_{energy_group}_flux_error_by_config' if energy_group else 'mean_flux_error_by_config'
+    title_base = f'Mean {energy_group.capitalize()} Flux Relative Error by Configuration' if energy_group else 'Mean Flux Relative Error by Configuration'
+
     create_multi_optimization_plot(plot_data, optimizations, output_dir,
-                                   'mean_flux_error_by_config',
-                                   'Mean Flux Relative Error by Configuration',
-                                   'mean')
+                                   filename_base, title_base, 'mean')
 
 def create_keff_error_plot(df, output_dir, optimizations):
     """Create plot showing k-eff error for each configuration"""
@@ -315,21 +335,27 @@ def create_error_table_image(plot_data, optimizations, model_order, encoding_ord
 
     print(f"  Saved: {table_file}")
 
-def prepare_flux_error_data(df, error_type):
+def prepare_flux_error_data(df, error_type, energy_group=None):
     """Prepare flux error data for plotting"""
     plot_data = []
 
     for _, row in df.iterrows():
         errors = []
         for i in range(1, 5):
-            real_col = f'I_{i}_real'
-            pred_col = f'I_{i}_predicted'
+            if energy_group:
+                # Energy-specific columns
+                real_col = f'I_{i}_{energy_group}_real'
+                pred_col = f'I_{i}_{energy_group}_predicted'
+            else:
+                # Standard columns
+                real_col = f'I_{i}_real'
+                pred_col = f'I_{i}_predicted'
 
             if real_col in row and pred_col in row:
                 real_val = row[real_col]
                 pred_val = row[pred_col]
 
-                if pd.notna(real_val) and pd.notna(pred_val) and real_val != 0:
+                if pd.notna(real_val) and pd.notna(pred_val) and real_val != 0 and real_val != 'N/A':
                     error = abs((pred_val - real_val) / real_val) * 100
                     errors.append(error)
 

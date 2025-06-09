@@ -1,6 +1,7 @@
 """
 Relative error tracker plots organized by encoding method
 FIXED: Connected graphs sharing y-axis, merged model cells, more padding
+UPDATED: Added support for energy-discretized results
 """
 
 import matplotlib.pyplot as plt
@@ -8,24 +9,61 @@ import numpy as np
 import pandas as pd
 import os
 
-def create_rel_error_tracker_plots(df, output_dir, encodings):
-    """Create relative error plots organized by encoding method"""
+def create_rel_error_tracker_plots(df, output_dir, encodings, energy_group=None, target_type=None):
+    """
+    Create relative error plots organized by encoding method
 
-    # Create plots for each error type and encoding
-    for encoding in encodings:
-        # Max flux error
-        create_encoding_error_plot(df, output_dir, encoding, 'max_flux',
-                                 os.path.join(output_dir, 'max_rel_error'))
+    Args:
+        df: DataFrame with test results
+        output_dir: Directory to save plots
+        encodings: List of encoding methods
+        energy_group: Energy group to analyze ('thermal', 'epithermal', 'fast', 'total')
+        target_type: 'flux' or 'keff' - if specified, only create that type
+    """
 
-        # Mean flux error
-        create_encoding_error_plot(df, output_dir, encoding, 'mean_flux',
-                                 os.path.join(output_dir, 'mean_rel_error'))
+    if target_type == 'keff':
+        # Only create k-eff plots
+        for encoding in encodings:
+            create_encoding_error_plot(df, output_dir, encoding, 'keff',
+                                     output_dir, energy_group=None)
+    elif target_type:
+        # Create flux plots for specific energy group
+        # Make sure subdirectories exist
+        os.makedirs(output_dir, exist_ok=True)
 
-        # K-eff error
-        create_encoding_error_plot(df, output_dir, encoding, 'keff',
-                                 os.path.join(output_dir, 'keff_rel_error'))
+        for encoding in encodings:
+            # Max flux error
+            create_encoding_error_plot(df, output_dir, encoding, 'max_flux',
+                                     output_dir, energy_group=energy_group)
 
-def create_encoding_error_plot(df, output_dir, encoding, error_type, subfolder):
+            # Mean flux error
+            create_encoding_error_plot(df, output_dir, encoding, 'mean_flux',
+                                     output_dir, energy_group=energy_group)
+    else:
+        # Create all plots (default behavior)
+        # Create subdirectories
+        os.makedirs(os.path.join(output_dir, 'max_rel_error'), exist_ok=True)
+        os.makedirs(os.path.join(output_dir, 'mean_rel_error'), exist_ok=True)
+        if not energy_group:
+            os.makedirs(os.path.join(output_dir, 'keff_rel_error'), exist_ok=True)
+
+        for encoding in encodings:
+            # Max flux error
+            create_encoding_error_plot(df, output_dir, encoding, 'max_flux',
+                                     os.path.join(output_dir, 'max_rel_error'),
+                                     energy_group=energy_group)
+
+            # Mean flux error
+            create_encoding_error_plot(df, output_dir, encoding, 'mean_flux',
+                                     os.path.join(output_dir, 'mean_rel_error'),
+                                     energy_group=energy_group)
+
+            # K-eff error (only if not energy-specific)
+            if not energy_group:
+                create_encoding_error_plot(df, output_dir, encoding, 'keff',
+                                         os.path.join(output_dir, 'keff_rel_error'))
+
+def create_encoding_error_plot(df, output_dir, encoding, error_type, subfolder, energy_group=None):
     """Create error plot for a specific encoding method with connected graphs sharing y-axis"""
 
     # Filter data for this encoding
@@ -33,12 +71,18 @@ def create_encoding_error_plot(df, output_dir, encoding, error_type, subfolder):
 
     # Prepare data based on error type
     if error_type == 'max_flux':
-        plot_data = prepare_max_flux_data(enc_df)
-        title_base = f'Maximum Flux Relative Error - {encoding.upper()} Encoding'
+        plot_data = prepare_max_flux_data(enc_df, energy_group)
+        if energy_group:
+            title_base = f'Maximum {energy_group.capitalize()} Flux Relative Error - {encoding.upper()} Encoding'
+        else:
+            title_base = f'Maximum Flux Relative Error - {encoding.upper()} Encoding'
         ylabel = 'Relative Error (%)'
     elif error_type == 'mean_flux':
-        plot_data = prepare_mean_flux_data(enc_df)
-        title_base = f'Mean Flux Relative Error - {encoding.upper()} Encoding'
+        plot_data = prepare_mean_flux_data(enc_df, energy_group)
+        if energy_group:
+            title_base = f'Mean {energy_group.capitalize()} Flux Relative Error - {encoding.upper()} Encoding'
+        else:
+            title_base = f'Mean Flux Relative Error - {encoding.upper()} Encoding'
         ylabel = 'Relative Error (%)'
     else:  # keff
         plot_data = prepare_keff_data(enc_df)
@@ -213,24 +257,36 @@ def create_encoding_error_plot(df, output_dir, encoding, error_type, subfolder):
 
     plt.tight_layout()
 
-    # Save figure
-    output_file = os.path.join(subfolder, f'{encoding}_error.png')
+    # Save figure with energy group in filename
+    if energy_group:
+        filename = f'{encoding}_{energy_group}_{error_type}_error.png'
+    else:
+        filename = f'{encoding}_error.png'
+
+    output_file = os.path.join(subfolder, filename)
     plt.savefig(output_file, dpi=300, bbox_inches='tight')
     plt.close()
 
     print(f"  Saved: {output_file}")
 
-def prepare_max_flux_data(df):
+def prepare_max_flux_data(df, energy_group=None):
     """Prepare maximum flux error data"""
     plot_data = []
 
     for _, row in df.iterrows():
         errors = []
         for i in range(1, 5):
-            if f'I_{i}_rel_error' in row:
-                error = row[f'I_{i}_rel_error']
-                if pd.notna(error):
-                    errors.append(error)
+            if energy_group:
+                # Energy-specific column
+                error_col = f'I_{i}_{energy_group}_rel_error'
+            else:
+                # Standard column
+                error_col = f'I_{i}_rel_error'
+
+            if error_col in row:
+                error = row[error_col]
+                if pd.notna(error) and error != 'N/A':
+                    errors.append(abs(error))
 
         if errors:
             plot_data.append({
@@ -242,17 +298,24 @@ def prepare_max_flux_data(df):
 
     return pd.DataFrame(plot_data)
 
-def prepare_mean_flux_data(df):
+def prepare_mean_flux_data(df, energy_group=None):
     """Prepare mean flux error data"""
     plot_data = []
 
     for _, row in df.iterrows():
         errors = []
         for i in range(1, 5):
-            if f'I_{i}_rel_error' in row:
-                error = row[f'I_{i}_rel_error']
-                if pd.notna(error):
-                    errors.append(error)
+            if energy_group:
+                # Energy-specific column
+                error_col = f'I_{i}_{energy_group}_rel_error'
+            else:
+                # Standard column
+                error_col = f'I_{i}_rel_error'
+
+            if error_col in row:
+                error = row[error_col]
+                if pd.notna(error) and error != 'N/A':
+                    errors.append(abs(error))
 
         if errors:
             plot_data.append({
@@ -271,12 +334,12 @@ def prepare_keff_data(df):
     for _, row in df.iterrows():
         if 'keff_rel_error' in row:
             error = row['keff_rel_error']
-            if pd.notna(error):
+            if pd.notna(error) and error != 'N/A':
                 plot_data.append({
                     'config_id': row['config_id'],
                     'model': row['model_class'],
                     'optimization': row['optimization_method'],
-                    'error': error
+                    'error': abs(error)
                 })
 
     return pd.DataFrame(plot_data)

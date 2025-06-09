@@ -2,6 +2,10 @@ import numpy as np
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 from hyperparameter_tuning.optuna_optimization import optimize_flux_model, optimize_keff_model
 from hyperparameter_tuning.three_stage_optimization import three_stage_optimization
+from ML_models.xgboost_train import XGBoostReactorModel
+from ML_models.random_forest_train import RandomForestReactorModel
+from ML_models.svm_train import SVMReactorModel
+from ML_models.neural_net_train import NeuralNetReactorModel
 import joblib
 import os
 import time
@@ -20,6 +24,8 @@ class ModelTrainer:
         print(f"\n{'='*60}")
         print(f"Training {model_type.upper()} for {target.upper()}")
         print(f"Optimization method: {config.optimization}")
+        if target == 'flux' and hasattr(config, 'flux_mode'):
+            print(f"Flux mode: {config.flux_mode}")
         print(f"{'='*60}")
 
         # Get appropriate data
@@ -36,6 +42,9 @@ class ModelTrainer:
             y_train = data_splits['y_keff_train']
             y_test = data_splits['y_keff_test']
 
+        # Get flux mode
+        flux_mode = config.flux_mode if hasattr(config, 'flux_mode') and target == 'flux' else 'total'
+
         # Get best hyperparameters
         optimization_start = time.time()
 
@@ -47,7 +56,8 @@ class ModelTrainer:
                     model_type=model_type,
                     n_trials=config.n_trials,
                     n_jobs=config.n_jobs,
-                    groups=groups_train  # NEW: Pass groups
+                    groups=groups_train,  # NEW: Pass groups
+                    flux_mode=flux_mode   # NEW: Pass flux mode
                 )
             else:  # keff
                 best_params, study = optimize_keff_model(
@@ -244,6 +254,17 @@ class ModelTrainer:
         else:
             raise ValueError(f"Unknown model type: {model_type}")
 
+        # Set flux mode if it's a flux model
+        if target == 'flux' and hasattr(self.data_handler, 'flux_mode'):
+            if hasattr(model, 'set_flux_mode'):
+                model.set_flux_mode(self.data_handler.flux_mode)
+            else:
+                # Direct setting for backward compatibility
+                if self.data_handler.flux_mode == 'total':
+                    model._n_flux_outputs = 4
+                else:
+                    model._n_flux_outputs = 12
+
         # Train the appropriate target with progress tracking
         print(f"  Training {model_type} model...")
         if target == 'flux':
@@ -263,26 +284,40 @@ class ModelTrainer:
         else:
             predictions = model.predict_keff(X_test)
 
+        # Get flux mode if available
+        flux_mode = self.data_handler.flux_mode if hasattr(self.data_handler, 'flux_mode') else 'total'
+
         # Calculate metrics
         if target == 'flux' and len(y_test.shape) > 1 and y_test.shape[1] > 1:
-            # Multi-output metrics - average across positions
-            mse = np.mean([mean_squared_error(y_test[:, i], predictions[:, i])
-                        for i in range(y_test.shape[1])])
-            mae = np.mean([mean_absolute_error(y_test[:, i], predictions[:, i])
-                        for i in range(y_test.shape[1])])
-            r2 = np.mean([r2_score(y_test[:, i], predictions[:, i])
-                        for i in range(y_test.shape[1])])
+            # Multi-output metrics
+            if flux_mode == 'bin':
+                # Use MSE for bins
+                mse = mean_squared_error(y_test, predictions)
+                mae = mean_absolute_error(y_test, predictions)
+                r2 = r2_score(y_test, predictions)
 
-            # Calculate MAPE for flux
-            # Check if log transform was used
-            if self.data_handler and self.data_handler.use_log_flux:
-                # Convert from log scale to original scale for MAPE
-                y_test_original = 10 ** y_test
-                predictions_original = 10 ** predictions
-                mape = np.mean(np.abs((y_test_original - predictions_original) / y_test_original)) * 100
-            else:
-                # Direct MAPE calculation
-                mape = np.mean(np.abs((y_test - predictions) / (y_test + 1e-10))) * 100
+                # No MAPE for bins - use relative MSE instead
+                mape = np.sqrt(mse) * 100  # Convert RMSE to percentage-like metric
+
+            else:  # total or energy flux
+                # Average metrics across outputs
+                n_outputs = y_test.shape[1]
+                mse = np.mean([mean_squared_error(y_test[:, i], predictions[:, i])
+                            for i in range(n_outputs)])
+                mae = np.mean([mean_absolute_error(y_test[:, i], predictions[:, i])
+                            for i in range(n_outputs)])
+                r2 = np.mean([r2_score(y_test[:, i], predictions[:, i])
+                            for i in range(n_outputs)])
+
+                # Calculate MAPE for flux
+                if self.data_handler and self.data_handler.use_log_flux:
+                    # Convert from log scale to original scale for MAPE
+                    y_test_original = 10 ** y_test
+                    predictions_original = 10 ** predictions
+                    mape = np.mean(np.abs((y_test_original - predictions_original) / y_test_original)) * 100
+                else:
+                    # Direct MAPE calculation
+                    mape = np.mean(np.abs((y_test - predictions) / (y_test + 1e-10))) * 100
 
         else:
             # Single output metrics (k-eff)
@@ -307,7 +342,10 @@ class ModelTrainer:
         print(f"  Test RMSE: {np.sqrt(mse):.6f}")
         print(f"  Test MAE: {mae:.6f}")
         print(f"  Test R²: {r2:.4f}")
-        print(f"  Test MAPE: {mape:.2f}%")
+        if flux_mode == 'bin' and target == 'flux':
+            print(f"  Test RMSE%: {mape:.2f}%")
+        else:
+            print(f"  Test MAPE: {mape:.2f}%")
 
         return metrics
 
@@ -317,10 +355,12 @@ class ModelTrainer:
         if self.data_handler:
             use_log_flux = self.data_handler.use_log_flux if target == 'flux' else False
             flux_scale = self.data_handler.flux_scale if not use_log_flux else 1.0
+            flux_mode = self.data_handler.flux_mode if hasattr(self.data_handler, 'flux_mode') else 'total'
         else:
             # Fallback values
             use_log_flux = True if target == 'flux' else False
             flux_scale = 1e14
+            flux_mode = 'total'
 
         # Use the model's own save_model method
         saved_path = model.save_model(
@@ -330,6 +370,7 @@ class ModelTrainer:
             optimization_method=optimization,
             flux_scale=flux_scale,
             use_log_flux=use_log_flux,
+            flux_mode=flux_mode,  # NEW
             **metadata  # Pass any additional metadata
         )
 
@@ -338,5 +379,6 @@ class ModelTrainer:
         print(f"  Flux metadata:")
         print(f"    - use_log_flux: {use_log_flux}")
         print(f"    - flux_scale: {flux_scale}")
+        print(f"    - flux_mode: {flux_mode}")
 
         return saved_path

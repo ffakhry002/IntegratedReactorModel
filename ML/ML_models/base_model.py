@@ -1,7 +1,8 @@
-# Option 1: Create a new file ML_models/base_model.py
-# ML_models/base_model.py
 from abc import ABC, abstractmethod
 import numpy as np
+import os
+import joblib
+from datetime import datetime
 
 class ReactorModelBase(ABC):
     """Base class for all reactor ML models to ensure consistency"""
@@ -9,8 +10,22 @@ class ReactorModelBase(ABC):
     def __init__(self):
         self.flux_model = None
         self.keff_model = None
-        self._n_flux_outputs = 4  # Standard number of flux positions
+        self._n_flux_outputs = 4  # Standard number of flux positions (will be updated based on flux_mode)
         self.model_class_name = None  # Must be set by subclasses
+        self.flux_mode = 'total'  # Default
+        self.params = {}  # Initialize params dict
+
+    def set_flux_mode(self, flux_mode):
+        """Set the flux mode and update expected outputs"""
+        self.flux_mode = flux_mode
+        if flux_mode == 'total':
+            self._n_flux_outputs = 4
+        else:  # energy or bin
+            self._n_flux_outputs = 12
+
+    def get_flux_mode(self):
+        """Get the current flux mode"""
+        return self.flux_mode
 
     @abstractmethod
     def fit_flux(self, X_train, y_flux):
@@ -71,3 +86,122 @@ class ReactorModelBase(ABC):
                 raise ValueError(f"Expected {n_samples} k-eff predictions, got {predictions.shape[0]}")
 
         return predictions
+
+    def save_model(self, filepath, model_type, encoding, optimization_method,
+                   flux_scale=1e14, use_log_flux=False, flux_mode='total', **extra_metadata):
+        """Save trained model with comprehensive metadata"""
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+
+        # Construct filename with all identifiers
+        base_name = os.path.splitext(os.path.basename(filepath))[0]
+        dir_name = os.path.dirname(filepath)
+
+        # Format: random_forest_flux_physics_optuna.pkl or random_forest_flux_energy_physics_optuna.pkl
+        if model_type == 'flux' and flux_mode != 'total':
+            new_filename = f"{self.model_class_name}_{model_type}_{flux_mode}_{encoding}_{optimization_method}.pkl"
+        else:
+            new_filename = f"{self.model_class_name}_{model_type}_{encoding}_{optimization_method}.pkl"
+        full_path = os.path.join(dir_name, new_filename)
+
+        save_dict = {
+            'model_class': self.model_class_name,
+            'model_type': model_type,  # 'flux' or 'keff'
+            'encoding': encoding,
+            'optimization_method': optimization_method,
+            'params': self.params,
+            # CRITICAL: Add flux transformation metadata
+            'flux_scale': flux_scale,
+            'use_log_flux': use_log_flux,
+            'flux_mode': flux_mode,  # NEW
+            # Add timestamp for tracking
+            'saved_at': datetime.now().isoformat(),
+            # Add any extra metadata
+            **extra_metadata
+        }
+
+        # Let subclasses add their specific metadata
+        specific_metadata = self._get_model_specific_metadata()
+        save_dict.update(specific_metadata)
+
+        if model_type == 'flux':
+            save_dict['model'] = self.flux_model
+            # Store information about output shape
+            if hasattr(self.flux_model, 'n_outputs_'):
+                save_dict['n_flux_outputs'] = self.flux_model.n_outputs_
+            else:
+                # Infer from flux_mode
+                if flux_mode == 'total':
+                    save_dict['n_flux_outputs'] = 4
+                else:  # energy or bin
+                    save_dict['n_flux_outputs'] = 12
+
+            # Handle scalers for models that use them
+            if hasattr(self, 'scale_features') and self.scale_features and hasattr(self, 'flux_scaler'):
+                save_dict['scaler'] = self.flux_scaler
+
+        else:  # keff
+            save_dict['model'] = self.keff_model
+
+            # Handle scalers for models that use them
+            if hasattr(self, 'scale_features') and self.scale_features and hasattr(self, 'keff_scaler'):
+                save_dict['scaler'] = self.keff_scaler
+
+        joblib.dump(save_dict, full_path)
+        print(f"Model saved to: {full_path}")
+
+        return full_path
+
+    def _get_model_specific_metadata(self):
+        """Override in subclasses to add model-specific metadata"""
+        return {}
+
+    @classmethod
+    def load_model(cls, filepath):
+        """Load model with all metadata"""
+        data = joblib.load(filepath)
+
+        # Create a temporary instance to get the model_class_name
+        temp_instance = cls()
+        expected_class = temp_instance.model_class_name
+
+        # Verify this is the correct model class
+        if data.get('model_class') != expected_class:
+            raise ValueError(f"Model file is for {data.get('model_class')}, not {expected_class}")
+
+        # Create instance with original parameters
+        model = cls(**data.get('params', {}))
+
+        # Restore model-specific attributes
+        model._restore_model_specific_attributes(data)
+
+        # Restore flux mode if present
+        if 'flux_mode' in data:
+            model.flux_mode = data['flux_mode']
+            if data['flux_mode'] == 'total':
+                model._n_flux_outputs = 4
+            else:
+                model._n_flux_outputs = 12
+        else:
+            # Backward compatibility - check n_flux_outputs
+            model._n_flux_outputs = data.get('n_flux_outputs', 4)
+            model.flux_mode = 'total' if model._n_flux_outputs == 4 else 'energy'
+
+        # Restore the trained model
+        if data['model_type'] == 'flux':
+            model.flux_model = data['model']
+        else:
+            model.keff_model = data['model']
+
+        # Return model and metadata
+        return model, {
+            'flux_scale': data.get('flux_scale', 1e14),
+            'use_log_flux': data.get('use_log_flux', False),
+            'flux_mode': data.get('flux_mode', 'total'),
+            'encoding': data.get('encoding'),
+            'optimization_method': data.get('optimization_method'),
+            'saved_at': data.get('saved_at')
+        }
+
+    def _restore_model_specific_attributes(self, data):
+        """Override in subclasses to restore model-specific attributes"""
+        pass

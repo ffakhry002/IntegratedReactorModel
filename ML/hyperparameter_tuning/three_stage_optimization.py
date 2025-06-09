@@ -38,7 +38,7 @@ def with_timeout(timeout_seconds):
     return decorator
 
 def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost',
-                           n_jobs=-1, target_type='flux', use_log_flux=True, groups=None):
+                           n_jobs=-1, target_type='flux', use_log_flux=True, groups=None, flux_mode='total'):
     """
     Three-stage hyperparameter optimization: Random → Grid → Bayesian
     Complete implementation for all model types with timeouts and verbosity
@@ -82,8 +82,12 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
     else:
         print(f"   -   WARNING: No groups provided - may have CV leakage!")
 
-    # Create custom MAPE scorer for flux models
-    if target_type == 'flux':
+
+    if target_type == 'flux' and flux_mode == 'bin':
+        scoring = 'neg_mean_squared_error'
+        print(f"   - Using MSE scoring for energy bins")
+    elif target_type == 'flux':
+        # Create custom MAPE scorer for flux models
         from sklearn.metrics import make_scorer
 
         def mape_scorer(y_true, y_pred):

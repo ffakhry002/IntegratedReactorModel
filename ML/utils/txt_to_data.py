@@ -6,15 +6,16 @@ import pandas as pd
 from datetime import datetime
 import os
 
-def parse_reactor_data(filename: str) -> Tuple[List[np.ndarray], List[Dict], List[float], List[str]]:
+def parse_reactor_data(filename: str) -> Tuple[List[np.ndarray], List[Dict], List[float], List[str], List[Dict]]:
     """
     Parse reactor configuration data from text file with validation.
-    Returns: (lattices, flux_data, k_effectives, descriptions)
+    Returns: (lattices, flux_data, k_effectives, descriptions, energy_groups)
     """
     lattices = []
     flux_data = []
     k_effectives = []
     descriptions = []
+    energy_groups = []  # NEW: Store energy group percentages
     all_warnings = []
 
     with open(filename, 'r') as f:
@@ -58,11 +59,35 @@ def parse_reactor_data(filename: str) -> Tuple[List[np.ndarray], List[Dict], Lis
         else:
             k_effectives.append(None)
 
-        # Extract flux data
+        # Extract flux data AND energy groups
         flux_dict_raw = {}
-        flux_matches = re.findall(r'(I_\d+) Flux ([\d.]+e[+-]\d+)', run)
-        for irr_pos, flux_val in flux_matches:
+        energy_dict = {}  # NEW: Store energy percentages
+
+        # Pattern to match flux line with energy groups
+        flux_pattern = r'(I_\d+) Flux ([\d.]+e[+-]\d+) \[([\d.]+)% thermal, ([\d.]+)% epithermal, ([\d.]+)% fast\]'
+        flux_matches = re.findall(flux_pattern, run)
+
+        for irr_pos, flux_val, thermal, epithermal, fast in flux_matches:
             flux_dict_raw[irr_pos] = float(flux_val)
+
+            # Store energy percentages as fractions (0-1)
+            thermal_frac = float(thermal) / 100.0
+            epithermal_frac = float(epithermal) / 100.0
+            fast_frac = float(fast) / 100.0
+
+            # Validate and normalize if needed
+            total = thermal_frac + epithermal_frac + fast_frac
+            if abs(total - 1.0) > 0.005:  # More than 0.5% off
+                all_warnings.append(f"RUN {run_idx + 1}: Energy fractions for {irr_pos} sum to {total:.3f}, normalizing to 1.0")
+                thermal_frac /= total
+                epithermal_frac /= total
+                fast_frac /= total
+
+            energy_dict[irr_pos] = {
+                'thermal': thermal_frac,
+                'epithermal': epithermal_frac,
+                'fast': fast_frac
+            }
 
         # Validate and normalize flux data
         if lattice.size > 0:  # Only validate if lattice was parsed successfully
@@ -70,8 +95,10 @@ def parse_reactor_data(filename: str) -> Tuple[List[np.ndarray], List[Dict], Lis
             if warnings:
                 all_warnings.extend([f"RUN {run_idx + 1}: {w}" for w in warnings])
             flux_data.append(flux_dict_normalized)
+            energy_groups.append(energy_dict)
         else:
             flux_data.append(flux_dict_raw)
+            energy_groups.append(energy_dict)
 
     # Print all warnings at the end
     if all_warnings:
@@ -80,7 +107,7 @@ def parse_reactor_data(filename: str) -> Tuple[List[np.ndarray], List[Dict], Lis
             print(f"  - {warning}")
         print()
 
-    return lattices, flux_data, k_effectives, descriptions
+    return lattices, flux_data, k_effectives, descriptions, energy_groups
 
 def create_reactor_data_excel(data_file_path: str, output_prefix: str = "parsed_data_", output_dir: str = None):
     """
@@ -97,7 +124,7 @@ def create_reactor_data_excel(data_file_path: str, output_prefix: str = "parsed_
         str: Path to the created Excel file
     """
     # Parse the data
-    lattices, flux_data, k_effectives, descriptions = parse_reactor_data(data_file_path)
+    lattices, flux_data, k_effectives, descriptions, energy_groups = parse_reactor_data(data_file_path)
 
     # Check if this is test data (no augmentation needed)
     is_test_data = 'test' in output_prefix.lower()
@@ -105,7 +132,7 @@ def create_reactor_data_excel(data_file_path: str, output_prefix: str = "parsed_
     # Prepare data for DataFrame
     excel_data = []
 
-    for config_idx, (desc, lattice, k_eff, flux_dict) in enumerate(zip(descriptions, lattices, k_effectives, flux_data)):
+    for config_idx, (desc, lattice, k_eff, flux_dict, energy_dict) in enumerate(zip(descriptions, lattices, k_effectives, flux_data, energy_groups)):
         if lattice.size == 0:  # Skip if lattice parsing failed
             continue
 
@@ -137,9 +164,15 @@ def create_reactor_data_excel(data_file_path: str, output_prefix: str = "parsed_
             excel_data.append(row)
         else:
             # For training data, apply rotational symmetries to get all 8 variations
-            augmented_configs = apply_rotational_symmetry(lattice, flux_dict, k_eff)
+            augmented_configs = apply_rotational_symmetry(lattice, flux_dict, k_eff, energy_dict)
 
-            for aug_idx, (aug_lattice, aug_flux_dict, aug_k_eff) in enumerate(augmented_configs):
+            # Handle both 3-tuple and 4-tuple returns from apply_rotational_symmetry
+            for aug_idx, aug_data in enumerate(augmented_configs):
+                if len(aug_data) == 4:
+                    aug_lattice, aug_flux_dict, aug_k_eff, aug_energy_dict = aug_data
+                else:
+                    aug_lattice, aug_flux_dict, aug_k_eff = aug_data
+                    aug_energy_dict = None
                 # Determine the transformation type
                 if aug_idx < 4:
                     transform = f"Rotation {aug_idx * 90}°"
@@ -322,15 +355,19 @@ def create_reactor_data_excel(data_file_path: str, output_prefix: str = "parsed_
 
     return excel_filepath
 
-def apply_rotational_symmetry(lattice, flux_dict, k_eff):
+def apply_rotational_symmetry(lattice, flux_dict, k_eff, energy_dict=None):
     """
     Apply 8-fold rotational symmetry augmentation to reactor configuration
     FIXED: Properly tracks flux values during rotation
+    NOW: Also handles energy group data
     """
     augmented_data = []
 
     # Original configuration
-    augmented_data.append((lattice.copy(), flux_dict.copy(), k_eff))
+    if energy_dict is not None:
+        augmented_data.append((lattice.copy(), flux_dict.copy(), k_eff, energy_dict.copy()))
+    else:
+        augmented_data.append((lattice.copy(), flux_dict.copy(), k_eff))
 
     # Track positions of irradiation cells
     irr_positions = {}
@@ -342,40 +379,67 @@ def apply_rotational_symmetry(lattice, flux_dict, k_eff):
     # 90 degree rotation
     rotated_90 = np.rot90(lattice, k=1)
     flux_90 = rotate_flux_values(lattice, rotated_90, flux_dict, irr_positions, k=1)
-    augmented_data.append((rotated_90, flux_90, k_eff))
+    energy_90 = rotate_flux_values(lattice, rotated_90, energy_dict, irr_positions, k=1) if energy_dict else None
+    if energy_dict is not None:
+        augmented_data.append((rotated_90, flux_90, k_eff, energy_90))
+    else:
+        augmented_data.append((rotated_90, flux_90, k_eff))
 
     # 180 degree rotation
     rotated_180 = np.rot90(lattice, k=2)
     flux_180 = rotate_flux_values(lattice, rotated_180, flux_dict, irr_positions, k=2)
-    augmented_data.append((rotated_180, flux_180, k_eff))
+    energy_180 = rotate_flux_values(lattice, rotated_180, energy_dict, irr_positions, k=2) if energy_dict else None
+    if energy_dict is not None:
+        augmented_data.append((rotated_180, flux_180, k_eff, energy_180))
+    else:
+        augmented_data.append((rotated_180, flux_180, k_eff))
 
     # 270 degree rotation
     rotated_270 = np.rot90(lattice, k=3)
     flux_270 = rotate_flux_values(lattice, rotated_270, flux_dict, irr_positions, k=3)
-    augmented_data.append((rotated_270, flux_270, k_eff))
+    energy_270 = rotate_flux_values(lattice, rotated_270, energy_dict, irr_positions, k=3) if energy_dict else None
+    if energy_dict is not None:
+        augmented_data.append((rotated_270, flux_270, k_eff, energy_270))
+    else:
+        augmented_data.append((rotated_270, flux_270, k_eff))
 
     # Horizontal flip
     flipped_h = np.fliplr(lattice)
     flux_h = flip_flux_values(lattice, flipped_h, flux_dict, irr_positions, axis='horizontal')
-    augmented_data.append((flipped_h, flux_h, k_eff))
+    energy_h = flip_flux_values(lattice, flipped_h, energy_dict, irr_positions, axis='horizontal') if energy_dict else None
+    if energy_dict is not None:
+        augmented_data.append((flipped_h, flux_h, k_eff, energy_h))
+    else:
+        augmented_data.append((flipped_h, flux_h, k_eff))
 
     # Vertical flip
     flipped_v = np.flipud(lattice)
     flux_v = flip_flux_values(lattice, flipped_v, flux_dict, irr_positions, axis='vertical')
-    augmented_data.append((flipped_v, flux_v, k_eff))
+    energy_v = flip_flux_values(lattice, flipped_v, energy_dict, irr_positions, axis='vertical') if energy_dict else None
+    if energy_dict is not None:
+        augmented_data.append((flipped_v, flux_v, k_eff, energy_v))
+    else:
+        augmented_data.append((flipped_v, flux_v, k_eff))
 
     # Diagonal flip (transpose)
     transposed = lattice.T
     flux_t = transpose_flux_values(lattice, transposed, flux_dict, irr_positions)
-    augmented_data.append((transposed, flux_t, k_eff))
+    energy_t = transpose_flux_values(lattice, transposed, energy_dict, irr_positions) if energy_dict else None
+    if energy_dict is not None:
+        augmented_data.append((transposed, flux_t, k_eff, energy_t))
+    else:
+        augmented_data.append((transposed, flux_t, k_eff))
 
     # Anti-diagonal flip
     anti_diag = np.fliplr(lattice.T)
     flux_ad = anti_diagonal_flux_values(lattice, anti_diag, flux_dict, irr_positions)
-    augmented_data.append((anti_diag, flux_ad, k_eff))
+    energy_ad = anti_diagonal_flux_values(lattice, anti_diag, energy_dict, irr_positions) if energy_dict else None
+    if energy_dict is not None:
+        augmented_data.append((anti_diag, flux_ad, k_eff, energy_ad))
+    else:
+        augmented_data.append((anti_diag, flux_ad, k_eff))
 
     return augmented_data
-
 
 def rotate_flux_values(original_lattice, rotated_lattice, flux_dict, irr_positions, k):
     """
@@ -571,7 +635,7 @@ def get_sorted_flux_values(lattice, flux_dict, irr_positions):
 
 # UPDATED prepare_ml_data function for txt_to_data.py:
 
-def prepare_ml_data(lattices: List[np.ndarray], flux_data: List[Dict], k_effectives: List[float]):
+def prepare_ml_data(lattices: List[np.ndarray], flux_data: List[Dict], k_effectives: List[float], energy_groups: List[Dict] = None):
     """
     Prepare data for ML training with rotational augmentation.
     Returns: (X_features, y_flux_values, y_k_eff, irr_positions_list)
@@ -581,11 +645,22 @@ def prepare_ml_data(lattices: List[np.ndarray], flux_data: List[Dict], k_effecti
     y_k_eff = []
     irr_positions_list = []
 
-    for lattice, flux_dict, k_eff in zip(lattices, flux_data, k_effectives):
-        # Apply rotational symmetry
-        augmented = apply_rotational_symmetry(lattice, flux_dict, k_eff)
+    # Handle backward compatibility
+    if energy_groups is None:
+        energy_groups = [{}] * len(lattices)
 
-        for aug_lattice, aug_flux, aug_k_eff in augmented:
+    for lattice, flux_dict, k_eff, energy_dict in zip(lattices, flux_data, k_effectives, energy_groups):
+        # Apply rotational symmetry
+        augmented = apply_rotational_symmetry(lattice, flux_dict, k_eff, energy_dict)
+
+        for aug_data in augmented:
+            # Handle both 3 and 4 value returns
+            if len(aug_data) == 4:
+                aug_lattice, aug_flux, aug_k_eff, aug_energy = aug_data
+            else:
+                aug_lattice, aug_flux, aug_k_eff = aug_data
+                aug_energy = {}
+
             # Convert lattice to feature vector
             feature_vec = []
             irr_positions = []
