@@ -35,13 +35,22 @@ def timeout(duration):
         # Disable the alarm
         signal.alarm(0)
 
-def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=250, n_jobs=10):
-    """Optimize hyperparameters for flux prediction only"""
+def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=250, n_jobs=10, use_log_flux=True, groups=None):
+    """Optimize hyperparameters for flux prediction only - NOW USING MAPE"""
 
     print(f"\n{'='*60}")
     print(f"Starting {model_type.upper()} optimization for FLUX")
+    print(f"Optimization metric: MAPE (Mean Absolute Percentage Error)")
     print(f"Total trials: {n_trials}, Timeout per trial: {TRIAL_TIMEOUT}s")
     print(f"Total timeout: {TOTAL_TIMEOUT}s")
+
+    # NEW: Check if groups provided
+    if groups is not None:
+        print(f"Using GroupKFold to prevent augmentation leakage")
+        print(f"Number of unique configurations: {len(np.unique(groups))}")
+    else:
+        print(f"WARNING: No groups provided - may have augmentation leakage!")
+
     print(f"{'='*60}\n")
 
     start_time = time.time()
@@ -60,6 +69,7 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
         print(f"\n[Trial {trial.number + 1}/{n_trials}] Starting at {datetime.now().strftime('%H:%M:%S')}")
 
         try:
+            # [KEEP ALL YOUR EXISTING PARAMETER SELECTION CODE HERE - NO CHANGES]
             if model_type == 'xgboost':
                 params = {
                     'n_estimators': trial.suggest_int('n_estimators', 100, 1500),
@@ -71,7 +81,7 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
                     'reg_lambda': trial.suggest_float('reg_lambda', 1e-8, 10.0, log=True),
                     'min_child_weight': trial.suggest_int('min_child_weight', 1, 10),
                     'n_jobs': 1,
-                    'verbosity': 2  # High verbosity for XGBoost
+                    'verbosity': 2
                 }
                 print(f"  XGBoost params: n_estimators={params['n_estimators']}, max_depth={params['max_depth']}")
                 model = MultiOutputRegressor(xgb.XGBRegressor(**params))
@@ -84,7 +94,7 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
                     'min_samples_leaf': trial.suggest_int('min_samples_leaf', 1, 10),
                     'max_features': trial.suggest_categorical('max_features', ['sqrt', 'log2', 0.3, 0.5, 0.7]),
                     'n_jobs': 1,
-                    'verbose': 1  # Verbose output for RF
+                    'verbose': 1
                 }
                 print(f"  RF params: n_estimators={params['n_estimators']}, max_depth={params['max_depth']}")
                 model = RandomForestRegressor(**params)
@@ -95,8 +105,8 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
                     'gamma': trial.suggest_float('gamma', 0.0001, 1, log=True),
                     'epsilon': trial.suggest_float('epsilon', 0.001, 1.0, log=True),
                     'kernel': trial.suggest_categorical('kernel', ['rbf', 'poly', 'sigmoid']),
-                    'verbose': True,  # Verbose output for SVM
-                    'max_iter': 10000  # Reasonable max iterations
+                    'verbose': True,
+                    'max_iter': 10000
                 }
                 if params['kernel'] == 'poly':
                     params['degree'] = trial.suggest_int('degree', 2, 5)
@@ -116,63 +126,102 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
                     'activation': trial.suggest_categorical('activation', ['relu', 'tanh']),
                     'solver': trial.suggest_categorical('solver', ['adam', 'lbfgs']),
                     'max_iter': 500,
-                    'verbose': True,  # Verbose output for NN
-                    'early_stopping': True,  # Enable early stopping
+                    'verbose': True,
+                    'early_stopping': True,
                     'n_iter_no_change': 10
                 }
                 print(f"  NN params: layers={params['hidden_layer_sizes']}, solver={params['solver']}")
                 model = MLPRegressor(**params)
 
-            # Train and evaluate with CV - keeping all original functionality
-            print(f"  Starting cross-validation...")
-            cv_scores = []
+            # NEW MAPE-BASED CROSS-VALIDATION WITH GROUP SUPPORT
+            print(f"  Starting MAPE-based cross-validation...")
+            mape_scores = []
 
-            # Set environment variable to limit thread usage (helps with deadlocks)
+            # Set environment variable to limit thread usage
             os.environ['OMP_NUM_THREADS'] = '1'
             os.environ['MKL_NUM_THREADS'] = '1'
 
-            for fold_idx in range(10):
+            # NEW: Use GroupKFold if groups provided
+            if groups is not None:
+                from sklearn.model_selection import GroupKFold
+                cv = GroupKFold(n_splits=10)
+                cv_splits = cv.split(X_train, y_flux_train, groups)
+            else:
+                from sklearn.model_selection import KFold
+                cv = KFold(n_splits=10, shuffle=True, random_state=42)
+                cv_splits = cv.split(X_train)
+
+            for fold_idx, (train_idx, val_idx) in enumerate(cv_splits):
                 fold_start = time.time()
 
                 # Check trial timeout
                 if time.time() - trial_start > TRIAL_TIMEOUT:
                     print(f"  [TIMEOUT] Trial exceeded {TRIAL_TIMEOUT}s limit")
-                    if cv_scores:  # If we have some scores, use their mean
-                        return -np.mean(cv_scores)
+                    if mape_scores:
+                        return np.mean(mape_scores)
                     else:
                         return float('inf')
 
-                print(f"    Fold {fold_idx + 1}/10...", end='', flush=True)
+                print(f"    Fold {fold_idx + 1}/5...", end='', flush=True)
 
-                # Suppress warnings during CV
-                with warnings.catch_warnings():
-                    warnings.filterwarnings('ignore')
-                    try:
-                        score = cross_val_score(model, X_train, y_flux_train, cv=10,
-                                              scoring='neg_mean_squared_error', n_jobs=1)
-                        cv_scores.extend(score)
-                        print(f" done ({time.time() - fold_start:.1f}s)")
-                        break  # We got all scores at once
-                    except Exception as e:
-                        print(f" error: {str(e)[:50]}")
-                        continue
+                try:
+                    # Split data
+                    X_fold_train = X_train[train_idx]
+                    X_fold_val = X_train[val_idx]
+                    y_fold_train = y_flux_train[train_idx]
+                    y_fold_val = y_flux_train[val_idx]
 
-            if not cv_scores:
-                print(f"  No valid CV scores obtained")
+                    # Train model
+                    model.fit(X_fold_train, y_fold_train)
+
+                    # Predict
+                    y_pred = model.predict(X_fold_val)
+
+                    # Convert from log scale to linear scale for MAPE calculation
+                    if use_log_flux:
+                        y_fold_val_linear = 10 ** y_fold_val
+                        y_pred_linear = 10 ** y_pred
+                    else:
+                        # If not using log scale, assume data is already scaled
+                        y_fold_val_linear = y_fold_val * 1e14  # Adjust scale as needed
+                        y_pred_linear = y_pred * 1e14
+
+                    # Calculate MAPE for each sample
+                    fold_mapes = []
+                    for i in range(len(y_fold_val_linear)):
+                        # Calculate MAPE for all 4 flux positions
+                        sample_errors = []
+                        for j in range(4):  # 4 flux positions
+                            if y_fold_val_linear[i, j] != 0:
+                                error = abs((y_pred_linear[i, j] - y_fold_val_linear[i, j]) / y_fold_val_linear[i, j]) * 100
+                                sample_errors.append(error)
+                        if sample_errors:
+                            fold_mapes.append(np.mean(sample_errors))
+
+                    fold_mape = np.mean(fold_mapes)
+                    mape_scores.append(fold_mape)
+                    print(f" done (MAPE: {fold_mape:.2f}%, time: {time.time() - fold_start:.1f}s)")
+
+                except Exception as e:
+                    print(f" error: {str(e)[:50]}")
+                    continue
+
+            if not mape_scores:
+                print(f"  No valid MAPE scores obtained")
                 return float('inf')
 
-            final_score = -np.mean(cv_scores)
-            print(f"  Trial {trial.number} score: {final_score:.6f}")
+            final_mape = np.mean(mape_scores)
+            print(f"  Trial {trial.number} MAPE: {final_mape:.2f}%")
             print(f"  Trial time: {time.time() - trial_start:.1f}s")
 
             # Increment completed trials
             completed_trials += 1
 
-            # Force garbage collection to free memory
+            # Force garbage collection
             del model
             gc.collect()
 
-            return final_score
+            return final_mape  # Return MAPE to minimize
 
         except TimeoutError:
             print(f"  [TIMEOUT] Trial {trial.number} timed out")
@@ -187,17 +236,16 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
     study = optuna.create_study(
         direction='minimize',
         sampler=TPESampler(n_startup_trials=30, seed=42),
-        pruner=None  # Disable pruning to avoid complexity
+        pruner=None
     )
 
     # Add callback to print best value updates
     def callback(study, trial):
         if study.best_trial.number == trial.number:
-            print(f"\n[NEW BEST] Trial {trial.number}: {study.best_value:.6f}")
+            print(f"\n[NEW BEST] Trial {trial.number}: MAPE = {study.best_value:.2f}%")
             print(f"Parameters: {trial.params}\n")
 
     try:
-        # Use catch to prevent hanging
         study.optimize(
             objective,
             n_trials=n_trials,
@@ -205,8 +253,8 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
             show_progress_bar=True,
             callbacks=[callback],
             timeout=TOTAL_TIMEOUT,
-            catch=(Exception,),  # Catch all exceptions
-            gc_after_trial=True  # Force garbage collection after each trial
+            catch=(Exception,),
+            gc_after_trial=True
         )
         print(f"\nOptimization completed successfully!")
     except KeyboardInterrupt:
@@ -221,7 +269,7 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
     print(f"Optimization finished. Completed trials: {len(study.trials)}/{n_trials}")
 
     if len(study.trials) > 0:
-        print(f"Best score: {study.best_value:.6f}")
+        print(f"Best MAPE: {study.best_value:.2f}%")
         print(f"Total time: {time.time() - start_time:.1f}s")
         print(f"{'='*60}\n")
         return study.best_params, study
@@ -230,13 +278,21 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
         print(f"{'='*60}\n")
         return {}, study
 
-def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=250, n_jobs=10):
+def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=250, n_jobs=10, groups=None):
     """Optimize hyperparameters for k-eff prediction only"""
 
     print(f"\n{'='*60}")
     print(f"Starting {model_type.upper()} optimization for K-EFF")
     print(f"Total trials: {n_trials}, Timeout per trial: {TRIAL_TIMEOUT}s")
     print(f"Total timeout: {TOTAL_TIMEOUT}s")
+
+    # NEW: Check if groups provided
+    if groups is not None:
+        print(f"Using GroupKFold to prevent augmentation leakage")
+        print(f"Number of unique configurations: {len(np.unique(groups))}")
+    else:
+        print(f"WARNING: No groups provided - may have augmentation leakage!")
+
     print(f"{'='*60}\n")
 
     start_time = time.time()
@@ -318,7 +374,7 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
                 print(f"  NN params: layers={params['hidden_layer_sizes']}, solver={params['solver']}")
                 model = MLPRegressor(**params)
 
-            # Train and evaluate with CV - keeping all original functionality
+            # Train and evaluate with CV - UPDATED FOR GROUPS
             print(f"  Starting cross-validation...")
             cv_scores = []
 
@@ -326,33 +382,38 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
             os.environ['OMP_NUM_THREADS'] = '1'
             os.environ['MKL_NUM_THREADS'] = '1'
 
-            for fold_idx in range(10):
-                fold_start = time.time()
+            # NEW: Use GroupKFold if groups provided
+            if groups is not None:
+                from sklearn.model_selection import GroupKFold, cross_val_score
+                cv = GroupKFold(n_splits=10)
+            else:
+                from sklearn.model_selection import cross_val_score
+                cv = 10  # Regular KFold
 
-                # Check trial timeout
-                if time.time() - trial_start > TRIAL_TIMEOUT:
-                    print(f"  [TIMEOUT] Trial exceeded {TRIAL_TIMEOUT}s limit")
-                    if cv_scores:  # If we have some scores, use their mean
-                        return -np.mean(cv_scores)
+            # Use cross_val_score with proper CV
+            with warnings.catch_warnings():
+                warnings.filterwarnings('ignore')
+                try:
+                    if groups is not None:
+                        # Use GroupKFold with groups
+                        scores = cross_val_score(model, X_train, y_keff_train.ravel(),
+                                               cv=cv,
+                                               groups=groups,
+                                               scoring='neg_mean_squared_error',
+                                               n_jobs=1)
                     else:
-                        return float('inf')
+                        # Regular cross-validation
+                        scores = cross_val_score(model, X_train, y_keff_train.ravel(),
+                                               cv=cv,
+                                               scoring='neg_mean_squared_error',
+                                               n_jobs=1)
+                    cv_scores = scores
+                    print(f"  CV completed. Mean score: {np.mean(scores):.6f}")
+                except Exception as e:
+                    print(f"  CV error: {str(e)[:100]}")
+                    return float('inf')
 
-                print(f"    Fold {fold_idx + 1}/10...", end='', flush=True)
-
-                # Suppress warnings during CV
-                with warnings.catch_warnings():
-                    warnings.filterwarnings('ignore')
-                    try:
-                        score = cross_val_score(model, X_train, y_keff_train.ravel(), cv=10,
-                                              scoring='neg_mean_squared_error', n_jobs=1)
-                        cv_scores.extend(score)
-                        print(f" done ({time.time() - fold_start:.1f}s)")
-                        break  # We got all scores at once
-                    except Exception as e:
-                        print(f" error: {str(e)[:50]}")
-                        continue
-
-            if not cv_scores:
+            if len(cv_scores) == 0:
                 print(f"  No valid CV scores obtained")
                 return float('inf')
 

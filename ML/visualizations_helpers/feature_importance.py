@@ -83,8 +83,14 @@ def find_model_file(model_type, target):
 
     return None
 
+# feature_importance.py - UPDATED extract_feature_importances function
+
 def extract_feature_importances(model_data, model_type, target):
     """Extract feature importances from a loaded model"""
+
+    # Skip SVM and neural_net models
+    if model_type in ['svm', 'neural_net']:
+        return None
 
     # Get the actual model
     if 'model' in model_data:
@@ -114,16 +120,6 @@ def extract_feature_importances(model_data, model_type, target):
     elif model_type == 'random_forest':
         if hasattr(model, 'feature_importances_'):
             return model.feature_importances_
-
-    elif model_type in ['svm', 'neural_net']:
-        # These models don't have built-in feature importances
-        # We'll create synthetic importances for demonstration
-        # In practice, you'd use permutation importance or SHAP
-        print(f"  Note: Using synthetic importances for {model_type}")
-        np.random.seed(42)
-        importances = np.random.rand(15)
-        importances = importances / importances.sum()
-        return importances
 
     return None
 

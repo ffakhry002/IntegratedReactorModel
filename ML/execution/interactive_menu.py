@@ -299,14 +299,22 @@ class InteractiveTrainer:
 
                     # Load and prepare data with current encoding
                     print(f"\nLoading data with {encoding} encoding...")
-                    X, y_flux, y_keff = self.data_handler.load_and_prepare_data(
+                    result = self.data_handler.load_and_prepare_data(
                         data_file,
                         encoding
                     )
 
+                    # Handle both old and new return formats
+                    if len(result) == 4:
+                        X, y_flux, y_keff, groups = result
+                    else:
+                        X, y_flux, y_keff = result
+                        groups = None  # Fallback for compatibility
+                        print("WARNING: No groups returned - may have data leakage!")
+
                     # Split data
                     print("Splitting data...")
-                    data_splits = self.data_handler.split_data(X, y_flux, y_keff)
+                    data_splits = self.data_handler.split_data(X, y_flux, y_keff, groups)
 
                     # Update training info
                     if 'n_samples' not in all_results['training_info']:
@@ -324,6 +332,36 @@ class InteractiveTrainer:
                         print(f"{target.upper()} MODELS - {encoding.upper()} - {optimization.upper()}")
                         print(f"{'-'*40}")
 
+                        # Load and prepare data with current encoding
+                        print(f"\nLoading data with {encoding} encoding...")
+                        # NEW: Get groups as well
+                        result = self.data_handler.load_and_prepare_data(
+                            data_file,
+                            encoding
+                        )
+
+                        # Handle both old and new return formats
+                        if len(result) == 4:
+                            X, y_flux, y_keff, groups = result
+                        else:
+                            X, y_flux, y_keff = result
+                            groups = None  # Fallback for compatibility
+                            print("WARNING: No groups returned - may have data leakage!")
+
+                        # Split data
+                        print("Splitting data...")
+                        data_splits = self.data_handler.split_data(X, y_flux, y_keff, groups)
+
+                        # Update training info
+                        if 'n_samples' not in all_results['training_info']:
+                            all_results['training_info'].update({
+                                'n_samples': X.shape[0],
+                                'train_size': data_splits['X_train'].shape[0],
+                                'test_size': data_splits['X_test'].shape[0]
+                            })
+
+                        all_results['training_info'][f'{encoding}_features'] = X.shape[1]
+
                         for model_type in self.config.models:
                             job_counter += 1
                             print(f"\nJob {job_counter}/{total_jobs}: {model_type} for {target}")
@@ -338,7 +376,6 @@ class InteractiveTrainer:
                                 config=self.config,
                                 encoding=encoding
                             )
-
                             # Save results with encoding and optimization specific key
                             result_key = f'{encoding}_{optimization}_{target}_results'
                             if result_key not in all_results:

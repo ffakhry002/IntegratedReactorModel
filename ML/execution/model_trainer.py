@@ -26,6 +26,9 @@ class ModelTrainer:
         X_train = data_splits['X_train']
         X_test = data_splits['X_test']
 
+        # NEW: Get groups if available
+        groups_train = data_splits.get('groups_train', None)
+
         if target == 'flux':
             y_train = data_splits['y_flux_train']
             y_test = data_splits['y_flux_test']
@@ -43,14 +46,16 @@ class ModelTrainer:
                     X_train, y_train,
                     model_type=model_type,
                     n_trials=config.n_trials,
-                    n_jobs=config.n_jobs
+                    n_jobs=config.n_jobs,
+                    groups=groups_train  # NEW: Pass groups
                 )
             else:  # keff
                 best_params, study = optimize_keff_model(
                     X_train, y_train,
                     model_type=model_type,
                     n_trials=config.n_trials,
-                    n_jobs=config.n_jobs
+                    n_jobs=config.n_jobs,
+                    groups=groups_train  # NEW: Pass groups
                 )
 
             # Check if optimization completed or timed out
@@ -72,7 +77,10 @@ class ModelTrainer:
                 X_train, y_train,
                 model_class,
                 model_type=model_type,
-                n_jobs=config.n_jobs
+                n_jobs=config.n_jobs,
+                target_type=target,
+                use_log_flux=self.data_handler.use_log_flux if target == 'flux' else False,
+                groups=groups_train  # NEW: Pass groups
             )
 
             # Check if optimization completed or timed out

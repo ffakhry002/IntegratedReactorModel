@@ -25,9 +25,15 @@ class DataHandler:
         y_k_eff = []
         irr_positions_list = []
 
+        # NEW: Track augmentation groups for CV
+        augmentation_groups = []
+
         # Track some statistics for validation
         label_order_mismatches = 0
         total_configs = 0
+
+        # NEW: Group counter
+        group_id = 0
 
         for lattice, flux_dict, k_eff in zip(lattices, flux_data, k_effectives):
             # Apply rotational symmetry (8-fold augmentation)
@@ -35,6 +41,9 @@ class DataHandler:
 
             for aug_lattice, aug_flux, aug_k_eff in augmented:
                 total_configs += 1
+
+                # NEW: Add group ID (same for all 8 augmentations)
+                augmentation_groups.append(group_id)
 
                 # Encode using selected method - now returns position order
                 if encoding_method == 'one_hot':
@@ -106,6 +115,9 @@ class DataHandler:
                 y_k_eff.append(aug_k_eff)
                 irr_positions_list.append(irr_positions)
 
+            # NEW: Increment group ID after processing all augmentations
+            group_id += 1
+
         # Report validation statistics
         mismatch_percentage = (label_order_mismatches / total_configs) * 100 if total_configs > 0 else 0
         print(f"  Spatial vs alphabetical order mismatches: {label_order_mismatches}/{total_configs} ({mismatch_percentage:.1f}%)")
@@ -115,6 +127,9 @@ class DataHandler:
         X = np.array(X_features)
         y_flux = np.array(y_flux_values)
         y_keff = np.array(y_k_eff)
+
+        # NEW: Convert groups to numpy array
+        groups = np.array(augmentation_groups)
 
         # Validate array shapes
         assert X.shape[0] == y_flux.shape[0] == y_keff.shape[0], "Sample count mismatch"
@@ -141,14 +156,38 @@ class DataHandler:
         print(f"\n  ✓ Data loaded successfully with label-agnostic encoding")
         print(f"  ✓ Flux values ordered by spatial position, not label")
 
-        return X, y_flux, y_keff
+        # NEW: Return groups as well
+        return X, y_flux, y_keff, groups
 
-    def split_data(self, X, y_flux, y_keff, test_size=0.15, random_state=42):
+    def split_data(self, X, y_flux, y_keff, groups=None, test_size=0.15, random_state=42):
         """Split data into train/test sets"""
-        X_train, X_test, y_flux_train, y_flux_test, y_keff_train, y_keff_test = \
-            train_test_split(X, y_flux, y_keff,
-                           test_size=test_size,
-                           random_state=random_state)
+        if groups is not None:
+            # Use GroupShuffleSplit to ensure augmentations stay together
+            from sklearn.model_selection import GroupShuffleSplit
+
+            gss = GroupShuffleSplit(n_splits=1, test_size=test_size, random_state=random_state)
+            train_idx, test_idx = next(gss.split(X, y_flux, groups))
+
+            X_train = X[train_idx]
+            X_test = X[test_idx]
+            y_flux_train = y_flux[train_idx]
+            y_flux_test = y_flux[test_idx]
+            y_keff_train = y_keff[train_idx]
+            y_keff_test = y_keff[test_idx]
+            groups_train = groups[train_idx]
+            groups_test = groups[test_idx]
+
+            print(f"  Using GroupShuffleSplit to prevent augmentation leakage")
+            print(f"  Unique configs in train: {len(np.unique(groups_train))}")
+            print(f"  Unique configs in test: {len(np.unique(groups_test))}")
+        else:
+            # Fallback to regular split
+            X_train, X_test, y_flux_train, y_flux_test, y_keff_train, y_keff_test = \
+                train_test_split(X, y_flux, y_keff,
+                               test_size=test_size,
+                               random_state=random_state)
+            groups_train = None
+            groups_test = None
 
         print(f"  Training samples: {X_train.shape[0]}")
         print(f"  Test samples: {X_test.shape[0]}")
@@ -159,5 +198,7 @@ class DataHandler:
             'y_flux_train': y_flux_train,
             'y_flux_test': y_flux_test,
             'y_keff_train': y_keff_train,
-            'y_keff_test': y_keff_test
+            'y_keff_test': y_keff_test,
+            'groups_train': groups_train,  # NEW
+            'groups_test': groups_test      # NEW
         }

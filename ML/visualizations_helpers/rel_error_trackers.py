@@ -1,6 +1,6 @@
 """
 Relative error tracker plots organized by encoding method
-FIXED: Statistics moved to table below plot
+FIXED: Connected graphs sharing y-axis, merged model cells, more padding
 """
 
 import matplotlib.pyplot as plt
@@ -26,7 +26,7 @@ def create_rel_error_tracker_plots(df, output_dir, encodings):
                                  os.path.join(output_dir, 'keff_rel_error'))
 
 def create_encoding_error_plot(df, output_dir, encoding, error_type, subfolder):
-    """Create error plot for a specific encoding method with statistics table"""
+    """Create error plot for a specific encoding method with connected graphs sharing y-axis"""
 
     # Filter data for this encoding
     enc_df = df[df['encoding'] == encoding]
@@ -34,25 +34,19 @@ def create_encoding_error_plot(df, output_dir, encoding, error_type, subfolder):
     # Prepare data based on error type
     if error_type == 'max_flux':
         plot_data = prepare_max_flux_data(enc_df)
-        title = f'Maximum Flux Relative Error - {encoding.upper()} Encoding'
-        ylabel = 'Max Relative Error (%)'
+        title_base = f'Maximum Flux Relative Error - {encoding.upper()} Encoding'
+        ylabel = 'Relative Error (%)'
     elif error_type == 'mean_flux':
         plot_data = prepare_mean_flux_data(enc_df)
-        title = f'Mean Flux Relative Error - {encoding.upper()} Encoding'
-        ylabel = 'Mean Relative Error (%)'
+        title_base = f'Mean Flux Relative Error - {encoding.upper()} Encoding'
+        ylabel = 'Relative Error (%)'
     else:  # keff
         plot_data = prepare_keff_data(enc_df)
-        title = f'K-effective Relative Error - {encoding.upper()} Encoding'
+        title_base = f'K-effective Relative Error - {encoding.upper()} Encoding'
         ylabel = 'Relative Error (%)'
 
     if plot_data.empty:
         return
-
-    # Create figure with subplot for table
-    fig = plt.figure(figsize=(12, 10))
-
-    # Main plot
-    ax1 = plt.subplot2grid((4, 1), (0, 0), rowspan=3)
 
     # Define styling
     model_colors = {
@@ -62,51 +56,93 @@ def create_encoding_error_plot(df, output_dir, encoding, error_type, subfolder):
         'neural_net': '#d62728'
     }
 
-    optimization_markers = {
-        'optuna': 'o',
-        'three_stage': 's',
-        'none': '^'
-    }
-
     # Get unique values
-    models = plot_data['model'].unique()
-    optimizations = plot_data['optimization'].unique()
+    models = sorted(plot_data['model'].unique())
+    optimizations = sorted(plot_data['optimization'].unique())
+
+    # Debug output
+    print(f"    Found models: {models}")
+    print(f"    Found optimizations: {optimizations}")
 
     # Sort by config_id
     plot_data = plot_data.sort_values('config_id')
 
-    # Plot each model-optimization combination
-    for model in models:
-        for optimization in optimizations:
-            subset = plot_data[
-                (plot_data['model'] == model) &
-                (plot_data['optimization'] == optimization)
-            ]
+    # Calculate number of optimization methods
+    n_opts = len(optimizations)
 
-            if not subset.empty:
-                ax1.plot(subset['config_id'], subset['error'],
-                        color=model_colors.get(model, 'black'),
-                        marker=optimization_markers.get(optimization, 'o'),
-                        linestyle='-',
-                        markersize=8,
-                        linewidth=2,
-                        alpha=0.8,
-                        label=f'{model} ({optimization})')
+    # Create figure with more vertical space for padding
+    fig = plt.figure(figsize=(18, 10))  # Fixed width, slightly reduced height
 
-    # Customize plot
-    ax1.set_xlabel('Configuration ID', fontsize=12)
-    ax1.set_ylabel(ylabel, fontsize=12)
-    ax1.set_title(title, fontsize=14, fontweight='bold')
-    ax1.grid(True, alpha=0.3)
-    ax1.legend(loc='best', fontsize=10)
+    # Create grid with less space between graphs and table
+    gs = fig.add_gridspec(5, 1, height_ratios=[1, 1, 1, 0.15, 1.5], hspace=0.25)  # Reduced spacing
 
-    # Create statistics table
-    ax2 = plt.subplot2grid((4, 1), (3, 0))
-    ax2.axis('off')
+    # Create connected subplots sharing y-axis
+    axes = []
 
-    # Calculate statistics for table - now including optimization method
+    # Create subplots that touch each other
+    graph_gs = gs[0:3, 0].subgridspec(1, n_opts, wspace=0, hspace=0)  # No space between graphs
+
+    for opt_idx, optimization in enumerate(optimizations):
+        if opt_idx == 0:
+            ax = fig.add_subplot(graph_gs[0, opt_idx])
+            first_ax = ax
+        else:
+            ax = fig.add_subplot(graph_gs[0, opt_idx], sharey=first_ax)
+        axes.append(ax)
+
+        # Filter data for this optimization
+        opt_data = plot_data[plot_data['optimization'] == optimization]
+
+        # Check if there's any data for this optimization
+        if len(opt_data) == 0:
+            ax.text(0.5, 0.5, 'No Data', ha='center', va='center',
+                   transform=ax.transAxes, fontsize=12, alpha=0.5)
+        else:
+            # Plot each model
+            for model in models:
+                model_data = opt_data[opt_data['model'] == model]
+
+                if not model_data.empty:
+                    ax.plot(model_data['config_id'], model_data['error'],
+                           color=model_colors.get(model, 'black'),
+                           marker='o',
+                           linestyle='-',
+                           markersize=6,
+                           linewidth=2,
+                           alpha=0.8,
+                           label=model)
+
+        # Customize subplot
+        ax.set_xlabel('Configuration ID', fontsize=11)
+
+        # Only show y-label and ticks on leftmost plot
+        if opt_idx == 0:
+            ax.set_ylabel(ylabel, fontsize=11)
+        else:
+            ax.tick_params(axis='y', labelleft=False)
+
+        ax.set_title(f'{optimization.upper()}', fontsize=12, fontweight='bold', pad=10)
+        ax.grid(True, alpha=0.3)
+        ax.legend(loc='best', fontsize=9)
+
+        # Set x-axis limits to be consistent
+        ax.set_xlim(plot_data['config_id'].min() - 1, plot_data['config_id'].max() + 1)
+
+        # Add vertical separator line (except for last plot)
+        if opt_idx < n_opts - 1:
+            ax.axvline(x=ax.get_xlim()[1], color='black', linewidth=1.5, alpha=0.8)
+
+    # Main title
+    fig.suptitle(title_base, fontsize=14, fontweight='bold', y=0.98)
+
+    # Create statistics table in the bottom grid space
+    table_ax = fig.add_subplot(gs[4, :])  # Skip row 3 for padding
+    table_ax.axis('off')
+
+    # Calculate statistics for table
     stats_data = []
     for model in models:
+        has_data_for_model = False
         for optimization in optimizations:
             subset = plot_data[
                 (plot_data['model'] == model) &
@@ -117,27 +153,29 @@ def create_encoding_error_plot(df, output_dir, encoding, error_type, subfolder):
                 stats_data.append([
                     model,
                     optimization,
-                    f'{error_data.mean():.2f}%',
-                    f'{error_data.max():.2f}%',
-                    f'{error_data.min():.2f}%',
-                    f'{error_data.std():.2f}%'
+                    f'{error_data.mean():.3f}%',
+                    f'{error_data.max():.3f}%',
+                    f'{error_data.min():.3f}%',
+                    f'{error_data.std():.3f}%'
                 ])
+                has_data_for_model = True
 
-    # Sort stats_data for consistent ordering
-    stats_data.sort(key=lambda x: (x[0], x[1]))
+        # If no data for any optimization, skip this model
+        if not has_data_for_model:
+            print(f"  Warning: No data found for model '{model}'")
 
     # Create table
     if stats_data:
-        table = ax2.table(cellText=stats_data,
-                         colLabels=['Model', 'Optimization', 'Mean', 'Max', 'Min', 'Std Dev'],
-                         cellLoc='center',
-                         loc='center',
-                         bbox=[0.05, 0, 0.9, 1])
+        table = table_ax.table(cellText=stats_data,
+                             colLabels=['Model', 'Optimization', 'Mean', 'Max', 'Min', 'Std Dev'],
+                             cellLoc='center',
+                             loc='center',
+                             bbox=[0.1, 0.1, 0.8, 0.8])
 
         # Style the table
         table.auto_set_font_size(False)
         table.set_fontsize(9)
-        table.scale(1.2, 1.5)
+        table.scale(1.2, 2.0)
 
         # Header styling
         for i in range(6):
@@ -145,11 +183,33 @@ def create_encoding_error_plot(df, output_dir, encoding, error_type, subfolder):
             cell.set_facecolor('#4472C4')
             cell.set_text_props(weight='bold', color='white')
 
-        # Row coloring
+        # Row styling
+        current_model = None
+        first_row_of_model = {}
+
         for i in range(1, len(stats_data) + 1):
-            for j in range(6):
+            model_name = stats_data[i-1][0]
+
+            # Track first row of each model
+            if model_name != current_model:
+                current_model = model_name
+                first_row_of_model[model_name] = i
+
+            # Style model cell
+            model_cell = table[(i, 0)]
+            model_cell.set_facecolor(model_colors.get(model_name, 'gray'))
+            model_cell.set_text_props(weight='bold', color='white')
+
+            # Clear model name for non-first rows of same model
+            if i != first_row_of_model[model_name]:
+                model_cell.get_text().set_text('')
+
+            # Style other cells
+            for j in range(1, 6):
                 if i % 2 == 0:
                     table[(i, j)].set_facecolor('#E9EDF5')
+                else:
+                    table[(i, j)].set_facecolor('#FFFFFF')
 
     plt.tight_layout()
 
