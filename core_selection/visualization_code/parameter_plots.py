@@ -18,24 +18,40 @@ def plot_physics_parameters_comparison(methods, physics_params, results_dict, ou
     is_6x6 = detect_6x6_mode()
     mode_str = " (6x6 Central Square)" if is_6x6 else ""
 
-    fig, axes = plt.subplots(2, 3, figsize=(24, 12))
-    axes = axes.flatten()
+    # Dynamically determine available parameters
+    # Handle both list and dict formats for physics_params
+    if isinstance(physics_params, dict):
+        sample_params = next(iter(physics_params.values()))
+    else:
+        # If it's a list, get the first element
+        sample_params = physics_params[0] if physics_params else {}
 
-    param_names = [
-        'avg_distance_from_core_center',
-        'min_inter_position_distance',
-        'clustering_coefficient',
-        'symmetry_balance',
-        'local_fuel_density'
-    ]
+    param_names = []
+    param_labels = []
 
-    param_labels = [
-        'Avg Distance from Core Center',
-        'Min Inter-Position Distance',
-        'Clustering Coefficient',
-        'Symmetry Balance',
-        'Local Fuel Density'
-    ]
+    # Define all possible parameters and their labels
+    all_params = {
+        'avg_distance_from_core_center': 'Avg Distance from Core Center',
+        'min_inter_position_distance': 'Min Inter-Position Distance',
+        'clustering_coefficient': 'Clustering Coefficient',
+        'symmetry_balance': 'Symmetry Balance',
+        'local_fuel_density': 'Local Fuel Density',
+        'avg_distance_to_edge': 'Avg Distance to Edge'
+    }
+
+    # Only include parameters that exist in the data
+    for param_key, param_label in all_params.items():
+        if param_key in sample_params:
+            param_names.append(param_key)
+            param_labels.append(param_label)
+
+    # Adjust subplot layout based on number of parameters
+    n_params = len(param_names)
+    n_cols = 3
+    n_rows = (n_params + n_cols - 1) // n_cols
+
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(24, 6 * n_rows))
+    axes = axes.flatten() if n_rows > 1 else [axes] if n_cols == 1 else axes
 
     # Colorful scheme
     method_colors = {
@@ -64,9 +80,11 @@ def plot_physics_parameters_comparison(methods, physics_params, results_dict, ou
                 # Extract parameter values using proper indexing
                 values = [physics_params[int(idx)][param] for idx in indices]
 
-                # Plot as scatter WITHOUT jitter for clean alignment
+                # Plot as scatter WITH jitter for better visibility
                 x_pos = method_idx + 1
-                ax.scatter([x_pos] * len(values), values,
+                # Add small random jitter to x-coordinates
+                jittered_x = x_pos + np.random.normal(0, 0.02, len(values))
+                ax.scatter(jittered_x, values,
                           alpha=0.7, s=40,
                           color=method_colors.get(method, '#2C3E50'),
                           label=method if idx == 0 else "",
@@ -80,8 +98,9 @@ def plot_physics_parameters_comparison(methods, physics_params, results_dict, ou
     # Add legend to first subplot
     axes[0].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
 
-    # Remove empty subplot
-    fig.delaxes(axes[5])
+    # Remove empty subplots
+    for idx in range(n_params, len(axes)):
+        fig.delaxes(axes[idx])
 
     plt.suptitle(f'Physics Parameters Distribution by Sampling Method{mode_str}', fontsize=16, fontweight='bold')
     plt.tight_layout()
@@ -309,21 +328,27 @@ def create_parameter_scatter(physics_params, selected_indices, method_name, outp
 
     selected_params = [physics_params[i] for i in selected_indices]
 
-    param_names = [
-        'avg_distance_from_core_center',
-        'min_inter_position_distance',
-        'clustering_coefficient',
-        'symmetry_balance',
-        'local_fuel_density'
-    ]
+    # Dynamically determine available parameters
+    sample_params = selected_params[0] if selected_params else {}
 
-    param_labels = [
-        'Avg Distance from Core Center',
-        'Min Inter-Position Distance',
-        'Clustering Coefficient',
-        'Symmetry Balance',
-        'Local Fuel Density'
-    ]
+    param_names = []
+    param_labels = []
+
+    # Define all possible parameters and their labels
+    all_params = {
+        'avg_distance_from_core_center': 'Avg Distance from Core Center',
+        'min_inter_position_distance': 'Min Inter-Position Distance',
+        'clustering_coefficient': 'Clustering Coefficient',
+        'symmetry_balance': 'Symmetry Balance',
+        'local_fuel_density': 'Local Fuel Density',
+        'avg_distance_to_edge': 'Avg Distance to Edge'
+    }
+
+    # Only include parameters that exist in the data
+    for param_key, param_label in all_params.items():
+        if param_key in sample_params:
+            param_names.append(param_key)
+            param_labels.append(param_label)
 
     # Check if this is a k-means/k-medoids method that has cluster assignments
     is_kmeans_with_clusters = (sample_data and
@@ -331,35 +356,36 @@ def create_parameter_scatter(physics_params, selected_indices, method_name, outp
                                'kmedoids' in method_name) and
                               'cluster_assignments' in sample_data)
 
+    n_params = len(param_names)
+
     # Create appropriate subplot layout
     if is_kmeans_with_clusters:
-        # For k-means: create 7 panels in a custom layout
-        fig = plt.figure(figsize=(20, 16), constrained_layout=True)
+        # For k-means: create panels for all parameters + 2 extra panels
+        total_panels = n_params + 2  # params + diversity/inertia + cluster distribution
+        n_cols = 3
+        n_rows = (total_panels + n_cols - 1) // n_cols
 
-        # Create a 3x3 grid, but we'll only use 7 panels
-        gs = fig.add_gridspec(3, 3, hspace=0.3, wspace=0.3)
+        fig = plt.figure(figsize=(20, 6 * n_rows), constrained_layout=True)
+        gs = fig.add_gridspec(n_rows, n_cols, hspace=0.3, wspace=0.3)
 
-        # Create axes for the 7 panels
+        # Create axes
         axes = []
-        # First row: 3 panels
-        axes.append(fig.add_subplot(gs[0, 0]))
-        axes.append(fig.add_subplot(gs[0, 1]))
-        axes.append(fig.add_subplot(gs[0, 2]))
-        # Second row: 3 panels
-        axes.append(fig.add_subplot(gs[1, 0]))
-        axes.append(fig.add_subplot(gs[1, 1]))
-        axes.append(fig.add_subplot(gs[1, 2]))
-        # Third row: 1 panel centered
-        axes.append(fig.add_subplot(gs[2, :]))  # Span all columns for cluster distribution
-
+        for row in range(n_rows):
+            for col in range(n_cols):
+                if row * n_cols + col < total_panels:
+                    axes.append(fig.add_subplot(gs[row, col]))
     else:
-        # Original 6-panel layout for non-k-means
-        fig, axes_arr = plt.subplots(2, 3, figsize=(18, 12))
-        axes = axes_arr.flatten()
+        # Non-k-means layout: params + 1 extra panel for diversity
+        total_panels = n_params + 1
+        n_cols = 3
+        n_rows = (total_panels + n_cols - 1) // n_cols
+
+        fig, axes_arr = plt.subplots(n_rows, n_cols, figsize=(18, 6 * n_rows))
+        axes = axes_arr.flatten() if n_rows > 1 else [axes_arr] if n_cols == 1 else axes_arr
 
     fig.suptitle(f'{method_name} - Parameter Space Distribution{mode_str}', fontsize=16, fontweight='bold')
 
-    # Plot parameter distributions (first 5 panels)
+    # Plot parameter distributions (first n_params panels)
     for i, (param_name, param_label) in enumerate(zip(param_names, param_labels)):
         ax = axes[i]
         param_values = [params[param_name] for params in selected_params]
@@ -371,8 +397,8 @@ def create_parameter_scatter(physics_params, selected_indices, method_name, outp
         ax.set_title(f'{param_label} Distribution')
         ax.grid(True, alpha=0.3)
 
-    # Panel 6: Diversity/Inertia scores by run plot
-    ax = axes[5]
+    # Panel n_params+1: Diversity/Inertia scores by run plot
+    ax = axes[n_params]
 
     # Check if this is a k-means/k-medoids method
     is_kmeans = sample_data and (sample_data.get('algorithm') in ['kmedoids', 'kmeans_nearest'] or
@@ -448,9 +474,9 @@ def create_parameter_scatter(physics_params, selected_indices, method_name, outp
                 ha='center', va='center', transform=ax.transAxes)
         ax.set_title('Scores by Run')
 
-    # Panel 7: Cluster distribution (only for k-means with cluster data)
+    # Panel n_params+2: Cluster distribution (only for k-means with cluster data)
     if is_kmeans_with_clusters:
-        ax = axes[6]
+        ax = axes[n_params + 1]
 
         cluster_assignments = sample_data['cluster_assignments']
         n_clusters = sample_data.get('n_clusters', len(set(cluster_assignments)))

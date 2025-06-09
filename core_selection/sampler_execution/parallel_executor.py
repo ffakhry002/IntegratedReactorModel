@@ -26,7 +26,7 @@ if RICH_AVAILABLE:
 
 def method_worker_with_progress(args):
     """Worker function that runs a method with progress tracking."""
-    method_name, n_samples, n_runs, base_seed, use_6x6_restriction, method_status = args
+    method_name, n_samples, n_runs, base_seed, use_6x6_restriction, selected_parameters, method_status = args
 
     # Update to running
     method_status[method_name] = {
@@ -40,7 +40,12 @@ def method_worker_with_progress(args):
 
         # Create sampler
         sampler_class = sampler_map[method_name]
-        sampler = sampler_class()
+        # Check if this is a geometric method that needs selected parameters
+        if selected_parameters and method_name in ['lhs', 'sobol', 'halton', 'jaccard_geometric',
+                                                  'euclidean_geometric', 'manhattan_geometric', 'random_geometric']:
+            sampler = sampler_class(selected_parameters=selected_parameters)
+        else:
+            sampler = sampler_class()
         sampler.load_data()
 
         # Run the method with progress capture
@@ -145,10 +150,10 @@ def method_worker_with_progress(args):
         raise
 
 
-def run_method_parallel_execution(selected_methods, n_samples, n_runs, base_seed, n_workers, use_6x6_restriction=False):
+def run_method_parallel_execution(selected_methods, n_samples, n_runs, base_seed, n_workers, use_6x6_restriction=False, selected_parameters=None):
     """Run methods in parallel with Rich table progress display."""
     # Create method args in sorted order for consistency
-    method_args = [(method, n_samples, n_runs, base_seed, use_6x6_restriction)
+    method_args = [(method, n_samples, n_runs, base_seed, use_6x6_restriction, selected_parameters)
                    for method in sorted(selected_methods)]
 
     print(f"Starting method-parallel execution with {n_workers} workers...")
@@ -214,7 +219,7 @@ def run_method_parallel_execution(selected_methods, n_samples, n_runs, base_seed
     return results_dict
 
 
-def run_hybrid_parallel_execution(selected_methods, n_samples, n_runs, base_seed, n_workers, use_6x6_restriction=False):
+def run_hybrid_parallel_execution(selected_methods, n_samples, n_runs, base_seed, n_workers, use_6x6_restriction=False, selected_parameters=None):
     """Run all method+run combinations in a single work queue (hybrid parallel mode)."""
     print(f"Starting hybrid-parallel execution with {n_workers} workers...")
     print("(All workers grab tasks from shared queue)")
@@ -239,9 +244,9 @@ def run_hybrid_parallel_execution(selected_methods, n_samples, n_runs, base_seed
         method_runs = n_runs_per_method[method]
         for run_idx in range(method_runs):
             if progress_dict is not None:
-                task = (method, n_samples, run_idx, base_seed + run_idx, method_runs, progress_dict, use_6x6_restriction)
+                task = (method, n_samples, run_idx, base_seed + run_idx, method_runs, progress_dict, use_6x6_restriction, selected_parameters)
             else:
-                task = (method, n_samples, run_idx, base_seed + run_idx, method_runs, {}, use_6x6_restriction)
+                task = (method, n_samples, run_idx, base_seed + run_idx, method_runs, {}, use_6x6_restriction, selected_parameters)
             all_tasks.append(task)
 
     print(f"Total tasks in queue: {len(all_tasks)}")

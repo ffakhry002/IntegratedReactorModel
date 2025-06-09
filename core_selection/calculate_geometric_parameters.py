@@ -153,10 +153,48 @@ def calculate_local_fuel_density(positions: List[Tuple[int, int]],
     return np.mean(fuel_counts)
 
 
+def calculate_average_distance_to_edge(positions: List[Tuple[int, int]]) -> float:
+    """
+    Calculate average distance to the nearest edge or corner of the reactor.
+    Distance is measured from the center of each grid square to the nearest edge.
+    """
+    distances = []
+
+    for i, j in positions:
+        # Center of grid square (i,j) is at (i+0.5, j+0.5)
+        pos_center = (i + 0.5, j + 0.5)
+
+        # Calculate distances to all four edges
+        # The reactor edges are at 0 and 8 in continuous coordinates
+        dist_to_left = pos_center[1]  # Distance to left edge (j = 0)
+        dist_to_right = 8 - pos_center[1]  # Distance to right edge (j = 8)
+        dist_to_top = pos_center[0]  # Distance to top edge (i = 0)
+        dist_to_bottom = 8 - pos_center[0]  # Distance to bottom edge (i = 8)
+
+        # The minimum of these is the distance to the nearest edge
+        min_edge_distance = min(dist_to_left, dist_to_right, dist_to_top, dist_to_bottom)
+
+        # Also consider distances to corners
+        corners = [(0, 0), (0, 8), (8, 0), (8, 8)]
+        corner_distances = []
+        for corner in corners:
+            dx = pos_center[0] - corner[0]
+            dy = pos_center[1] - corner[1]
+            corner_dist = np.sqrt(dx**2 + dy**2)
+            corner_distances.append(corner_dist)
+
+        # The distance to edge/corner is the minimum of edge distance and corner distances
+        min_distance = min(min_edge_distance, min(corner_distances))
+        distances.append(min_distance)
+
+    return np.min(distances)
+
+
 def calculate_all_physics_parameters(configuration: np.ndarray,
                                    irradiation_positions: List[Tuple[int, int]]) -> Dict:
     """
-    Calculate all five physics-informed parameters from the paper for a configuration.
+    Calculate all physics-informed parameters for a configuration.
+    Now includes six parameters instead of five.
     """
     params = {
         'irradiation_positions': irradiation_positions,
@@ -164,7 +202,8 @@ def calculate_all_physics_parameters(configuration: np.ndarray,
         'min_inter_position_distance': calculate_minimum_inter_position_distance(irradiation_positions),
         'clustering_coefficient': calculate_clustering_coefficient(irradiation_positions),
         'symmetry_balance': calculate_symmetry_balance(irradiation_positions),
-        'local_fuel_density': calculate_local_fuel_density(irradiation_positions, configuration)
+        'local_fuel_density': calculate_local_fuel_density(irradiation_positions, configuration),
+        'avg_distance_to_edge': calculate_average_distance_to_edge(irradiation_positions)
     }
 
     return params
@@ -260,13 +299,14 @@ def main():
         f.write("="*60 + "\n\n")
         f.write(f"Total configurations analyzed: {len(all_parameters)}\n\n")
 
-        # Parameter names matching the paper
+        # Parameter names
         param_names = {
             'avg_distance_from_core_center': 'Average Distance from Core Center',
             'min_inter_position_distance': 'Minimum Inter-Position Distance',
             'clustering_coefficient': 'Clustering Coefficient (Radius)',
             'symmetry_balance': 'Symmetry Balance',
-            'local_fuel_density': 'Local Fuel Density'
+            'local_fuel_density': 'Local Fuel Density',
+            'avg_distance_to_edge': 'Average Distance to Edge'
         }
 
         f.write("PARAMETER STATISTICS:\n")

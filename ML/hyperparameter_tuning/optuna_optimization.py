@@ -18,7 +18,7 @@ import signal
 from contextlib import contextmanager
 
 # Global timeout settings
-TRIAL_TIMEOUT = 600*3  # 30 minutes per trial
+TRIAL_TIMEOUT = 600*10  # 30 minutes per trial
 TOTAL_TIMEOUT = 30*60*60  # 30 hours total per model
 
 @contextmanager
@@ -35,12 +35,16 @@ def timeout(duration):
         # Disable the alarm
         signal.alarm(0)
 
-def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=250, n_jobs=10, use_log_flux=True, groups=None):
-    """Optimize hyperparameters for flux prediction only - NOW USING MAPE"""
+def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=250, n_jobs=10, use_log_flux=True, groups=None, flux_mode='total'):
+    """Optimize hyperparameters for flux prediction only - NOW USING MAPE or MSE based on mode"""
 
     print(f"\n{'='*60}")
     print(f"Starting {model_type.upper()} optimization for FLUX")
-    print(f"Optimization metric: MAPE (Mean Absolute Percentage Error)")
+    print(f"Flux mode: {flux_mode}")
+    if flux_mode == 'bin':
+        print(f"Optimization metric: MSE (for energy bins)")
+    else:
+        print(f"Optimization metric: MAPE (Mean Absolute Percentage Error)")
     print(f"Total trials: {n_trials}, Timeout per trial: {TRIAL_TIMEOUT}s")
     print(f"Total timeout: {TOTAL_TIMEOUT}s")
 
@@ -72,16 +76,20 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
             # [KEEP ALL YOUR EXISTING PARAMETER SELECTION CODE HERE - NO CHANGES]
             if model_type == 'xgboost':
                 params = {
-                    'n_estimators': trial.suggest_int('n_estimators', 100, 1500),
-                    'max_depth': trial.suggest_int('max_depth', 3, 15),
-                    'learning_rate': trial.suggest_float('learning_rate', 0.001, 0.3, log=True),
-                    'subsample': trial.suggest_float('subsample', 0.5, 1.0),
-                    'colsample_bytree': trial.suggest_float('colsample_bytree', 0.5, 1.0),
-                    'reg_alpha': trial.suggest_float('reg_alpha', 1e-8, 10.0, log=True),
-                    'reg_lambda': trial.suggest_float('reg_lambda', 1e-8, 10.0, log=True),
-                    'min_child_weight': trial.suggest_int('min_child_weight', 1, 10),
+                    'n_estimators': trial.suggest_int('n_estimators', 50, 2000),
+                    'max_depth': trial.suggest_int('max_depth', 2, 20),
+                    'learning_rate': trial.suggest_float('learning_rate', 0.001, 0.5, log=True),
+                    'subsample': trial.suggest_float('subsample', 0.3, 1.0),
+                    'colsample_bytree': np.tril.suggest_float('colsample_bytree', 0.3, 1.0),
+                    'colsample_bylevel': trial.suggest_float('colsample_bylevel', 0.3, 1.0),
+                    'colsample_bynode': trial.suggest_float('colsample_bynode', 0.3, 1.0),
+                    'reg_alpha': trial.suggest_float('reg_alpha', 0.0, 10.0),
+                    'reg_lambda': trial.suggest_float('reg_lambda', 0.0, 10.0),
+                    'gamma': trial.suggest_float('gamma', 0.0, 5.0),
+                    'min_child_weight': np.tril.suggest_int('min_child_weight', 1, 20),
                     'n_jobs': 1,
-                    'verbosity': 2
+                    'verbosity': 2,
+                    'tree_method': 'exact'
                 }
                 print(f"  XGBoost params: n_estimators={params['n_estimators']}, max_depth={params['max_depth']}")
                 model = MultiOutputRegressor(xgb.XGBRegressor(**params))
@@ -133,85 +141,120 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
                 print(f"  NN params: layers={params['hidden_layer_sizes']}, solver={params['solver']}")
                 model = MLPRegressor(**params)
 
-            # NEW MAPE-BASED CROSS-VALIDATION WITH GROUP SUPPORT
-            print(f"  Starting MAPE-based cross-validation...")
-            mape_scores = []
+            # Choose scoring based on flux mode
+            if flux_mode == 'bin':
+                print(f"  Starting MSE-based cross-validation for energy bins...")
+                scoring = 'neg_mean_squared_error'
 
-            # Set environment variable to limit thread usage
-            os.environ['OMP_NUM_THREADS'] = '1'
-            os.environ['MKL_NUM_THREADS'] = '1'
+                # Use standard sklearn cross_val_score
+                if groups is not None:
+                    from sklearn.model_selection import GroupKFold, cross_val_score
+                    cv = GroupKFold(n_splits=10)
+                    scores = cross_val_score(model, X_train, y_flux_train,
+                                           cv=cv, groups=groups,
+                                           scoring=scoring, n_jobs=1)
+                else:
+                    from sklearn.model_selection import cross_val_score
+                    scores = cross_val_score(model, X_train, y_flux_train,
+                                           cv=10, scoring=scoring, n_jobs=1)
 
-            # NEW: Use GroupKFold if groups provided
-            if groups is not None:
-                from sklearn.model_selection import GroupKFold
-                cv = GroupKFold(n_splits=10)
-                cv_splits = cv.split(X_train, y_flux_train, groups)
+                # Return positive MSE (sklearn returns negative)
+                final_score = -np.mean(scores)
+                print(f"  Trial {trial.number} MSE: {final_score:.6f}")
+
             else:
-                from sklearn.model_selection import KFold
-                cv = KFold(n_splits=10, shuffle=True, random_state=42)
-                cv_splits = cv.split(X_train)
+                # MAPE-based scoring for total and energy flux
+                print(f"  Starting MAPE-based cross-validation...")
+                mape_scores = []
 
-            for fold_idx, (train_idx, val_idx) in enumerate(cv_splits):
-                fold_start = time.time()
+                # Set environment variable to limit thread usage
+                os.environ['OMP_NUM_THREADS'] = '1'
+                os.environ['MKL_NUM_THREADS'] = '1'
 
-                # Check trial timeout
-                if time.time() - trial_start > TRIAL_TIMEOUT:
-                    print(f"  [TIMEOUT] Trial exceeded {TRIAL_TIMEOUT}s limit")
-                    if mape_scores:
-                        return np.mean(mape_scores)
-                    else:
-                        return float('inf')
+                # NEW: Use GroupKFold if groups provided
+                if groups is not None:
+                    from sklearn.model_selection import GroupKFold
+                    cv = GroupKFold(n_splits=10)
+                    cv_splits = cv.split(X_train, y_flux_train, groups)
+                else:
+                    from sklearn.model_selection import KFold
+                    cv = KFold(n_splits=10, shuffle=True, random_state=42)
+                    cv_splits = cv.split(X_train)
 
-                print(f"    Fold {fold_idx + 1}/5...", end='', flush=True)
+                for fold_idx, (train_idx, val_idx) in enumerate(cv_splits):
+                    fold_start = time.time()
 
-                try:
-                    # Split data
-                    X_fold_train = X_train[train_idx]
-                    X_fold_val = X_train[val_idx]
-                    y_fold_train = y_flux_train[train_idx]
-                    y_fold_val = y_flux_train[val_idx]
+                    # Check trial timeout
+                    if time.time() - trial_start > TRIAL_TIMEOUT:
+                        print(f"  [TIMEOUT] Trial exceeded {TRIAL_TIMEOUT}s limit")
+                        if mape_scores:
+                            return np.mean(mape_scores)
+                        else:
+                            return float('inf')
 
-                    # Train model
-                    model.fit(X_fold_train, y_fold_train)
+                    print(f"    Fold {fold_idx + 1}/10...", end='', flush=True)
 
-                    # Predict
-                    y_pred = model.predict(X_fold_val)
+                    try:
+                        # Split data
+                        X_fold_train = X_train[train_idx]
+                        X_fold_val = X_train[val_idx]
+                        y_fold_train = y_flux_train[train_idx]
+                        y_fold_val = y_flux_train[val_idx]
 
-                    # Convert from log scale to linear scale for MAPE calculation
-                    if use_log_flux:
-                        y_fold_val_linear = 10 ** y_fold_val
-                        y_pred_linear = 10 ** y_pred
-                    else:
-                        # If not using log scale, assume data is already scaled
-                        y_fold_val_linear = y_fold_val * 1e14  # Adjust scale as needed
-                        y_pred_linear = y_pred * 1e14
+                        # Train model
+                        model.fit(X_fold_train, y_fold_train)
 
-                    # Calculate MAPE for each sample
-                    fold_mapes = []
-                    for i in range(len(y_fold_val_linear)):
-                        # Calculate MAPE for all 4 flux positions
-                        sample_errors = []
-                        for j in range(4):  # 4 flux positions
-                            if y_fold_val_linear[i, j] != 0:
-                                error = abs((y_pred_linear[i, j] - y_fold_val_linear[i, j]) / y_fold_val_linear[i, j]) * 100
-                                sample_errors.append(error)
-                        if sample_errors:
-                            fold_mapes.append(np.mean(sample_errors))
+                        # Predict
+                        y_pred = model.predict(X_fold_val)
 
-                    fold_mape = np.mean(fold_mapes)
-                    mape_scores.append(fold_mape)
-                    print(f" done (MAPE: {fold_mape:.2f}%, time: {time.time() - fold_start:.1f}s)")
+                        # Convert from log scale to linear scale for MAPE calculation
+                        if use_log_flux:
+                            y_fold_val_linear = 10 ** y_fold_val
+                            y_pred_linear = 10 ** y_pred
+                        else:
+                            # If not using log scale, assume data is already scaled
+                            y_fold_val_linear = y_fold_val * 1e14  # Adjust scale as needed
+                            y_pred_linear = y_pred * 1e14
 
-                except Exception as e:
-                    print(f" error: {str(e)[:50]}")
-                    continue
+                        # Calculate MAPE
+                        fold_mapes = []
+                        n_outputs = y_fold_val_linear.shape[1] if len(y_fold_val_linear.shape) > 1 else 1
 
-            if not mape_scores:
-                print(f"  No valid MAPE scores obtained")
-                return float('inf')
+                        if n_outputs == 1:
+                            # Single output
+                            mask = y_fold_val_linear != 0
+                            if mask.any():
+                                fold_mape = np.mean(np.abs((y_pred_linear[mask] - y_fold_val_linear[mask]) / y_fold_val_linear[mask])) * 100
+                                fold_mapes.append(fold_mape)
+                        else:
+                            # Multi-output
+                            for i in range(len(y_fold_val_linear)):
+                                sample_errors = []
+                                for j in range(n_outputs):
+                                    if y_fold_val_linear[i, j] != 0:
+                                        error = abs((y_pred_linear[i, j] - y_fold_val_linear[i, j]) / y_fold_val_linear[i, j]) * 100
+                                        sample_errors.append(error)
+                                if sample_errors:
+                                    fold_mapes.append(np.mean(sample_errors))
 
-            final_mape = np.mean(mape_scores)
-            print(f"  Trial {trial.number} MAPE: {final_mape:.2f}%")
+                        if fold_mapes:
+                            fold_mape = np.mean(fold_mapes)
+                            mape_scores.append(fold_mape)
+                            print(f" done (MAPE: {fold_mape:.2f}%, time: {time.time() - fold_start:.1f}s)")
+                        else:
+                            print(f" error: no valid predictions")
+
+                    except Exception as e:
+                        print(f" error: {str(e)[:50]}")
+                        continue
+
+                if not mape_scores:
+                    print(f"  No valid MAPE scores obtained")
+                    return float('inf')
+
+                final_score = np.mean(mape_scores)
+                print(f"  Trial {trial.number} MAPE: {final_score:.2f}%")
+
             print(f"  Trial time: {time.time() - trial_start:.1f}s")
 
             # Increment completed trials
@@ -221,7 +264,7 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
             del model
             gc.collect()
 
-            return final_mape  # Return MAPE to minimize
+            return final_score  # Return score to minimize
 
         except TimeoutError:
             print(f"  [TIMEOUT] Trial {trial.number} timed out")
@@ -242,7 +285,10 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
     # Add callback to print best value updates
     def callback(study, trial):
         if study.best_trial.number == trial.number:
-            print(f"\n[NEW BEST] Trial {trial.number}: MAPE = {study.best_value:.2f}%")
+            if flux_mode == 'bin':
+                print(f"\n[NEW BEST] Trial {trial.number}: MSE = {study.best_value:.6f}")
+            else:
+                print(f"\n[NEW BEST] Trial {trial.number}: MAPE = {study.best_value:.2f}%")
             print(f"Parameters: {trial.params}\n")
 
     try:
@@ -269,7 +315,10 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
     print(f"Optimization finished. Completed trials: {len(study.trials)}/{n_trials}")
 
     if len(study.trials) > 0:
-        print(f"Best MAPE: {study.best_value:.2f}%")
+        if flux_mode == 'bin':
+            print(f"Best MSE: {study.best_value:.6f}")
+        else:
+            print(f"Best MAPE: {study.best_value:.2f}%")
         print(f"Total time: {time.time() - start_time:.1f}s")
         print(f"{'='*60}\n")
         return study.best_params, study
@@ -313,16 +362,27 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
         try:
             # Same parameter definitions as above but for single output
             if model_type == 'xgboost':
+                # More expansive search (will take longer)
                 params = {
-                    'n_estimators': trial.suggest_int('n_estimators', 100, 1500),
-                    'max_depth': trial.suggest_int('max_depth', 3, 15),
-                    'learning_rate': trial.suggest_float('learning_rate', 0.001, 0.3, log=True),
-                    'subsample': trial.suggest_float('subsample', 0.5, 1.0),
-                    'colsample_bytree': trial.suggest_float('colsample_bytree', 0.5, 1.0),
-                    'reg_alpha': trial.suggest_float('reg_alpha', 1e-8, 10.0, log=True),
-                    'reg_lambda': trial.suggest_float('reg_lambda', 1e-8, 10.0, log=True),
+                    'n_estimators': trial.suggest_int('n_estimators', 50, 2000),        # Wider range
+                    'max_depth': trial.suggest_int('max_depth', 2, 20),                # Deeper trees
+                    'min_child_weight': trial.suggest_int('min_child_weight', 1, 20),  # Higher range
+                    'gamma': trial.suggest_float('gamma', 0.0, 5.0),                   # Higher gamma
+
+                    'learning_rate': trial.suggest_float('learning_rate', 0.001, 0.5, log=True),
+
+                    'subsample': trial.suggest_float('subsample', 0.3, 1.0),           # Lower minimum
+                    'colsample_bytree': trial.suggest_float('colsample_bytree', 0.3, 1.0),
+                    'colsample_bylevel': trial.suggest_float('colsample_bylevel', 0.3, 1.0),
+                    'colsample_bynode': trial.suggest_float('colsample_bynode', 0.3, 1.0),
+
+                    'reg_alpha': trial.suggest_float('reg_alpha', 0.0, 10.0),         # Linear scale option
+                    'reg_lambda': trial.suggest_float('reg_lambda', 0.0, 10.0),       # Linear scale option
+
                     'n_jobs': 1,
-                    'verbosity': 2  # High verbosity
+                    'verbosity': 2,
+                    'tree_method': 'auto',
+                    'random_state': 42
                 }
                 print(f"  XGBoost params: n_estimators={params['n_estimators']}, max_depth={params['max_depth']}")
                 model = xgb.XGBRegressor(**params)

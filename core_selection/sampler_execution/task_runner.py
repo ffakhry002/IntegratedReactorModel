@@ -83,7 +83,7 @@ def save_sampling_results(method_name, results):
 
 def run_single_method(method_args):
     """Run a single sampling method. Designed to be called by multiprocessing."""
-    method_name, n_samples, n_runs, base_seed, use_6x6_restriction = method_args
+    method_name, n_samples, n_runs, base_seed, use_6x6_restriction, selected_parameters = method_args
 
     print(f"\n[Process {os.getpid()}] Starting {method_name.upper()}")
 
@@ -92,7 +92,12 @@ def run_single_method(method_args):
 
     # Create sampler instance
     sampler_class = sampler_map[method_name]
-    sampler = sampler_class()
+    # Check if this is a geometric method that needs selected parameters
+    if selected_parameters and method_name in ['lhs', 'sobol', 'halton', 'jaccard_geometric',
+                                              'euclidean_geometric', 'manhattan_geometric', 'random_geometric']:
+        sampler = sampler_class(selected_parameters=selected_parameters)
+    else:
+        sampler = sampler_class()
 
     # Load data for this sampler
     sampler.load_data()
@@ -193,15 +198,20 @@ def run_single_stochastic_run(args):
 
 def run_single_task_with_progress(task_args):
     """Run a single task and update progress."""
-    # Extract args - now includes use_6x6_restriction
-    method_name, n_samples, run_idx, seed, total_runs, progress_dict, use_6x6_restriction = task_args
+    # Extract args - now includes use_6x6_restriction and selected_parameters
+    method_name, n_samples, run_idx, seed, total_runs, progress_dict, use_6x6_restriction, selected_parameters = task_args
 
     # Get sampler map with 6x6 restriction if needed
     sampler_map = get_sampler_map(use_6x6_restriction)
 
     # Create sampler instance
     sampler_class = sampler_map[method_name]
-    sampler = sampler_class()
+    # Check if this is a geometric method that needs selected parameters
+    if selected_parameters and method_name in ['lhs', 'sobol', 'halton', 'jaccard_geometric',
+                                              'euclidean_geometric', 'manhattan_geometric', 'random_geometric']:
+        sampler = sampler_class(selected_parameters=selected_parameters)
+    else:
+        sampler = sampler_class()
 
     # Load data
     sampler.load_data()
@@ -381,13 +391,19 @@ def run_single_task(task_args):
     # Extract only the needed args (without progress_dict)
     method_name, n_samples, run_idx, seed, total_runs = task_args[:5]
     use_6x6_restriction = task_args[6] if len(task_args) > 6 else False
+    selected_parameters = task_args[7] if len(task_args) > 7 else None
 
     # Get sampler map with 6x6 restriction if needed
     sampler_map = get_sampler_map(use_6x6_restriction)
 
     # Create sampler instance
     sampler_class = sampler_map[method_name]
-    sampler = sampler_class()
+    # Check if this is a geometric method that needs selected parameters
+    if selected_parameters and method_name in ['lhs', 'sobol', 'halton', 'jaccard_geometric',
+                                              'euclidean_geometric', 'manhattan_geometric', 'random_geometric']:
+        sampler = sampler_class(selected_parameters=selected_parameters)
+    else:
+        sampler = sampler_class()
 
     # Load data
     sampler.load_data()

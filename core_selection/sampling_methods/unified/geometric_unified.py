@@ -12,11 +12,12 @@ from ..distances.geometric_distances import (
 class GeometricUnifiedSampler(BaseSampler):
     """Unified geometric sampler with configurable algorithm and distance."""
 
-    def __init__(self, algorithm='greedy', distance='euclidean', use_6x6_restriction=False):
+    def __init__(self, algorithm='greedy', distance='euclidean', use_6x6_restriction=False, selected_parameters=None):
         # Set method name BEFORE calling super().__init__() so base class loads correct dataset
         self.method_name = f"{distance}_geometric_{algorithm}"
 
-        super().__init__(use_6x6_restriction=use_6x6_restriction)
+        super().__init__(use_6x6_restriction=use_6x6_restriction,
+                        selected_parameters=selected_parameters)
 
         # Store config for later use
         self.algorithm_name = algorithm

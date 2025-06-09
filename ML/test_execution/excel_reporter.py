@@ -1,5 +1,6 @@
 """
 Excel report generation for test results
+UPDATED: Support for different flux modes (total, energy, bin)
 """
 
 import pandas as pd
@@ -18,28 +19,42 @@ class ExcelReporter:
 
         # Determine which types of results we have
         has_keff = any('keff_real' in r for r in results if r)
-        has_flux = any('I_1_real' in r for r in results if r)
+        has_flux = any('I_1_real' in r or 'I_1_thermal_real' in r for r in results if r)
+
+        # Detect flux mode
+        flux_mode = 'total'  # default
+        if any('flux_mode' in r for r in results if r):
+            # Get the flux mode from first flux result
+            flux_results = [r for r in results if r and r.get('model_type') == 'flux']
+            if flux_results:
+                flux_mode = flux_results[0].get('flux_mode', 'total')
 
         # Create Excel writer
         with pd.ExcelWriter(output_filename, engine='openpyxl') as writer:
             # Create different sheets based on model type
-            self._create_results_sheet(writer, df, has_keff, has_flux)
-            self._create_summary_sheet(writer, df, has_keff, has_flux)
-            self._create_best_models_sheet(writer, df, has_keff, has_flux)
+            self._create_results_sheet(writer, df, has_keff, has_flux, flux_mode)
+            self._create_summary_sheet(writer, df, has_keff, has_flux, flux_mode)
+            self._create_best_models_sheet(writer, df, has_keff, has_flux, flux_mode)
 
         print(f"\nExcel report saved to: {output_filename}")
         print(f"Sheets created:")
         print(f"  - Test Results: Detailed results for all configurations")
+        if flux_mode != 'total':
+            print(f"    (Flux mode: {flux_mode} - showing energy-discretized results)")
         print(f"  - Summary: Statistics grouped by model, encoding, and optimization")
         print(f"  - Best Models by Encoding: Best performing model for each encoding method")
 
         return output_filename
 
-    def _create_results_sheet(self, writer, df, has_keff, has_flux):
+    def _create_results_sheet(self, writer, df, has_keff, has_flux, flux_mode='total'):
         """Create the main results sheet with merged keff and flux rows"""
 
         # Define the key columns for matching rows (excluding in_training)
         key_columns = ['config_id', 'description', 'model_class', 'encoding', 'optimization_method']
+
+        # Add flux_mode column if we have energy/bin modes
+        if flux_mode != 'total' and 'flux_mode' in df.columns:
+            key_columns.append('flux_mode')
 
         # If we have both keff and flux, merge them
         if has_keff and has_flux:
@@ -51,15 +66,37 @@ class ExcelReporter:
             keff_df = keff_df.drop('model_type', axis=1, errors='ignore')
             flux_df = flux_df.drop('model_type', axis=1, errors='ignore')
 
-            # Identify keff and flux specific columns
+            # Identify keff specific columns
             keff_specific_cols = ['keff_real', 'keff_predicted', 'keff_rel_error']
             if 'mape_keff' in keff_df.columns:
                 keff_specific_cols.append('mape_keff')
 
+            # Identify flux specific columns based on flux mode
             flux_specific_cols = []
-            for i in range(1, 5):
-                flux_specific_cols.extend([f'I_{i}_real', f'I_{i}_predicted', f'I_{i}_rel_error'])
-            flux_specific_cols.extend(['avg_flux_real', 'avg_flux_predicted', 'avg_flux_rel_error'])
+
+            if flux_mode == 'total':
+                # Original total flux columns
+                for i in range(1, 5):
+                    flux_specific_cols.extend([f'I_{i}_real', f'I_{i}_predicted', f'I_{i}_rel_error'])
+                flux_specific_cols.extend(['avg_flux_real', 'avg_flux_predicted', 'avg_flux_rel_error'])
+
+            else:  # energy or bin mode
+                # Energy-discretized columns
+                energy_groups = ['thermal', 'epithermal', 'fast']
+                for i in range(1, 5):
+                    for energy in energy_groups:
+                        flux_specific_cols.extend([
+                            f'I_{i}_{energy}_real',
+                            f'I_{i}_{energy}_predicted',
+                            f'I_{i}_{energy}_rel_error'
+                        ])
+                    # Add total columns
+                    flux_specific_cols.extend([
+                        f'I_{i}_total_real',
+                        f'I_{i}_total_predicted',
+                        f'I_{i}_total_rel_error'
+                    ])
+
             if 'mape_flux' in flux_df.columns:
                 flux_specific_cols.append('mape_flux')
 
@@ -88,6 +125,9 @@ class ExcelReporter:
             # Put in_training first, then other base columns
             base_columns = ['in_training', 'config_id', 'description', 'model_class', 'model_type', 'encoding', 'optimization_method']
 
+            if flux_mode != 'total' and 'flux_mode' in df.columns:
+                base_columns.append('flux_mode')
+
             keff_columns = []
             if has_keff:
                 keff_columns = ['keff_real', 'keff_predicted', 'keff_rel_error']
@@ -96,9 +136,25 @@ class ExcelReporter:
 
             flux_columns = []
             if has_flux:
-                for i in range(1, 5):
-                    flux_columns.extend([f'I_{i}_real', f'I_{i}_predicted', f'I_{i}_rel_error'])
-                flux_columns.extend(['avg_flux_real', 'avg_flux_predicted', 'avg_flux_rel_error'])
+                if flux_mode == 'total':
+                    for i in range(1, 5):
+                        flux_columns.extend([f'I_{i}_real', f'I_{i}_predicted', f'I_{i}_rel_error'])
+                    flux_columns.extend(['avg_flux_real', 'avg_flux_predicted', 'avg_flux_rel_error'])
+                else:  # energy or bin mode
+                    energy_groups = ['thermal', 'epithermal', 'fast']
+                    for i in range(1, 5):
+                        for energy in energy_groups:
+                            flux_columns.extend([
+                                f'I_{i}_{energy}_real',
+                                f'I_{i}_{energy}_predicted',
+                                f'I_{i}_{energy}_rel_error'
+                            ])
+                        flux_columns.extend([
+                            f'I_{i}_total_real',
+                            f'I_{i}_total_predicted',
+                            f'I_{i}_total_rel_error'
+                        ])
+
                 if 'mape_flux' in df.columns:
                     flux_columns.append('mape_flux')
 
@@ -111,17 +167,23 @@ class ExcelReporter:
 
         # Format the sheet
         ws = writer.sheets['Test Results']
-        self._format_worksheet(ws, df_ordered, has_keff, has_flux)
+        self._format_worksheet(ws, df_ordered, has_keff, has_flux, flux_mode)
 
-    def _create_summary_sheet(self, writer, df, has_keff, has_flux):
+    def _create_summary_sheet(self, writer, df, has_keff, has_flux, flux_mode='total'):
         """Create summary statistics sheet"""
         summary_data = []
 
         # Group by model characteristics
         grouping_cols = ['model_class', 'model_type', 'encoding', 'optimization_method']
+        if flux_mode != 'total' and 'flux_mode' in df.columns:
+            grouping_cols.append('flux_mode')
 
         for name, group in df.groupby(grouping_cols):
-            model_class, model_type, encoding, opt_method = name
+            if flux_mode != 'total' and 'flux_mode' in df.columns:
+                model_class, model_type, encoding, opt_method, flux_mode_group = name
+            else:
+                model_class, model_type, encoding, opt_method = name
+                flux_mode_group = 'total'
 
             summary_row = {
                 'Model': model_class,
@@ -131,6 +193,9 @@ class ExcelReporter:
                 'Configurations Tested': len(group)
             }
 
+            if flux_mode != 'total':
+                summary_row['Flux Mode'] = flux_mode_group
+
             if has_keff and model_type == 'keff' and 'keff_rel_error' in group:
                 errors = group['keff_rel_error'].dropna()
                 if len(errors) > 0:
@@ -139,13 +204,22 @@ class ExcelReporter:
                     summary_row['Min K-eff Error (%)'] = errors.min()
                     summary_row['Std K-eff Error (%)'] = errors.std()
 
-            if has_flux and model_type == 'flux' and 'avg_flux_rel_error' in group:
-                errors = group['avg_flux_rel_error'].dropna()
-                if len(errors) > 0:
-                    summary_row['Avg Flux Error (%)'] = errors.mean()
-                    summary_row['Max Flux Error (%)'] = errors.max()
-                    summary_row['Min Flux Error (%)'] = errors.min()
-                    summary_row['Std Flux Error (%)'] = errors.std()
+            if has_flux and model_type == 'flux':
+                if flux_mode == 'total' and 'avg_flux_rel_error' in group:
+                    errors = group['avg_flux_rel_error'].dropna()
+                    if len(errors) > 0:
+                        summary_row['Avg Flux Error (%)'] = errors.mean()
+                        summary_row['Max Flux Error (%)'] = errors.max()
+                        summary_row['Min Flux Error (%)'] = errors.min()
+                        summary_row['Std Flux Error (%)'] = errors.std()
+                elif flux_mode in ['energy', 'bin'] and 'mape_flux' in group:
+                    # For energy/bin modes, use MAPE
+                    mape_values = group['mape_flux'].replace('N/A', np.nan).dropna()
+                    if len(mape_values) > 0:
+                        summary_row['Avg MAPE (%)'] = mape_values.mean()
+                        summary_row['Max MAPE (%)'] = mape_values.max()
+                        summary_row['Min MAPE (%)'] = mape_values.min()
+                        summary_row['Std MAPE (%)'] = mape_values.std()
 
             summary_data.append(summary_row)
 
@@ -157,7 +231,7 @@ class ExcelReporter:
             ws_summary = writer.sheets['Summary']
             self._format_summary_sheet(ws_summary, summary_df)
 
-    def _create_best_models_sheet(self, writer, df, has_keff, has_flux):
+    def _create_best_models_sheet(self, writer, df, has_keff, has_flux, flux_mode='total'):
         """Create sheet showing best models per encoding"""
         best_models_data = []
 
@@ -183,17 +257,41 @@ class ExcelReporter:
             # Best flux model for this encoding
             if has_flux and len(encoding_subset[encoding_subset['model_type'] == 'flux']) > 0:
                 flux_subset = encoding_subset[encoding_subset['model_type'] == 'flux']
-                if 'mape_flux' in flux_subset:
-                    grouped = flux_subset.groupby(['model_class', 'optimization_method'])['mape_flux'].mean()
-                    if len(grouped) > 0:
-                        best_idx = grouped.idxmin()
-                        best_models_data.append({
-                            'Encoding': encoding,
-                            'Target': 'flux',
-                            'Best Model': best_idx[0],
-                            'Optimization': best_idx[1],
-                            'Avg Error (%)': grouped.min()
-                        })
+
+                # Group by flux mode if applicable
+                if flux_mode != 'total' and 'flux_mode' in flux_subset.columns:
+                    for mode in flux_subset['flux_mode'].unique():
+                        mode_subset = flux_subset[flux_subset['flux_mode'] == mode]
+                        if 'mape_flux' in mode_subset:
+                            # Replace 'N/A' with NaN for proper calculation
+                            mode_subset_clean = mode_subset.copy()
+                            mode_subset_clean['mape_flux'] = mode_subset_clean['mape_flux'].replace('N/A', np.nan)
+
+                            grouped = mode_subset_clean.groupby(['model_class', 'optimization_method'])['mape_flux'].mean()
+                            grouped = grouped.dropna()
+
+                            if len(grouped) > 0:
+                                best_idx = grouped.idxmin()
+                                best_models_data.append({
+                                    'Encoding': encoding,
+                                    'Target': f'flux ({mode})',
+                                    'Best Model': best_idx[0],
+                                    'Optimization': best_idx[1],
+                                    'Avg Error (%)': grouped.min()
+                                })
+                else:
+                    # Original logic for total flux
+                    if 'mape_flux' in flux_subset:
+                        grouped = flux_subset.groupby(['model_class', 'optimization_method'])['mape_flux'].mean()
+                        if len(grouped) > 0:
+                            best_idx = grouped.idxmin()
+                            best_models_data.append({
+                                'Encoding': encoding,
+                                'Target': 'flux',
+                                'Best Model': best_idx[0],
+                                'Optimization': best_idx[1],
+                                'Avg Error (%)': grouped.min()
+                            })
 
         if best_models_data:
             best_models_df = pd.DataFrame(best_models_data)
@@ -203,7 +301,7 @@ class ExcelReporter:
             ws_best = writer.sheets['Best Models by Encoding']
             self._format_best_models_sheet(ws_best, best_models_df)
 
-    def _format_worksheet(self, ws, df, has_keff, has_flux):
+    def _format_worksheet(self, ws, df, has_keff, has_flux, flux_mode='total'):
         """Apply formatting to the main results worksheet"""
         # Format headers
         header_font = Font(bold=True, color="FFFFFF")
@@ -231,14 +329,16 @@ class ExcelReporter:
                         cell.fill = PatternFill(start_color="FFB6C1", end_color="FFB6C1", fill_type="solid")  # Light red
 
             # Format percentage/error columns
-            elif 'rel_error' in col or 'Error' in col:
+            elif 'rel_error' in col or 'Error' in col or 'mape' in col.lower():
                 for row in range(2, len(df) + 2):
                     cell = ws[f"{col_letter}{row}"]
                     if cell.value is not None and isinstance(cell.value, (int, float)):
                         cell.number_format = '0.00'
 
             # Format scientific notation for flux columns
-            elif ('flux' in col or col.startswith('I_')) and 'error' not in col:
+            elif (('flux' in col or col.startswith('I_')) and
+                  ('_real' in col or '_predicted' in col) and
+                  'error' not in col):
                 for row in range(2, len(df) + 2):
                     cell = ws[f"{col_letter}{row}"]
                     if cell.value is not None and isinstance(cell.value, (int, float)):
@@ -258,13 +358,23 @@ class ExcelReporter:
 
             for cell in column:
                 try:
-                    if len(str(cell.value)) > max_length:
-                        max_length = len(str(cell.value))
+                    # Handle N/A values
+                    cell_value = str(cell.value) if cell.value != 'N/A' else 'N/A'
+                    if len(cell_value) > max_length:
+                        max_length = len(cell_value)
                 except:
                     pass
 
-            adjusted_width = min(max_length + 2, 50)
+            # Limit width for readability
+            adjusted_width = min(max_length + 2, 25)
             ws.column_dimensions[column_letter].width = adjusted_width
+
+        # For energy/bin modes, use slightly narrower columns due to many columns
+        if flux_mode in ['energy', 'bin']:
+            for column in ws.columns:
+                column_letter = get_column_letter(column[0].column)
+                current_width = ws.column_dimensions[column_letter].width
+                ws.column_dimensions[column_letter].width = min(current_width, 18)
 
     def _format_summary_sheet(self, ws, df):
         """Apply formatting to summary sheet"""

@@ -1,6 +1,7 @@
 """
 Performance heatmaps showing R² scores for all model combinations
 FIXED: Clarified difference between per-optimization and averaged heatmaps
+UPDATED: Added support for energy-discretized results
 """
 
 import matplotlib.pyplot as plt
@@ -10,17 +11,32 @@ import pandas as pd
 import os
 from .data_loader import get_model_aggregated_metrics
 
-def create_performance_heatmaps(df, output_dir):
-    """Create R² heatmaps for k-eff and flux predictions"""
+def create_performance_heatmaps(df, output_dir, energy_group=None, target_type=None):
+    """
+    Create R² heatmaps for k-eff and flux predictions
+
+    Args:
+        df: DataFrame with test results
+        output_dir: Directory to save heatmaps
+        energy_group: Energy group to analyze ('thermal', 'epithermal', 'fast', 'total')
+        target_type: 'flux' or 'keff' - if specified, only create that type
+    """
 
     # Get aggregated metrics
-    aggregated_df = get_model_aggregated_metrics(df)
+    aggregated_df = get_model_aggregated_metrics(df, energy_group=energy_group)
 
-    # Create separate heatmaps for flux and k-eff
-    create_r2_heatmap(aggregated_df, 'flux', output_dir)
-    create_r2_heatmap(aggregated_df, 'keff', output_dir)
+    if target_type == 'keff':
+        # Only create k-eff heatmap
+        create_r2_heatmap(aggregated_df, 'keff', output_dir, energy_group=None)
+    elif target_type:
+        # Create specific flux heatmap (already filtered by energy in aggregated_df)
+        create_r2_heatmap(aggregated_df, 'flux', output_dir, energy_group=energy_group)
+    else:
+        # Create both (default behavior)
+        create_r2_heatmap(aggregated_df, 'flux', output_dir, energy_group=energy_group)
+        create_r2_heatmap(aggregated_df, 'keff', output_dir, energy_group=None)
 
-def create_r2_heatmap(aggregated_df, target_type, output_dir):
+def create_r2_heatmap(aggregated_df, target_type, output_dir, energy_group=None):
     """Create R² heatmaps showing both individual optimization results and averages"""
 
     # Filter for target type
@@ -51,18 +67,18 @@ def create_r2_heatmap(aggregated_df, target_type, output_dir):
     # For single optimization, only create one heatmap
     if len(optimizations) == 1:
         create_single_optimization_heatmap(aggregated_df, target_type, output_dir,
-                                         models, encodings, optimizations[0])
+                                         models, encodings, optimizations[0], energy_group)
     else:
         # Create per-optimization heatmaps
         create_per_optimization_heatmaps(aggregated_df, target_type, output_dir,
-                                       models, encodings, optimizations)
+                                       models, encodings, optimizations, energy_group)
 
         # Create averaged heatmap
         create_averaged_r2_heatmap(aggregated_df, target_type, output_dir,
-                                 models, encodings)
+                                 models, encodings, energy_group)
 
 def create_single_optimization_heatmap(aggregated_df, target_type, output_dir,
-                                     models, encodings, optimization):
+                                     models, encodings, optimization, energy_group=None):
     """Create a single heatmap when there's only one optimization method"""
 
     metric_col = f'r2_{target_type}'
@@ -89,6 +105,13 @@ def create_single_optimization_heatmap(aggregated_df, target_type, output_dir,
             else:
                 matrix[i, j] = np.nan
 
+    # Adjust title based on energy group
+    if energy_group:
+        title = f'Model Performance - R² Scores for {energy_group.upper()} {target_type.upper()} Prediction\n'
+    else:
+        title = f'Model Performance - R² Scores for {target_type.upper()} Prediction\n'
+    title += f'Optimization Method: {optimization}'
+
     # Create heatmap
     sns.heatmap(matrix,
                 xticklabels=models,
@@ -100,24 +123,26 @@ def create_single_optimization_heatmap(aggregated_df, target_type, output_dir,
                 vmax=1.0,
                 cbar_kws={'label': 'R² Score'})
 
-    plt.title(f'Model Performance - R² Scores for {target_type.upper()} Prediction\n' +
-              f'Optimization Method: {optimization}',
-              fontsize=14, fontweight='bold')
+    plt.title(title, fontsize=14, fontweight='bold')
     plt.xlabel('Model', fontsize=12)
     plt.ylabel('Encoding Method', fontsize=12)
     plt.xticks(rotation=45, ha='right')
 
     plt.tight_layout()
 
-    # Save figure
-    output_file = os.path.join(output_dir, f'r2_heatmap_{target_type}.png')
+    # Save figure with energy group in filename
+    if energy_group:
+        output_file = os.path.join(output_dir, f'r2_heatmap_{energy_group}_{target_type}.png')
+    else:
+        output_file = os.path.join(output_dir, f'r2_heatmap_{target_type}.png')
+
     plt.savefig(output_file, dpi=300, bbox_inches='tight')
     plt.close()
 
     print(f"  Saved: {output_file}")
 
 def create_per_optimization_heatmaps(aggregated_df, target_type, output_dir,
-                                   models, encodings, optimizations):
+                                   models, encodings, optimizations, energy_group=None):
     """Create heatmaps for each optimization method side by side"""
 
     metric_col = f'r2_{target_type}'
@@ -127,8 +152,13 @@ def create_per_optimization_heatmaps(aggregated_df, target_type, output_dir,
     if len(optimizations) == 1:
         axes = [axes]
 
-    fig.suptitle(f'Model Performance by Optimization - R² Scores for {target_type.upper()} Prediction',
-                 fontsize=16, fontweight='bold')
+    # Adjust title based on energy group
+    if energy_group:
+        title = f'Model Performance by Optimization - R² Scores for {energy_group.upper()} {target_type.upper()} Prediction'
+    else:
+        title = f'Model Performance by Optimization - R² Scores for {target_type.upper()} Prediction'
+
+    fig.suptitle(title, fontsize=16, fontweight='bold')
 
     vmin = 0.7  # Minimum R² for color scale
     vmax = 1.0  # Maximum R² for color scale
@@ -179,14 +209,18 @@ def create_per_optimization_heatmaps(aggregated_df, target_type, output_dir,
 
     plt.tight_layout()
 
-    # Save figure
-    output_file = os.path.join(output_dir, f'r2_heatmap_{target_type}_by_optimization.png')
+    # Save figure with energy group in filename
+    if energy_group:
+        output_file = os.path.join(output_dir, f'r2_heatmap_{energy_group}_{target_type}_by_optimization.png')
+    else:
+        output_file = os.path.join(output_dir, f'r2_heatmap_{target_type}_by_optimization.png')
+
     plt.savefig(output_file, dpi=300, bbox_inches='tight')
     plt.close()
 
     print(f"  Saved: {output_file}")
 
-def create_averaged_r2_heatmap(aggregated_df, target_type, output_dir, models, encodings):
+def create_averaged_r2_heatmap(aggregated_df, target_type, output_dir, models, encodings, energy_group=None):
     """Create a heatmap showing R² scores averaged across all optimization methods"""
 
     metric_col = f'r2_{target_type}'
@@ -225,9 +259,15 @@ def create_averaged_r2_heatmap(aggregated_df, target_type, output_dir, models, e
                 vmax=1.0,
                 cbar_kws={'label': 'R² Score'})
 
-    plt.title(f'Average Model Performance Across All Optimizations\n' +
-              f'R² Scores for {target_type.upper()} Prediction',
-              fontsize=14, fontweight='bold')
+    # Adjust title based on energy group
+    if energy_group:
+        title = f'Average Model Performance Across All Optimizations\n' + \
+                f'R² Scores for {energy_group.upper()} {target_type.upper()} Prediction'
+    else:
+        title = f'Average Model Performance Across All Optimizations\n' + \
+                f'R² Scores for {target_type.upper()} Prediction'
+
+    plt.title(title, fontsize=14, fontweight='bold')
     plt.xlabel('Model', fontsize=12)
     plt.ylabel('Encoding Method', fontsize=12)
 
@@ -241,8 +281,12 @@ def create_averaged_r2_heatmap(aggregated_df, target_type, output_dir, models, e
 
     plt.tight_layout()
 
-    # Save figure
-    output_file = os.path.join(output_dir, f'r2_heatmap_{target_type}_average.png')
+    # Save figure with energy group in filename
+    if energy_group:
+        output_file = os.path.join(output_dir, f'r2_heatmap_{energy_group}_{target_type}_average.png')
+    else:
+        output_file = os.path.join(output_dir, f'r2_heatmap_{target_type}_average.png')
+
     plt.savefig(output_file, dpi=300, bbox_inches='tight')
     plt.close()
 

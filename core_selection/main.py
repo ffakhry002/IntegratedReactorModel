@@ -236,6 +236,31 @@ def main():
     for method in selected_methods:
         print(f"  - {method}")
 
+    # Check if any geometric methods are selected
+    geometric_methods = ['lhs', 'sobol', 'halton', 'jaccard_geometric',
+                        'euclidean_geometric', 'manhattan_geometric', 'random_geometric']
+    has_geometric = any(method in selected_methods for method in geometric_methods)
+
+    selected_parameters = None
+    if has_geometric:
+        print("\n" + "="*60)
+        print("GEOMETRIC PARAMETER SELECTION")
+        print("="*60)
+        print("\nYou have selected geometric/physics-based methods.")
+        print("Would you like to select which parameters to use?")
+        print("1. Use all available parameters (default)")
+        print("2. Interactive parameter selection")
+
+        param_choice = input("\nChoice (1-2, default: 1): ").strip()
+
+        if param_choice == '2':
+            from interactive_parameter_selection import get_parameter_selection
+            selected_parameters, _ = get_parameter_selection(
+                interactive=True,
+                restrict_6x6=use_6x6_restriction
+            )
+            print(f"\nSelected {len(selected_parameters)} parameters for geometric methods")
+
     # Check if we need full physics parameters for geometric methods
     geometric_methods_selected = any(method in ['lhs', 'sobol', 'halton', 'jaccard_geometric',
                                                'euclidean_geometric', 'manhattan_geometric',
@@ -374,10 +399,16 @@ def main():
     # Create methods string for command line
     methods_str = ",".join(selected_methods)
 
+    # Add parameter selection to command if needed
+    param_selection_str = ""
+    if selected_parameters:
+        param_selection_str = f" --param-selection {','.join(selected_parameters)}"
+
     if use_parallel:
         cmd = f"{sys.executable} run_sampling.py {n_samples} --runs {n_runs} --seed {seed} --methods {methods_str} --parallel --workers {n_cores}"
         if use_6x6_restriction:
             cmd += " --restrict-6x6"
+        cmd += param_selection_str
         success = run_command(
             cmd,
             f"METHOD-PARALLEL SAMPLING WITH {n_samples} SAMPLES ON {n_cores} CORES"
@@ -386,6 +417,7 @@ def main():
         cmd = f"{sys.executable} run_sampling.py {n_samples} --runs {n_runs} --seed {seed} --methods {methods_str} --hybrid-parallel --workers {n_cores}"
         if use_6x6_restriction:
             cmd += " --restrict-6x6"
+        cmd += param_selection_str
         success = run_command(
             cmd,
             f"HYBRID-PARALLEL SAMPLING WITH {n_samples} SAMPLES ON {n_cores} CORES"
@@ -394,6 +426,7 @@ def main():
         cmd = f"{sys.executable} run_sampling.py {n_samples} --runs {n_runs} --seed {seed} --methods {methods_str}"
         if use_6x6_restriction:
             cmd += " --restrict-6x6"
+        cmd += param_selection_str
         success = run_command(
             cmd,
             f"SAMPLING WITH {n_samples} SAMPLES"

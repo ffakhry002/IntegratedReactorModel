@@ -11,8 +11,9 @@ from ..base import BaseSampler
 class BaseQMCSampler(BaseSampler):
     """Base class for QMC samplers with common functionality."""
 
-    def __init__(self, use_6x6_restriction=False):
-        super().__init__(use_6x6_restriction=use_6x6_restriction)
+    def __init__(self, use_6x6_restriction=False, selected_parameters=None):
+        super().__init__(use_6x6_restriction=use_6x6_restriction,
+                        selected_parameters=selected_parameters)
 
     def find_closest_configuration(self, target_params: np.ndarray,
                                  used_indices: set = None) -> Tuple[int, float]:

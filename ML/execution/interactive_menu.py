@@ -69,6 +69,35 @@ class InteractiveTrainer:
         targets = []
 
         if self.get_yes_no("Train model for flux prediction?", 'y'):
+            # NEW: Ask for flux mode
+            print("\n" + "-"*30)
+            print("FLUX PREDICTION MODE")
+            print("-"*30)
+            flux_modes = [
+                ('total', 'Total Flux - Single value per position (current behavior)'),
+                ('energy', 'Energy Flux - Absolute flux for thermal/epithermal/fast'),
+                ('bin', 'Energy Bins - Percentage distribution (thermal/epithermal/fast)')
+            ]
+
+            print("Select flux prediction mode:")
+            for i, (mode, desc) in enumerate(flux_modes, 1):
+                print(f"  {i}. {desc}")
+
+            while True:
+                choice = input(f"Enter choice (1-3, default: 1): ").strip()
+                if choice == '':
+                    self.flux_mode = 'total'
+                    break
+                try:
+                    idx = int(choice) - 1
+                    if 0 <= idx < len(flux_modes):
+                        self.flux_mode = flux_modes[idx][0]
+                        break
+                except ValueError:
+                    pass
+                print("Please enter 1, 2, or 3")
+
+            print(f"\nSelected flux mode: {self.flux_mode}")
             targets.append('flux')
 
         if self.get_yes_no("Train model for k-effective prediction?", 'y'):
@@ -197,11 +226,17 @@ class InteractiveTrainer:
         os.makedirs(self.results_dir, exist_ok=True)
         os.makedirs(self.logs_dir, exist_ok=True)
 
+        # Initialize flux mode
+        self.flux_mode = 'total'  # Default
+
         # Get user selections
         self.config.targets = self.select_target()
         self.config.models = self.select_models()
         self.config.encodings = self.select_encodings()
         self.config.optimizations = self.select_optimizations()  # Now returns a list!
+
+        # Store flux mode in config
+        self.config.flux_mode = self.flux_mode
 
         # Get additional settings for optuna if selected
         if 'optuna' in self.config.optimizations:
@@ -228,6 +263,8 @@ class InteractiveTrainer:
         print("CONFIGURATION SUMMARY")
         print("="*60)
         print(f"Targets: {', '.join(self.config.targets)}")
+        if 'flux' in self.config.targets:
+            print(f"Flux mode: {self.flux_mode}")
         print(f"Models: {', '.join(self.config.models)}")
         print(f"Encodings: {', '.join(self.config.encodings)}")
         print(f"Optimizations: {', '.join(self.config.optimizations)}")
@@ -271,7 +308,8 @@ class InteractiveTrainer:
                     'encodings': self.config.encodings,
                     'optimizations': self.config.optimizations,
                     'targets': self.config.targets,
-                    'models': self.config.models
+                    'models': self.config.models,
+                    'flux_mode': self.flux_mode if 'flux' in self.config.targets else None  # NEW
                 }
             }
 
@@ -297,47 +335,22 @@ class InteractiveTrainer:
                     print(f"ENCODING: {encoding.upper()} | OPTIMIZATION: {optimization.upper()}")
                     print(f"{'='*50}")
 
-                    # Load and prepare data with current encoding
-                    print(f"\nLoading data with {encoding} encoding...")
-                    result = self.data_handler.load_and_prepare_data(
-                        data_file,
-                        encoding
-                    )
-
-                    # Handle both old and new return formats
-                    if len(result) == 4:
-                        X, y_flux, y_keff, groups = result
-                    else:
-                        X, y_flux, y_keff = result
-                        groups = None  # Fallback for compatibility
-                        print("WARNING: No groups returned - may have data leakage!")
-
-                    # Split data
-                    print("Splitting data...")
-                    data_splits = self.data_handler.split_data(X, y_flux, y_keff, groups)
-
-                    # Update training info
-                    if 'n_samples' not in all_results['training_info']:
-                        all_results['training_info'].update({
-                            'n_samples': X.shape[0],
-                            'train_size': data_splits['X_train'].shape[0],
-                            'test_size': data_splits['X_test'].shape[0]
-                        })
-
-                    all_results['training_info'][f'{encoding}_features'] = X.shape[1]
-
                     # Train models for each target
                     for target in self.config.targets:
                         print(f"\n{'-'*40}")
                         print(f"{target.upper()} MODELS - {encoding.upper()} - {optimization.upper()}")
+                        if target == 'flux':
+                            print(f"Flux mode: {self.flux_mode}")
                         print(f"{'-'*40}")
 
                         # Load and prepare data with current encoding
                         print(f"\nLoading data with {encoding} encoding...")
-                        # NEW: Get groups as well
+                        # Pass flux mode for flux targets
+                        flux_mode_to_use = self.flux_mode if target == 'flux' else 'total'
                         result = self.data_handler.load_and_prepare_data(
                             data_file,
-                            encoding
+                            encoding,
+                            flux_mode=flux_mode_to_use
                         )
 
                         # Handle both old and new return formats
@@ -366,6 +379,8 @@ class InteractiveTrainer:
                             job_counter += 1
                             print(f"\nJob {job_counter}/{total_jobs}: {model_type} for {target}")
                             print(f"Encoding: {encoding} | Optimization: {optimization}")
+                            if target == 'flux':
+                                print(f"Flux mode: {self.flux_mode}")
                             print("-"*30)
 
                             # Train model
@@ -376,6 +391,7 @@ class InteractiveTrainer:
                                 config=self.config,
                                 encoding=encoding
                             )
+
                             # Save results with encoding and optimization specific key
                             result_key = f'{encoding}_{optimization}_{target}_results'
                             if result_key not in all_results:
@@ -385,14 +401,20 @@ class InteractiveTrainer:
                                 'best_params': best_params,
                                 'metrics': metrics,
                                 'encoding': encoding,
-                                'optimization': optimization
+                                'optimization': optimization,
+                                'flux_mode': self.flux_mode if target == 'flux' else None  # NEW
                             }
 
                             # Save model with all identifiers in filename
-                            model_path = os.path.join(self.models_dir,
-                                f'{model_type}_{target}_{encoding}_{optimization}.pkl')
+                            if target == 'flux' and self.flux_mode != 'total':
+                                # Include flux mode in filename for non-total modes
+                                model_path = os.path.join(self.models_dir,
+                                    f'{model_type}_{target}_{self.flux_mode}_{encoding}_{optimization}.pkl')
+                            else:
+                                model_path = os.path.join(self.models_dir,
+                                    f'{model_type}_{target}_{encoding}_{optimization}.pkl')
 
-                            # Fixed save_model call
+                            # Fixed save_model call - removed flux_mode from metadata since it's passed separately
                             metadata = {
                                 'params': best_params,
                                 'metrics': metrics,

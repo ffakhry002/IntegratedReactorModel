@@ -1,5 +1,5 @@
 import numpy as np
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GroupShuffleSplit
 from utils.txt_to_data import parse_reactor_data, apply_rotational_symmetry
 from ML_models.encodings.encoding_methods import ReactorEncodings
 
@@ -10,12 +10,25 @@ class DataHandler:
         self.encodings = ReactorEncodings()
         self.use_log_flux = True  # Flag to use log transform for flux
         self.flux_scale = 1e14    # Alternative scaling factor
+        self.flux_mode = 'total'  # NEW: 'total', 'energy', or 'bin'
 
-    def load_and_prepare_data(self, data_file, encoding_method):
-        """Load and encode reactor data"""
+    def load_and_prepare_data(self, data_file, encoding_method, flux_mode='total'):
+        """Load and encode reactor data with support for different flux modes"""
+        self.flux_mode = flux_mode  # Store for later use
+
         print(f"  Loading from {data_file}...")
-        lattices, flux_data, k_effectives, descriptions = parse_reactor_data(data_file)
+        result = parse_reactor_data(data_file)
+
+        # Handle both old and new return formats
+        if len(result) == 5:
+            lattices, flux_data, k_effectives, descriptions, energy_groups = result
+        else:
+            # Backward compatibility
+            lattices, flux_data, k_effectives, descriptions = result
+            energy_groups = [{}] * len(lattices)  # Empty energy groups
+
         print(f"  Found {len(lattices)} configurations")
+        print(f"  Flux mode: {flux_mode}")
 
         print(f"  Applying {encoding_method} encoding with 8-fold augmentation...")
 
@@ -35,11 +48,18 @@ class DataHandler:
         # NEW: Group counter
         group_id = 0
 
-        for lattice, flux_dict, k_eff in zip(lattices, flux_data, k_effectives):
+        for lattice, flux_dict, k_eff, energy_dict in zip(lattices, flux_data, k_effectives, energy_groups):
             # Apply rotational symmetry (8-fold augmentation)
-            augmented = apply_rotational_symmetry(lattice, flux_dict, k_eff)
+            augmented = apply_rotational_symmetry(lattice, flux_dict, k_eff, energy_dict)
 
-            for aug_lattice, aug_flux, aug_k_eff in augmented:
+            for aug_data in augmented:
+                # Handle different return formats
+                if len(aug_data) == 4:
+                    aug_lattice, aug_flux, aug_k_eff, aug_energy = aug_data
+                else:
+                    aug_lattice, aug_flux, aug_k_eff = aug_data
+                    aug_energy = {}
+
                 total_configs += 1
 
                 # NEW: Add group ID (same for all 8 augmentations)
@@ -61,55 +81,18 @@ class DataHandler:
 
                 X_features.append(feature_vec)
 
-                # CRITICAL: Collect flux values based on SPATIAL position order
-                # This ensures the model learns position->flux relationships
-
-                # Step 1: Create a mapping from position to flux value
-                position_to_flux = {}
-                label_at_position = {}
-
-                for i in range(aug_lattice.shape[0]):
-                    for j in range(aug_lattice.shape[1]):
-                        cell = aug_lattice[i, j]
-                        if cell.startswith('I_'):
-                            # Store what label is at this position
-                            label_at_position[(i, j)] = cell
-                            # Store the flux value for this position
-                            if cell in aug_flux:
-                                position_to_flux[(i, j)] = aug_flux[cell]
-                            else:
-                                print(f"Warning: No flux value for {cell} in augmented data")
-                                position_to_flux[(i, j)] = 0.0
-
-                # Step 2: Collect flux values in SPATIAL order (not alphabetical!)
-                # position_order is sorted by (row, col), ensuring consistent spatial ordering
-                flux_values = []
-                spatial_labels = []  # For validation
-
-                for pos in position_order:
-                    if pos in position_to_flux:
-                        flux_values.append(position_to_flux[pos])
-                        if pos in label_at_position:
-                            spatial_labels.append(label_at_position[pos])
-                    else:
-                        # This shouldn't happen, but handle gracefully
-                        print(f"Warning: Position {pos} not found in flux mapping")
-                        flux_values.append(0.0)
-
-                # Validation: Check if spatial order differs from alphabetical
-                if spatial_labels:
-                    alphabetical_labels = sorted(spatial_labels)
-                    if spatial_labels != alphabetical_labels:
-                        label_order_mismatches += 1
-
-                # Ensure we have exactly 4 flux values
-                if len(flux_values) != 4:
-                    print(f"Warning: Expected 4 flux values, got {len(flux_values)}")
-                    # Pad or truncate to 4 values
-                    if len(flux_values) < 4:
-                        flux_values.extend([0.0] * (4 - len(flux_values)))
-                    else:
-                        flux_values = flux_values[:4]
+                # Prepare flux values based on mode
+                if flux_mode == 'total':
+                    # Original behavior - 4 flux values
+                    flux_values = self._prepare_total_flux_values(aug_lattice, aug_flux, position_order)
+                elif flux_mode == 'energy':
+                    # 12 values: 3 energy groups × 4 positions
+                    flux_values = self._prepare_energy_flux_values(aug_lattice, aug_flux, aug_energy, position_order)
+                elif flux_mode == 'bin':
+                    # 12 values: 3 percentages × 4 positions
+                    flux_values = self._prepare_energy_bin_values(aug_lattice, aug_energy, position_order)
+                else:
+                    raise ValueError(f"Unknown flux mode: {flux_mode}")
 
                 y_flux_values.append(flux_values)
                 y_k_eff.append(aug_k_eff)
@@ -133,23 +116,38 @@ class DataHandler:
 
         # Validate array shapes
         assert X.shape[0] == y_flux.shape[0] == y_keff.shape[0], "Sample count mismatch"
-        assert y_flux.shape[1] == 4, f"Expected 4 flux outputs, got {y_flux.shape[1]}"
 
-        # Transform flux values to log scale or simple scaling
-        if self.use_log_flux:
-            # Log transform for flux
-            y_flux_original = y_flux.copy()  # Keep for reference
-            y_flux = np.log10(y_flux + 1e-10)  # Add small value to avoid log(0)
-            print(f"  Flux values log-transformed. Range: {y_flux.min():.2f} to {y_flux.max():.2f}")
-            print(f"  Original flux range: {y_flux_original.min():.2e} to {y_flux_original.max():.2e}")
+        # Check expected output dimensions
+        if flux_mode == 'total':
+            assert y_flux.shape[1] == 4, f"Expected 4 flux outputs, got {y_flux.shape[1]}"
+        else:  # energy or bin
+            assert y_flux.shape[1] == 12, f"Expected 12 flux outputs, got {y_flux.shape[1]}"
+
+        # Transform flux values based on mode
+        if flux_mode == 'bin':
+            # No transformation for bins
+            print(f"  Energy bin values range: {y_flux.min():.3f} to {y_flux.max():.3f}")
+            self.use_log_flux = False  # Override for bins
         else:
-            # Alternative: simple scaling
-            y_flux = y_flux / self.flux_scale
-            print(f"  Flux values scaled by {self.flux_scale:.0e}. Range: {y_flux.min():.2f} to {y_flux.max():.2f}")
+            # Log transform for total and energy flux
+            if self.use_log_flux:
+                y_flux_original = y_flux.copy()  # Keep for reference
+                y_flux = np.log10(y_flux + 1e-10)  # Add small value to avoid log(0)
+                print(f"  Flux values log-transformed. Range: {y_flux.min():.2f} to {y_flux.max():.2f}")
+                print(f"  Original flux range: {y_flux_original.min():.2e} to {y_flux_original.max():.2e}")
+            else:
+                # Alternative: simple scaling
+                y_flux = y_flux / self.flux_scale
+                print(f"  Flux values scaled by {self.flux_scale:.0e}. Range: {y_flux.min():.2f} to {y_flux.max():.2f}")
 
         print(f"  After augmentation: {X.shape[0]} samples")
         print(f"  Feature shape: {X.shape}")
-        print(f"  Flux targets: {y_flux.shape} (4 positions per sample)")
+        if flux_mode == 'total':
+            print(f"  Flux targets: {y_flux.shape} (4 positions per sample)")
+        elif flux_mode == 'energy':
+            print(f"  Flux targets: {y_flux.shape} (12 values: 3 energy groups × 4 positions)")
+        else:  # bin
+            print(f"  Flux targets: {y_flux.shape} (12 values: 3 bin fractions × 4 positions)")
         print(f"  K-eff targets: {y_keff.shape}")
 
         # Final validation message
@@ -158,6 +156,103 @@ class DataHandler:
 
         # NEW: Return groups as well
         return X, y_flux, y_keff, groups
+
+    def _prepare_total_flux_values(self, lattice, flux_dict, position_order):
+        """Prepare total flux values (original behavior)"""
+        position_to_flux = {}
+        label_at_position = {}
+
+        for i in range(lattice.shape[0]):
+            for j in range(lattice.shape[1]):
+                cell = lattice[i, j]
+                if cell.startswith('I_'):
+                    label_at_position[(i, j)] = cell
+                    if cell in flux_dict:
+                        position_to_flux[(i, j)] = flux_dict[cell]
+                    else:
+                        print(f"Warning: No flux value for {cell} in augmented data")
+                        position_to_flux[(i, j)] = 0.0
+
+        flux_values = []
+        for pos in position_order:
+            if pos in position_to_flux:
+                flux_values.append(position_to_flux[pos])
+            else:
+                print(f"Warning: Position {pos} not found in flux mapping")
+                flux_values.append(0.0)
+
+        # Ensure we have exactly 4 flux values
+        if len(flux_values) != 4:
+            print(f"Warning: Expected 4 flux values, got {len(flux_values)}")
+            if len(flux_values) < 4:
+                flux_values.extend([0.0] * (4 - len(flux_values)))
+            else:
+                flux_values = flux_values[:4]
+
+        return flux_values
+
+    def _prepare_energy_flux_values(self, lattice, flux_dict, energy_dict, position_order):
+        """Prepare energy flux values (flux × percentage for each group)"""
+        flux_values = []
+
+        for pos in position_order:
+            # Find the label at this position
+            i, j = pos
+            label = lattice[i, j]
+
+            if label.startswith('I_') and label in flux_dict and label in energy_dict:
+                total_flux = flux_dict[label]
+                energy_fracs = energy_dict[label]
+
+                # Calculate absolute flux for each energy group
+                thermal_flux = total_flux * energy_fracs['thermal']
+                epithermal_flux = total_flux * energy_fracs['epithermal']
+                fast_flux = total_flux * energy_fracs['fast']
+
+                flux_values.extend([thermal_flux, epithermal_flux, fast_flux])
+            else:
+                # Default values if missing
+                flux_values.extend([0.0, 0.0, 0.0])
+
+        # Should have 12 values (3 groups × 4 positions)
+        if len(flux_values) != 12:
+            print(f"Warning: Expected 12 energy flux values, got {len(flux_values)}")
+            while len(flux_values) < 12:
+                flux_values.append(0.0)
+            flux_values = flux_values[:12]
+
+        return flux_values
+
+    def _prepare_energy_bin_values(self, lattice, energy_dict, position_order):
+        """Prepare energy bin values (just the percentages as fractions)"""
+        bin_values = []
+
+        for pos in position_order:
+            # Find the label at this position
+            i, j = pos
+            label = lattice[i, j]
+
+            if label.startswith('I_') and label in energy_dict:
+                energy_fracs = energy_dict[label]
+
+                # Just use the fractions directly
+                bin_values.extend([
+                    energy_fracs['thermal'],
+                    energy_fracs['epithermal'],
+                    energy_fracs['fast']
+                ])
+            else:
+                # Default values if missing - equal distribution
+                bin_values.extend([1.0/3.0, 1.0/3.0, 1.0/3.0])
+
+        # Should have 12 values (3 groups × 4 positions)
+        if len(bin_values) != 12:
+            print(f"Warning: Expected 12 energy bin values, got {len(bin_values)}")
+            while len(bin_values) < 12:
+                bin_values.append(1.0/3.0)
+            bin_values = bin_values[:12]
+
+        return bin_values
 
     def split_data(self, X, y_flux, y_keff, groups=None, test_size=0.15, random_state=42):
         """Split data into train/test sets"""

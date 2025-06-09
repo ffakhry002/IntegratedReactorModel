@@ -23,13 +23,16 @@ SCRIPT_DIR = Path(__file__).parent.parent.absolute()
 class BaseSampler:
     """Base class for all sampling methods with caching and optimization."""
 
-    def __init__(self, use_6x6_restriction=False):
+    def __init__(self, use_6x6_restriction=False, selected_parameters=None):
         # Only set default method_name if not already set by child class
         if not hasattr(self, 'method_name'):
             self.method_name = "base"
 
         # Configuration restriction setting
         self.use_6x6_restriction = use_6x6_restriction
+
+        # Store selected parameters (None means use all available)
+        self.selected_parameters = selected_parameters
 
         self._cache_lock = threading.Lock()
         # Initialize data attributes
@@ -40,7 +43,7 @@ class BaseSampler:
         self.feature_matrix_normalized = None
         self.scaler = StandardScaler()
 
-        # Define feature names for physics parameters
+        # Define feature names for physics parameters (will be updated after loading data)
         self.feature_names = [
             'avg_distance_from_core_center',
             'min_inter_position_distance',
@@ -313,16 +316,46 @@ class BaseSampler:
 
         n_configs = len(self.physics_parameters)
 
-        # Extract features
+                # Extract features - check if new parameter exists
         features = []
+        has_edge_distance = 'avg_distance_to_edge' in self.physics_parameters[0] if self.physics_parameters else False
+
+        # Determine which parameters to use
+        if self.selected_parameters:
+            # Use user-selected parameters
+            params_to_use = self.selected_parameters
+            self.feature_names = params_to_use.copy()
+        else:
+            # Use all available parameters
+            if has_edge_distance:
+                params_to_use = [
+                    'avg_distance_from_core_center',
+                    'min_inter_position_distance',
+                    'clustering_coefficient',
+                    'symmetry_balance',
+                    'local_fuel_density',
+                    'avg_distance_to_edge'
+                ]
+            else:
+                params_to_use = [
+                    'avg_distance_from_core_center',
+                    'min_inter_position_distance',
+                    'clustering_coefficient',
+                    'symmetry_balance',
+                    'local_fuel_density'
+                ]
+            self.feature_names = params_to_use.copy()
+
+        # Extract selected features
         for i in range(n_configs):
-            features.append([
-                self.physics_parameters[i]['avg_distance_from_core_center'],
-                self.physics_parameters[i]['min_inter_position_distance'],
-                self.physics_parameters[i]['clustering_coefficient'],
-                self.physics_parameters[i]['symmetry_balance'],
-                self.physics_parameters[i]['local_fuel_density']
-            ])
+            feature_vec = []
+            for param_key in params_to_use:
+                if param_key in self.physics_parameters[i]:
+                    feature_vec.append(self.physics_parameters[i][param_key])
+                else:
+                    print(f"Warning: Parameter '{param_key}' not found in physics parameters")
+                    feature_vec.append(0.0)  # Default value
+            features.append(feature_vec)
 
         self.feature_matrix = np.array(features)
         self.feature_matrix_normalized = self.scaler.fit_transform(self.feature_matrix)

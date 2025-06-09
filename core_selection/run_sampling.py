@@ -20,6 +20,7 @@ from sampler_execution import (
     create_comparison_summary,
     create_diversity_analysis
 )
+from interactive_parameter_selection import get_parameter_selection
 
 
 def validate_arguments(args):
@@ -206,6 +207,10 @@ def main():
                        help='Number of parallel workers (default: number of CPUs)')
     parser.add_argument('--restrict-6x6', action='store_true',
                        help='Use 6x6 central square restriction')
+    parser.add_argument('--interactive-params', action='store_true',
+                       help='Interactively select geometric parameters to use')
+    parser.add_argument('--param-selection', type=str, default=None,
+                       help='Comma-separated list of parameters to use (overrides interactive)')
 
     args = parser.parse_args()
 
@@ -221,6 +226,28 @@ def main():
     if not check_required_data(args.restrict_6x6):
         return
 
+    # Handle parameter selection for geometric methods
+    selected_parameters = None
+    geometric_methods = ['lhs', 'sobol', 'halton', 'jaccard_geometric',
+                        'euclidean_geometric', 'manhattan_geometric', 'random_geometric']
+
+    has_geometric = any(method in selected_methods for method in geometric_methods)
+
+    if has_geometric:
+        if args.param_selection:
+            # Use command-line specified parameters
+            selected_parameters = [p.strip() for p in args.param_selection.split(',')]
+            print(f"\nUsing specified parameters: {', '.join(selected_parameters)}")
+        elif args.interactive_params:
+            # Interactive selection
+            selected_parameters, _ = get_parameter_selection(
+                interactive=True,
+                restrict_6x6=args.restrict_6x6
+            )
+        else:
+            # Use all available parameters (default)
+            print("\nUsing all available geometric parameters")
+
     # Execute sampling
     results_dict = {}
     start_time = time.time()
@@ -229,19 +256,19 @@ def main():
         # Method parallel execution
         results_dict = run_method_parallel_execution(
             selected_methods, args.n_samples, args.runs, args.seed, n_workers,
-            args.restrict_6x6
+            args.restrict_6x6, selected_parameters
         )
     elif args.hybrid_parallel:
         # Hybrid parallel execution
         results_dict = run_hybrid_parallel_execution(
             selected_methods, args.n_samples, args.runs, args.seed, n_workers,
-            args.restrict_6x6
+            args.restrict_6x6, selected_parameters
         )
     else:
         # Serial execution
         results_dict = run_serial_execution(
             selected_methods, args.n_samples, args.runs, args.seed,
-            args.restrict_6x6
+            args.restrict_6x6, selected_parameters
         )
 
     total_time = time.time() - start_time
