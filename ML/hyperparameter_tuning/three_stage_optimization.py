@@ -1,5 +1,5 @@
 import numpy as np
-from sklearn.model_selection import RandomizedSearchCV, GridSearchCV
+from sklearn.model_selection import RandomizedSearchCV, GridSearchCV, GroupKFold, KFold
 from skopt import BayesSearchCV
 from skopt.space import Real, Integer, Categorical
 from scipy.stats import uniform, randint
@@ -11,8 +11,8 @@ from functools import wraps
 import signal
 
 # Global timeout settings
-STAGE_TIMEOUT = 3600*2  # 1 hour per stage
-TOTAL_TIMEOUT = 7200*3  # 2 hours total
+STAGE_TIMEOUT = 3600*2  # 2 hours per stage
+TOTAL_TIMEOUT = 7200*3  # 6 hours total
 
 class TimeoutException(Exception):
     pass
@@ -38,11 +38,11 @@ def with_timeout(timeout_seconds):
     return decorator
 
 def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost',
-                           n_jobs=-1, target_type='flux', use_log_flux=True, groups=None, flux_mode='total'):
+                           n_jobs=-1, target_type='flux', use_log_flux=True, groups=None):
     """
     Three-stage hyperparameter optimization: Random → Grid → Bayesian
     Complete implementation for all model types with timeouts and verbosity
-    NOW WITH MAPE SUPPORT AND GROUP-AWARE CV
+    NOW WITH PROPER GROUP-AWARE CV
 
     Args:
         target_type: 'flux' or 'keff' - determines optimization metric
@@ -60,7 +60,6 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
     # Track overall progress
     optimization_start_time = time.time()
     best_params_so_far = {}
-    # sklearn stores both MAPE and MSE as negative values, so start at -inf for both
     best_score_so_far = float('-inf')
 
     # Check if this is multi-output (flux) or single output (keff)
@@ -74,20 +73,19 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
         print(f"   - Number of outputs: {y_train.shape[1]}")
     print(f"   - Using {n_jobs} parallel jobs")
 
-    # NEW: Report on groups
+    # SET UP CROSS-VALIDATION STRATEGY
     if groups is not None:
+        cv = GroupKFold(n_splits=10)
         n_unique_configs = len(np.unique(groups))
         print(f"   - Using GroupKFold with {n_unique_configs} unique configurations")
         print(f"   - Preventing augmentation leakage in CV")
     else:
-        print(f"   -   WARNING: No groups provided - may have CV leakage!")
+        cv = 10  # Regular KFold
+        print(f"   - WARNING: No groups provided - may have CV leakage!")
+        print(f"   - Using regular {cv}-fold cross-validation")
 
-
-    if target_type == 'flux' and flux_mode == 'bin':
-        scoring = 'neg_mean_squared_error'
-        print(f"   - Using MSE scoring for energy bins")
-    elif target_type == 'flux':
-        # Create custom MAPE scorer for flux models
+    # Create custom MAPE scorer for flux models
+    if target_type == 'flux':
         from sklearn.metrics import make_scorer
 
         def mape_scorer(y_true, y_pred):
@@ -101,7 +99,6 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
                 y_pred_linear = y_pred
 
             # Calculate MAPE (always positive)
-            # Handle multi-output case
             if len(y_true_linear.shape) > 1:
                 mapes = []
                 for i in range(len(y_true_linear)):
@@ -112,12 +109,12 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
                             sample_errors.append(error)
                     if sample_errors:
                         mapes.append(np.mean(sample_errors))
-                return np.mean(mapes)  # Return positive MAPE
+                return np.mean(mapes)
             else:
                 # Single output
                 mask = y_true_linear != 0
                 mape = np.mean(np.abs((y_pred_linear[mask] - y_true_linear[mask]) / y_true_linear[mask])) * 100
-                return mape  # Return positive MAPE
+                return mape
 
         # Tell sklearn that lower MAPE is better (not greater)
         scoring = make_scorer(mape_scorer, greater_is_better=False)
@@ -127,50 +124,40 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
         print(f"   - Using MSE scoring")
 
     # Helper function to safely fit with timeout
-    def safe_fit_with_progress(search_cv, X, y, stage_name):
+    def safe_fit_with_progress(search_cv, X, y, stage_name, groups=None):
         """Fit with timeout and progress tracking"""
         try:
             print(f"\n Starting {stage_name} at {datetime.now().strftime('%H:%M:%S')}...")
-
-            # NEW: Modify the search CV object to use GroupKFold
-            if groups is not None:
-                from sklearn.model_selection import GroupKFold
-                # Replace the cv parameter with GroupKFold
-                search_cv.cv = GroupKFold(n_splits=10)
-                print(f"   Using GroupKFold cross-validation")
 
             # Add custom scoring wrapper for verbose output
             original_fit = search_cv.fit
             fit_count = [0]
 
-            # Calculate total fits, handling both int and CV objects
-            if hasattr(search_cv.cv, 'n_splits'):
+            # Calculate total fits
+            if hasattr(search_cv, 'cv') and hasattr(search_cv.cv, 'n_splits'):
                 cv_folds = search_cv.cv.n_splits
-            elif isinstance(search_cv.cv, int):
+            elif hasattr(search_cv, 'cv') and isinstance(search_cv.cv, int):
                 cv_folds = search_cv.cv
             else:
-                cv_folds = 10  # Default fallback
-                print(f"   ⚠️  FALLBACK: Could not determine CV folds, using default {cv_folds}")
+                cv_folds = 10  # Default
 
             if hasattr(search_cv, 'n_iter'):
                 total_fits = search_cv.n_iter * cv_folds
             else:
-                # Grid search - check if param_grid is dict or list of dicts
+                # Grid search
                 if hasattr(search_cv, 'param_grid'):
                     if isinstance(search_cv.param_grid, dict):
                         total_combinations = 1
                         for param_values in search_cv.param_grid.values():
                             total_combinations *= len(param_values)
                     else:
-                        # List of dicts
                         total_combinations = sum(
                             np.prod([len(v) for v in grid.values()])
                             for grid in search_cv.param_grid
                         )
                     total_fits = total_combinations * cv_folds
                 else:
-                    total_fits = cv_folds  # Fallback
-                    print(f"   ⚠️  FALLBACK: Could not find param_grid, using cv_folds only: {total_fits}")
+                    total_fits = cv_folds
 
             def verbose_fit(*args, **kwargs):
                 start_time = time.time()
@@ -199,8 +186,7 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
                     elif model_type == 'neural_net':
                         search_cv.estimator.set_params(verbose=True)
                 except Exception as e:
-                    print(f"   ⚠️  FALLBACK: Could not set verbose mode for {model_type}: {str(e)[:50]}")
-                    pass  # Some estimators might not support verbose
+                    print(f"   ⚠️  Could not set verbose mode for {model_type}: {str(e)[:50]}")
 
             # Fit with timeout
             with warnings.catch_warnings():
@@ -208,14 +194,13 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
                 signal.signal(signal.SIGALRM, timeout_handler)
                 signal.alarm(STAGE_TIMEOUT)
                 try:
-                    # NEW: Pass groups if available
+                    # Pass groups if available
                     if groups is not None:
                         search_cv.fit(X, y, groups=groups)
                     else:
                         search_cv.fit(X, y)
                     print(f"\n {stage_name} completed successfully!")
                     if target_type == 'flux':
-                        # sklearn negates scores when greater_is_better=False, so we need abs()
                         print(f" Best MAPE: {abs(search_cv.best_score_):.2f}%")
                     else:
                         print(f" Best score: {search_cv.best_score_:.6f}")
@@ -226,31 +211,25 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
 
         except TimeoutException:
             print(f"\n {stage_name} timed out after {STAGE_TIMEOUT}s")
-            # Try to get partial results if available
             if hasattr(search_cv, 'cv_results_'):
-                # Find best score from completed iterations
                 scores = search_cv.cv_results_['mean_test_score']
                 if len(scores) > 0:
                     if target_type == 'flux':
-                        best_idx = np.argmin(scores)  # For MAPE, lower is better
+                        best_idx = np.argmin(scores)
                     else:
-                        best_idx = np.argmax(scores)  # For negative MSE, higher is better
+                        best_idx = np.argmax(scores)
                     best_params = search_cv.cv_results_['params'][best_idx]
                     best_score = scores[best_idx]
-                    print(f"   FALLBACK: Using partial results: {len(scores)} combinations tested")
+                    print(f"   Using partial results: {len(scores)} combinations tested")
                     if target_type == 'flux':
                         print(f"   Best MAPE so far: {abs(best_score):.2f}%")
                     else:
                         print(f"   Best score so far: {best_score:.6f}")
                     return True, best_params, best_score
-            # Return worst case for failure
-            print(f"   FALLBACK: No partial results available, returning worst case values")
-            # Both MAPE and MSE are stored as negative by sklearn, so worst is -inf
             return False, {}, float('-inf')
 
         except Exception as e:
             print(f"\n {stage_name} failed with error: {str(e)[:100]}")
-            # Both MAPE and MSE are stored as negative by sklearn, so worst is -inf
             return False, {}, float('-inf')
 
     # Stage 1: Random Search - Cast wide net
@@ -258,12 +237,11 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
     print("STAGE 1/3: RANDOM SEARCH")
     print(f"{'='*60}")
     print("Exploring parameter space broadly...")
-    print("This stage tests 150 random parameter combinations")
+    print("This stage tests 250 random parameter combinations")
     stage1_start = time.time()
 
     if model_type == 'xgboost':
         if is_multi_output:
-            # Multi-output case - need to prefix parameters with 'estimator__'
             param_distributions = {
                 'estimator__n_estimators': randint(100, 1500),
                 'estimator__max_depth': randint(3, 15),
@@ -275,7 +253,6 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
                 'estimator__min_child_weight': randint(1, 10)
             }
         else:
-            # Single output case - regular parameters
             param_distributions = {
                 'n_estimators': randint(100, 1500),
                 'max_depth': randint(3, 15),
@@ -287,7 +264,6 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
                 'min_child_weight': randint(1, 10)
             }
     elif model_type == 'random_forest':
-        # RandomForest natively handles multi-output, no need for prefix
         param_distributions = {
             'n_estimators': randint(100, 1000),
             'max_depth': randint(5, 50),
@@ -297,7 +273,6 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
         }
     elif model_type == 'svm':
         if is_multi_output:
-            # Multi-output case - need to prefix parameters with 'estimator__'
             param_distributions = {
                 'estimator__C': uniform(0.001, 1000),
                 'estimator__gamma': uniform(0.0001, 1),
@@ -305,7 +280,6 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
                 'estimator__kernel': ['rbf', 'poly', 'sigmoid']
             }
         else:
-            # Single output case
             param_distributions = {
                 'C': uniform(0.001, 1000),
                 'gamma': uniform(0.0001, 1),
@@ -314,7 +288,6 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
             }
     elif model_type == 'neural_net':
         if is_multi_output:
-            # Multi-output case - need to prefix parameters with 'estimator__'
             param_distributions = {
                 'estimator__hidden_layer_sizes': [(100,), (200,), (100,50), (200,100), (300,200,100)],
                 'estimator__learning_rate_init': uniform(0.0001, 0.01),
@@ -323,7 +296,6 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
                 'estimator__solver': ['adam', 'lbfgs']
             }
         else:
-            # Single output case
             param_distributions = {
                 'hidden_layer_sizes': [(100,), (200,), (100,50), (200,100), (300,200,100)],
                 'learning_rate_init': uniform(0.0001, 0.01),
@@ -335,22 +307,22 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
     print(f"\n Random Search Parameters:")
     print(f"   - Candidates to test: 250")
     print(f"   - Cross-validation folds: 10")
-    print(f"   - Total fits: 1,500")
+    print(f"   - Total fits: 2,500")
     print(f"   - Timeout: {STAGE_TIMEOUT}s")
 
     random_search = RandomizedSearchCV(
         model_class(),
         param_distributions,
-        n_iter=250,
-        cv=10,
+        n_iter=1000,
+        cv=cv,  # Use the CV strategy defined at the beginning
         scoring=scoring,
         n_jobs=n_jobs,
-        verbose=2,  # Increased verbosity
+        verbose=2,
         random_state=42
     )
 
     success, best_random_params, best_random_score = safe_fit_with_progress(
-        random_search, X_train, y_train, "Random Search"
+        random_search, X_train, y_train, "Random Search", groups
     )
 
     if success and best_random_params:
@@ -368,40 +340,8 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
     # Check if Stage 1 failed
     if not best_random_params:
         print(f"\n Stage 1 failed to find any parameters. Returning default parameters.")
-        # Return some reasonable default parameters based on model type
-        if model_type == 'xgboost':
-            default_params = {
-                'n_estimators': 300,
-                'max_depth': 6,
-                'learning_rate': 0.1,
-                'subsample': 0.8,
-                'colsample_bytree': 0.8
-            }
-        elif model_type == 'random_forest':
-            default_params = {
-                'n_estimators': 300,
-                'max_depth': 20,
-                'min_samples_split': 5,
-                'min_samples_leaf': 2
-            }
-        elif model_type == 'svm':
-            default_params = {
-                'C': 1.0,
-                'gamma': 0.1,
-                'epsilon': 0.1,
-                'kernel': 'rbf'
-            }
-        elif model_type == 'neural_net':
-            default_params = {
-                'hidden_layer_sizes': (100,),
-                'learning_rate_init': 0.001,
-                'alpha': 0.001,
-                'activation': 'relu'
-            }
-        else:
-            default_params = {}
-
-        return default_params, None
+        # Return default parameters...
+        return get_default_params(model_type), None
 
     # Check total timeout
     if time.time() - optimization_start_time > TOTAL_TIMEOUT:
@@ -411,19 +351,16 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
     # Helper function to get parameter value with or without prefix
     def get_param_value(params, base_key, default=None):
         """Get parameter value checking both with and without estimator__ prefix"""
-        # First try with prefix
         prefixed_key = f'estimator__{base_key}'
         if prefixed_key in params:
             return params[prefixed_key]
-        # Then try without prefix
         elif base_key in params:
             return params[base_key]
-        # Return default if not found
         elif default is not None:
-            print(f"   FALLBACK: Parameter '{base_key}' not found, using default: {default}")
+            print(f"   Parameter '{base_key}' not found, using default: {default}")
             return default
         else:
-            raise KeyError(f"Parameter '{base_key}' not found (tried both '{base_key}' and '{prefixed_key}')")
+            raise KeyError(f"Parameter '{base_key}' not found")
 
     # Stage 2: Grid Search - Focus on promising region
     print(f"\n{'='*60}")
@@ -435,7 +372,6 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
     # Create focused grid around best random search params
     if model_type == 'xgboost':
         if is_multi_output:
-            # Multi-output case - parameters might or might not have prefix
             n_est = get_param_value(best_random_params, 'n_estimators')
             depth = get_param_value(best_random_params, 'max_depth')
             lr = get_param_value(best_random_params, 'learning_rate')
@@ -448,7 +384,6 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
                 'estimator__colsample_bytree': [0.6, 0.7, 0.8, 0.9]
             }
         else:
-            # Single output case
             n_est = get_param_value(best_random_params, 'n_estimators')
             depth = get_param_value(best_random_params, 'max_depth')
             lr = get_param_value(best_random_params, 'learning_rate')
@@ -503,7 +438,6 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
             lr = get_param_value(best_random_params, 'learning_rate_init')
             alpha = get_param_value(best_random_params, 'alpha')
 
-            # Create variations of layer sizes
             layer_variations = []
             if isinstance(layers, tuple):
                 base_layers = list(layers)
@@ -523,7 +457,6 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
             lr = get_param_value(best_random_params, 'learning_rate_init')
             alpha = get_param_value(best_random_params, 'alpha')
 
-            # Create variations of layer sizes
             layer_variations = []
             if isinstance(layers, tuple):
                 base_layers = list(layers)
@@ -550,29 +483,25 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
     print(f"   - Total fits: {total_combinations * 10}")
     print(f"   - Timeout: {STAGE_TIMEOUT}s")
 
-    # Create a new model instance with best random params
     grid_model = model_class()
 
     grid_search = GridSearchCV(
         grid_model,
         param_grid,
-        cv=10,
+        cv=cv,  # Use the CV strategy defined at the beginning
         scoring=scoring,
         n_jobs=n_jobs,
-        verbose=2  # Increased verbosity
+        verbose=2
     )
 
     success, best_grid_params, best_grid_score = safe_fit_with_progress(
-        grid_search, X_train, y_train, "Grid Search"
+        grid_search, X_train, y_train, "Grid Search", groups
     )
 
     if success and best_grid_params:
-        # Check if grid search improved results
         if target_type == 'flux':
-            # For MAPE (stored as negative by sklearn), less negative is better
             improved = best_grid_score > best_score_so_far
         else:
-            # For negative MSE, higher is better
             improved = best_grid_score > best_score_so_far
 
         if improved:
@@ -581,32 +510,9 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
             print(f"\n Grid search improved performance!")
         else:
             print(f"\n Grid search did not improve performance.")
-            if target_type == 'flux':
-                print(f"   Random: {abs(best_random_score):.2f}% vs Grid: {abs(best_grid_score):.2f}%")
-            else:
-                print(f"   Random: {best_random_score:.6f} vs Grid: {best_grid_score:.6f}")
 
     stage2_time = time.time() - stage2_start
-    # Calculate improvement
-    if target_type == 'flux':
-        # For MAPE: improvement = (old - new) / old * 100
-        if best_random_score != 0:
-            improvement = ((best_random_score - best_grid_score) / best_random_score) * 100
-        else:
-            improvement = 0
-    else:
-        # For negative MSE: scores are negative, so less negative is better
-        if best_random_score != 0:
-            improvement = ((best_grid_score - best_random_score) / abs(best_random_score)) * 100
-        else:
-            improvement = 0
-
     print(f"\nStage 2 took {stage2_time/60:.1f} minutes")
-    if target_type == 'flux':
-        print(f"Best MAPE: {abs(best_grid_score):.2f}%")
-    else:
-        print(f"Best score: {best_grid_score:.6f}")
-    print(f"Improvement from Stage 1: {improvement:.2f}%")
 
     # Check total timeout
     if time.time() - optimization_start_time > TOTAL_TIMEOUT:
@@ -623,12 +529,6 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
     # Update best params with grid results
     best_params = {**best_random_params, **best_grid_params}
 
-    print(f"\n Bayesian Optimization Parameters:")
-    print(f"   - Iterations: 50")
-    print(f"   - Cross-validation folds: 10")
-    print(f"   - Total fits: 500")
-    print(f"   - Timeout: {STAGE_TIMEOUT}s")
-
     # Define search spaces for Bayesian optimization
     if model_type == 'xgboost':
         if is_multi_output:
@@ -639,16 +539,11 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
             colsample = get_param_value(best_params, 'colsample_bytree')
 
             search_spaces = {
-                'estimator__n_estimators': Integer(max(100, n_est-100),
-                                                  min(1500, n_est+100)),
-                'estimator__max_depth': Integer(max(3, depth-1),
-                                               min(15, depth+1)),
-                'estimator__learning_rate': Real(max(0.001, lr*0.8),
-                                                min(0.3, lr*1.2), prior='log-uniform'),
-                'estimator__subsample': Real(max(0.5, subsample-0.1),
-                                            min(1.0, subsample+0.1)),
-                'estimator__colsample_bytree': Real(max(0.5, colsample-0.1),
-                                                   min(1.0, colsample+0.1))
+                'estimator__n_estimators': Integer(max(100, n_est-100), min(1500, n_est+100)),
+                'estimator__max_depth': Integer(max(3, depth-1), min(15, depth+1)),
+                'estimator__learning_rate': Real(max(0.001, lr*0.8), min(0.3, lr*1.2), prior='log-uniform'),
+                'estimator__subsample': Real(max(0.5, subsample-0.1), min(1.0, subsample+0.1)),
+                'estimator__colsample_bytree': Real(max(0.5, colsample-0.1), min(1.0, colsample+0.1))
             }
         else:
             n_est = get_param_value(best_params, 'n_estimators')
@@ -658,16 +553,11 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
             colsample = get_param_value(best_params, 'colsample_bytree')
 
             search_spaces = {
-                'n_estimators': Integer(max(100, n_est-100),
-                                       min(1500, n_est+100)),
-                'max_depth': Integer(max(3, depth-1),
-                                    min(15, depth+1)),
-                'learning_rate': Real(max(0.001, lr*0.8),
-                                     min(0.3, lr*1.2), prior='log-uniform'),
-                'subsample': Real(max(0.5, subsample-0.1),
-                                 min(1.0, subsample+0.1)),
-                'colsample_bytree': Real(max(0.5, colsample-0.1),
-                                        min(1.0, colsample+0.1))
+                'n_estimators': Integer(max(100, n_est-100), min(1500, n_est+100)),
+                'max_depth': Integer(max(3, depth-1), min(15, depth+1)),
+                'learning_rate': Real(max(0.001, lr*0.8), min(0.3, lr*1.2), prior='log-uniform'),
+                'subsample': Real(max(0.5, subsample-0.1), min(1.0, subsample+0.1)),
+                'colsample_bytree': Real(max(0.5, colsample-0.1), min(1.0, colsample+0.1))
             }
 
     elif model_type == 'random_forest':
@@ -676,19 +566,14 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
         min_leaf = get_param_value(best_params, 'min_samples_leaf')
 
         search_spaces = {
-            'n_estimators': Integer(max(100, n_est-50),
-                                   min(1000, n_est+50)),
-            'min_samples_split': Integer(max(2, min_split-2),
-                                        min(20, min_split+2)),
-            'min_samples_leaf': Integer(max(1, min_leaf-1),
-                                       min(10, min_leaf+2))
+            'n_estimators': Integer(max(100, n_est-50), min(1000, n_est+50)),
+            'min_samples_split': Integer(max(2, min_split-2), min(20, min_split+2)),
+            'min_samples_leaf': Integer(max(1, min_leaf-1), min(10, min_leaf+2))
         }
 
-        # Handle max_depth which might be None
         depth = get_param_value(best_params, 'max_depth', None)
         if depth is not None:
-            search_spaces['max_depth'] = Integer(max(5, depth-3),
-                                                min(50, depth+3))
+            search_spaces['max_depth'] = Integer(max(5, depth-3), min(50, depth+3))
 
     elif model_type == 'svm':
         if is_multi_output:
@@ -700,8 +585,7 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
             search_spaces = {
                 'estimator__C': Real(C/5, C*5, prior='log-uniform'),
                 'estimator__gamma': Real(gamma/5, gamma*5, prior='log-uniform'),
-                'estimator__epsilon': Real(max(0.001, eps*0.5),
-                                          min(1.0, eps*1.5)),
+                'estimator__epsilon': Real(max(0.001, eps*0.5), min(1.0, eps*1.5)),
                 'estimator__kernel': Categorical([kernel])
             }
         else:
@@ -713,8 +597,7 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
             search_spaces = {
                 'C': Real(C/5, C*5, prior='log-uniform'),
                 'gamma': Real(gamma/5, gamma*5, prior='log-uniform'),
-                'epsilon': Real(max(0.001, eps*0.5),
-                               min(1.0, eps*1.5)),
+                'epsilon': Real(max(0.001, eps*0.5), min(1.0, eps*1.5)),
                 'kernel': Categorical([kernel])
             }
 
@@ -748,23 +631,21 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
         model_class(),
         search_spaces,
         n_iter=100,
-        cv=10,
+        cv=cv,  # Use the CV strategy defined at the beginning
         scoring=scoring,
         n_jobs=n_jobs,
-        verbose=2,  # Increased verbosity
+        verbose=2,
         random_state=42
     )
 
     success, best_bayes_params, best_bayes_score = safe_fit_with_progress(
-        bayes_search, X_train, y_train, "Bayesian Optimization"
+        bayes_search, X_train, y_train, "Bayesian Optimization", groups
     )
 
     if success and best_bayes_params:
         if target_type == 'flux':
-            # For MAPE (stored as negative by sklearn), less negative is better
             improved = best_bayes_score > best_score_so_far
         else:
-            # For negative MSE, higher is better
             improved = best_bayes_score > best_score_so_far
 
         if improved:
@@ -777,48 +658,12 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
     stage3_time = time.time() - stage3_start
     total_time = time.time() - optimization_start_time
 
-    # Calculate overall improvement
-    if target_type == 'flux':
-        # For MAPE: improvement = (initial - final) / initial * 100
-        if best_random_score != 0:
-            final_improvement = ((best_random_score - best_score_so_far) / best_random_score) * 100
-        else:
-            final_improvement = 0
-    else:
-        # For negative MSE: scores are negative, so improvement is when final is less negative than initial
-        if best_random_score != 0:
-            final_improvement = ((best_score_so_far - best_random_score) / abs(best_random_score)) * 100
-        else:
-            final_improvement = 0
-
     print(f"\nStage 3 took {stage3_time/60:.1f} minutes")
     print(f"\n{'='*60}")
     print("OPTIMIZATION COMPLETE!")
     print(f"{'='*60}")
 
-    if target_type == 'flux':
-        print(f"\n Final Results:")
-        print(f"   Stage 1 (Random):   MAPE = {abs(best_random_score):.2f}%")
-        if 'best_grid_score' in locals():
-            print(f"   Stage 2 (Grid):     MAPE = {abs(best_grid_score):.2f}%")
-        if 'best_bayes_score' in locals():
-            print(f"   Stage 3 (Bayesian): MAPE = {abs(best_bayes_score):.2f}%")
-        print(f"   Final best MAPE:    {abs(best_score_so_far):.2f}%")
-        print(f"\n MAPE reduction: {final_improvement:.2f}%")
-    else:
-        print(f"\n Final Results:")
-        print(f"   Stage 1 (Random):   {best_random_score:.6f}")
-        if 'best_grid_score' in locals():
-            print(f"   Stage 2 (Grid):     {best_grid_score:.6f}")
-        if 'best_bayes_score' in locals():
-            print(f"   Stage 3 (Bayesian): {best_bayes_score:.6f}")
-        print(f"   Final best score:   {best_score_so_far:.6f}")
-        print(f"\n Total improvement: {final_improvement:.2f}%")
-
-    print(f" Total time: {total_time/60:.1f} minutes")
-
     # Clean up parameters for final model creation
-    # Remove 'estimator__' prefix for the final parameters
     if is_multi_output and model_type in ['xgboost', 'svm', 'neural_net']:
         clean_params = {}
         for key, value in best_params_so_far.items():
@@ -829,9 +674,40 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
         print(f"\n Best parameters (cleaned):")
         for param, value in clean_params.items():
             print(f"   - {param}: {value}")
-        return clean_params, None  # Return None for search object if incomplete
+        return clean_params, None
     else:
         print(f"\n Best parameters:")
         for param, value in best_params_so_far.items():
             print(f"   - {param}: {value}")
         return best_params_so_far, None
+
+def get_default_params(model_type):
+    """Get default parameters for model type"""
+    defaults = {
+        'xgboost': {
+            'n_estimators': 300,
+            'max_depth': 6,
+            'learning_rate': 0.1,
+            'subsample': 0.8,
+            'colsample_bytree': 0.8
+        },
+        'random_forest': {
+            'n_estimators': 300,
+            'max_depth': 20,
+            'min_samples_split': 5,
+            'min_samples_leaf': 2
+        },
+        'svm': {
+            'C': 1.0,
+            'gamma': 0.1,
+            'epsilon': 0.1,
+            'kernel': 'rbf'
+        },
+        'neural_net': {
+            'hidden_layer_sizes': (100,),
+            'learning_rate_init': 0.001,
+            'alpha': 0.001,
+            'activation': 'relu'
+        }
+    }
+    return defaults.get(model_type, {})

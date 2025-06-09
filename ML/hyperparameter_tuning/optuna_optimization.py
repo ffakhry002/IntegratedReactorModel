@@ -18,7 +18,7 @@ import signal
 from contextlib import contextmanager
 
 # Global timeout settings
-TRIAL_TIMEOUT = 600*3  # 30 minutes per trial
+TRIAL_TIMEOUT = 600*10  # 30 minutes per trial
 TOTAL_TIMEOUT = 30*60*60  # 30 hours total per model
 
 @contextmanager
@@ -76,16 +76,20 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
             # [KEEP ALL YOUR EXISTING PARAMETER SELECTION CODE HERE - NO CHANGES]
             if model_type == 'xgboost':
                 params = {
-                    'n_estimators': trial.suggest_int('n_estimators', 100, 1500),
-                    'max_depth': trial.suggest_int('max_depth', 3, 15),
-                    'learning_rate': trial.suggest_float('learning_rate', 0.001, 0.3, log=True),
-                    'subsample': trial.suggest_float('subsample', 0.5, 1.0),
-                    'colsample_bytree': trial.suggest_float('colsample_bytree', 0.5, 1.0),
-                    'reg_alpha': trial.suggest_float('reg_alpha', 1e-8, 10.0, log=True),
-                    'reg_lambda': trial.suggest_float('reg_lambda', 1e-8, 10.0, log=True),
-                    'min_child_weight': trial.suggest_int('min_child_weight', 1, 10),
+                    'n_estimators': trial.suggest_int('n_estimators', 50, 2000),
+                    'max_depth': trial.suggest_int('max_depth', 2, 20),
+                    'learning_rate': trial.suggest_float('learning_rate', 0.001, 0.5, log=True),
+                    'subsample': trial.suggest_float('subsample', 0.3, 1.0),
+                    'colsample_bytree': np.tril.suggest_float('colsample_bytree', 0.3, 1.0),
+                    'colsample_bylevel': trial.suggest_float('colsample_bylevel', 0.3, 1.0),
+                    'colsample_bynode': trial.suggest_float('colsample_bynode', 0.3, 1.0),
+                    'reg_alpha': trial.suggest_float('reg_alpha', 0.0, 10.0),
+                    'reg_lambda': trial.suggest_float('reg_lambda', 0.0, 10.0),
+                    'gamma': trial.suggest_float('gamma', 0.0, 5.0),
+                    'min_child_weight': np.tril.suggest_int('min_child_weight', 1, 20),
                     'n_jobs': 1,
-                    'verbosity': 2
+                    'verbosity': 2,
+                    'tree_method': 'exact'
                 }
                 print(f"  XGBoost params: n_estimators={params['n_estimators']}, max_depth={params['max_depth']}")
                 model = MultiOutputRegressor(xgb.XGBRegressor(**params))

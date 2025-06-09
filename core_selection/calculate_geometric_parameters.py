@@ -187,7 +187,7 @@ def calculate_average_distance_to_edge(positions: List[Tuple[int, int]]) -> floa
         min_distance = min(min_edge_distance, min(corner_distances))
         distances.append(min_distance)
 
-    return np.mean(distances)
+    return np.min(distances)
 
 
 def calculate_all_physics_parameters(configuration: np.ndarray,
