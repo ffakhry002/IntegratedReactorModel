@@ -9,6 +9,7 @@ import os
 import sys
 import pandas as pd
 import json
+import joblib
 from datetime import datetime
 
 # Add visualization helpers to path
@@ -23,6 +24,8 @@ from visualizations_helpers.rel_error_trackers import create_rel_error_tracker_p
 from visualizations_helpers.summary_statistics import create_summary_statistics_plots, create_error_distribution_for_energy, create_error_distribution_for_total
 from visualizations_helpers.energy_breakdown_plots import create_energy_breakdown_plots
 from visualizations_helpers.data_loader import load_test_results
+from visualizations_helpers.optuna_visualizations import generate_all_optuna_visualizations
+from visualizations_helpers.core_config_visualizations import generate_core_config_visualizations
 
 def detect_energy_discretization(df):
     """Detect if the Excel file contains energy-discretized results"""
@@ -40,6 +43,50 @@ def detect_energy_discretization(df):
         print("\n✓ Detected standard flux results (no energy discretization)")
 
     return has_energy
+
+def find_optuna_studies():
+    """Find saved Optuna study files"""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # Look for studies in the outputs folder
+    possible_dirs = [
+        os.path.join(script_dir, 'outputs', 'optuna_studies'),
+        os.path.join(script_dir, '..', 'outputs', 'optuna_studies'),
+        os.path.join(script_dir, '..', 'ML', 'outputs', 'optuna_studies'),
+        'ML/outputs/optuna_studies',
+        # Also check old locations for backward compatibility
+        os.path.join(script_dir, 'hyperparameter_tuning', 'saved_studies'),
+        os.path.join(script_dir, '..', 'hyperparameter_tuning', 'saved_studies'),
+    ]
+
+    study_files = {}
+
+    for dir_path in possible_dirs:
+        if os.path.exists(dir_path):
+            files = [f for f in os.listdir(dir_path) if f.endswith('_study.pkl')]
+            for f in files:
+                full_path = os.path.join(dir_path, f)
+                # Parse filename to get model and target info
+                parts = f.replace('_study.pkl', '').split('_')
+                if len(parts) >= 2:
+                    model_name = parts[0]
+                    if 'flux' in f:
+                        if len(parts) >= 3:
+                            target = f"flux_{parts[-1]}"  # e.g., flux_total, flux_bin
+                        else:
+                            target = "flux"
+                    elif 'keff' in f:
+                        target = "keff"
+                    else:
+                        target = "unknown"
+
+                    key = f"{model_name}_{target}"
+                    study_files[key] = full_path
+
+            if files:
+                break  # Found studies, no need to check other directories
+
+    return study_files
 
 def ensure_directories(base_output_dir, has_energy_discretization=False):
     """Create all necessary output directories"""
@@ -73,6 +120,9 @@ def ensure_directories(base_output_dir, has_energy_discretization=False):
 
         # Energy breakdown plots in main directory
         directories.append(os.path.join(base_output_dir, 'energy_breakdown'))
+
+        # Optuna analysis directory
+        directories.append(os.path.join(base_output_dir, 'optuna_analysis'))
     else:
         # Standard directory structure
         directories.extend([
@@ -86,7 +136,8 @@ def ensure_directories(base_output_dir, has_energy_discretization=False):
             os.path.join(base_output_dir, 'rel_error_trackers', 'max_rel_error'),
             os.path.join(base_output_dir, 'rel_error_trackers', 'mean_rel_error'),
             os.path.join(base_output_dir, 'rel_error_trackers', 'keff_rel_error'),
-            os.path.join(base_output_dir, 'summary_statistics')
+            os.path.join(base_output_dir, 'summary_statistics'),
+            os.path.join(base_output_dir, 'optuna_analysis')
         ])
 
     for directory in directories:
@@ -177,6 +228,17 @@ def main():
 
         # Create output directories
         ensure_directories(output_base_dir, has_energy_discretization)
+
+        # Generate core configuration visualizations first
+        print("\n" + "-"*60)
+        print("Generating Core Configuration Visualizations...")
+        print("-"*60)
+
+        try:
+            generate_core_config_visualizations(output_base_dir)
+        except Exception as e:
+            print(f"ERROR generating core configuration visualizations: {e}")
+            print("Continuing with other visualizations...")
 
         # Extract unique values for iteration
         models = test_results_df['model_class'].unique()
@@ -432,6 +494,55 @@ def main():
             traceback.print_exc()
             return
 
+    # Generate Optuna visualizations if studies exist
+    print("\n" + "-"*60)
+    print("Checking for Optuna optimization studies...")
+    print("-"*60)
+
+    study_files = find_optuna_studies()
+
+    if study_files:
+        print(f"\nFound {len(study_files)} Optuna study files:")
+        for key, path in study_files.items():
+            print(f"  - {key}: {os.path.basename(path)}")
+
+        # Create optuna_analysis directory
+        optuna_output_dir = os.path.join(output_base_dir, 'optuna_analysis')
+        os.makedirs(optuna_output_dir, exist_ok=True)
+
+        print(f"\nGenerating Optuna visualizations...")
+
+        for key, study_path in study_files.items():
+            try:
+                print(f"\n📊 Processing {key}...")
+
+                # Load the study
+                study = joblib.load(study_path)
+
+                # Parse model name and target from key
+                parts = key.split('_', 1)
+                model_name = parts[0]
+                target = parts[1] if len(parts) > 1 else 'unknown'
+
+                # Generate visualizations
+                generate_all_optuna_visualizations(
+                    study=study,
+                    save_base_dir=optuna_output_dir,
+                    model_name=model_name,
+                    target=target,
+                    include_all=True
+                )
+
+                print(f"  ✓ Completed visualizations for {key}")
+
+            except Exception as e:
+                print(f"  ✗ ERROR processing {key}: {e}")
+                print("    Continuing with other studies...")
+    else:
+        print("\nNo Optuna study files found.")
+        print("To generate Optuna visualizations, ensure your optimization studies are saved")
+        print("in ML/hyperparameter_tuning/saved_studies/")
+
     # Create summary report
     summary_file = os.path.join(output_base_dir, 'visualization_summary.txt')
     with open(summary_file, 'w') as f:
@@ -461,6 +572,29 @@ def main():
             f.write("5. Relative Error Trackers - Detailed error analysis by encoding\n")
             f.write("6. Summary Statistics - Best model combinations\n")
 
+        # Add core configuration section
+        f.write("\nCore Configuration Visualizations:\n")
+        f.write("  - core_images/train_cores.png : Training set core configurations\n")
+        f.write("  - core_images/test_cores.png  : Test set core configurations\n")
+        f.write("  - core_images/train_irradiation_heatmap.png : Training irradiation frequency heatmap\n")
+        f.write("  - core_images/test_irradiation_heatmap.png  : Test irradiation frequency heatmap\n")
+
+        # Add Optuna section if studies were found
+        if study_files:
+            f.write(f"\nOptuna Hyperparameter Optimization Studies:\n")
+            f.write(f"Found {len(study_files)} optimization studies\n")
+            f.write("Visualizations generated in optuna_analysis/:\n")
+            for key in study_files.keys():
+                f.write(f"  - {key}/\n")
+            f.write("\nOptuna visualization types:\n")
+            f.write("  • Optimization history\n")
+            f.write("  • Parameter importance (fANOVA)\n")
+            f.write("  • Parameter relationships (contour plots)\n")
+            f.write("  • Parameter slice plots\n")
+            f.write("  • Parallel coordinate plots\n")
+            f.write("  • Hyperparameter convergence\n")
+            f.write("  • Optimization statistics\n")
+
     print("\n" + "="*80)
     print("VISUALIZATION PIPELINE COMPLETE!")
     print("="*80)
@@ -485,6 +619,11 @@ def main():
         print("  ✓ Configuration error plots")
         print("  ✓ Relative error trackers")
         print("  ✓ Summary statistics")
+
+    if study_files:
+        print("\nOptuna hyperparameter optimization analysis:")
+        print(f"  ✓ optuna_analysis/ - {len(study_files)} optimization studies analyzed")
+        print("    Including: optimization history, parameter importance, convergence plots")
 
 if __name__ == "__main__":
     main()

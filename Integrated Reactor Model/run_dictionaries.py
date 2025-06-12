@@ -7,24 +7,377 @@ import numpy as np
 
 # Default run with base inputs
 all_runs = [
+
+    # Euclidean Geometric samples
     {
-        "description": "random_lattice_1",
+        "description": "euclidean_geometric_1",
         "core_lattice": [
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
-            ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'],
-            ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'],
-            ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'I_1', 'F', 'F', 'C'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
             ['C', 'F', 'I_4', 'F', 'F', 'F', 'F', 'C'],
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
         ]
     }
     ,{
-        "description": "random_lattice_2",
+        "description": "euclidean_geometric_2",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_2'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'I_4', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_3",
         "core_lattice": [
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
-            ['C', 'I_1', 'F', 'F', 'I_2', 'F', 'F', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_1', 'I_2', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'I_4', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_4",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'I_2', 'F', 'F', 'C', 'C'],
+            ['C', 'I_3', 'I_4', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_5",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'I_2', 'F', 'F', 'C', 'C'],
+            ['C', 'I_3', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'I_4', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_6",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_2', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'I_4', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_7",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'I_2', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_8",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'I_1', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_9",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'I_1', 'I_2', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'I_3', 'I_4', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_10",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_2', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_3', 'C'],
+            ['C', 'C', 'F', 'I_4', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_11",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_2', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'I_4', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_12",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_13",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'I_2', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'I_4', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_14",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_2', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_3'],
+            ['C', 'I_4', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_15",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'I_2', 'F', 'F', 'C'],
+            ['F', 'I_3', 'I_4', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_16",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'I_1', 'I_2', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'I_4', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_17",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_2', 'F', 'I_3', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_4', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_18",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'F', 'I_2', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'I_4', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_19",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'F', 'F', 'I_2', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'I_4', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_20",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'I_1', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_21",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'I_1', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'I_4', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_22",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_2', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'I_4', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_23",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_2', 'F'],
+            ['F', 'F', 'I_3', 'I_4', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_24",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'I_2', 'I_3', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_4'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_25",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'I_2', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'I_3', 'F', 'F', 'F', 'I_4', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_26",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'I_1', 'I_2', 'F', 'I_3', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_4', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_27",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_2', 'I_3', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_4', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_28",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_2', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_4', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_29",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'F', 'F', 'I_2', 'C'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
@@ -34,51 +387,116 @@ all_runs = [
         ]
     }
     ,{
-        "description": "random_lattice_3",
+        "description": "euclidean_geometric_30",
         "core_lattice": [
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
-            ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'],
-            ['F', 'I_2', 'F', 'F', 'F', 'I_3', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'I_1', 'I_2', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'I_3', 'I_4', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-            ['F', 'F', 'F', 'F', 'F', 'F', 'I_4', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
         ]
     }
     ,{
-        "description": "random_lattice_4",
+        "description": "euclidean_geometric_31",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'I_2', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'I_4'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_32",
         "core_lattice": [
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
-            ['C', 'I_1', 'F', 'I_2', 'F', 'F', 'F', 'C'],
-            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-            ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_1', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'I_2', 'I_3', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'],
-            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
-            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
-        ]
-    }
-    ,{
-        "description": "random_lattice_5",
-        "core_lattice": [
-            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
-            ['C', 'I_1', 'F', 'F', 'F', 'F', 'F', 'C'],
-            ['F', 'F', 'F', 'F', 'I_2', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-            ['F', 'F', 'F', 'F', 'F', 'I_3', 'F', 'F'],
-            ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'],
             ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
         ]
     }
     ,{
-        "description": "random_lattice_6",
+        "description": "euclidean_geometric_33",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'I_2', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_3', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_34",
         "core_lattice": [
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
             ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
-            ['F', 'F', 'I_1', 'F', 'F', 'F', 'F', 'F'],
-            ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_1', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_2', 'F', 'F', 'I_3'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_4', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_35",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'I_2', 'F', 'I_3', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_4', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_36",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'F', 'I_2', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'I_3', 'F', 'I_4', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_37",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_3'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'I_4', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_38",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_2', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'I_3', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'],
             ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
@@ -86,38 +504,12 @@ all_runs = [
         ]
     }
     ,{
-        "description": "random_lattice_7",
+        "description": "euclidean_geometric_39",
         "core_lattice": [
-            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
-            ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'],
-            ['F', 'F', 'F', 'F', 'F', 'F', 'I_2', 'F'],
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_2', 'I_3', 'I_4', 'F', 'F', 'C'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
-            ['C', 'F', 'F', 'F', 'I_4', 'F', 'F', 'C'],
-            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
-        ]
-    }
-    ,{
-        "description": "random_lattice_8",
-        "core_lattice": [
-            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
-            ['C', 'I_1', 'F', 'F', 'F', 'F', 'F', 'C'],
-            ['F', 'F', 'F', 'F', 'I_2', 'F', 'F', 'F'],
-            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
-            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-            ['C', 'F', 'F', 'I_4', 'F', 'F', 'F', 'C'],
-            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
-        ]
-    }
-    ,{
-        "description": "random_lattice_9",
-        "core_lattice": [
-            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
-            ['C', 'F', 'F', 'I_1', 'F', 'F', 'F', 'C'],
-            ['F', 'F', 'F', 'F', 'I_2', 'F', 'F', 'F'],
-            ['F', 'I_3', 'F', 'F', 'F', 'F', 'I_4', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
@@ -125,10 +517,816 @@ all_runs = [
         ]
     }
     ,{
-        "description": "random_lattice_10",
+        "description": "euclidean_geometric_40",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'I_2', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_4', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_41",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'I_2', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_3', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_4', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_42",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_1', 'F', 'F', 'F', 'F'],
+            ['F', 'I_2', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_4', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_43",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'I_2', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'],
+            ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_44",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'I_2', 'I_3', 'I_4', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_45",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_2', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'I_4', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_46",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'I_1', 'I_2', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'I_3', 'I_4', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_47",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['I_2', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_3'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'I_4', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_48",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'I_1', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_2', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_3', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'I_4', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_49",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'I_1', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_2', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_50",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'I_2', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'I_4'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_51",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'I_3', 'F', 'I_4', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_52",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'I_2', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'I_3', 'I_4', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_53",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'I_2', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_3', 'I_4', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_54",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'I_1', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'],
+            ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_4', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_55",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'I_2', 'F', 'F', 'C'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'I_4', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_56",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'I_2', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'I_4', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_57",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'F', 'I_2', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_4', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_58",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_4', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_59",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_1', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'I_3', 'F', 'I_4', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_60",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'I_2', 'F', 'C', 'C'],
+            ['C', 'I_3', 'F', 'F', 'F', 'I_4', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_61",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_2'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'I_4', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_62",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'I_4', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_63",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'I_2', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_4', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_64",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_3', 'I_4', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_65",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'I_2', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'I_3', 'F', 'I_4', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_66",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_2', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'I_3', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'I_4', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_67",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_1', 'F', 'I_2', 'F', 'F', 'I_3'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_4', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_68",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'I_2', 'F', 'C', 'C'],
+            ['C', 'F', 'I_3', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_4'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_69",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'I_2', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_3'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'I_4', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_70",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'I_2', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_3', 'C'],
+            ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_71",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'I_1', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_2', 'F', 'I_3', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_72",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'I_2', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_4', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_73",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_3', 'I_4', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_74",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'I_1', 'I_2', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'F', 'I_4', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_75",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_2', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'I_4'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_76",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_4', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_77",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'I_2', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_4', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_78",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'I_2', 'F', 'I_3', 'F', 'I_4', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_79",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'I_2', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_4', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_80",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_2', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'],
+            ['C', 'F', 'I_4', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_81",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['I_2', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_4', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_82",
         "core_lattice": [
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
             ['C', 'F', 'I_1', 'F', 'F', 'I_2', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_4', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_83",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'I_2', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'I_3', 'F', 'I_4', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_84",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_2', 'I_3', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'I_4', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_85",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'I_1', 'F', 'F', 'I_2', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'F', 'I_4', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_86",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'I_2', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'I_3', 'I_4', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_87",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_2', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_4'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_88",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'I_2', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_3', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_4'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_89",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'I_2', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'I_4', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_90",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_4', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_91",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'I_2', 'F', 'C', 'C'],
+            ['C', 'F', 'I_3', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'I_4', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_92",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'I_1', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_2', 'F'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'I_4', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_93",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_2'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_94",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'I_1', 'I_2', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'I_4', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_95",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_2', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_3'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_96",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_4'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_97",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'I_1', 'I_2', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'I_4', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_98",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_2', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_4'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_99",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'I_2', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_3'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'I_4', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_100",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_2'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_3', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_101",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_2', 'I_3', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'I_4', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_102",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'I_2', 'F', 'F', 'F', 'C'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
@@ -138,11 +1336,154 @@ all_runs = [
         ]
     }
     ,{
-        "description": "random_lattice_11",
+        "description": "euclidean_geometric_103",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_2', 'C'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_4', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_104",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_3', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_4', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_105",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'I_2', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_4', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_106",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'I_1', 'I_2', 'F', 'I_3', 'F', 'F'],
+            ['F', 'F', 'I_4', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_107",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'I_3', 'F', 'I_4', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_108",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_3', 'I_4', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_109",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'I_1', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_2', 'F', 'F', 'F', 'I_3', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_110",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'I_2', 'I_3', 'F', 'F', 'I_4', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_111",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_2', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'],
+            ['C', 'I_4', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_112",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['I_2', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_4'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_113",
         "core_lattice": [
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
             ['C', 'F', 'I_1', 'F', 'I_2', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_4', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_114",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'I_2', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
@@ -151,25 +1492,1143 @@ all_runs = [
         ]
     }
     ,{
-        "description": "random_lattice_12",
+        "description": "euclidean_geometric_115",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_2', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'I_4', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_116",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'I_4'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_117",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'F', 'F', 'I_2', 'C'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_118",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'I_4', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_119",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'I_2', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_3'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'I_4', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_120",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'I_1', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_2', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'I_4', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_121",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'I_2', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_3', 'I_4', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_122",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'I_2', 'F', 'C'],
+            ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_4'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_123",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'I_2', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'I_3', 'F', 'I_4', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_124",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_1', 'F', 'I_2', 'F', 'F', 'F'],
+            ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_125",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'I_4', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_126",
         "core_lattice": [
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
             ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'],
-            ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_2', 'F'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'I_4', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_127",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'I_2', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'I_4', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_128",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_2', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_129",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'I_1', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'I_4', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_130",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_2'],
+            ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'I_4', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_131",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'I_1', 'F', 'I_2', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_4', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_132",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'I_2', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_4', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_133",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'I_2', 'F', 'I_3', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_134",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'I_2', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'I_4', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_135",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_3', 'F', 'F'],
+            ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_136",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_3', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'I_4', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_137",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_1', 'I_2', 'F', 'I_3'],
+            ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_138",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'I_2', 'F', 'F', 'F', 'I_3', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'I_4', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_139",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'I_2', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'I_4', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_140",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_2', 'I_3', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_4', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_141",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'I_2', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'I_4', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_142",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'I_1', 'F', 'F'],
+            ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_3', 'F', 'I_4', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_143",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'I_2', 'F', 'F', 'C'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_144",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'],
+            ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_4'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_145",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'I_2', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'I_3', 'I_4', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_146",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'I_2', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'I_4', 'F', 'F', 'F', 'F', 'F'],
             ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
         ]
     }
     ,{
-        "description": "random_lattice_13",
+        "description": "euclidean_geometric_147",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_3'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'I_4', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_148",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'F', 'I_2', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'I_4', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_149",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'I_2', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_150",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_2'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'I_4'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_151",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'I_3', 'F', 'I_4', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_152",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'I_2', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_153",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'I_2', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_154",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'I_1', 'I_2', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'I_4', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_155",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_2', 'I_3', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_156",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_3', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'I_4', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_157",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_4', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_158",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'I_2', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'I_3', 'I_4', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_159",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'I_2', 'F', 'F', 'I_3', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'I_4', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_160",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['I_1', 'F', 'F', 'F', 'F', 'I_2', 'I_3', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_4', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_161",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'I_1', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_2', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_4', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_162",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'I_1', 'F', 'F', 'I_2', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'I_4', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_163",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_2', 'F'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'I_4', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_164",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'I_2', 'F', 'F', 'F', 'F', 'I_3', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_165",
         "core_lattice": [
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
             ['C', 'F', 'F', 'I_1', 'F', 'F', 'F', 'C'],
             ['F', 'F', 'F', 'F', 'I_2', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'F', 'I_4', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_166",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_2', 'F', 'F', 'F', 'F', 'I_3', 'I_4'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_167",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'I_2', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_3', 'F', 'I_4', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_168",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'I_2', 'F', 'I_3', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_4', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_169",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'I_2', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'],
+            ['C', 'I_4', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_170",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_2', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'I_4', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_171",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_2', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'I_4', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_172",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'I_2', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'I_3', 'F', 'F', 'I_4', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_173",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'I_1', 'I_2', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'I_4', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_174",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_2', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'I_3', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'I_4', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_175",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_2', 'F'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'I_4', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_176",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_2', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'I_3', 'I_4', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_177",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'I_2', 'F', 'C', 'C'],
+            ['C', 'F', 'I_3', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_4', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_178",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_2', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_3'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_4', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_179",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_4', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_180",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'I_2', 'I_3', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'I_4', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_181",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'I_2', 'F', 'I_3', 'C', 'C'],
+            ['C', 'I_4', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_182",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'I_2', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'F', 'I_4', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_183",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'F', 'F', 'I_2', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'I_3', 'F', 'F', 'I_4', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_184",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_2', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_4', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_185",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'I_1', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'],
+            ['I_3', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_186",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_2', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'I_4'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_187",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_2', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'I_3', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'I_4', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_188",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_2', 'F'],
+            ['C', 'F', 'F', 'F', 'I_3', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'I_4', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_189",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'I_1', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'I_4', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_190",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_2', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_3'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_4', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_191",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'I_2', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'I_4'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_192",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'I_1', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_2'],
+            ['I_3', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_193",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_2', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_3'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_4', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_194",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'F', 'I_2', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_3', 'I_4', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_195",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'I_1', 'I_2', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'I_3', 'I_4', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_196",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'I_2', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_4', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_197",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'I_4'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_198",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_2', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'I_4', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_199",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'F', 'F', 'I_2', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_4', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_200",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'I_2', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'],
+            ['C', 'I_4', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_201",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'I_1', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_2', 'F', 'I_3', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_4', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_202",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'I_2', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'I_4', 'F', 'F'],
             ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
@@ -177,14 +2636,1721 @@ all_runs = [
         ]
     }
     ,{
-        "description": "random_lattice_14",
+        "description": "euclidean_geometric_203",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'F', 'F', 'F', 'I_2', 'C'],
+            ['F', 'I_3', 'I_4', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_204",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'F', 'I_2', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_3', 'I_4', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_205",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_2', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_3'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_4', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_206",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'I_2', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_4', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_207",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_2', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_208",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_2', 'F', 'I_3', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_209",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'],
+            ['C', 'F', 'F', 'I_4', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_210",
         "core_lattice": [
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
             ['C', 'I_1', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_4', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_211",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'I_2', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'I_4', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_212",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'I_2', 'F', 'F', 'C', 'C'],
+            ['C', 'I_3', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'I_4', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_213",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'I_2', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'I_3', 'F', 'I_4', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_214",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'I_1', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_2', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'I_4', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_215",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'],
+            ['C', 'F', 'F', 'I_4', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_216",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'I_4', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_217",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'I_2', 'F', 'I_3', 'F', 'C'],
+            ['F', 'F', 'I_4', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_218",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_2', 'I_3', 'F', 'F'],
+            ['C', 'F', 'F', 'I_4', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_219",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'I_4', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_220",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'I_2', 'F', 'F', 'F', 'I_3', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_221",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'I_2', 'F'],
+            ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'I_4', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_222",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['I_2', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'I_4', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_223",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'I_2', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'I_4', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_224",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'I_2', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'I_3', 'F', 'C'],
+            ['C', 'C', 'F', 'I_4', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_225",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'I_2', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_4', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_226",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'I_2', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'I_3', 'I_4', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_227",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'F', 'I_2', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'I_3', 'F', 'I_4', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_228",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_2', 'F', 'F', 'F', 'F', 'I_3', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_4', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_229",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_3', 'F', 'F'],
+            ['C', 'I_4', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_230",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_2', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_4', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_231",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_3', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_232",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'I_2', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_4', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_233",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'I_1', 'F', 'I_2', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'I_4', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_234",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'I_2', 'F', 'F', 'I_3', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_4', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_235",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'I_2', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_4'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_236",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_4', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_237",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_2'],
+            ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'I_4', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_238",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'F', 'I_2', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'I_4', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_239",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'I_2', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_4', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_240",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['I_2', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_4'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_241",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'I_3', 'F', 'I_4', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_242",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_1', 'I_2', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'I_4', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_243",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'I_1', 'F', 'I_2', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'I_4', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_244",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_1', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_2', 'I_3', 'I_4', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_245",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_4', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_246",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_2', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'I_4', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_247",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'I_4', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_248",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'F', 'I_2', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_3', 'F', 'F', 'F', 'I_4', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_249",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'I_2', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_4', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_250",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'I_2', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'I_4', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_251",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'I_1', 'I_2', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'I_4', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_252",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'I_2', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'I_4', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_253",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_2', 'F', 'I_3', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_4'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_254",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_1', 'F', 'I_2', 'F'],
+            ['F', 'F', 'F', 'F', 'I_3', 'F', 'I_4', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_255",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'I_2', 'F', 'F', 'F', 'I_3', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_4', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "euclidean_geometric_256",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'I_2', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'I_3', 'I_4', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+
+    # Random Geometric samples
+    ,{
+        "description": "random_geometric_1",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_1', 'F', 'I_2', 'F', 'F', 'F'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'I_4', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_2",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'I_1', 'F', 'F'],
+            ['I_2', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'],
+            ['C', 'I_4', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_3",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'I_1', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_2', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'I_4', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_4",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_1', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'I_4', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_5",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'I_3', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'I_4', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_6",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'I_1', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'I_4', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_7",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'I_1', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'I_4', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_8",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'I_1', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'I_3', 'F', 'F', 'I_4', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_9",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_1', 'F', 'F', 'F', 'I_2', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'I_3', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'I_4', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_10",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_3'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'I_4', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_11",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'I_1', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'I_3', 'I_4', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_12",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_1', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_2'],
+            ['F', 'F', 'I_3', 'F', 'I_4', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_13",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_2', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_3', 'F', 'F', 'F', 'I_4', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_14",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'I_1', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_2', 'F'],
+            ['F', 'I_3', 'F', 'F', 'F', 'I_4', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_15",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'I_1', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_2', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'I_4', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_16",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'I_1', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'I_4', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_17",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'I_1', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_4', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_18",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'F', 'F', 'I_2', 'C'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_4', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_19",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_2', 'F', 'F', 'I_3', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'I_4', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_20",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'I_1', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_3', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'I_4', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_21",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'I_1', 'F', 'F'],
+            ['F', 'I_2', 'I_3', 'F', 'I_4', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_22",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_2'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_4'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_23",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['I_1', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_2', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_3', 'C'],
+            ['C', 'C', 'I_4', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_24",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_2', 'F'],
+            ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'I_4', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_25",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'I_2', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'I_4', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_26",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_2', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'I_3', 'F', 'F', 'I_4', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_27",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'I_1', 'F', 'F', 'F', 'F', 'I_2', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_4', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_28",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'I_2', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_29",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'I_1', 'I_2', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'I_4', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_30",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'F', 'I_2', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'I_3', 'F', 'F'],
+            ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_31",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'I_1', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'I_4', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_32",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'I_2', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_3'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_4', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_33",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'I_1', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_4', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_34",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'I_1', 'C', 'C'],
+            ['C', 'I_2', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_3', 'F', 'F'],
+            ['C', 'F', 'F', 'I_4', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_35",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_2', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_3', 'C'],
+            ['C', 'C', 'F', 'I_4', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_36",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_1', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'I_3', 'F', 'F', 'I_4', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_37",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'I_1', 'F', 'F', 'F'],
+            ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'I_3', 'F', 'I_4', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_38",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_1', 'F', 'F'],
+            ['F', 'F', 'F', 'I_2', 'F', 'F', 'I_3', 'F'],
+            ['C', 'F', 'F', 'F', 'I_4', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_39",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'I_1', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'I_4', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_40",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_1', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'I_4', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_41",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_2', 'F'],
+            ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_42",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['I_2', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_43",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_2', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'I_4', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_44",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_2', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'I_3', 'I_4', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_45",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'I_1', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'I_3', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'I_4', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_46",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_1', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_3'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'I_4', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_47",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_1'],
+            ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'I_3', 'F', 'I_4', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_48",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'I_2', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'I_4', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_49",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'I_1', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_2', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_4', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_50",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'I_2', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_3'],
+            ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_51",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'I_1', 'I_2', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'I_3', 'I_4', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_52",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'I_1', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_2'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'I_3', 'F', 'F', 'I_4', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_53",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'I_2', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_4', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_54",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_2', 'F', 'F', 'F', 'F', 'C'],
+            ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_4', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_55",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'I_1', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'I_3', 'I_4', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_56",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'I_1', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'I_2', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'I_4', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_57",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_2'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_4', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_58",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'I_1', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'I_4', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_59",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'I_2', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_3'],
+            ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_60",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'],
+            ['C', 'I_4', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_61",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['I_1', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'I_2', 'I_3', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'I_4', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_62",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'I_4', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_63",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_4', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_geometric_64",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'I_1', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'I_3', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'I_4', 'F', 'C', 'C']
+        ]
+    }
+
+    # Random Lattice samples
+    ,{
+        "description": "random_lattice_1",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_3'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'I_4', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_2",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_2', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'I_4', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_3",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'I_2', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_4', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_4",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_2', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_4', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_5",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_3', 'I_4', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_6",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'I_1', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'I_2', 'I_3', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_7",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'I_2', 'F', 'C'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_4', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_8",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'I_2', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'I_4', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_9",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'I_3', 'F', 'F', 'I_4', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_10",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'],
+            ['F', 'I_3', 'F', 'F', 'I_4', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_11",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'I_4', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_12",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'I_4', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_13",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_2', 'F', 'I_3', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_4'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_14",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_2', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'I_4', 'F'],
             ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
         ]
@@ -195,48 +4361,48 @@ all_runs = [
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
             ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-            ['F', 'F', 'F', 'F', 'I_2', 'F', 'I_3', 'F'],
-            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-            ['C', 'F', 'F', 'I_4', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'],
+            ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
         ]
     }
     ,{
         "description": "random_lattice_16",
         "core_lattice": [
-            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
-            ['C', 'I_1', 'F', 'F', 'F', 'I_2', 'F', 'C'],
-            ['F', 'F', 'F', 'F', 'F', 'I_3', 'F', 'F'],
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_2', 'F', 'F', 'I_3', 'F', 'C'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_4', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-            ['C', 'F', 'I_4', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
         ]
     }
     ,{
         "description": "random_lattice_17",
         "core_lattice": [
-            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
-            ['C', 'I_1', 'F', 'I_2', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
-            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-            ['C', 'F', 'F', 'F', 'F', 'I_4', 'F', 'C'],
+            ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
         ]
     }
     ,{
         "description": "random_lattice_18",
         "core_lattice": [
-            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
-            ['C', 'I_1', 'I_2', 'F', 'F', 'F', 'F', 'C'],
-            ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'],
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_2', 'F', 'F', 'F', 'F', 'C'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-            ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'],
+            ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_4', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
         ]
@@ -246,23 +4412,23 @@ all_runs = [
         "core_lattice": [
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
             ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'],
-            ['F', 'F', 'F', 'F', 'F', 'F', 'I_2', 'F'],
-            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-            ['C', 'F', 'F', 'F', 'I_4', 'F', 'F', 'C'],
+            ['C', 'F', 'F', 'I_4', 'F', 'F', 'F', 'C'],
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
         ]
     }
     ,{
         "description": "random_lattice_20",
         "core_lattice": [
-            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
-            ['C', 'F', 'I_1', 'I_2', 'I_3', 'F', 'F', 'C'],
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-            ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'],
-            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_4', 'F', 'F'],
             ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
         ]
@@ -270,12 +4436,12 @@ all_runs = [
     ,{
         "description": "random_lattice_21",
         "core_lattice": [
-            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
-            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
-            ['F', 'F', 'I_1', 'F', 'F', 'I_2', 'F', 'F'],
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'I_2', 'F', 'C'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
-            ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'I_4', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
         ]
@@ -283,13 +4449,13 @@ all_runs = [
     ,{
         "description": "random_lattice_22",
         "core_lattice": [
-            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
-            ['C', 'F', 'F', 'I_1', 'F', 'F', 'F', 'C'],
-            ['F', 'F', 'F', 'F', 'I_2', 'F', 'F', 'F'],
-            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
-            ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'],
-            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
             ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'I_4', 'C'],
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
         ]
     }
@@ -297,11 +4463,11 @@ all_runs = [
         "description": "random_lattice_23",
         "core_lattice": [
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
-            ['C', 'F', 'I_1', 'I_2', 'F', 'F', 'F', 'C'],
+            ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-            ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'I_4', 'F', 'F'],
-            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
         ]
@@ -309,50 +4475,50 @@ all_runs = [
     ,{
         "description": "random_lattice_24",
         "core_lattice": [
-            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
-            ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'],
-            ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'],
-            ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'C', 'I_1', 'F', 'I_2', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-            ['C', 'F', 'F', 'F', 'F', 'I_4', 'F', 'C'],
-            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'I_4', 'F', 'F', 'C', 'C']
         ]
     }
     ,{
         "description": "random_lattice_25",
         "core_lattice": [
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
-            ['C', 'F', 'F', 'I_1', 'F', 'F', 'F', 'C'],
+            ['C', 'I_1', 'F', 'F', 'I_2', 'F', 'F', 'C'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-            ['F', 'F', 'F', 'I_2', 'F', 'F', 'I_3', 'F'],
-            ['F', 'F', 'I_4', 'F', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'I_4', 'F', 'F', 'F', 'C'],
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
         ]
     }
     ,{
         "description": "random_lattice_26",
         "core_lattice": [
-            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
-            ['C', 'I_1', 'F', 'F', 'I_2', 'F', 'F', 'C'],
-            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
-            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-            ['F', 'F', 'F', 'F', 'F', 'F', 'I_4', 'F'],
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
             ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_2', 'F', 'F', 'F', 'I_3', 'F'],
+            ['C', 'F', 'F', 'F', 'I_4', 'F', 'F', 'C'],
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
         ]
     }
     ,{
         "description": "random_lattice_27",
         "core_lattice": [
-            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
-            ['C', 'F', 'I_1', 'I_2', 'F', 'F', 'F', 'C'],
-            ['F', 'I_3', 'F', 'I_4', 'F', 'F', 'F', 'F'],
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_2', 'F', 'F', 'I_3', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
@@ -361,24 +4527,24 @@ all_runs = [
     ,{
         "description": "random_lattice_28",
         "core_lattice": [
-            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
-            ['C', 'F', 'F', 'I_1', 'I_2', 'F', 'F', 'C'],
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_3', 'F', 'I_4', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
-            ['C', 'F', 'F', 'F', 'I_4', 'F', 'F', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
         ]
     }
     ,{
         "description": "random_lattice_29",
         "core_lattice": [
-            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
-            ['C', 'I_1', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'I_2', 'F', 'F', 'I_3'],
+            ['I_4', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-            ['F', 'F', 'F', 'F', 'F', 'I_2', 'I_3', 'F'],
-            ['F', 'F', 'F', 'F', 'F', 'F', 'I_4', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
@@ -387,11 +4553,11 @@ all_runs = [
     ,{
         "description": "random_lattice_30",
         "core_lattice": [
-            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
-            ['C', 'F', 'F', 'I_1', 'F', 'F', 'F', 'C'],
-            ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'],
-            ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'],
-            ['F', 'F', 'I_4', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'C', 'I_1', 'F', 'F', 'I_2', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_4', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
@@ -399,6 +4565,370 @@ all_runs = [
     }
     ,{
         "description": "random_lattice_31",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'I_2', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_4', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_32",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_2', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'I_4', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_33",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'I_2', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'I_3', 'F', 'F'],
+            ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_34",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'I_2', 'F', 'F', 'C'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_4', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_35",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'I_2', 'F', 'C', 'C'],
+            ['C', 'I_3', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_36",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'I_2', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_4', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_37",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'I_2', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'I_4', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_38",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'I_4', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_39",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'I_2', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_3'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'I_4', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_40",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'I_4', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_41",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'I_2', 'F', 'C'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_4', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_42",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_3', 'F', 'F'],
+            ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_43",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_1', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_2', 'F', 'I_3', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_4', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_44",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'I_4', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_45",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'I_2', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'],
+            ['C', 'F', 'F', 'F', 'I_4', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_46",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'I_4', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_47",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'I_2', 'F', 'F', 'C'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'I_4', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_48",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_2', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'I_4', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_49",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_2', 'F', 'F', 'F'],
+            ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'I_4'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_50",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'I_2', 'I_3', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'I_4', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_51",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_2', 'I_3', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_4', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_52",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_4'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_53",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['I_2', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_54",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_2'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'I_4', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_55",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'I_1', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_56",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_3', 'F', 'F'],
+            ['C', 'F', 'I_4', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_57",
+        "core_lattice": [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_58",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'],
+            ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_4', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_59",
         "core_lattice": [
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
             ['C', 'I_1', 'F', 'F', 'F', 'F', 'F', 'C'],
@@ -411,17 +4941,123 @@ all_runs = [
         ]
     }
     ,{
-        "description": "random_lattice_32",
+        "description": "random_lattice_60",
         "core_lattice": [
-            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
-            ['C', 'F', 'F', 'I_1', 'F', 'F', 'F', 'C'],
-            ['F', 'F', 'I_2', 'F', 'I_3', 'F', 'F', 'F'],
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-            ['F', 'F', 'I_4', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'I_4', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_61",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'I_2', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'],
             ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
             ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
             ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
         ]
+    }
+    ,{
+        "description": "random_lattice_62",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'I_2', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'I_4', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_63",
+        "core_lattice": [
+            ['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'F', 'F', 'I_2', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_4'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }
+    ,{
+        "description": "random_lattice_64",
+        "core_lattice": [
+            ['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'I_2', 'F', 'F', 'F', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'I_4', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ]
+    }    ,{
+        "description": "Self adjusted 1",
+        "core_lattice": [['C', 'C', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_1', 'F', 'F', 'F', 'F', 'I_3', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_2', 'F', 'F', 'F', 'F', 'I_4', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+    }
+    ,{
+        "description": "Self adjusted 2",
+        "core_lattice": [['C', 'C', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'I_3', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'I_1', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_2', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'I_4', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+    }
+    ,{
+        "description": "Self adjusted 3",
+        "core_lattice": [['C', 'C', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'F', 'F', 'I_3', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['I_1', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_2', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'I_4', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+    }
+    ,{
+        "description": "Self adjusted 4",
+        "core_lattice": [['C', 'C', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_1', 'I_4', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_2', 'I_3', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+    }
+    ,{
+        "description": "Self adjusted 5",
+        "core_lattice": [['C', 'C', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'I_2', 'F', 'I_3', 'F', 'F'], ['F', 'F', 'I_4', 'F', 'I_1', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+    }
+    ,{
+        "description": "Self adjusted 6",
+        "core_lattice": [['C', 'C', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'F', 'F', 'F', 'F', 'I_4', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_3', 'F', 'F', 'F', 'F', 'I_2', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'I_1', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+    }
+    ,{
+        "description": "Self adjusted 7",
+        "core_lattice": [['C', 'C', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'F', 'F', 'F', 'I_1', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'I_4', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'I_2', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+    }
+    ,{
+        "description": "Self adjusted 8",
+        "core_lattice": [['C', 'C', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'], ['F', 'F', 'I_4', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+    }
+    ,{
+        "description": "Self adjusted 9",
+        "core_lattice": [['C', 'C', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'], ['I_1', 'F', 'F', 'F', 'F', 'F', 'I_2', 'F'], ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+    }
+    ,{
+        "description": "Self adjusted 10",
+        "core_lattice": [['C', 'C', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'F', 'F', 'I_2', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'I_1', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'I_4', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+    }
+    ,{
+        "description": "Self adjusted 11",
+        "core_lattice": [['C', 'C', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_2', 'F', 'F', 'I_4', 'F', 'F'], ['F', 'F', 'I_1', 'F', 'F', 'I_3', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+    }
+    ,{
+        "description": "Self adjusted 12",
+        "core_lattice": [['C', 'C', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'F', 'F', 'F', 'I_2', 'F', 'F', 'C'], ['F', 'F', 'F', 'I_1', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'], ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+    }    ,{
+        "description": "Self-adjusted 13",
+        "core_lattice": [['C', 'C', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'I_1', 'I_4', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_2', 'I_3', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+    }
+    ,{
+        "description": "Self-adjusted 14",
+        "core_lattice": [['C', 'C', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'I_3', 'F', 'I_4', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'I_2', 'F', 'I_1', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
     }
 ]
 

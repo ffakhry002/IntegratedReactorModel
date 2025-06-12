@@ -438,7 +438,7 @@ def log_run_results(log_file, run_num, run_dict, modified_inputs, k_eff, k_std, 
                                 fast_percent = (fast_flux / total_flux) * 100
 
                                 # Write flux data
-                                f.write(f"{current_position} Flux {total_flux:.2e} [{thermal_percent:.1f}% thermal, {epithermal_percent:.1f}% epithermal, {fast_percent:.1f}% fast]\n")
+                                f.write(f"{current_position} Flux {total_flux:.4e} [{thermal_percent:.4f}% thermal, {epithermal_percent:.4f}% epithermal, {fast_percent:.4f}% fast]\n")
 
                                 current_position = None
                                 continue

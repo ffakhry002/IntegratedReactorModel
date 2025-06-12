@@ -296,7 +296,28 @@ class ReactorModelTester:
 
                 # Load model data
                 model_data = joblib.load(model_info['filepath'])
-                model = model_data.get('model')
+
+                # CRITICAL FIX: Properly load model using the appropriate model class
+                model_class_name = model_info.get('model_class', 'unknown')
+
+                # Import the appropriate model class
+                if model_class_name == 'xgboost':
+                    from ML_models import XGBoostReactorModel
+                    model_wrapper, metadata = XGBoostReactorModel.load_model(model_info['filepath'])
+                elif model_class_name == 'random_forest':
+                    from ML_models import RandomForestReactorModel
+                    model_wrapper, metadata = RandomForestReactorModel.load_model(model_info['filepath'])
+                elif model_class_name == 'svm':
+                    from ML_models import SVMReactorModel
+                    model_wrapper, metadata = SVMReactorModel.load_model(model_info['filepath'])
+                elif model_class_name == 'neural_net':
+                    from ML_models import NeuralNetReactorModel
+                    model_wrapper, metadata = NeuralNetReactorModel.load_model(model_info['filepath'])
+                else:
+                    # Fallback to old method for backward compatibility
+                    print(f"Warning: Unknown model class '{model_class_name}', using raw model")
+                    model_wrapper = None
+                    metadata = {}
 
                 result = {
                     'in_training': 'T' if in_training_set else 'F',  # Add this as first field
@@ -310,12 +331,17 @@ class ReactorModelTester:
                 }
 
                 if model_info['model_type'] == 'flux':
-                    # Check if model needs scaling
-                    if 'scaler' in model_data:
-                        features = model_data['scaler'].transform(features)
+                    # Check if model needs scaling (for backward compatibility with raw models)
+                    if model_wrapper is None:
+                        # Old raw model approach
+                        model = model_data.get('model')
+                        if 'scaler' in model_data:
+                            features = model_data['scaler'].transform(features)
+                        flux_pred = model.predict(features)
+                    else:
+                        # New wrapper approach - use the wrapper's predict method
+                        flux_pred = model_wrapper.predict_flux(features)
 
-                    # Predict flux
-                    flux_pred = model.predict(features)
                     if len(flux_pred.shape) == 1:
                         flux_pred = flux_pred.reshape(1, -1)
                     flux_pred = flux_pred[0]  # Get first (and only) sample
@@ -330,6 +356,7 @@ class ReactorModelTester:
                         flux_scale = model_info.get('flux_scale', model_data.get('flux_scale', 1e14))
 
                         # Transform predictions back to original scale
+                        # Both raw models and wrappers predict in transformed space
                         if use_log_flux:
                             # Convert from log scale to original scale
                             flux_pred_original = 10 ** flux_pred
@@ -493,12 +520,17 @@ class ReactorModelTester:
                                 result['mape_flux'] = 'N/A'
 
                 elif model_info['model_type'] == 'keff':
-                    # Check if model needs scaling
-                    if 'scaler' in model_data:
-                        features = model_data['scaler'].transform(features)
+                    # Check if model needs scaling (for backward compatibility with raw models)
+                    if model_wrapper is None:
+                        # Old raw model approach
+                        model = model_data.get('model')
+                        if 'scaler' in model_data:
+                            features = model_data['scaler'].transform(features)
+                        keff_pred = model.predict(features)
+                    else:
+                        # New wrapper approach - use the wrapper's predict method
+                        keff_pred = model_wrapper.predict_keff(features)
 
-                    # Predict k-eff
-                    keff_pred = model.predict(features)
                     if hasattr(keff_pred, '__len__'):
                         keff_pred = keff_pred[0]
 

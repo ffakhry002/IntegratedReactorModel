@@ -1,22 +1,23 @@
 Integrated Reactor Model
 ======================
-Total Python files: 112
-Total lines of code: 18220
+Total Python files: 140+ (including ML components)
+Total lines of code: 25000+
 
 
 Project Structure:
-├── .DS_Store                    # macOS system file
+├── .gitignore                   # Git ignore configuration
 ├── .git/                        # Git version control directory
 ├── architecture.txt             # This project structure documentation
+├── remove_pycache.py           # Root-level utility to clean __pycache__ directories
 │
 ├── Integrated Reactor Model/    # Main integrated reactor simulation package
 │   ├── .DS_Store               # macOS system file
 │   ├── __pycache__/            # Python bytecode cache
-│   ├── __init__.py             # Package initialization file (25 lines)
-│   ├── inputs.py               # Legacy input parameters (191 lines)
-│   ├── main.py                 # Main execution script (175 lines)
-│   ├── run_dictionaries.py     # Parameter dictionaries for parametric studies (66 lines)
-│   ├── remove_pycache.py       # Utility to clean __pycache__ directories (34 lines)
+│   ├── __init__.py             # Package initialization file
+│   ├── inputs.py               # Legacy input parameters
+│   ├── main.py                 # Main execution script
+│   ├── run_dictionaries.py     # Parameter dictionaries for parametric studies
+│   ├── remove_pycache.py       # Utility to clean __pycache__ directories
 │   │
 │   ├── utils/                  # Centralized utilities and base configuration
 │   │   ├── __init__.py        # Package initialization
@@ -162,11 +163,63 @@ Project Structure:
 │   │               ├── pin_temperature_points.py # Pin temperature points
 │   │               └── plate_temperature_points.py # Plate temperature points
 │   │
-│   ├── parametric_simulation_20250527_031447/ # Timestamped parametric study directory
-│   │   └── [Parametric study results and run directories]
+│
+├── ML/                         # Machine learning components for reactor analysis
+│   ├── main.py                # ML main execution script
+│   ├── test.py                # Testing utilities
+│   ├── latticecheck.py        # Lattice configuration checking
+│   ├── visualization_run.py   # ML visualization runner
 │   │
-│   └── simulation_data Linode/ # Remote simulation data storage
-│       └── [Simulation data from remote calculations]
+│   ├── ML_models/             # Machine learning model implementations
+│   │   ├── __init__.py        # Package initialization
+│   │   ├── base_model.py      # Base model abstract class
+│   │   ├── neural_net_train.py # Neural network implementation
+│   │   ├── svm_train.py       # Support Vector Machine implementation
+│   │   ├── random_forest_train.py # Random Forest implementation
+│   │   ├── xgboost_train.py   # XGBoost implementation
+│   │   └── encodings/         # Feature encoding utilities
+│   │       ├── __init__.py
+│   │       └── encoding_methods.py # Various encoding methods for categorical features
+│   │
+│   ├── hyperparameter_tuning/ # Hyperparameter optimization
+│   │   ├── __init__.py
+│   │   ├── optuna_optimization.py # Optuna-based hyperparameter optimization
+│   │   └── three_stage_optimization.py # Three-stage optimization strategy
+│   │
+│   ├── test_execution/        # ML model testing framework
+│   │   ├── __init__.py
+│   │   ├── main.py            # Test execution entry point
+│   │   ├── model_tester.py    # Model testing utilities
+│   │   └── excel_reporter.py  # Excel report generation for test results
+│   │
+│   ├── execution/             # ML execution utilities
+│   │   ├── __init__.py
+│   │   ├── config.py          # Configuration settings
+│   │   ├── data_handler.py    # Data loading and preprocessing
+│   │   ├── interactive_menu.py # Interactive command-line menu
+│   │   ├── model_trainer.py   # Model training orchestration
+│   │   └── results_manager.py # Results storage and management
+│   │
+│   ├── utils/                 # ML utility functions
+│   │   ├── __init__.py
+│   │   ├── txt_to_data.py     # Convert text logs to ML datasets
+│   │   ├── log_structure.py   # Log file structure definitions
+│   │   └── log_viewer.py      # Log file viewer utilities
+│   │
+│   ├── visualizations_helpers/ # ML visualization utilities
+│   │   ├── __init__.py
+│   │   ├── config_error_plots.py # Configuration-specific error plots
+│   │   ├── data_loader.py     # Data loading for visualizations
+│   │   ├── energy_breakdown_plots.py # Energy group breakdown visualizations
+│   │   ├── feature_importance.py # Feature importance analysis plots
+│   │   ├── performance_heatmaps.py # Model performance heatmaps
+│   │   ├── rel_error_trackers.py # Relative error tracking plots
+│   │   ├── spatial_error_heatmaps.py # Spatial error distribution heatmaps
+│   │   └── summary_statistics.py # Comprehensive summary statistics and plots
+│   │
+│   └── data/                  # ML training and test data
+│       ├── train.txt          # Training dataset
+│       └── test.txt           # Test dataset
 │
 ├── cross_sections/             # Nuclear cross section data
 │   ├── .DS_Store              # macOS system file
@@ -187,13 +240,13 @@ Project Structure:
 │   └── chain_casl_pwr.xml     # CASL depletion chain
 │
 └── core_selection/             # Core design selection and sampling methods
-    ├── main.py                # Main execution entry point for sampling studies (464 lines)
-    ├── run_sampling.py        # Sampling method execution controller (260 lines)
-    ├── dictionaries_exported.py # Exported parameter dictionaries (649 lines)
-    ├── calculate_geometric_parameters.py # Physics parameter calculations (297 lines)
-    ├── export_run_dictionaries.py # Dictionary export utilities (139 lines)
-    ├── generate_core_configurations.py # Core configuration generator (331 lines)
-    ├── visualize_all_samples.py # Comprehensive visualization script (284 lines)
+    ├── main.py                # Main execution entry point for sampling studies
+    ├── run_sampling.py        # Sampling method execution controller
+    ├── dictionaries_exported.py # Exported parameter dictionaries
+    ├── calculate_geometric_parameters.py # Physics parameter calculations
+    ├── export_run_dictionaries.py # Dictionary export utilities
+    ├── generate_core_configurations.py # Core configuration generator
+    ├── visualize_all_samples.py # Comprehensive visualization script
     │
     ├── sampling_methods/      # Sampling algorithm implementations
     │   ├── __init__.py       # Package initialization

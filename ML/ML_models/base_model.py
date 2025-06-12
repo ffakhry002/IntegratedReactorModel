@@ -124,7 +124,7 @@ class ReactorModelBase(ABC):
         save_dict.update(specific_metadata)
 
         if model_type == 'flux':
-            save_dict['model'] = self.flux_model
+            save_dict['model'] = self.flux_model  # Save the actual trained model
             # Store information about output shape
             if hasattr(self.flux_model, 'n_outputs_'):
                 save_dict['n_flux_outputs'] = self.flux_model.n_outputs_
@@ -140,7 +140,7 @@ class ReactorModelBase(ABC):
                 save_dict['scaler'] = self.flux_scaler
 
         else:  # keff
-            save_dict['model'] = self.keff_model
+            save_dict['model'] = self.keff_model  # Save the actual trained model
 
             # Handle scalers for models that use them
             if hasattr(self, 'scale_features') and self.scale_features and hasattr(self, 'keff_scaler'):

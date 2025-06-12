@@ -248,6 +248,9 @@ class ModelTrainer:
         elif model_type == 'random_forest':
             model = RandomForestReactorModel(**params)
         elif model_type == 'svm':
+            # IMPORTANT: Since optimization used scaled data via Pipeline,
+            # the hyperparameters are optimized for scaled features.
+            # SVMReactorModel will handle scaling internally, so we keep it enabled.
             model = SVMReactorModel(**params)
         elif model_type == 'neural_net':
             model = NeuralNetReactorModel(**params)
