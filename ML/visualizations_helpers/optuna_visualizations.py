@@ -399,7 +399,7 @@ def save_objective_distribution(study: optuna.Study, save_dir: str) -> None:
             fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
 
             # Histogram
-            ax1.hist(values, bins=30, alpha=0.7, edgecolor='black')
+            ax1.hist(values, bins=100, alpha=0.7, edgecolor='black')
             ax1.axvline(study.best_value, color='red', linestyle='--',
                        label=f'Best: {study.best_value:.4f}')
             ax1.set_xlabel('Objective Value')

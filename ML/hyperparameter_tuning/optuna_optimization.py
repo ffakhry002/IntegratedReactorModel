@@ -131,16 +131,30 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
             # [KEEP ALL YOUR EXISTING PARAMETER SELECTION CODE HERE - NO CHANGES]
             if model_type == 'xgboost':
                 params = {
-                    'n_estimators': trial.suggest_int('n_estimators', 50, 2000),
-                    'max_depth': trial.suggest_int('max_depth', 2, 20),
-                    'learning_rate': trial.suggest_float('learning_rate', 0.001, 0.5, log=True),
-                    'subsample': trial.suggest_float('subsample', 0.3, 1.0),
-                    'colsample_bytree': trial.suggest_float('colsample_bytree', 0.3, 1.0),
-                    'colsample_bylevel': trial.suggest_float('colsample_bylevel', 0.3, 1.0),
-                    'reg_alpha': trial.suggest_float('reg_alpha', 0.0, 10.0),
-                    'reg_lambda': trial.suggest_float('reg_lambda', 0.0, 10.0),
-                    'gamma': trial.suggest_float('gamma', 0.0, 5.0),
-                    'min_child_weight': trial.suggest_int('min_child_weight', 1, 20),
+                    # 'n_estimators': trial.suggest_int('n_estimators', 50, 2000),
+                    # 'max_depth': trial.suggest_int('max_depth', 2, 20),
+                    # 'learning_rate': trial.suggest_float('learning_rate', 0.001, 0.5, log=True),
+                    # 'subsample': trial.suggest_float('subsample', 0.3, 1.0),
+                    # # 'colsample_bytree': trial.suggest_float('colsample_bytree', 0.3, 1.0),
+                    # # 'colsample_bylevel': trial.suggest_float('colsample_bylevel', 0.3, 1.0),
+                    # # 'reg_alpha': trial.suggest_float('reg_alpha', 0.0, 10.0),
+                    # # 'reg_lambda': trial.suggest_float('reg_lambda', 0.0, 10.0),
+                    # 'gamma': trial.suggest_float('gamma', 0.0, 0.1),
+                    # # 'min_child_weight': trial.suggest_int('min_child_weight', 1, 20),
+
+
+
+
+                    'n_estimators': trial.suggest_int('n_estimators', 1500, 5000),  # Explore higher
+                    'max_depth': trial.suggest_int('max_depth', 3, 6),  # Narrow range around 4
+                    'learning_rate': trial.suggest_float('learning_rate', 0.008, 0.025),  # Center on 0.0135
+                    'subsample': trial.suggest_float('subsample', 0.2, 0.35),  # Center on 0.284
+                    'colsample_bytree': trial.suggest_float('colsample_bytree', 0.7, 0.9),  # Narrow around 0.78
+                    'min_child_weight': trial.suggest_int('min_child_weight', 3, 12),  # Explore higher!
+                    'reg_lambda': 0,  # Just fix at 0 since it doesn't matter
+                    'gamma': 0,  # Keep fixed
+
+
                     'n_jobs': 1,
                     'verbosity': 1,
                     'tree_method': 'exact'  # Changed from 'exact' for better performance
@@ -360,14 +374,14 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
             # Same parameter definitions as above but for single output
             if model_type == 'xgboost':
                 params = {
-                    'n_estimators': trial.suggest_int('n_estimators', 50, 2000),
+                    'n_estimators': trial.suggest_int('n_estimators', 50, 2500),
                     'max_depth': trial.suggest_int('max_depth', 2, 20),
                     'learning_rate': trial.suggest_float('learning_rate', 0.001, 0.5, log=True),
                     'subsample': trial.suggest_float('subsample', 0.3, 1.0),
                     'colsample_bytree': trial.suggest_float('colsample_bytree', 0.3, 1.0),
                     'colsample_bylevel': trial.suggest_float('colsample_bylevel', 0.3, 1.0),
-                    'reg_alpha': trial.suggest_float('reg_alpha', 0.0, 10.0),
-                    'reg_lambda': trial.suggest_float('reg_lambda', 0.0, 10.0),
+                    'reg_alpha': trial.suggest_float('reg_alpha', 0.0, 8.0),
+                    'reg_lambda': trial.suggest_float('reg_lambda', 0.0, 8.0),
                     'gamma': trial.suggest_float('gamma', 0.0, 5.0),
                     'min_child_weight': trial.suggest_int('min_child_weight', 1, 20),
                     'n_jobs': 1,
