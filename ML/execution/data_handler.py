@@ -91,6 +91,9 @@ class DataHandler:
                 elif flux_mode == 'bin':
                     # 12 values: 3 percentages × 4 positions
                     flux_values = self._prepare_energy_bin_values(aug_lattice, aug_energy, position_order)
+                elif flux_mode in ['thermal_only', 'epithermal_only', 'fast_only']:
+                    # NEW: 4 values for single energy group
+                    flux_values = self._prepare_single_energy_flux_values(aug_lattice, aug_flux, aug_energy, position_order, flux_mode)
                 else:
                     raise ValueError(f"Unknown flux mode: {flux_mode}")
 
@@ -120,6 +123,8 @@ class DataHandler:
         # Check expected output dimensions
         if flux_mode == 'total':
             assert y_flux.shape[1] == 4, f"Expected 4 flux outputs, got {y_flux.shape[1]}"
+        elif flux_mode in ['thermal_only', 'epithermal_only', 'fast_only']:
+            assert y_flux.shape[1] == 4, f"Expected 4 flux outputs for single energy mode, got {y_flux.shape[1]}"
         else:  # energy or bin
             assert y_flux.shape[1] == 12, f"Expected 12 flux outputs, got {y_flux.shape[1]}"
 
@@ -129,7 +134,7 @@ class DataHandler:
             print(f"  Energy bin values range: {y_flux.min():.3f} to {y_flux.max():.3f}")
             self.use_log_flux = False  # Override for bins
         else:
-            # Log transform for total and energy flux
+            # Log transform for total, energy, and single energy flux modes
             if self.use_log_flux:
                 y_flux_original = y_flux.copy()  # Keep for reference
                 y_flux = np.log10(y_flux + 1e-10)  # Add small value to avoid log(0)
@@ -146,8 +151,11 @@ class DataHandler:
             print(f"  Flux targets: {y_flux.shape} (4 positions per sample)")
         elif flux_mode == 'energy':
             print(f"  Flux targets: {y_flux.shape} (12 values: 3 energy groups × 4 positions)")
-        else:  # bin
+        elif flux_mode == 'bin':
             print(f"  Flux targets: {y_flux.shape} (12 values: 3 bin fractions × 4 positions)")
+        elif flux_mode in ['thermal_only', 'epithermal_only', 'fast_only']:
+            energy_name = flux_mode.replace('_only', '')
+            print(f"  Flux targets: {y_flux.shape} (4 positions, {energy_name} flux only)")
         print(f"  K-eff targets: {y_keff.shape}")
 
         # Final validation message
@@ -297,3 +305,35 @@ class DataHandler:
             'groups_train': groups_train,  # NEW
             'groups_test': groups_test      # NEW
         }
+
+    def _prepare_single_energy_flux_values(self, lattice, flux_dict, energy_dict, position_order, flux_mode):
+        """Prepare single energy group flux values (total flux × energy percentage)"""
+        flux_values = []
+
+        # Determine which energy group we're using
+        energy_group = flux_mode.replace('_only', '')  # 'thermal', 'epithermal', or 'fast'
+
+        for pos in position_order:
+            # Find the label at this position
+            i, j = pos
+            label = lattice[i, j]
+
+            if label.startswith('I_') and label in flux_dict and label in energy_dict:
+                total_flux = flux_dict[label]
+                energy_fracs = energy_dict[label]
+
+                # Calculate flux for the selected energy group
+                single_energy_flux = total_flux * energy_fracs[energy_group]
+                flux_values.append(single_energy_flux)
+            else:
+                # Default value if missing
+                flux_values.append(0.0)
+
+        # Should have 4 values (one per position)
+        if len(flux_values) != 4:
+            print(f"Warning: Expected 4 flux values for {flux_mode}, got {len(flux_values)}")
+            while len(flux_values) < 4:
+                flux_values.append(0.0)
+            flux_values = flux_values[:4]
+
+        return flux_values

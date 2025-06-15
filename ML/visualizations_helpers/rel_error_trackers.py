@@ -28,17 +28,20 @@ def create_rel_error_tracker_plots(df, output_dir, encodings, energy_group=None,
                                      output_dir, energy_group=None)
     elif target_type:
         # Create flux plots for specific energy group
-        # Make sure subdirectories exist
-        os.makedirs(output_dir, exist_ok=True)
+        # Create subdirectories
+        os.makedirs(os.path.join(output_dir, 'max_rel_error'), exist_ok=True)
+        os.makedirs(os.path.join(output_dir, 'mean_rel_error'), exist_ok=True)
 
         for encoding in encodings:
             # Max flux error
             create_encoding_error_plot(df, output_dir, encoding, 'max_flux',
-                                     output_dir, energy_group=energy_group)
+                                     os.path.join(output_dir, 'max_rel_error'),
+                                     energy_group=energy_group)
 
             # Mean flux error
             create_encoding_error_plot(df, output_dir, encoding, 'mean_flux',
-                                     output_dir, energy_group=energy_group)
+                                     os.path.join(output_dir, 'mean_rel_error'),
+                                     energy_group=energy_group)
     else:
         # Create all plots (default behavior)
         # Create subdirectories

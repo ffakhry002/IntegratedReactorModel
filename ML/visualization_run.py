@@ -9,6 +9,7 @@ import os
 import sys
 import pandas as pd
 import json
+import joblib
 from datetime import datetime
 
 # Add visualization helpers to path
@@ -23,71 +24,131 @@ from visualizations_helpers.rel_error_trackers import create_rel_error_tracker_p
 from visualizations_helpers.summary_statistics import create_summary_statistics_plots, create_error_distribution_for_energy, create_error_distribution_for_total
 from visualizations_helpers.energy_breakdown_plots import create_energy_breakdown_plots
 from visualizations_helpers.data_loader import load_test_results
+from visualizations_helpers.optuna_visualizations import generate_all_optuna_visualizations
+from visualizations_helpers.core_config_visualizations import generate_core_config_visualizations
 
 def detect_energy_discretization(df):
     """Detect if the Excel file contains energy-discretized results"""
-    # Check for energy-specific columns
-    energy_columns = []
-    for col in df.columns:
-        if any(energy in col for energy in ['_thermal_', '_epithermal_', '_fast_']):
-            energy_columns.append(col)
+    # Returns (has_energy_discretization, single_energy_mode)
+    # single_energy_mode will be 'thermal_only', 'epithermal_only', 'fast_only', or None
 
-    has_energy = len(energy_columns) > 0
+    # Check if we have flux_mode column to determine the type of results
+    if 'flux_mode' in df.columns:
+        flux_modes = df['flux_mode'].unique()
+        print(f"\nDetected flux modes: {list(flux_modes)}")
 
-    if has_energy:
-        print(f"\n✓ Detected energy-discretized results with {len(energy_columns)} energy-specific columns")
+        # Energy discretized means we have all three energy groups
+        # This happens with 'energy' or 'bin' modes
+        has_energy_discretization = any(mode in ['energy', 'bin'] for mode in flux_modes)
+
+        if has_energy_discretization:
+            print(f"✓ Detected energy-discretized results (all three energy groups)")
+            return True, None
+
+        # Check for single energy group modes
+        single_modes = [mode for mode in flux_modes if mode in ['thermal_only', 'epithermal_only', 'fast_only']]
+        if single_modes:
+            single_mode = single_modes[0]  # Take the first one if multiple
+            print(f"✓ Detected single energy group results: {single_mode}")
+            return False, single_mode
+
+        # Check for total mode
+        if 'total' in flux_modes:
+            print(f"✓ Detected total flux results (no energy discretization)")
+            return False, None
+
+    # Fallback: Check for energy-specific columns for backward compatibility
+    # Only consider it energy discretized if we have ALL THREE energy groups
+    thermal_cols = [col for col in df.columns if '_thermal_' in col]
+    epithermal_cols = [col for col in df.columns if '_epithermal_' in col]
+    fast_cols = [col for col in df.columns if '_fast_' in col]
+
+    has_all_three = len(thermal_cols) > 0 and len(epithermal_cols) > 0 and len(fast_cols) > 0
+
+    if has_all_three:
+        total_energy_cols = len(thermal_cols) + len(epithermal_cols) + len(fast_cols)
+        print(f"\n✓ Detected energy-discretized results with all three energy groups")
+        print(f"  Thermal: {len(thermal_cols)} columns, Epithermal: {len(epithermal_cols)} columns, Fast: {len(fast_cols)} columns")
+        return True, None
+    elif len(thermal_cols) > 0 or len(epithermal_cols) > 0 or len(fast_cols) > 0:
+        # Single energy group detected
+        energy_type = 'thermal' if thermal_cols else ('epithermal' if epithermal_cols else 'fast')
+        print(f"\n✓ Detected single energy group results: {energy_type} flux")
+        return False, f"{energy_type}_only"
     else:
         print("\n✓ Detected standard flux results (no energy discretization)")
+        return False, None
 
-    return has_energy
+def find_optuna_studies():
+    """Find saved Optuna study files"""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
 
-def ensure_directories(base_output_dir, has_energy_discretization=False):
+    # Look for studies in the outputs folder
+    possible_dirs = [
+        os.path.join(script_dir, 'outputs', 'optuna_studies'),
+        os.path.join(script_dir, '..', 'outputs', 'optuna_studies'),
+        os.path.join(script_dir, '..', 'ML', 'outputs', 'optuna_studies'),
+        'ML/outputs/optuna_studies',
+        # Also check old locations for backward compatibility
+        os.path.join(script_dir, 'hyperparameter_tuning', 'saved_studies'),
+        os.path.join(script_dir, '..', 'hyperparameter_tuning', 'saved_studies'),
+    ]
+
+    study_files = {}
+
+    for dir_path in possible_dirs:
+        if os.path.exists(dir_path):
+            files = [f for f in os.listdir(dir_path) if f.endswith('_study.pkl')]
+            for f in files:
+                full_path = os.path.join(dir_path, f)
+                # Keep the full key for better matching
+                # Expected formats:
+                # svm_flux_total_study.pkl
+                # svm_flux_thermal_only_study.pkl
+                # svm_flux_energy_study.pkl
+                # svm_keff_study.pkl
+
+                key = f.replace('_study.pkl', '')
+                study_files[key] = full_path
+
+            if files:
+                break  # Found studies, no need to check other directories
+
+    return study_files
+
+def ensure_directories(base_output_dir, has_energy_discretization=False, single_energy_mode=None):
     """Create all necessary output directories"""
     directories = [base_output_dir]
 
     if has_energy_discretization:
-        # Create energy-specific directories
-        energy_dirs = ['thermal', 'epithermal', 'fast', 'total', 'keff']
-        for energy_dir in energy_dirs:
-            energy_path = os.path.join(base_output_dir, energy_dir)
-            directories.append(energy_path)
-
-            # Add subdirectories for each energy type
-            if energy_dir != 'keff':  # keff doesn't need these subdirs
-                directories.extend([
-                    os.path.join(energy_path, 'performance_heatmaps'),
-                    os.path.join(energy_path, 'spatial_error_heatmaps'),
-                    os.path.join(energy_path, 'config_error_plots'),
-                    os.path.join(energy_path, 'rel_error_trackers'),
-                ])
-            else:
-                # K-eff specific directories
-                directories.extend([
-                    os.path.join(energy_path, 'performance_heatmaps'),
-                    os.path.join(energy_path, 'config_error_plots'),
-                    os.path.join(energy_path, 'rel_error_trackers'),
-                ])
-
-        # Summary statistics stays in main directory
-        directories.append(os.path.join(base_output_dir, 'summary_statistics'))
-
-        # Energy breakdown plots in main directory
-        directories.append(os.path.join(base_output_dir, 'energy_breakdown'))
-    else:
-        # Standard directory structure
+        # For energy discretized mode, we'll create directories dynamically based on actual data
+        # Just create the base directories here
         directories.extend([
-            os.path.join(base_output_dir, 'performance_heatmaps'),
-            os.path.join(base_output_dir, 'spatial_error_heatmaps'),
-            os.path.join(base_output_dir, 'feature_importance'),
-            os.path.join(base_output_dir, 'feature_importance', 'flux'),
-            os.path.join(base_output_dir, 'feature_importance', 'keff'),
-            os.path.join(base_output_dir, 'config_error_plots'),
-            os.path.join(base_output_dir, 'rel_error_trackers'),
-            os.path.join(base_output_dir, 'rel_error_trackers', 'max_rel_error'),
-            os.path.join(base_output_dir, 'rel_error_trackers', 'mean_rel_error'),
-            os.path.join(base_output_dir, 'rel_error_trackers', 'keff_rel_error'),
-            os.path.join(base_output_dir, 'summary_statistics')
+            os.path.join(base_output_dir, 'summary_statistics'),
+            os.path.join(base_output_dir, 'energy_breakdown'),
+            os.path.join(base_output_dir, 'optuna_analysis')
         ])
+    elif single_energy_mode:
+        # Single energy mode directory structure (fast_only, thermal_only, epithermal_only)
+        energy_name = single_energy_mode.replace('_only', '')
+        directories.extend([
+            os.path.join(base_output_dir, f'{energy_name}_flux'),
+            os.path.join(base_output_dir, f'{energy_name}_flux', 'performance_heatmaps'),
+            os.path.join(base_output_dir, f'{energy_name}_flux', 'spatial_error_heatmaps'),
+            os.path.join(base_output_dir, f'{energy_name}_flux', 'config_error_plots'),
+            os.path.join(base_output_dir, f'{energy_name}_flux', 'rel_error_trackers'),
+            os.path.join(base_output_dir, 'summary_statistics'),
+            os.path.join(base_output_dir, 'optuna_analysis')
+        ])
+    else:
+        # Standard directory structure - check what type of data we have
+        # This will be determined later based on actual data, but set up base structure
+        directories.extend([
+            os.path.join(base_output_dir, 'summary_statistics'),
+            os.path.join(base_output_dir, 'optuna_analysis')
+        ])
+
+        # We'll add specific directories later based on actual data content
 
     for directory in directories:
         os.makedirs(directory, exist_ok=True)
@@ -164,11 +225,17 @@ def main():
         print(f"Loaded {len(test_results_df)} test results")
 
         # Detect if we have energy-discretized results
-        has_energy_discretization = detect_energy_discretization(test_results_df)
+        has_energy_discretization, single_energy_mode = detect_energy_discretization(test_results_df)
 
         # Get output folder name from user
         print("\n" + "-"*60)
-        default_name = 'energy_visualizations' if has_energy_discretization else 'visualizations'
+        if has_energy_discretization:
+            default_name = 'energy_visualizations'
+        elif single_energy_mode:
+            energy_name = single_energy_mode.replace('_only', '')
+            default_name = f'{energy_name}_flux_visualizations'
+        else:
+            default_name = 'visualizations'
         output_folder_name = input(f"Output folder name (default: {default_name}): ").strip()
         if not output_folder_name:
             output_folder_name = default_name
@@ -176,7 +243,18 @@ def main():
         output_base_dir = os.path.join(script_dir, 'outputs', output_folder_name)
 
         # Create output directories
-        ensure_directories(output_base_dir, has_energy_discretization)
+        ensure_directories(output_base_dir, has_energy_discretization, single_energy_mode)
+
+        # Generate core configuration visualizations first
+        print("\n" + "-"*60)
+        print("Generating Core Configuration Visualizations...")
+        print("-"*60)
+
+        try:
+            generate_core_config_visualizations(output_base_dir)
+        except Exception as e:
+            print(f"ERROR generating core configuration visualizations: {e}")
+            print("Continuing with other visualizations...")
 
         # Extract unique values for iteration
         models = test_results_df['model_class'].unique()
@@ -202,6 +280,10 @@ def main():
             print(f"  ✓ Epithermal flux data found ({len(epithermal_cols)} columns)")
             print(f"  ✓ Fast flux data found ({len(fast_cols)} columns)")
             print(f"  ✓ Total flux data found ({len(total_cols)} columns)")
+        elif single_energy_mode:
+            energy_name = single_energy_mode.replace('_only', '')
+            energy_cols = [col for col in test_results_df.columns if f'_{energy_name}_' in col]
+            print(f"  ✓ {energy_name.title()} flux data found ({len(energy_cols)} columns)")
         else:
             flux_cols = [col for col in test_results_df.columns if 'flux' in col.lower() or col.startswith('I_')]
             if flux_cols:
@@ -229,7 +311,17 @@ def main():
         # Generate energy-specific visualizations
         print("\n🔋 Generating energy-discretized visualizations...")
 
-        energy_groups = ['thermal', 'epithermal', 'fast', 'total']
+        # Determine which energy groups we actually have data for
+        energy_groups = []
+        if any('_thermal_' in col for col in test_results_df.columns):
+            energy_groups.append('thermal')
+        if any('_epithermal_' in col for col in test_results_df.columns):
+            energy_groups.append('epithermal')
+        if any('_fast_' in col for col in test_results_df.columns):
+            energy_groups.append('fast')
+        # Don't add 'total' for multi-energy unless explicitly present
+        if any('_total_' in col for col in test_results_df.columns):
+            energy_groups.append('total')
 
         for energy_group in energy_groups:
             print(f"\n{'='*50}")
@@ -237,6 +329,13 @@ def main():
             print(f"{'='*50}")
 
             energy_output_dir = os.path.join(output_base_dir, energy_group)
+
+            # Create directories for this energy group
+            os.makedirs(energy_output_dir, exist_ok=True)
+            os.makedirs(os.path.join(energy_output_dir, 'performance_heatmaps'), exist_ok=True)
+            os.makedirs(os.path.join(energy_output_dir, 'spatial_error_heatmaps'), exist_ok=True)
+            os.makedirs(os.path.join(energy_output_dir, 'config_error_plots'), exist_ok=True)
+            os.makedirs(os.path.join(energy_output_dir, 'rel_error_trackers'), exist_ok=True)
 
             try:
                 # Performance heatmaps for this energy group
@@ -293,6 +392,12 @@ def main():
 
             keff_output_dir = os.path.join(output_base_dir, 'keff')
 
+            # Create k-eff directories
+            os.makedirs(keff_output_dir, exist_ok=True)
+            os.makedirs(os.path.join(keff_output_dir, 'performance_heatmaps'), exist_ok=True)
+            os.makedirs(os.path.join(keff_output_dir, 'config_error_plots'), exist_ok=True)
+            os.makedirs(os.path.join(keff_output_dir, 'rel_error_trackers'), exist_ok=True)
+
             try:
                 # K-eff specific visualizations
                 print("\n1. Creating k-eff performance heatmaps...")
@@ -340,71 +445,203 @@ def main():
         except Exception as e:
             print(f"  ERROR in energy breakdown plots: {e}")
 
-    else:
-        # Standard visualizations (existing behavior)
+    elif single_energy_mode:
+        # Single energy group visualizations
+        energy_name = single_energy_mode.replace('_only', '')
+        print(f"\n🔋 Generating {energy_name} flux visualizations...")
+
+        energy_output_dir = os.path.join(output_base_dir, f'{energy_name}_flux')
+
         try:
-            # Continue with existing visualization generation code...
-            # [Rest of the original visualization generation code remains the same]
+            # Performance heatmaps for this energy group
+            print(f"\n1. Creating {energy_name} flux performance heatmaps...")
+            create_performance_heatmaps(
+                test_results_df,
+                os.path.join(energy_output_dir, 'performance_heatmaps'),
+                energy_group=energy_name
+            )
 
-            # 1. Performance Heatmaps (R²)
-            print("\n1. Creating performance heatmaps...")
-            try:
-                create_performance_heatmaps(
-                    test_results_df,
-                    os.path.join(output_base_dir, 'performance_heatmaps')
-                )
-            except Exception as e:
-                print(f"  ERROR in performance heatmaps: {e}")
-                print("  Continuing with other visualizations...")
+            # Spatial error heatmaps
+            print(f"\n2. Creating {energy_name} flux spatial error heatmaps...")
+            create_spatial_error_heatmaps(
+                test_results_df,
+                os.path.join(energy_output_dir, 'spatial_error_heatmaps'),
+                models, encodings, optimizations,
+                energy_group=energy_name
+            )
 
-            # 2. Spatial Error Heatmaps
-            print("\n2. Creating spatial error heatmaps...")
-            try:
-                create_spatial_error_heatmaps(
-                    test_results_df,
-                    os.path.join(output_base_dir, 'spatial_error_heatmaps'),
-                    models, encodings, optimizations
-                )
-            except Exception as e:
-                print(f"  ERROR in spatial error heatmaps: {e}")
-                print("  Continuing with other visualizations...")
+            # Config error plots
+            print(f"\n3. Creating {energy_name} flux configuration error plots...")
+            create_config_error_plots(
+                test_results_df,
+                os.path.join(energy_output_dir, 'config_error_plots'),
+                energy_group=energy_name
+            )
 
-            # 3. Feature Importance Plots
-            print("\n3. Creating feature importance plots...")
-            try:
-                create_feature_importance_plots(
-                    test_results_df,
-                    os.path.join(output_base_dir, 'feature_importance'),
-                    models
-                )
-            except Exception as e:
-                print(f"  ERROR in feature importance plots: {e}")
-                print("  Continuing with other visualizations...")
+            # Relative error trackers
+            print(f"\n4. Creating {energy_name} flux relative error tracker plots...")
+            create_rel_error_tracker_plots(
+                test_results_df,
+                os.path.join(energy_output_dir, 'rel_error_trackers'),
+                encodings,
+                energy_group=energy_name
+            )
 
-            # 4. Config Error Plots
-            print("\n4. Creating configuration error plots...")
-            try:
-                create_config_error_plots(
-                    test_results_df,
-                    os.path.join(output_base_dir, 'config_error_plots')
-                )
-            except Exception as e:
-                print(f"  ERROR in config error plots: {e}")
-                print("  Continuing with other visualizations...")
+            # Summary statistics (in main directory)
+            print(f"\n5. Creating {energy_name} flux summary statistics...")
+            create_summary_statistics_plots(
+                test_results_df,
+                os.path.join(output_base_dir, 'summary_statistics'),
+                has_energy_discretization=False,
+                single_energy_mode=single_energy_mode
+            )
 
-            # 5. Relative Error Tracker Plots
-            print("\n5. Creating relative error tracker plots...")
-            try:
-                create_rel_error_tracker_plots(
-                    test_results_df,
-                    os.path.join(output_base_dir, 'rel_error_trackers'),
-                    encodings
-                )
-            except Exception as e:
-                print(f"  ERROR in relative error tracker plots: {e}")
-                print("  Continuing with other visualizations...")
+        except Exception as e:
+            print(f"  ERROR processing {energy_name} flux: {e}")
 
-            # 6. Summary Statistics
+    else:
+        # Standard visualizations - need to check what data types we have
+        print("\n🔍 Detecting data types in standard mode...")
+
+        # Check if we have total flux data
+        has_total_flux = any(col.startswith('I_') and col.endswith('_predicted') and
+                            not any(energy in col for energy in ['_thermal_', '_epithermal_', '_fast_'])
+                            for col in test_results_df.columns)
+
+        # Check if we have k-eff data
+        has_keff = any('keff' in col.lower() for col in test_results_df.columns)
+
+        print(f"  Total flux data: {'Yes' if has_total_flux else 'No'}")
+        print(f"  K-eff data: {'Yes' if has_keff else 'No'}")
+
+        # Create subdirectories based on data types
+        if has_total_flux:
+            total_flux_dir = os.path.join(output_base_dir, 'total_flux')
+            os.makedirs(total_flux_dir, exist_ok=True)
+            os.makedirs(os.path.join(total_flux_dir, 'performance_heatmaps'), exist_ok=True)
+            os.makedirs(os.path.join(total_flux_dir, 'spatial_error_heatmaps'), exist_ok=True)
+            os.makedirs(os.path.join(total_flux_dir, 'config_error_plots'), exist_ok=True)
+            os.makedirs(os.path.join(total_flux_dir, 'rel_error_trackers'), exist_ok=True)
+            os.makedirs(os.path.join(total_flux_dir, 'feature_importance'), exist_ok=True)
+
+        if has_keff:
+            keff_dir = os.path.join(output_base_dir, 'keff')
+            os.makedirs(keff_dir, exist_ok=True)
+            os.makedirs(os.path.join(keff_dir, 'performance_heatmaps'), exist_ok=True)
+            os.makedirs(os.path.join(keff_dir, 'config_error_plots'), exist_ok=True)
+            os.makedirs(os.path.join(keff_dir, 'rel_error_trackers'), exist_ok=True)
+
+        try:
+            # Process total flux visualizations
+            if has_total_flux:
+                print(f"\n{'='*50}")
+                print(f"Processing TOTAL FLUX results")
+                print(f"{'='*50}")
+
+                flux_output_dir = os.path.join(output_base_dir, 'total_flux')
+
+                # 1. Performance Heatmaps (R²)
+                print("\n1. Creating total flux performance heatmaps...")
+                try:
+                    create_performance_heatmaps(
+                        test_results_df,
+                        os.path.join(flux_output_dir, 'performance_heatmaps'),
+                        target_type='flux'
+                    )
+                except Exception as e:
+                    print(f"  ERROR in performance heatmaps: {e}")
+                    print("  Continuing with other visualizations...")
+
+                # 2. Spatial Error Heatmaps
+                print("\n2. Creating total flux spatial error heatmaps...")
+                try:
+                    create_spatial_error_heatmaps(
+                        test_results_df,
+                        os.path.join(flux_output_dir, 'spatial_error_heatmaps'),
+                        models, encodings, optimizations
+                    )
+                except Exception as e:
+                    print(f"  ERROR in spatial error heatmaps: {e}")
+                    print("  Continuing with other visualizations...")
+
+                # 3. Feature Importance Plots
+                print("\n3. Creating total flux feature importance plots...")
+                try:
+                    create_feature_importance_plots(
+                        test_results_df,
+                        os.path.join(flux_output_dir, 'feature_importance'),
+                        models
+                    )
+                except Exception as e:
+                    print(f"  ERROR in feature importance plots: {e}")
+                    print("  Continuing with other visualizations...")
+
+                # 4. Config Error Plots
+                print("\n4. Creating total flux configuration error plots...")
+                try:
+                    create_config_error_plots(
+                        test_results_df,
+                        os.path.join(flux_output_dir, 'config_error_plots'),
+                        target_type='flux'
+                    )
+                except Exception as e:
+                    print(f"  ERROR in config error plots: {e}")
+                    print("  Continuing with other visualizations...")
+
+                # 5. Relative Error Tracker Plots
+                print("\n5. Creating total flux relative error tracker plots...")
+                try:
+                    create_rel_error_tracker_plots(
+                        test_results_df,
+                        os.path.join(flux_output_dir, 'rel_error_trackers'),
+                        encodings,
+                        target_type='flux'
+                    )
+                except Exception as e:
+                    print(f"  ERROR in relative error tracker plots: {e}")
+                    print("  Continuing with other visualizations...")
+
+            # Process k-eff visualizations
+            if has_keff:
+                print(f"\n{'='*50}")
+                print(f"Processing K-EFF results")
+                print(f"{'='*50}")
+
+                keff_output_dir = os.path.join(output_base_dir, 'keff')
+
+                # K-eff specific visualizations
+                print("\n1. Creating k-eff performance heatmaps...")
+                try:
+                    create_performance_heatmaps(
+                        test_results_df,
+                        os.path.join(keff_output_dir, 'performance_heatmaps'),
+                        target_type='keff'
+                    )
+                except Exception as e:
+                    print(f"  ERROR in k-eff performance heatmaps: {e}")
+
+                print("\n2. Creating k-eff configuration error plots...")
+                try:
+                    create_config_error_plots(
+                        test_results_df,
+                        os.path.join(keff_output_dir, 'config_error_plots'),
+                        target_type='keff'
+                    )
+                except Exception as e:
+                    print(f"  ERROR in k-eff config error plots: {e}")
+
+                print("\n3. Creating k-eff relative error tracker plots...")
+                try:
+                    create_rel_error_tracker_plots(
+                        test_results_df,
+                        os.path.join(keff_output_dir, 'rel_error_trackers'),
+                        encodings,
+                        target_type='keff'
+                    )
+                except Exception as e:
+                    print(f"  ERROR in k-eff relative error trackers: {e}")
+
+            # Summary Statistics (in main directory for both)
             print("\n6. Creating summary statistics visualizations...")
             try:
                 create_summary_statistics_plots(
@@ -415,22 +652,179 @@ def main():
                 print(f"  ERROR in summary statistics: {e}")
                 print("  Continuing with other visualizations...")
 
-            # 7. Error Distribution Comparison
-            print("\n7. Creating error distribution comparison...")
-            try:
-                create_error_distribution_for_total(
-                    test_results_df,
-                    output_base_dir  # Save in main output directory
-                )
-            except Exception as e:
-                print(f"  ERROR in error distribution comparison: {e}")
-                print("  Continuing with other visualizations...")
+            # 7. Error Distribution Comparison (for total flux)
+            if has_total_flux:
+                print("\n7. Creating error distribution comparison...")
+                try:
+                    create_error_distribution_for_total(
+                        test_results_df,
+                        os.path.join(output_base_dir, 'total_flux')  # Save in total_flux directory
+                    )
+                except Exception as e:
+                    print(f"  ERROR in error distribution comparison: {e}")
+                    print("  Continuing with other visualizations...")
 
         except Exception as e:
             print(f"\nCRITICAL ERROR during visualization generation: {e}")
             import traceback
             traceback.print_exc()
             return
+
+    # Generate Optuna visualizations if studies exist
+    print("\n" + "-"*60)
+    print("Checking for Optuna optimization studies...")
+    print("-"*60)
+
+    study_files = find_optuna_studies()
+    relevant_studies = {}  # Initialize for later use
+
+    if study_files:
+        print(f"\nFound {len(study_files)} Optuna study files:")
+
+        # Determine which models are in the Excel file
+        models_in_excel = set(test_results_df['model_class'].unique())
+
+        # Determine which flux modes are present
+        flux_modes_in_excel = set()
+        if 'flux_mode' in test_results_df.columns:
+            flux_modes_in_excel = set(test_results_df['flux_mode'].unique())
+
+            # CRITICAL FIX: For merged multi-energy data, also include individual energy modes
+            # If we have 'energy' mode and individual energy columns, include individual modes
+            if 'energy' in flux_modes_in_excel or 'bin' in flux_modes_in_excel:
+                if any('_thermal_' in col for col in test_results_df.columns):
+                    flux_modes_in_excel.add('thermal_only')
+                if any('_epithermal_' in col for col in test_results_df.columns):
+                    flux_modes_in_excel.add('epithermal_only')
+                if any('_fast_' in col for col in test_results_df.columns):
+                    flux_modes_in_excel.add('fast_only')
+                print(f"  🔧 Multi-energy data detected - added individual energy modes to search")
+        else:
+            # Infer from columns
+            if has_energy_discretization:
+                # For energy discretized data, include both multi-energy modes AND individual energy modes
+                flux_modes_in_excel = {'energy', 'bin'}
+                # ALSO include individual energy modes if we have their data
+                if any('_thermal_' in col for col in test_results_df.columns):
+                    flux_modes_in_excel.add('thermal_only')
+                if any('_epithermal_' in col for col in test_results_df.columns):
+                    flux_modes_in_excel.add('epithermal_only')
+                if any('_fast_' in col for col in test_results_df.columns):
+                    flux_modes_in_excel.add('fast_only')
+            elif single_energy_mode:
+                flux_modes_in_excel = {single_energy_mode}
+            elif any(col.startswith('I_') and col.endswith('_predicted') and
+                    not any(energy in col for energy in ['_thermal_', '_epithermal_', '_fast_'])
+                    for col in test_results_df.columns):
+                flux_modes_in_excel = {'total'}
+
+        # Check if k-eff is present - need to check for actual k-eff data, not just column names
+        has_keff_data = any('keff' in col.lower() and ('actual' in col.lower() or 'predicted' in col.lower())
+                           for col in test_results_df.columns)
+
+        print(f"\nModels in Excel: {models_in_excel}")
+        print(f"Flux modes in Excel: {flux_modes_in_excel}")
+        print(f"Has k-eff data: {has_keff_data}")
+
+        # Filter study files to only include those present in Excel
+        relevant_studies = {}
+        for key, path in study_files.items():
+            # Parse the full key to check relevance
+            # Keys are like: svm_flux_total, svm_flux_thermal_only, svm_keff
+
+            parts = key.split('_')
+            if len(parts) < 2:
+                continue
+
+            model_name = parts[0]
+            target_type = parts[1]
+
+            # Check if this model is in the Excel
+            if model_name not in models_in_excel:
+                continue
+
+            # Check if this target type is relevant
+            if target_type == 'keff':
+                # Only include k-eff studies if we actually have k-eff data
+                if has_keff_data:
+                    relevant_studies[key] = path
+                else:
+                    print(f"  Skipping {key} - no k-eff data in Excel file")
+            elif target_type == 'flux':
+                # Determine the flux mode from the key
+                if len(parts) == 3:
+                    # svm_flux_total, svm_flux_energy, svm_flux_bin
+                    flux_mode = parts[2]
+                elif len(parts) == 4 and parts[3] == 'only':
+                    # svm_flux_thermal_only
+                    flux_mode = f"{parts[2]}_only"
+                else:
+                    flux_mode = 'total'  # Default
+
+                # Check if this flux mode is in the Excel
+                if flux_mode in flux_modes_in_excel:
+                    relevant_studies[key] = path
+
+        if relevant_studies:
+            print(f"\nRelevant Optuna studies for this Excel: {len(relevant_studies)}")
+            for key, path in relevant_studies.items():
+                print(f"  - {key}: {os.path.basename(path)}")
+
+            # Create optuna_analysis directory
+            optuna_output_dir = os.path.join(output_base_dir, 'optuna_analysis')
+            os.makedirs(optuna_output_dir, exist_ok=True)
+
+            print(f"\nGenerating Optuna visualizations...")
+
+            for key, study_path in relevant_studies.items():
+                try:
+                    print(f"\n📊 Processing {key}...")
+
+                    # Load the study
+                    study = joblib.load(study_path)
+
+                    # Use the key to determine proper target naming
+                    # Keys are like: svm_flux_total, svm_flux_thermal_only, svm_keff
+                    parts = key.split('_')
+                    model_name = parts[0]
+
+                    if parts[1] == 'keff':
+                        target = 'keff'
+                    elif parts[1] == 'flux':
+                        if len(parts) == 3:
+                            # svm_flux_total, svm_flux_energy, svm_flux_bin
+                            target = f"flux_{parts[2]}"
+                        elif len(parts) == 4 and parts[3] == 'only':
+                            # svm_flux_thermal_only -> flux_thermal
+                            target = f"flux_{parts[2]}"
+                        else:
+                            target = 'flux'
+                    else:
+                        target = 'unknown'
+
+                    # Generate visualizations
+                    generate_all_optuna_visualizations(
+                        study=study,
+                        save_base_dir=optuna_output_dir,
+                        model_name=model_name,
+                        target=target,
+                        include_all=True
+                    )
+
+                    print(f"  ✓ Completed visualizations for {key}")
+
+                except Exception as e:
+                    print(f"  ✗ ERROR processing {key}: {e}")
+                    import traceback
+                    print("    Traceback:")
+                    traceback.print_exc()
+                    print("    Continuing with other studies...")
+        else:
+            print("\nNo relevant Optuna studies found for the models in this Excel file.")
+    else:
+        print("\nNo Optuna study files found.")
+        print("To generate Optuna visualizations, ensure your optimization studies are saved")
+        print("in ML/outputs/optuna_studies/")
 
     # Create summary report
     summary_file = os.path.join(output_base_dir, 'visualization_summary.txt')
@@ -444,11 +838,17 @@ def main():
 
         if has_energy_discretization:
             f.write("\nEnergy Group Visualizations:\n")
-            f.write("  - thermal/    : Thermal neutron flux visualizations\n")
-            f.write("  - epithermal/ : Epithermal neutron flux visualizations\n")
-            f.write("  - fast/       : Fast neutron flux visualizations\n")
-            f.write("  - total/      : Total flux visualizations\n")
-            f.write("  - keff/       : K-effective visualizations\n")
+            # Write only the folders that were actually created
+            if os.path.exists(os.path.join(output_base_dir, 'thermal')):
+                f.write("  - thermal/    : Thermal neutron flux visualizations\n")
+            if os.path.exists(os.path.join(output_base_dir, 'epithermal')):
+                f.write("  - epithermal/ : Epithermal neutron flux visualizations\n")
+            if os.path.exists(os.path.join(output_base_dir, 'fast')):
+                f.write("  - fast/       : Fast neutron flux visualizations\n")
+            if os.path.exists(os.path.join(output_base_dir, 'total')):
+                f.write("  - total/      : Total flux visualizations\n")
+            if os.path.exists(os.path.join(output_base_dir, 'keff')):
+                f.write("  - keff/       : K-effective visualizations\n")
             f.write("\nSummary Visualizations (main directory):\n")
             f.write("  - summary_statistics/ : Best model combinations across all energy groups\n")
             f.write("  - energy_breakdown/   : Stacked bar charts showing energy distribution\n")
@@ -461,6 +861,29 @@ def main():
             f.write("5. Relative Error Trackers - Detailed error analysis by encoding\n")
             f.write("6. Summary Statistics - Best model combinations\n")
 
+        # Add core configuration section
+        f.write("\nCore Configuration Visualizations:\n")
+        f.write("  - core_images/train_cores.png : Training set core configurations\n")
+        f.write("  - core_images/test_cores.png  : Test set core configurations\n")
+        f.write("  - core_images/train_irradiation_heatmap.png : Training irradiation frequency heatmap\n")
+        f.write("  - core_images/test_irradiation_heatmap.png  : Test irradiation frequency heatmap\n")
+
+        # Add Optuna section if studies were found
+        if relevant_studies:
+            f.write(f"\nOptuna Hyperparameter Optimization Studies:\n")
+            f.write(f"Generated visualizations for {len(relevant_studies)} relevant studies\n")
+            f.write("Visualizations generated in optuna_analysis/:\n")
+            for key in relevant_studies.keys():
+                f.write(f"  - {key}/\n")
+            f.write("\nOptuna visualization types:\n")
+            f.write("  • Optimization history\n")
+            f.write("  • Parameter importance (fANOVA)\n")
+            f.write("  • Parameter relationships (contour plots)\n")
+            f.write("  • Parameter slice plots\n")
+            f.write("  • Parallel coordinate plots\n")
+            f.write("  • Hyperparameter convergence\n")
+            f.write("  • Optimization statistics\n")
+
     print("\n" + "="*80)
     print("VISUALIZATION PIPELINE COMPLETE!")
     print("="*80)
@@ -469,22 +892,39 @@ def main():
 
     if has_energy_discretization:
         print("\nEnergy-specific visualizations generated in:")
-        print("  ✓ thermal/    - Thermal neutron flux analysis")
-        print("  ✓ epithermal/ - Epithermal neutron flux analysis")
-        print("  ✓ fast/       - Fast neutron flux analysis")
-        print("  ✓ total/      - Total flux analysis")
-        print("  ✓ keff/       - K-effective analysis")
+        # Only print the folders that were actually created
+        if os.path.exists(os.path.join(output_base_dir, 'thermal')):
+            print("  ✓ thermal/    - Thermal neutron flux analysis")
+        if os.path.exists(os.path.join(output_base_dir, 'epithermal')):
+            print("  ✓ epithermal/ - Epithermal neutron flux analysis")
+        if os.path.exists(os.path.join(output_base_dir, 'fast')):
+            print("  ✓ fast/       - Fast neutron flux analysis")
+        if os.path.exists(os.path.join(output_base_dir, 'total')):
+            print("  ✓ total/      - Total flux analysis")
+        if os.path.exists(os.path.join(output_base_dir, 'keff')):
+            print("  ✓ keff/       - K-effective analysis")
         print("\nSummary visualizations in main directory:")
         print("  ✓ summary_statistics/ - Overall performance comparison")
-        print("  ✓ energy_breakdown/   - Energy distribution analysis")
+        if os.path.exists(os.path.join(output_base_dir, 'energy_breakdown')):
+            print("  ✓ energy_breakdown/   - Energy distribution analysis")
+    elif single_energy_mode:
+        energy_name = single_energy_mode.replace('_only', '')
+        print(f"\n{energy_name.title()} flux visualizations generated in:")
+        print(f"  ✓ {energy_name}_flux/ - {energy_name.title()} flux analysis")
+        print("\nSummary visualizations in main directory:")
+        print("  ✓ summary_statistics/ - Overall performance comparison")
     else:
         print("\nVisualization categories generated:")
-        print("  ✓ Performance heatmaps (R² scores)")
-        print("  ✓ Spatial error heatmaps (MAPE by position)")
-        print("  ✓ Feature importance plots")
-        print("  ✓ Configuration error plots")
-        print("  ✓ Relative error trackers")
-        print("  ✓ Summary statistics")
+        if os.path.exists(os.path.join(output_base_dir, 'total_flux')):
+            print("  ✓ total_flux/ - Total flux analysis (includes all visualization types)")
+        if os.path.exists(os.path.join(output_base_dir, 'keff')):
+            print("  ✓ keff/ - K-effective analysis")
+        print("  ✓ summary_statistics/ - Overall performance comparison")
+
+    if study_files:
+        print("\nOptuna hyperparameter optimization analysis:")
+        print(f"  ✓ optuna_analysis/ - {len(study_files)} optimization studies analyzed")
+        print("    Including: optimization history, parameter importance, convergence plots")
 
 if __name__ == "__main__":
     main()

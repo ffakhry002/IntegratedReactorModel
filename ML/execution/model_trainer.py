@@ -248,6 +248,9 @@ class ModelTrainer:
         elif model_type == 'random_forest':
             model = RandomForestReactorModel(**params)
         elif model_type == 'svm':
+            # IMPORTANT: Since optimization used scaled data via Pipeline,
+            # the hyperparameters are optimized for scaled features.
+            # SVMReactorModel will handle scaling internally, so we keep it enabled.
             model = SVMReactorModel(**params)
         elif model_type == 'neural_net':
             model = NeuralNetReactorModel(**params)
@@ -260,7 +263,7 @@ class ModelTrainer:
                 model.set_flux_mode(self.data_handler.flux_mode)
             else:
                 # Direct setting for backward compatibility
-                if self.data_handler.flux_mode == 'total':
+                if self.data_handler.flux_mode in ['total', 'thermal_only', 'epithermal_only', 'fast_only']:
                     model._n_flux_outputs = 4
                 else:
                     model._n_flux_outputs = 12

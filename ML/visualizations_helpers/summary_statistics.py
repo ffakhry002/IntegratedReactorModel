@@ -567,41 +567,50 @@ def create_best_models_summary(df, output_dir, has_energy_discretization=False):
     ax4 = plt.subplot(2, 2, 4)
     opt_stats = []
 
-    for optimization in summary_df['optimization_method'].unique():
-        opt_data = summary_df[summary_df['optimization_method'] == optimization]
+    # Check if optimization_method column exists
+    if 'optimization_method' in summary_df.columns:
+        for optimization in summary_df['optimization_method'].unique():
+            opt_data = summary_df[summary_df['optimization_method'] == optimization]
 
-        # Only include flux models for flux statistics
-        flux_opt_data = opt_data[opt_data['model_type'].isin(['flux', 'both'])]
+            # Only include flux models for flux statistics
+            flux_opt_data = opt_data[opt_data['model_type'].isin(['flux', 'both'])]
 
-        if not flux_opt_data.empty:
-            opt_stats.append({
-                'optimization': optimization,
-                'mean_flux_mape': flux_opt_data['flux_mape'].mean() if not flux_opt_data['flux_mape'].isna().all() else None,
-                'mean_keff_mape': opt_data['keff_mape'].mean() if 'keff_mape' in opt_data and not opt_data['keff_mape'].isna().all() else None,
-                'count': len(opt_data)
-            })
+            if not flux_opt_data.empty:
+                opt_stats.append({
+                    'optimization': optimization,
+                    'mean_flux_mape': flux_opt_data['flux_mape'].mean() if not flux_opt_data['flux_mape'].isna().all() else None,
+                    'mean_keff_mape': opt_data['keff_mape'].mean() if 'keff_mape' in opt_data and not opt_data['keff_mape'].isna().all() else None,
+                    'count': len(opt_data)
+                })
 
-    if opt_stats:
-        opt_df = pd.DataFrame(opt_stats)
-        opt_df = opt_df.sort_values('mean_flux_mape', na_position='last')
+        if opt_stats:
+            opt_df = pd.DataFrame(opt_stats)
+            opt_df = opt_df.sort_values('mean_flux_mape', na_position='last')
 
-        x = np.arange(len(opt_df))
-        width = 0.35
+            x = np.arange(len(opt_df))
+            width = 0.35
 
-        # Plot bars - handle NaN values
-        flux_values = opt_df['mean_flux_mape'].fillna(0).values
-        keff_values = opt_df['mean_keff_mape'].fillna(0).values
+            # Plot bars - handle NaN values
+            flux_values = opt_df['mean_flux_mape'].fillna(0).values
+            keff_values = opt_df['mean_keff_mape'].fillna(0).values
 
-        bars1 = ax4.bar(x - width/2, flux_values, width, label='Flux MAPE', color='skyblue')
-        bars2 = ax4.bar(x + width/2, keff_values, width, label='K-eff MAPE', color='lightcoral')
+            bars1 = ax4.bar(x - width/2, flux_values, width, label='Flux MAPE', color='skyblue')
+            bars2 = ax4.bar(x + width/2, keff_values, width, label='K-eff MAPE', color='lightcoral')
 
-        ax4.set_xlabel('Optimization Method', fontsize=10)
-        ax4.set_ylabel('Mean MAPE (%)', fontsize=10)
-        ax4.set_title('Average Performance by Optimization', fontsize=12, fontweight='bold')
-        ax4.set_xticks(x)
-        ax4.set_xticklabels(opt_df['optimization'], rotation=45, ha='right')
-        ax4.legend()
-        ax4.grid(True, axis='y', alpha=0.3)
+            ax4.set_xlabel('Optimization Method', fontsize=10)
+            ax4.set_ylabel('Mean MAPE (%)', fontsize=10)
+            ax4.set_title('Average Performance by Optimization', fontsize=12, fontweight='bold')
+            ax4.set_xticks(x)
+            ax4.set_xticklabels(opt_df['optimization'], rotation=45, ha='right')
+            ax4.legend()
+            ax4.grid(True, axis='y', alpha=0.3)
+    else:
+        # No optimization_method column - show a message
+        ax4.text(0.5, 0.5, 'No optimization data available',
+                ha='center', va='center', transform=ax4.transAxes,
+                fontsize=12, alpha=0.5)
+        ax4.set_xticks([])
+        ax4.set_yticks([])
 
     plt.tight_layout()
 
@@ -617,6 +626,11 @@ def create_best_models_summary(df, output_dir, has_energy_discretization=False):
 
 def create_optimization_comparison(df, output_dir):
     """Create comparison of optimization methods"""
+
+    # Check if optimization_method column exists
+    if 'optimization_method' not in df.columns:
+        print("  Skipping optimization comparison (optimization_method column not found)")
+        return
 
     # Get optimization methods
     optimizations = df['optimization_method'].unique()
@@ -835,7 +849,14 @@ def create_error_distribution_for_energy(df, output_dir, energy_group):
     df['max_flux_error'] = max_flux_errors
 
     # Get unique values
-    optimizations = sorted(df['optimization_method'].unique())
+    if 'optimization_method' in df.columns:
+        optimizations = sorted(df['optimization_method'].unique())
+    else:
+        # If no optimization_method column, create a default one
+        df = df.copy()
+        df['optimization_method'] = 'default'
+        optimizations = ['default']
+
     models = sorted(df['model_class'].unique())
     n_opts = len(optimizations)
     n_models = len(models)
@@ -995,7 +1016,14 @@ def create_error_distribution_for_total(df, output_dir):
     df['max_flux_error'] = max_flux_errors
 
     # Get unique values
-    optimizations = sorted(df['optimization_method'].unique())
+    if 'optimization_method' in df.columns:
+        optimizations = sorted(df['optimization_method'].unique())
+    else:
+        # If no optimization_method column, create a default one
+        df = df.copy()
+        df['optimization_method'] = 'default'
+        optimizations = ['default']
+
     models = sorted(df['model_class'].unique())
     n_opts = len(optimizations)
     n_models = len(models)

@@ -2,6 +2,7 @@ import optuna
 from optuna.samplers import TPESampler
 import numpy as np
 from sklearn.model_selection import cross_val_score
+from sklearn.metrics import make_scorer
 import joblib
 from concurrent.futures import ProcessPoolExecutor
 import xgboost as xgb
@@ -16,6 +17,8 @@ import gc
 import os
 import signal
 from contextlib import contextmanager
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
 
 # Global timeout settings
 TRIAL_TIMEOUT = 600*10  # 30 minutes per trial
@@ -35,6 +38,47 @@ def timeout(duration):
         # Disable the alarm
         signal.alarm(0)
 
+# Custom MAPE scorer for flux models
+def mape_scorer_flux(y_true, y_pred, use_log_flux=True):
+    """Custom MAPE scorer that handles log-transformed flux data"""
+    # Convert from log scale to linear scale for MAPE calculation
+    if use_log_flux:
+        y_true_linear = 10 ** y_true
+        y_pred_linear = 10 ** y_pred
+    else:
+        # If not using log scale, assume data is already scaled
+        y_true_linear = y_true * 1e14  # Adjust scale as needed
+        y_pred_linear = y_pred * 1e14
+
+    # Calculate MAPE
+    n_outputs = y_true_linear.shape[1] if len(y_true_linear.shape) > 1 else 1
+
+    if n_outputs == 1:
+        # Single output
+        mask = y_true_linear != 0
+        if mask.any():
+            mape = np.mean(np.abs((y_pred_linear[mask] - y_true_linear[mask]) / y_true_linear[mask])) * 100
+        else:
+            mape = float('inf')
+    else:
+        # Multi-output
+        mapes = []
+        for i in range(len(y_true_linear)):
+            sample_errors = []
+            for j in range(n_outputs):
+                if y_true_linear[i, j] != 0:
+                    error = abs((y_pred_linear[i, j] - y_true_linear[i, j]) / y_true_linear[i, j]) * 100
+                    sample_errors.append(error)
+            if sample_errors:
+                mapes.append(np.mean(sample_errors))
+
+        if mapes:
+            mape = np.mean(mapes)
+        else:
+            mape = float('inf')
+
+    return mape
+
 def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=250, n_jobs=10, use_log_flux=True, groups=None, flux_mode='total'):
     """Optimize hyperparameters for flux prediction only - NOW USING MAPE or MSE based on mode"""
 
@@ -43,6 +87,9 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
     print(f"Flux mode: {flux_mode}")
     if flux_mode == 'bin':
         print(f"Optimization metric: MSE (for energy bins)")
+    elif flux_mode in ['thermal_only', 'epithermal_only', 'fast_only']:
+        energy_group = flux_mode.replace('_only', '')
+        print(f"Optimization metric: MAPE (for {energy_group} flux only)")
     else:
         print(f"Optimization metric: MAPE (Mean Absolute Percentage Error)")
     print(f"Total trials: {n_trials}, Timeout per trial: {TRIAL_TIMEOUT}s")
@@ -60,6 +107,19 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
     start_time = time.time()
     completed_trials = 0
 
+
+    if model_type == 'svm':
+        n_startup_trials = 150  # ~50 trials per kernel (rbf, linear, poly)
+    else:  # xgboost, neural_net
+        n_startup_trials = 56   # Less random exploration needed
+
+    # Create custom MAPE scorer with use_log_flux parameter
+    def mape_scorer_wrapper(y_true, y_pred):
+        """Wrapper to pass use_log_flux parameter to MAPE scorer"""
+        return mape_scorer_flux(y_true, y_pred, use_log_flux=use_log_flux)
+
+    custom_mape_scorer = make_scorer(mape_scorer_wrapper, greater_is_better=False)
+
     def objective(trial):
         nonlocal completed_trials
         trial_start = time.time()
@@ -72,54 +132,91 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
 
         print(f"\n[Trial {trial.number + 1}/{n_trials}] Starting at {datetime.now().strftime('%H:%M:%S')}")
 
+        # Set environment variable to limit thread usage
+        os.environ['OMP_NUM_THREADS'] = '1'
+        os.environ['MKL_NUM_THREADS'] = '1'
+
         try:
             # [KEEP ALL YOUR EXISTING PARAMETER SELECTION CODE HERE - NO CHANGES]
             if model_type == 'xgboost':
                 params = {
-                    'n_estimators': trial.suggest_int('n_estimators', 50, 2000),
-                    'max_depth': trial.suggest_int('max_depth', 2, 20),
-                    'learning_rate': trial.suggest_float('learning_rate', 0.001, 0.5, log=True),
-                    'subsample': trial.suggest_float('subsample', 0.3, 1.0),
-                    'colsample_bytree': np.tril.suggest_float('colsample_bytree', 0.3, 1.0),
-                    'colsample_bylevel': trial.suggest_float('colsample_bylevel', 0.3, 1.0),
-                    'colsample_bynode': trial.suggest_float('colsample_bynode', 0.3, 1.0),
-                    'reg_alpha': trial.suggest_float('reg_alpha', 0.0, 10.0),
-                    'reg_lambda': trial.suggest_float('reg_lambda', 0.0, 10.0),
-                    'gamma': trial.suggest_float('gamma', 0.0, 5.0),
-                    'min_child_weight': np.tril.suggest_int('min_child_weight', 1, 20),
-                    'n_jobs': 1,
-                    'verbosity': 2,
-                    'tree_method': 'exact'
+                    ##### For rull screening
+                    # 'n_estimators': trial.suggest_int('n_estimators', 50, 2000),
+                    # 'max_depth': trial.suggest_int('max_depth', 2, 20),
+                    # 'learning_rate': trial.suggest_float('learning_rate', 0.001, 0.5, log=True),
+                    # 'subsample': trial.suggest_float('subsample', 0.3, 1.0),
+                    # # 'colsample_bytree': trial.suggest_float('colsample_bytree', 0.3, 1.0),
+                    # # 'colsample_bylevel': trial.suggest_float('colsample_bylevel', 0.3, 1.0),
+                    # # 'reg_alpha': trial.suggest_float('reg_alpha', 0.0, 10.0),
+                    # # 'reg_lambda': trial.suggest_float('reg_lambda', 0.0, 10.0),
+                    # 'gamma': trial.suggest_float('gamma', 0.0, 0.1),
+                    # # 'min_child_weight': trial.suggest_int('min_child_weight', 1, 20),
+
+
+                    ###### For physics
+                    'max_depth': trial.suggest_int('max_depth', 3, 5),
+                    'min_child_weight': trial.suggest_int('min_child_weight', 4, 6),
+                    'learning_rate': trial.suggest_float('learning_rate', 0.007, 0.012),
+                    'subsample': trial.suggest_float('subsample', 0.15, 0.25),  # Allow lower!
+                    'n_estimators': trial.suggest_int('n_estimators', 2500, 4000),
+                    'colsample_bytree': trial.suggest_float('colsample_bytree', 0.65, 0.80),
+
+                    # Fixed
+                    'reg_lambda': 0,
+                    'gamma': 0,
+                    'tree_method': 'exact',  # For speed!
                 }
                 print(f"  XGBoost params: n_estimators={params['n_estimators']}, max_depth={params['max_depth']}")
                 model = MultiOutputRegressor(xgb.XGBRegressor(**params))
 
             elif model_type == 'random_forest':
                 params = {
-                    'n_estimators': trial.suggest_int('n_estimators', 100, 1000),
-                    'max_depth': trial.suggest_int('max_depth', 5, 50),
-                    'min_samples_split': trial.suggest_int('min_samples_split', 2, 20),
-                    'min_samples_leaf': trial.suggest_int('min_samples_leaf', 1, 10),
+                    'n_estimators': trial.suggest_int('n_estimators', 200, 1500),  # More trees
+                    'max_depth': trial.suggest_int('max_depth', 3, 15),  # MUCH shallower!
+                    'min_samples_split': trial.suggest_int('min_samples_split', 5, 50),  # Higher
+                    'min_samples_leaf': trial.suggest_int('min_samples_leaf', 2, 20),  # Higher
                     'max_features': trial.suggest_categorical('max_features', ['sqrt', 'log2', 0.3, 0.5, 0.7]),
+                    'max_samples': trial.suggest_float('max_samples', 0.5, 1.0),  # Add bootstrap sampling!
+
+
+
                     'n_jobs': 1,
-                    'verbose': 1
+                    'verbose': 2
                 }
                 print(f"  RF params: n_estimators={params['n_estimators']}, max_depth={params['max_depth']}")
                 model = RandomForestRegressor(**params)
 
             elif model_type == 'svm':
                 params = {
-                    'C': trial.suggest_float('C', 0.001, 1000, log=True),
-                    'gamma': trial.suggest_float('gamma', 0.0001, 1, log=True),
-                    'epsilon': trial.suggest_float('epsilon', 0.001, 1.0, log=True),
-                    'kernel': trial.suggest_categorical('kernel', ['rbf', 'poly', 'sigmoid']),
+                    # 'C': trial.suggest_float('C', 1.0, 3.0),  # Very tight around optimal
+                    # 'epsilon': trial.suggest_float('epsilon', 0.005, 0.01),  # Critical parameter, tight range
+                    # 'kernel': trial.suggest_categorical('kernel', ['poly', 'rbf']),  # Keep both
+                    # 'max_iter': 50000,
+                    # 'verbose': True,
+
+                    'C': trial.suggest_float('C', 1.25, 2.5),  # Very tight around optimal
+                    'epsilon': trial.suggest_float('epsilon', 0.002, 0.006),  # Critical parameter, tight range
+                    'kernel': 'rbf',  # Keep both
+                    'max_iter': 10000,
                     'verbose': True,
-                    'max_iter': 10000
                 }
-                if params['kernel'] == 'poly':
-                    params['degree'] = trial.suggest_int('degree', 2, 5)
-                print(f"  SVM params: C={params['C']:.4f}, gamma={params['gamma']:.6f}, kernel={params['kernel']}")
-                model = MultiOutputRegressor(SVR(**params))
+
+                # Kernel-specific parameters
+                if params['kernel'] == 'rbf':
+                    # Extend gamma range higher since optimal was at boundary
+                    params['gamma'] = trial.suggest_float('gamma', 0.0075, 0.02, log=True)
+                elif params['kernel'] == 'poly':
+                    params['degree'] = 3  # Fix at 3
+                    params['gamma'] = trial.suggest_float('gamma', 0.003, 0.01, log=True)
+                    params['coef0'] = trial.suggest_float('coef0', 5, 7)  # Tight range
+
+                # CRITICAL FIX: Create pipeline with scaling for SVM
+                base_svr = SVR(**params)
+                pipeline = Pipeline([
+                    ('scaler', StandardScaler()),
+                    ('svr', base_svr)
+                ])
+                model = MultiOutputRegressor(pipeline)
 
             elif model_type == 'neural_net':
                 n_layers = trial.suggest_int('n_layers', 1, 5)
@@ -145,114 +242,31 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
             if flux_mode == 'bin':
                 print(f"  Starting MSE-based cross-validation for energy bins...")
                 scoring = 'neg_mean_squared_error'
+            else:
+                print(f"  Starting MAPE-based cross-validation...")
+                scoring = custom_mape_scorer
 
-                # Use standard sklearn cross_val_score
-                if groups is not None:
-                    from sklearn.model_selection import GroupKFold, cross_val_score
-                    cv = GroupKFold(n_splits=10)
-                    scores = cross_val_score(model, X_train, y_flux_train,
-                                           cv=cv, groups=groups,
-                                           scoring=scoring, n_jobs=1)
-                else:
-                    from sklearn.model_selection import cross_val_score
-                    scores = cross_val_score(model, X_train, y_flux_train,
-                                           cv=10, scoring=scoring, n_jobs=1)
+            # Use sklearn cross_val_score instead of manual implementation
+            if groups is not None:
+                from sklearn.model_selection import GroupKFold
+                cv = GroupKFold(n_splits=10)
+                scores = cross_val_score(model, X_train, y_flux_train,
+                                       cv=cv, groups=groups,
+                                       scoring=scoring, n_jobs=1)
+            else:
+                from sklearn.model_selection import KFold
+                cv = KFold(n_splits=10, shuffle=True, random_state=42)
+                scores = cross_val_score(model, X_train, y_flux_train,
+                                       cv=cv, scoring=scoring, n_jobs=1)
 
+            # Calculate final score
+            if flux_mode == 'bin':
                 # Return positive MSE (sklearn returns negative)
                 final_score = -np.mean(scores)
                 print(f"  Trial {trial.number} MSE: {final_score:.6f}")
-
             else:
-                # MAPE-based scoring for total and energy flux
-                print(f"  Starting MAPE-based cross-validation...")
-                mape_scores = []
-
-                # Set environment variable to limit thread usage
-                os.environ['OMP_NUM_THREADS'] = '1'
-                os.environ['MKL_NUM_THREADS'] = '1'
-
-                # NEW: Use GroupKFold if groups provided
-                if groups is not None:
-                    from sklearn.model_selection import GroupKFold
-                    cv = GroupKFold(n_splits=10)
-                    cv_splits = cv.split(X_train, y_flux_train, groups)
-                else:
-                    from sklearn.model_selection import KFold
-                    cv = KFold(n_splits=10, shuffle=True, random_state=42)
-                    cv_splits = cv.split(X_train)
-
-                for fold_idx, (train_idx, val_idx) in enumerate(cv_splits):
-                    fold_start = time.time()
-
-                    # Check trial timeout
-                    if time.time() - trial_start > TRIAL_TIMEOUT:
-                        print(f"  [TIMEOUT] Trial exceeded {TRIAL_TIMEOUT}s limit")
-                        if mape_scores:
-                            return np.mean(mape_scores)
-                        else:
-                            return float('inf')
-
-                    print(f"    Fold {fold_idx + 1}/10...", end='', flush=True)
-
-                    try:
-                        # Split data
-                        X_fold_train = X_train[train_idx]
-                        X_fold_val = X_train[val_idx]
-                        y_fold_train = y_flux_train[train_idx]
-                        y_fold_val = y_flux_train[val_idx]
-
-                        # Train model
-                        model.fit(X_fold_train, y_fold_train)
-
-                        # Predict
-                        y_pred = model.predict(X_fold_val)
-
-                        # Convert from log scale to linear scale for MAPE calculation
-                        if use_log_flux:
-                            y_fold_val_linear = 10 ** y_fold_val
-                            y_pred_linear = 10 ** y_pred
-                        else:
-                            # If not using log scale, assume data is already scaled
-                            y_fold_val_linear = y_fold_val * 1e14  # Adjust scale as needed
-                            y_pred_linear = y_pred * 1e14
-
-                        # Calculate MAPE
-                        fold_mapes = []
-                        n_outputs = y_fold_val_linear.shape[1] if len(y_fold_val_linear.shape) > 1 else 1
-
-                        if n_outputs == 1:
-                            # Single output
-                            mask = y_fold_val_linear != 0
-                            if mask.any():
-                                fold_mape = np.mean(np.abs((y_pred_linear[mask] - y_fold_val_linear[mask]) / y_fold_val_linear[mask])) * 100
-                                fold_mapes.append(fold_mape)
-                        else:
-                            # Multi-output
-                            for i in range(len(y_fold_val_linear)):
-                                sample_errors = []
-                                for j in range(n_outputs):
-                                    if y_fold_val_linear[i, j] != 0:
-                                        error = abs((y_pred_linear[i, j] - y_fold_val_linear[i, j]) / y_fold_val_linear[i, j]) * 100
-                                        sample_errors.append(error)
-                                if sample_errors:
-                                    fold_mapes.append(np.mean(sample_errors))
-
-                        if fold_mapes:
-                            fold_mape = np.mean(fold_mapes)
-                            mape_scores.append(fold_mape)
-                            print(f" done (MAPE: {fold_mape:.2f}%, time: {time.time() - fold_start:.1f}s)")
-                        else:
-                            print(f" error: no valid predictions")
-
-                    except Exception as e:
-                        print(f" error: {str(e)[:50]}")
-                        continue
-
-                if not mape_scores:
-                    print(f"  No valid MAPE scores obtained")
-                    return float('inf')
-
-                final_score = np.mean(mape_scores)
+                # MAPE scorer already returns positive values
+                final_score = -np.mean(scores)  # Negative because sklearn minimizes negative scores
                 print(f"  Trial {trial.number} MAPE: {final_score:.2f}%")
 
             print(f"  Trial time: {time.time() - trial_start:.1f}s")
@@ -278,7 +292,11 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
     # Create study with proper exception handling
     study = optuna.create_study(
         direction='minimize',
-        sampler=TPESampler(n_startup_trials=30, seed=42),
+        sampler=TPESampler(
+            n_startup_trials=n_startup_trials,    # Increased from 30 for better initial exploration
+            n_ei_candidates=41,     # Increased from default 24 for better acquisition
+            seed=42
+        ),
         pruner=None
     )
 
@@ -320,6 +338,21 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
         else:
             print(f"Best MAPE: {study.best_value:.2f}%")
         print(f"Total time: {time.time() - start_time:.1f}s")
+
+        # Save study for later visualization
+        try:
+            # Save to outputs folder instead of local folder
+            outputs_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'outputs', 'optuna_studies')
+            os.makedirs(outputs_dir, exist_ok=True)
+            study_filename = f"{model_type}_flux_{flux_mode}_study.pkl"
+            study_path = os.path.join(outputs_dir, study_filename)
+            joblib.dump(study, study_path)
+            print(f"\nStudy saved to: {study_path}")
+            print(f"You can load it later for visualization using:")
+            print(f"  study = joblib.load('{study_path}')")
+        except Exception as e:
+            print(f"Could not save study: {str(e)}")
+
         print(f"{'='*60}\n")
         return study.best_params, study
     else:
@@ -362,27 +395,20 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
         try:
             # Same parameter definitions as above but for single output
             if model_type == 'xgboost':
-                # More expansive search (will take longer)
                 params = {
-                    'n_estimators': trial.suggest_int('n_estimators', 50, 2000),        # Wider range
-                    'max_depth': trial.suggest_int('max_depth', 2, 20),                # Deeper trees
-                    'min_child_weight': trial.suggest_int('min_child_weight', 1, 20),  # Higher range
-                    'gamma': trial.suggest_float('gamma', 0.0, 5.0),                   # Higher gamma
-
+                    'n_estimators': trial.suggest_int('n_estimators', 50, 2500),
+                    'max_depth': trial.suggest_int('max_depth', 2, 20),
                     'learning_rate': trial.suggest_float('learning_rate', 0.001, 0.5, log=True),
-
-                    'subsample': trial.suggest_float('subsample', 0.3, 1.0),           # Lower minimum
+                    'subsample': trial.suggest_float('subsample', 0.3, 1.0),
                     'colsample_bytree': trial.suggest_float('colsample_bytree', 0.3, 1.0),
                     'colsample_bylevel': trial.suggest_float('colsample_bylevel', 0.3, 1.0),
-                    'colsample_bynode': trial.suggest_float('colsample_bynode', 0.3, 1.0),
-
-                    'reg_alpha': trial.suggest_float('reg_alpha', 0.0, 10.0),         # Linear scale option
-                    'reg_lambda': trial.suggest_float('reg_lambda', 0.0, 10.0),       # Linear scale option
-
+                    'reg_alpha': trial.suggest_float('reg_alpha', 0.0, 8.0),
+                    'reg_lambda': trial.suggest_float('reg_lambda', 0.0, 8.0),
+                    'gamma': trial.suggest_float('gamma', 0.0, 5.0),
+                    'min_child_weight': trial.suggest_int('min_child_weight', 1, 20),
                     'n_jobs': 1,
-                    'verbosity': 2,
-                    'tree_method': 'auto',
-                    'random_state': 42
+                    'verbosity': 1,
+                    'tree_method': 'exact'  # Changed from 'exact' for better performance
                 }
                 print(f"  XGBoost params: n_estimators={params['n_estimators']}, max_depth={params['max_depth']}")
                 model = xgb.XGBRegressor(**params)
@@ -395,7 +421,7 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
                     'min_samples_leaf': trial.suggest_int('min_samples_leaf', 1, 10),
                     'max_features': trial.suggest_categorical('max_features', ['sqrt', 'log2', 0.3, 0.5, 0.7]),
                     'n_jobs': 1,
-                    'verbose': 1  # Verbose output
+                    'verbose': 0  # Verbose output
                 }
                 print(f"  RF params: n_estimators={params['n_estimators']}, max_depth={params['max_depth']}")
                 model = RandomForestRegressor(**params)
@@ -456,6 +482,14 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
                 try:
                     if groups is not None:
                         # Use GroupKFold with groups
+                        # CRITICAL FIX: For SVM, we need to scale features
+                        if model_type == 'svm':
+                            # Create a pipeline that scales then applies SVM
+                            model = Pipeline([
+                                ('scaler', StandardScaler()),
+                                ('svm', model)
+                            ])
+
                         scores = cross_val_score(model, X_train, y_keff_train.ravel(),
                                                cv=cv,
                                                groups=groups,
@@ -463,6 +497,14 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
                                                n_jobs=1)
                     else:
                         # Regular cross-validation
+                        # CRITICAL FIX: For SVM, we need to scale features
+                        if model_type == 'svm':
+                            # Create a pipeline that scales then applies SVM
+                            model = Pipeline([
+                                ('scaler', StandardScaler()),
+                                ('svm', model)
+                            ])
+
                         scores = cross_val_score(model, X_train, y_keff_train.ravel(),
                                                cv=cv,
                                                scoring='neg_mean_squared_error',
@@ -502,7 +544,11 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
     # Create study with proper exception handling
     study = optuna.create_study(
         direction='minimize',
-        sampler=TPESampler(n_startup_trials=30, seed=42),
+        sampler=TPESampler(
+            n_startup_trials=50,    # Increased from 30 for better initial exploration
+            n_ei_candidates=40,     # Increased from default 24 for better acquisition
+            seed=42
+        ),
         pruner=None
     )
 
@@ -538,6 +584,21 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
     if len(study.trials) > 0:
         print(f"Best score: {study.best_value:.6f}")
         print(f"Total time: {time.time() - start_time:.1f}s")
+
+        # Save study for later visualization
+        try:
+            # Save to outputs folder instead of local folder
+            outputs_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'outputs', 'optuna_studies')
+            os.makedirs(outputs_dir, exist_ok=True)
+            study_filename = f"{model_type}_keff_study.pkl"
+            study_path = os.path.join(outputs_dir, study_filename)
+            joblib.dump(study, study_path)
+            print(f"\nStudy saved to: {study_path}")
+            print(f"You can load it later for visualization using:")
+            print(f"  study = joblib.load('{study_path}')")
+        except Exception as e:
+            print(f"Could not save study: {str(e)}")
+
         print(f"{'='*60}\n")
         return study.best_params, study
     else:

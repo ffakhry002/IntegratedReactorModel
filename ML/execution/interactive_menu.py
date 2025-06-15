@@ -61,9 +61,9 @@ class InteractiveTrainer:
             print(f"Please enter a number between 1 and {len(options)}")
 
     def select_target(self):
-        """Select what to predict"""
+        """Select prediction targets"""
         print("\n" + "-"*40)
-        print("PREDICTION TARGET SELECTION")
+        print("TARGET SELECTION")
         print("-"*40)
 
         targets = []
@@ -76,7 +76,10 @@ class InteractiveTrainer:
             flux_modes = [
                 ('total', 'Total Flux - Single value per position (current behavior)'),
                 ('energy', 'Energy Flux - Absolute flux for thermal/epithermal/fast'),
-                ('bin', 'Energy Bins - Percentage distribution (thermal/epithermal/fast)')
+                ('bin', 'Energy Bins - Percentage distribution (thermal/epithermal/fast)'),
+                ('thermal_only', 'Thermal Only'),
+                ('epithermal_only', 'Epithermal Only'),
+                ('fast_only', 'Fast Only')
             ]
 
             print("Select flux prediction mode:")
@@ -84,7 +87,7 @@ class InteractiveTrainer:
                 print(f"  {i}. {desc}")
 
             while True:
-                choice = input(f"Enter choice (1-3, default: 1): ").strip()
+                choice = input(f"Enter choice (1-6, default: 1): ").strip()
                 if choice == '':
                     self.flux_mode = 'total'
                     break
@@ -95,7 +98,7 @@ class InteractiveTrainer:
                         break
                 except ValueError:
                     pass
-                print("Please enter 1, 2, or 3")
+                print("Please enter 1, 2, 3, 4, 5, or 6")
 
             print(f"\nSelected flux mode: {self.flux_mode}")
             targets.append('flux')
@@ -265,6 +268,9 @@ class InteractiveTrainer:
         print(f"Targets: {', '.join(self.config.targets)}")
         if 'flux' in self.config.targets:
             print(f"Flux mode: {self.flux_mode}")
+            if self.flux_mode in ['thermal_only', 'epithermal_only', 'fast_only']:
+                energy_group = self.flux_mode.replace('_only', '')
+                print(f"  Training on {energy_group} flux only (total flux × {energy_group}%)")
         print(f"Models: {', '.join(self.config.models)}")
         print(f"Encodings: {', '.join(self.config.encodings)}")
         print(f"Optimizations: {', '.join(self.config.optimizations)}")
@@ -274,20 +280,6 @@ class InteractiveTrainer:
         print(f"Data file: {data_file}")
         print(f"Total training jobs: {total_jobs}")
 
-        # Time estimate
-        time_per_job = {
-            'optuna': {'xgboost': 3, 'random_forest': 3, 'svm': 15, 'neural_net': 20},
-            'three_stage': {'xgboost': 2, 'random_forest': 2, 'svm': 10, 'neural_net': 15},
-            'none': {'xgboost': 0.1, 'random_forest': 0.1, 'svm': 0.2, 'neural_net': 0.3}
-        }
-
-        estimated_time = 0
-        for opt in self.config.optimizations:
-            for model in self.config.models:
-                estimated_time += time_per_job.get(opt, {}).get(model, 5) * len(self.config.targets) * len(self.config.encodings)
-
-        print(f"Estimated time: {estimated_time:.0f}-{estimated_time*1.5:.0f} minutes")
-        print("="*60)
 
         if not self.get_yes_no("\nProceed with training?", 'y'):
             print("Training cancelled.")
@@ -341,6 +333,8 @@ class InteractiveTrainer:
                         print(f"{target.upper()} MODELS - {encoding.upper()} - {optimization.upper()}")
                         if target == 'flux':
                             print(f"Flux mode: {self.flux_mode}")
+                            if self.flux_mode in ['thermal_only', 'epithermal_only', 'fast_only']:
+                                print(f"Training on single energy group: {self.flux_mode.replace('_only', '')}")
                         print(f"{'-'*40}")
 
                         # Load and prepare data with current encoding

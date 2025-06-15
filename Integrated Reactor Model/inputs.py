@@ -101,7 +101,7 @@ base_inputs = {
     # Standard Transport Settings
     "batches": int(150),                   # Number of active batches
     "inactive": int(20),                   # Number of inactive batches
-    "particles": int(10000),            # Particles per batch
+    "particles": int(100000),            # Particles per batch
     "energy_structure": 'log1001',    # Energy group structure
 
     # Energy Group Boundaries
@@ -110,7 +110,7 @@ base_inputs = {
 
     # Tally Granularity Settings
     "power_tally_axial_segments": 50,     # Number of axial segments for power tallies
-    "irradiation_axial_segments": 200,    # Number of axial segments for irradiation tallies
+    "irradiation_axial_segments": 100,    # Number of axial segments for irradiation tallies
     "core_mesh_dimension": [201, 201, 201], # Mesh resolution for core flux tallies
     "entropy_mesh_dimension": [20, 20, 20],  # Mesh resolution for entropy calculation
 
@@ -151,7 +151,7 @@ base_inputs = {
     # Miscellaneous Settings
     ###########################################
     "outputs_folder": "local_outputs",  # Base output directory
-    "pixels": (1000, 1000),            # Plot resolution
+    "pixels": (100, 100),            # Plot resolution
 }
 
 

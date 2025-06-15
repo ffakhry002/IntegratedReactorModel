@@ -20,6 +20,8 @@ class ReactorModelBase(ABC):
         self.flux_mode = flux_mode
         if flux_mode == 'total':
             self._n_flux_outputs = 4
+        elif flux_mode in ['thermal_only', 'epithermal_only', 'fast_only']:
+            self._n_flux_outputs = 4  # Single energy group, 4 positions
         else:  # energy or bin
             self._n_flux_outputs = 12
 
@@ -124,7 +126,7 @@ class ReactorModelBase(ABC):
         save_dict.update(specific_metadata)
 
         if model_type == 'flux':
-            save_dict['model'] = self.flux_model
+            save_dict['model'] = self.flux_model  # Save the actual trained model
             # Store information about output shape
             if hasattr(self.flux_model, 'n_outputs_'):
                 save_dict['n_flux_outputs'] = self.flux_model.n_outputs_
@@ -140,7 +142,7 @@ class ReactorModelBase(ABC):
                 save_dict['scaler'] = self.flux_scaler
 
         else:  # keff
-            save_dict['model'] = self.keff_model
+            save_dict['model'] = self.keff_model  # Save the actual trained model
 
             # Handle scalers for models that use them
             if hasattr(self, 'scale_features') and self.scale_features and hasattr(self, 'keff_scaler'):
@@ -179,7 +181,9 @@ class ReactorModelBase(ABC):
             model.flux_mode = data['flux_mode']
             if data['flux_mode'] == 'total':
                 model._n_flux_outputs = 4
-            else:
+            elif data['flux_mode'] in ['thermal_only', 'epithermal_only', 'fast_only']:
+                model._n_flux_outputs = 4  # Single energy group, 4 positions
+            else:  # energy or bin
                 model._n_flux_outputs = 12
         else:
             # Backward compatibility - check n_flux_outputs
