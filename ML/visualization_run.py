@@ -537,6 +537,9 @@ def main():
 
             except Exception as e:
                 print(f"  ✗ ERROR processing {key}: {e}")
+                import traceback
+                print("    Traceback:")
+                traceback.print_exc()
                 print("    Continuing with other studies...")
     else:
         print("\nNo Optuna study files found.")

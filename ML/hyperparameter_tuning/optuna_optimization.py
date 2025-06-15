@@ -104,6 +104,12 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
     start_time = time.time()
     completed_trials = 0
 
+
+    if model_type == 'svm':
+        n_startup_trials = 150  # ~50 trials per kernel (rbf, linear, poly)
+    else:  # xgboost, neural_net
+        n_startup_trials = 56   # Less random exploration needed
+
     # Create custom MAPE scorer with use_log_flux parameter
     def mape_scorer_wrapper(y_true, y_pred):
         """Wrapper to pass use_log_flux parameter to MAPE scorer"""
@@ -144,31 +150,36 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
 
 
 
+                    'max_depth': 4,
+                    'min_child_weight': 5,
 
-                    'n_estimators': trial.suggest_int('n_estimators', 1500, 5000),  # Explore higher
-                    'max_depth': trial.suggest_int('max_depth', 3, 6),  # Narrow range around 4
-                    'learning_rate': trial.suggest_float('learning_rate', 0.008, 0.025),  # Center on 0.0135
-                    'subsample': trial.suggest_float('subsample', 0.2, 0.35),  # Center on 0.284
-                    'colsample_bytree': trial.suggest_float('colsample_bytree', 0.7, 0.9),  # Narrow around 0.78
-                    'min_child_weight': trial.suggest_int('min_child_weight', 3, 12),  # Explore higher!
-                    'reg_lambda': 0,  # Just fix at 0 since it doesn't matter
-                    'gamma': 0,  # Keep fixed
+                    # NARROW ranges on critical parameters
+                    'learning_rate': trial.suggest_float('learning_rate', 0.007, 0.012),
+                    'subsample': trial.suggest_float('subsample', 0.15, 0.25),  # Allow lower!
 
+                    # Less critical but worth tuning
+                    'n_estimators': trial.suggest_int('n_estimators', 2500, 4000),
+                    'colsample_bytree': trial.suggest_float('colsample_bytree', 0.65, 0.80),
 
-                    'n_jobs': 1,
-                    'verbosity': 1,
-                    'tree_method': 'exact'  # Changed from 'exact' for better performance
+                    # Fixed
+                    'reg_lambda': 0,
+                    'gamma': 0,
+                    'tree_method': 'exact',  # For speed!
                 }
                 print(f"  XGBoost params: n_estimators={params['n_estimators']}, max_depth={params['max_depth']}")
                 model = MultiOutputRegressor(xgb.XGBRegressor(**params))
 
             elif model_type == 'random_forest':
                 params = {
-                    'n_estimators': trial.suggest_int('n_estimators', 100, 1000),
-                    'max_depth': trial.suggest_int('max_depth', 5, 50),
-                    'min_samples_split': trial.suggest_int('min_samples_split', 2, 20),
-                    'min_samples_leaf': trial.suggest_int('min_samples_leaf', 1, 10),
+                    'n_estimators': trial.suggest_int('n_estimators', 200, 1500),  # More trees
+                    'max_depth': trial.suggest_int('max_depth', 3, 15),  # MUCH shallower!
+                    'min_samples_split': trial.suggest_int('min_samples_split', 5, 50),  # Higher
+                    'min_samples_leaf': trial.suggest_int('min_samples_leaf', 2, 20),  # Higher
                     'max_features': trial.suggest_categorical('max_features', ['sqrt', 'log2', 0.3, 0.5, 0.7]),
+                    'max_samples': trial.suggest_float('max_samples', 0.5, 1.0),  # Add bootstrap sampling!
+
+
+
                     'n_jobs': 1,
                     'verbose': 2
                 }
@@ -177,16 +188,19 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
 
             elif model_type == 'svm':
                 params = {
-                    'C': trial.suggest_float('C', 0.001, 1000, log=True),
-                    'gamma': trial.suggest_float('gamma', 0.0001, 1, log=True),
-                    'epsilon': trial.suggest_float('epsilon', 0.001, 1.0, log=True),
-                    'kernel': trial.suggest_categorical('kernel', ['rbf', 'poly', 'sigmoid']),
+                    'C': trial.suggest_float('C', 0.01, 100, log=True),
+                    'epsilon': trial.suggest_float('epsilon', 0.01, 0.5),
+                    'kernel': trial.suggest_categorical('kernel', ['rbf', 'linear', 'poly']),  # Keep poly!
+                    'max_iter': 50000,
                     'verbose': True,
-                    'max_iter': 10000
                 }
-                if params['kernel'] == 'poly':
-                    params['degree'] = trial.suggest_int('degree', 2, 5)
-                print(f"  SVM params: C={params['C']:.4f}, gamma={params['gamma']:.6f}, kernel={params['kernel']}")
+                # Kernel-specific parameters
+                if params['kernel'] == 'rbf':
+                    params['gamma'] = trial.suggest_float('gamma', 0.001, 1, log=True)
+                elif params['kernel'] == 'poly':
+                    params['degree'] = trial.suggest_int('degree', 2, 4)  # Usually 2 or 3 is best
+                    params['gamma'] = trial.suggest_float('gamma', 0.001, 1, log=True)
+                    params['coef0'] = trial.suggest_float('coef0', 0, 10)  # CORRECT
 
                 # CRITICAL FIX: Create pipeline with scaling for SVM
                 base_svr = SVR(**params)
@@ -271,7 +285,7 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
     study = optuna.create_study(
         direction='minimize',
         sampler=TPESampler(
-            n_startup_trials=56,    # Increased from 30 for better initial exploration
+            n_startup_trials=n_startup_trials,    # Increased from 30 for better initial exploration
             n_ei_candidates=41,     # Increased from default 24 for better acquisition
             seed=42
         ),
@@ -399,7 +413,7 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
                     'min_samples_leaf': trial.suggest_int('min_samples_leaf', 1, 10),
                     'max_features': trial.suggest_categorical('max_features', ['sqrt', 'log2', 0.3, 0.5, 0.7]),
                     'n_jobs': 1,
-                    'verbose': 1  # Verbose output
+                    'verbose': 0  # Verbose output
                 }
                 print(f"  RF params: n_estimators={params['n_estimators']}, max_depth={params['max_depth']}")
                 model = RandomForestRegressor(**params)

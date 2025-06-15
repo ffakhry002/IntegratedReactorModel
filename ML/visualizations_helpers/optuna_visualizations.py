@@ -140,7 +140,7 @@ def save_param_relationships(study: optuna.Study, save_dir: str, n_params: Optio
         # Create contour plot for top parameters
         if len(params) >= 2:
             fig = optuna_plt.plot_contour(study, params=params[:2])
-            plt.suptitle(f'Parameter Relationship: {params[0]} vs {params[1]}')
+            plt.suptitle(f'Parameter Relationship: {str(params[0])} vs {str(params[1])}')
             plt.tight_layout()
             plt.savefig(os.path.join(save_dir, 'param_contour_top2.png'), dpi=300, bbox_inches='tight')
             plt.close()
@@ -149,7 +149,7 @@ def save_param_relationships(study: optuna.Study, save_dir: str, n_params: Optio
             # If we have more parameters, create additional plots
             if len(params) >= 4:
                 fig = optuna_plt.plot_contour(study, params=params[2:4])
-                plt.suptitle(f'Parameter Relationship: {params[2]} vs {params[3]}')
+                plt.suptitle(f'Parameter Relationship: {str(params[2])} vs {str(params[3])}')
                 plt.tight_layout()
                 plt.savefig(os.path.join(save_dir, 'param_contour_next2.png'), dpi=300, bbox_inches='tight')
                 plt.close()
@@ -215,8 +215,13 @@ def save_timeline_plot(study: optuna.Study, save_dir: str) -> None:
 
 def save_hyperparameter_history(study: optuna.Study, save_dir: str) -> None:
     """Save individual hyperparameter value history over trials."""
-    params = list(study.best_params.keys())
+    # Ensure all parameter names are strings
+    params = [str(p) for p in study.best_params.keys()]
     n_params = len(params)
+
+    if n_params == 0:
+        print("  ⚠ No parameters to plot")
+        return
 
     # Create subplots
     fig, axes = plt.subplots(n_params, 1, figsize=(10, 4*n_params), sharex=True)
@@ -227,22 +232,63 @@ def save_hyperparameter_history(study: optuna.Study, save_dir: str) -> None:
         values = []
         trial_numbers = []
 
+        # Convert param back to original type for lookup
+        original_param = list(study.best_params.keys())[idx]
+
         for trial in study.trials:
             if trial.state == optuna.trial.TrialState.COMPLETE:
-                if param in trial.params:
-                    values.append(trial.params[param])
+                if original_param in trial.params:
+                    values.append(trial.params[original_param])
                     trial_numbers.append(trial.number)
 
         if values:
-            axes[idx].scatter(trial_numbers, values, alpha=0.6)
-            axes[idx].set_ylabel(param)
-            axes[idx].grid(True, alpha=0.3)
+            # Check if parameter is numeric or categorical
+            try:
+                # Try to convert first few values to float to check if numeric
+                numeric_values = [float(v) for v in values[:min(5, len(values))]]
+                is_numeric = True
+            except (ValueError, TypeError):
+                is_numeric = False
 
-            # Add best value line
-            best_value = study.best_params[param]
-            axes[idx].axhline(y=best_value, color='red', linestyle='--',
-                            label=f'Best: {best_value:.4g}')
-            axes[idx].legend()
+            if is_numeric:
+                # Handle numeric parameters normally
+                numeric_values = [float(v) for v in values]
+                axes[idx].scatter(trial_numbers, numeric_values, alpha=0.6)
+                axes[idx].set_ylabel(str(param))
+                axes[idx].grid(True, alpha=0.3)
+
+                # Add best value line
+                best_value = study.best_params[original_param]
+                try:
+                    best_numeric = float(best_value)
+                    axes[idx].axhline(y=best_numeric, color='red', linestyle='--',
+                                    label=f'Best: {best_numeric:.4g}')
+                    axes[idx].legend()
+                except (ValueError, TypeError):
+                    # If best_value can't be converted to float, just show as string
+                    axes[idx].axhline(y=0, color='red', linestyle='--',
+                                    label=f'Best: {best_value}')
+                    axes[idx].legend()
+            else:
+                # Handle categorical parameters
+                # Convert categorical values to numeric indices for plotting
+                unique_values = list(set(values))
+                value_to_index = {val: idx for idx, val in enumerate(unique_values)}
+                numeric_indices = [value_to_index[val] for val in values]
+
+                axes[idx].scatter(trial_numbers, numeric_indices, alpha=0.6)
+                axes[idx].set_ylabel(str(param))
+                axes[idx].set_yticks(range(len(unique_values)))
+                axes[idx].set_yticklabels([str(val) for val in unique_values])
+                axes[idx].grid(True, alpha=0.3)
+
+                # Add best value line
+                best_value = study.best_params[original_param]
+                if best_value in value_to_index:
+                    best_index = value_to_index[best_value]
+                    axes[idx].axhline(y=best_index, color='red', linestyle='--',
+                                    label=f'Best: {best_value}')
+                    axes[idx].legend()
 
     axes[-1].set_xlabel('Trial Number')
     plt.suptitle('Hyperparameter Values Over Trials')
@@ -273,7 +319,7 @@ def save_objective_statistics(study: optuna.Study, save_dir: str) -> None:
         f.write(f"  Value: {study.best_value:.6f}\n")
         f.write(f"  Parameters:\n")
         for param, value in study.best_params.items():
-            f.write(f"    {param}: {value}\n")
+            f.write(f"    {str(param)}: {value}\n")
 
         # Objective value statistics
         if complete_trials:
@@ -291,10 +337,35 @@ def save_objective_statistics(study: optuna.Study, save_dir: str) -> None:
         for param in study.best_params.keys():
             param_values = [t.params[param] for t in complete_trials if param in t.params]
             if param_values:
-                f.write(f"  {param}:\n")
-                f.write(f"    Min: {np.min(param_values)}\n")
-                f.write(f"    Max: {np.max(param_values)}\n")
-                f.write(f"    Unique values: {len(np.unique(param_values))}\n")
+                f.write(f"  {str(param)}:\n")
+
+                # Check if parameter is numeric or categorical
+                try:
+                    # Try to convert to float to check if numeric
+                    numeric_values = [float(v) for v in param_values]
+                    is_numeric = True
+                except (ValueError, TypeError):
+                    is_numeric = False
+
+                if is_numeric:
+                    # Handle numeric parameters
+                    f.write(f"    Min: {np.min(numeric_values):.6f}\n")
+                    f.write(f"    Max: {np.max(numeric_values):.6f}\n")
+                    f.write(f"    Mean: {np.mean(numeric_values):.6f}\n")
+                    f.write(f"    Std: {np.std(numeric_values):.6f}\n")
+                    f.write(f"    Unique values: {len(np.unique(numeric_values))}\n")
+                else:
+                    # Handle categorical parameters
+                    unique_values = list(set(param_values))
+                    f.write(f"    Possible values: {unique_values}\n")
+                    f.write(f"    Unique values: {len(unique_values)}\n")
+                    # Count frequency of each value
+                    value_counts = {}
+                    for val in param_values:
+                        value_counts[val] = value_counts.get(val, 0) + 1
+                    f.write(f"    Value frequencies:\n")
+                    for val, count in sorted(value_counts.items(), key=lambda x: x[1], reverse=True):
+                        f.write(f"      {val}: {count} times ({100*count/len(param_values):.1f}%)\n")
 
     print(f"  ✓ Saved optimization statistics")
 
@@ -366,24 +437,43 @@ def save_parameter_correlation_matrix(study: optuna.Study, save_dir: str) -> Non
         param_columns = [col for col in complete_trials.columns if col.startswith('params_')]
 
         if len(param_columns) > 1:
-            # Calculate correlation matrix
-            corr_matrix = complete_trials[param_columns].corr()
+            # Filter out non-numeric parameters
+            numeric_param_columns = []
+            for col in param_columns:
+                try:
+                    # Try to convert column to numeric
+                    pd.to_numeric(complete_trials[col], errors='raise')
+                    numeric_param_columns.append(col)
+                except (ValueError, TypeError):
+                    # Skip categorical parameters
+                    param_name = col.replace('params_', '')
+                    print(f"    Skipping categorical parameter '{param_name}' from correlation matrix")
+                    continue
 
-            # Clean up column names
-            clean_names = [col.replace('params_', '') for col in param_columns]
-            corr_matrix.index = clean_names
-            corr_matrix.columns = clean_names
+            if len(numeric_param_columns) > 1:
+                # Calculate correlation matrix for numeric parameters only
+                numeric_data = complete_trials[numeric_param_columns].apply(pd.to_numeric, errors='coerce')
+                corr_matrix = numeric_data.corr()
 
-            # Plot
-            plt.figure(figsize=(10, 8))
-            sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', center=0,
-                       square=True, linewidths=0.5, cbar_kws={"shrink": 0.8})
-            plt.title('Parameter Correlation Matrix')
-            plt.tight_layout()
-            plt.savefig(os.path.join(save_dir, 'parameter_correlations.png'),
-                       dpi=300, bbox_inches='tight')
-            plt.close()
-            print(f"  ✓ Saved parameter correlation matrix")
+                # Clean up column names
+                clean_names = [col.replace('params_', '') for col in numeric_param_columns]
+                corr_matrix.index = clean_names
+                corr_matrix.columns = clean_names
+
+                # Plot
+                plt.figure(figsize=(10, 8))
+                sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', center=0,
+                           square=True, linewidths=0.5, cbar_kws={"shrink": 0.8})
+                plt.title('Parameter Correlation Matrix (Numeric Parameters Only)')
+                plt.tight_layout()
+                plt.savefig(os.path.join(save_dir, 'parameter_correlations.png'),
+                           dpi=300, bbox_inches='tight')
+                plt.close()
+                print(f"  ✓ Saved parameter correlation matrix")
+            else:
+                print(f"  ⚠ Not enough numeric parameters for correlation matrix (found {len(numeric_param_columns)})")
+        else:
+            print(f"  ⚠ Not enough parameters for correlation matrix (found {len(param_columns)})")
 
     except Exception as e:
         print(f"  ⚠ Could not generate correlation matrix: {str(e)}")
@@ -446,28 +536,50 @@ def generate_all_optuna_visualizations(
     # Create directory
     save_dir = create_optuna_visualization_directory(save_base_dir, model_name, target)
 
-    # Generate core visualizations
-    save_optimization_history(study, save_dir)
-    save_param_importances(study, save_dir)
-    save_slice_plots(study, save_dir)
-    save_hyperparameter_history(study, save_dir)
-    save_objective_statistics(study, save_dir)
-    save_convergence_plot(study, save_dir)
+    # List of visualization functions with their names for error reporting
+    core_visualizations = [
+        (save_optimization_history, "optimization history"),
+        (save_param_importances, "parameter importances"),
+        (save_slice_plots, "slice plots"),
+        (save_hyperparameter_history, "hyperparameter history"),
+        (save_objective_statistics, "objective statistics"),
+        (save_convergence_plot, "convergence plot")
+    ]
+
+    additional_visualizations = [
+        (save_param_relationships, "parameter relationships"),
+        (save_edf_plot, "EDF plot"),
+        (save_timeline_plot, "timeline plot"),
+        (save_parameter_correlation_matrix, "parameter correlation matrix"),
+        (save_objective_distribution, "objective distribution")
+    ]
+
+    # Generate core visualizations with error handling
+    for viz_func, viz_name in core_visualizations:
+        try:
+            viz_func(study, save_dir)
+        except Exception as e:
+            print(f"  ⚠ ERROR generating {viz_name}: {str(e)}")
+            import traceback
+            traceback.print_exc()
 
     if include_all:
-        # Generate additional visualizations (removed parallel coordinate)
-        save_param_relationships(study, save_dir)
-        save_edf_plot(study, save_dir)
-        save_timeline_plot(study, save_dir)
-        save_parameter_correlation_matrix(study, save_dir)
-        save_objective_distribution(study, save_dir)
+        # Generate additional visualizations with error handling
+        for viz_func, viz_name in additional_visualizations:
+            try:
+                viz_func(study, save_dir)
+            except Exception as e:
+                print(f"  ⚠ ERROR generating {viz_name}: {str(e)}")
 
     # Save study for later analysis
-    study_file = os.path.join(save_dir, 'study.pkl')
-    joblib.dump(study, study_file)
-    print(f"  ✓ Saved study object to {study_file}")
+    try:
+        study_file = os.path.join(save_dir, 'study.pkl')
+        joblib.dump(study, study_file)
+        print(f"  ✓ Saved study object to {study_file}")
+    except Exception as e:
+        print(f"  ⚠ ERROR saving study object: {str(e)}")
 
-    print(f"\nAll Optuna visualizations saved to: {save_dir}")
+    print(f"\nOptuna visualizations saved to: {save_dir}")
 
 
 # Additional custom visualizations
