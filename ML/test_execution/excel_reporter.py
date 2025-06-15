@@ -17,9 +17,10 @@ class ExcelReporter:
         # Convert results to DataFrame
         df = pd.DataFrame(results)
 
-        # Determine which types of results we have
+                # Determine which types of results we have
         has_keff = any('keff_real' in r for r in results if r)
-        has_flux = any('I_1_real' in r or 'I_1_thermal_real' in r for r in results if r)
+        # Check for any flux columns - could be I_1_real, I_1_fast_real, I_1_thermal_real, etc.
+        has_flux = any(any('I_1' in key and '_real' in key for key in r.keys()) for r in results if r)
 
         # Detect flux mode
         flux_mode = 'total'  # default
@@ -28,6 +29,10 @@ class ExcelReporter:
             flux_results = [r for r in results if r and r.get('model_type') == 'flux']
             if flux_results:
                 flux_mode = flux_results[0].get('flux_mode', 'total')
+
+        if results:
+            sample_keys = list(results[0].keys())
+            fast_keys = [k for k in sample_keys if 'fast' in k]
 
         # Create Excel writer
         with pd.ExcelWriter(output_filename, engine='openpyxl') as writer:
@@ -80,7 +85,24 @@ class ExcelReporter:
                     flux_specific_cols.extend([f'I_{i}_real', f'I_{i}_predicted', f'I_{i}_rel_error'])
                 flux_specific_cols.extend(['avg_flux_real', 'avg_flux_predicted', 'avg_flux_rel_error'])
 
-            else:  # energy or bin mode
+            elif flux_mode in ['thermal_only', 'epithermal_only', 'fast_only']:
+                # Single energy group modes
+                energy_group = flux_mode.replace('_only', '')
+                for i in range(1, 5):
+                    flux_specific_cols.extend([
+                        f'I_{i}_{energy_group}_real',
+                        f'I_{i}_{energy_group}_predicted',
+                        f'I_{i}_{energy_group}_rel_error'
+                    ])
+                # Add average columns for single energy modes
+                flux_specific_cols.extend([
+                    f'avg_{energy_group}_flux_real',
+                    f'avg_{energy_group}_flux_predicted',
+                    f'avg_{energy_group}_flux_rel_error',
+                    f'mape_{energy_group}_flux'
+                ])
+
+            else:  # energy or bin mode (multi-energy)
                 # Energy-discretized columns
                 energy_groups = ['thermal', 'epithermal', 'fast']
                 for i in range(1, 5):
@@ -118,6 +140,7 @@ class ExcelReporter:
             flux_columns = [col for col in flux_specific_cols if col in merged_df.columns]
 
             column_order = base_columns + keff_columns + flux_columns
+            column_order = [col for col in column_order if col in merged_df.columns]
             df_ordered = merged_df[column_order]
 
         else:
@@ -140,7 +163,23 @@ class ExcelReporter:
                     for i in range(1, 5):
                         flux_columns.extend([f'I_{i}_real', f'I_{i}_predicted', f'I_{i}_rel_error'])
                     flux_columns.extend(['avg_flux_real', 'avg_flux_predicted', 'avg_flux_rel_error'])
-                else:  # energy or bin mode
+                elif flux_mode in ['thermal_only', 'epithermal_only', 'fast_only']:
+                    # Single energy group modes
+                    energy_group = flux_mode.replace('_only', '')
+                    for i in range(1, 5):
+                        flux_columns.extend([
+                            f'I_{i}_{energy_group}_real',
+                            f'I_{i}_{energy_group}_predicted',
+                            f'I_{i}_{energy_group}_rel_error'
+                        ])
+                    # Add average columns for single energy modes
+                    flux_columns.extend([
+                        f'avg_{energy_group}_flux_real',
+                        f'avg_{energy_group}_flux_predicted',
+                        f'avg_{energy_group}_flux_rel_error',
+                        f'mape_{energy_group}_flux'
+                    ])
+                else:  # energy or bin mode (multi-energy)
                     energy_groups = ['thermal', 'epithermal', 'fast']
                     for i in range(1, 5):
                         for energy in energy_groups:
@@ -212,6 +251,16 @@ class ExcelReporter:
                         summary_row['Max Flux Error (%)'] = errors.max()
                         summary_row['Min Flux Error (%)'] = errors.min()
                         summary_row['Std Flux Error (%)'] = errors.std()
+                elif flux_mode in ['thermal_only', 'epithermal_only', 'fast_only']:
+                    # For single energy modes, use MAPE
+                    if 'mape_flux' in group:
+                        mape_values = group['mape_flux'].replace('N/A', np.nan).dropna()
+                        if len(mape_values) > 0:
+                            energy_name = flux_mode.replace('_only', '').title()
+                            summary_row[f'Avg {energy_name} MAPE (%)'] = mape_values.mean()
+                            summary_row[f'Max {energy_name} MAPE (%)'] = mape_values.max()
+                            summary_row[f'Min {energy_name} MAPE (%)'] = mape_values.min()
+                            summary_row[f'Std {energy_name} MAPE (%)'] = mape_values.std()
                 elif flux_mode in ['energy', 'bin'] and 'mape_flux' in group:
                     # For energy/bin modes, use MAPE
                     mape_values = group['mape_flux'].replace('N/A', np.nan).dropna()
@@ -272,9 +321,15 @@ class ExcelReporter:
 
                             if len(grouped) > 0:
                                 best_idx = grouped.idxmin()
+                                # Format target name for single energy modes
+                                if mode in ['thermal_only', 'epithermal_only', 'fast_only']:
+                                    target_name = f"{mode.replace('_only', '')} flux"
+                                else:
+                                    target_name = f'flux ({mode})'
+
                                 best_models_data.append({
                                     'Encoding': encoding,
-                                    'Target': f'flux ({mode})',
+                                    'Target': target_name,
                                     'Best Model': best_idx[0],
                                     'Optimization': best_idx[1],
                                     'Avg Error (%)': grouped.min()

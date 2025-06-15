@@ -12,7 +12,11 @@ import os
 
 def create_energy_breakdown_plots(df, output_dir):
     """
-    Create stacked bar charts showing energy distribution for real vs predicted flux
+    Create comprehensive energy breakdown visualizations including:
+    1. Stacked bar charts showing energy distribution
+    2. Flux vs configuration line plots
+    3. Maximum error configuration plots
+    4. Summary energy distribution plots
 
     Args:
         df: DataFrame with test results containing energy-discretized flux
@@ -176,132 +180,186 @@ def create_energy_breakdown_plots(df, output_dir):
 
                 print(f"  ✓ Created energy breakdown plot: {filename}")
 
-    # Create summary plot showing average distribution across all models
-    create_summary_energy_distribution(df, output_dir)
+    # Create relative error vs configuration plots (6 panels: 4 positions + mean + max)
+    print("\n📈 Creating relative error vs configuration plots...")
+    create_flux_vs_config_plots(df, output_dir)
 
-def create_summary_energy_distribution(df, output_dir):
-    """Create a summary plot showing average energy distribution across all models"""
+def create_flux_vs_config_plots(df, output_dir):
+    """
+    Create plots showing relative errors vs configuration with 6 panels:
+    - 4 panels for individual positions (I_1, I_2, I_3, I_4)
+    - 1 panel for mean error across all positions
+    - 1 panel for max error across all positions
+    Shows thermal, epithermal, fast, and total error lines using rel_error_tracker style
 
-    # Set style to white background
+    Args:
+        df: DataFrame with test results containing energy-discretized flux
+        output_dir: Directory to save plots
+    """
+    # Set style to match rel_error_trackers
     plt.style.use('seaborn-v0_8-whitegrid')
     plt.rcParams['axes.facecolor'] = 'white'
     plt.rcParams['figure.facecolor'] = 'white'
 
-    energy_groups = ['thermal', 'epithermal', 'fast']
+    # Define colors for energy groups (matching rel_error_trackers style)
+    colors = {
+        'thermal': '#FF6B6B',    # Red
+        'epithermal': '#4ECDC4', # Teal
+        'fast': '#45B7D1',       # Blue
+        'total': '#2D3748'       # Dark gray
+    }
 
-    # Calculate average percentages for each energy group
+    # Get unique models for separate plots
     models = df['model_class'].unique()
-
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
-
-    # Left plot: Average distribution by model (sum of all positions)
-    model_data = {model: {energy: [] for energy in energy_groups} for model in models}
+    encodings = df['encoding'].unique()
+    optimizations = df['optimization_method'].unique()
 
     for model in models:
-        model_subset = df[df['model_class'] == model]
+        for encoding in encodings:
+            for optimization in optimizations:
+                # Filter data
+                mask = (
+                    (df['model_class'] == model) &
+                    (df['encoding'] == encoding) &
+                    (df['optimization_method'] == optimization)
+                )
+                subset = df[mask]
 
-        for _, row in model_subset.iterrows():
-            total_real = 0
-            energy_real = {energy: 0 for energy in energy_groups}
+                if len(subset) == 0:
+                    continue
 
-            # Sum across ALL positions (treating them equally)
-            for pos in range(1, 5):
+                # Sort by config_id for proper line plotting
+                subset = subset.sort_values('config_id')
+                config_ids = subset['config_id'].values
+
+                # Create 3x2 subplot (6 panels: 4 positions + mean + max)
+                fig, axes = plt.subplots(3, 2, figsize=(16, 18))
+
+                positions = ['I_1', 'I_2', 'I_3', 'I_4']
+
+                # Plot individual position errors (panels 0-3)
+                for pos_idx, pos in enumerate(positions):
+                    row = pos_idx // 2
+                    col = pos_idx % 2
+                    ax = axes[row, col]
+                    pos_num = pos_idx + 1
+
+                    # Plot each energy group + total relative errors
+                    energy_groups = ['thermal', 'epithermal', 'fast', 'total']
+
+                    for energy in energy_groups:
+                        # Get relative error values
+                        error_col = f'I_{pos_num}_{energy}_rel_error'
+
+                        if error_col in subset.columns:
+                            error_values = subset[error_col].values
+
+                            # Filter out N/A and NaN values
+                            valid_mask = pd.notna(error_values) & (error_values != 'N/A')
+
+                            valid_configs = config_ids[valid_mask]
+                            valid_errors = error_values[valid_mask]
+
+                            if len(valid_errors) > 0:
+                                # Convert to absolute values and ensure numeric
+                                valid_errors = [abs(float(err)) for err in valid_errors]
+
+                                # Plot using rel_error_tracker style
+                                ax.plot(valid_configs, valid_errors,
+                                       color=colors[energy],
+                                       marker='o',
+                                       linestyle='-',
+                                       markersize=6,
+                                       linewidth=2,
+                                       alpha=0.8,
+                                       label=f'{energy.capitalize()}')
+
+                    # Customize subplot
+                    ax.set_xlabel('Configuration ID', fontsize=11)
+                    ax.set_ylabel('Relative Error (%)', fontsize=11)
+                    ax.set_title(f'{pos} Position', fontsize=12, fontweight='bold')
+                    ax.grid(True, alpha=0.3)
+                    ax.legend(loc='best', fontsize=9)
+
+                # Calculate mean errors across all positions (panel 4)
+                ax_mean = axes[2, 0]
+                energy_groups = ['thermal', 'epithermal', 'fast', 'total']
+
                 for energy in energy_groups:
-                    real_col = f'I_{pos}_{energy}_real'
-                    if real_col in row and pd.notna(row[real_col]) and row[real_col] != 'N/A':
-                        energy_real[energy] += row[real_col]
-                        total_real += row[real_col]
+                    config_mean_errors = []
+                    valid_config_ids = []
 
-            # Calculate percentages
-            if total_real > 0:
+                    for _, row in subset.iterrows():
+                        position_errors = []
+                        for pos_num in range(1, 5):
+                            error_col = f'I_{pos_num}_{energy}_rel_error'
+                            if error_col in row and pd.notna(row[error_col]) and row[error_col] != 'N/A':
+                                position_errors.append(abs(float(row[error_col])))
+
+                        if position_errors:
+                            config_mean_errors.append(np.mean(position_errors))
+                            valid_config_ids.append(row['config_id'])
+
+                    if config_mean_errors:
+                        ax_mean.plot(valid_config_ids, config_mean_errors,
+                                   color=colors[energy],
+                                   marker='o',
+                                   linestyle='-',
+                                   markersize=6,
+                                   linewidth=2,
+                                   alpha=0.8,
+                                   label=f'{energy.capitalize()}')
+
+                ax_mean.set_xlabel('Configuration ID', fontsize=11)
+                ax_mean.set_ylabel('Mean Relative Error (%)', fontsize=11)
+                ax_mean.set_title('Mean Error Across All Positions', fontsize=12, fontweight='bold')
+                ax_mean.grid(True, alpha=0.3)
+                ax_mean.legend(loc='best', fontsize=9)
+
+                # Calculate max errors across all positions (panel 5)
+                ax_max = axes[2, 1]
+
                 for energy in energy_groups:
-                    model_data[model][energy].append(energy_real[energy] / total_real * 100)
+                    config_max_errors = []
+                    valid_config_ids = []
 
-    # Plot average percentages for each model
-    x = np.arange(len(models))
-    width = 0.25
+                    for _, row in subset.iterrows():
+                        position_errors = []
+                        for pos_num in range(1, 5):
+                            error_col = f'I_{pos_num}_{energy}_rel_error'
+                            if error_col in row and pd.notna(row[error_col]) and row[error_col] != 'N/A':
+                                position_errors.append(abs(float(row[error_col])))
 
-    colors = ['#FF6B6B', '#4ECDC4', '#45B7D1']
+                        if position_errors:
+                            config_max_errors.append(max(position_errors))
+                            valid_config_ids.append(row['config_id'])
 
-    for i, energy in enumerate(energy_groups):
-        means = []
-        stds = []
+                    if config_max_errors:
+                        ax_max.plot(valid_config_ids, config_max_errors,
+                                  color=colors[energy],
+                                  marker='o',
+                                  linestyle='-',
+                                  markersize=6,
+                                  linewidth=2,
+                                  alpha=0.8,
+                                  label=f'{energy.capitalize()}')
 
-        for model in models:
-            if model_data[model][energy]:
-                means.append(np.mean(model_data[model][energy]))
-                stds.append(np.std(model_data[model][energy]))
-            else:
-                means.append(0)
-                stds.append(0)
+                ax_max.set_xlabel('Configuration ID', fontsize=11)
+                ax_max.set_ylabel('Max Relative Error (%)', fontsize=11)
+                ax_max.set_title('Max Error Across All Positions', fontsize=12, fontweight='bold')
+                ax_max.grid(True, alpha=0.3)
+                ax_max.legend(loc='best', fontsize=9)
 
-        ax1.bar(x + i*width, means, width, yerr=stds, label=energy.capitalize(),
-               color=colors[i], alpha=0.8, capsize=5)
+                # Main title
+                fig.suptitle(f'Relative Error vs Configuration: {model.upper()} - {encoding} - {optimization}',
+                            fontsize=16, fontweight='bold')
 
-    ax1.set_xlabel('Model', fontsize=12)
-    ax1.set_ylabel('Average Percentage (%)', fontsize=12)
-    ax1.set_title('Average Energy Distribution by Model\n(Sum of All Positions)',
-                 fontsize=14, fontweight='bold')
-    ax1.set_xticks(x + width)
-    ax1.set_xticklabels(models)
-    ax1.legend()
-    ax1.grid(True, axis='y', alpha=0.3)
+                plt.tight_layout()
 
-    # Right plot: Prediction accuracy by energy group (sum of all positions)
-    energy_errors = {energy: [] for energy in energy_groups}
+                # Save plot
+                filename = f'error_vs_config_{model}_{encoding}_{optimization}.png'
+                filepath = os.path.join(output_dir, filename)
+                plt.savefig(filepath, dpi=300, bbox_inches='tight')
+                plt.close()
 
-    for _, row in df.iterrows():
-        for energy in energy_groups:
-            # Sum real and predicted values across all positions
-            total_real = 0
-            total_pred = 0
-
-            for pos in range(1, 5):
-                real_col = f'I_{pos}_{energy}_real'
-                pred_col = f'I_{pos}_{energy}_predicted'
-
-                if (real_col in row and pred_col in row and
-                    pd.notna(row[real_col]) and pd.notna(row[pred_col]) and
-                    row[real_col] != 'N/A' and row[pred_col] != 'N/A'):
-
-                    total_real += row[real_col]
-                    total_pred += row[pred_col]
-
-            # Calculate relative error for the sum
-            if total_real > 0:
-                rel_error = abs((total_pred - total_real) / total_real) * 100
-                energy_errors[energy].append(rel_error)
-
-    # Create box plot
-    data_to_plot = [energy_errors[energy] for energy in energy_groups]
-    positions = range(len(energy_groups))
-
-    bp = ax2.boxplot(data_to_plot, positions=positions, patch_artist=True,
-                    showmeans=True, meanline=True)
-
-    # Color boxes
-    for patch, color in zip(bp['boxes'], colors):
-        patch.set_facecolor(color)
-        patch.set_alpha(0.6)
-
-    ax2.set_xticklabels([e.capitalize() for e in energy_groups])
-    ax2.set_ylabel('Relative Error (%)', fontsize=12)
-    ax2.set_title('Prediction Error Distribution by Energy Group\n(Sum of All Positions)',
-                 fontsize=14, fontweight='bold')
-    ax2.grid(True, axis='y', alpha=0.3)
-
-    # Add mean values as text
-    for i, energy in enumerate(energy_groups):
-        if energy_errors[energy]:
-            mean_val = np.mean(energy_errors[energy])
-            ax2.text(i, ax2.get_ylim()[1] * 0.95, f'Mean: {mean_val:.1f}%',
-                    ha='center', va='top', fontsize=10)
-
-    plt.tight_layout()
-
-    # Save plot
-    filepath = os.path.join(output_dir, 'energy_distribution_summary.png')
-    plt.savefig(filepath, dpi=300, bbox_inches='tight')
-    plt.close()
-
-    print(f"  ✓ Created energy distribution summary plot")
+                print(f"  ✓ Created error vs config plot: {filename}")

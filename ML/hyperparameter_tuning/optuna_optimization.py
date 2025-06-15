@@ -87,6 +87,9 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
     print(f"Flux mode: {flux_mode}")
     if flux_mode == 'bin':
         print(f"Optimization metric: MSE (for energy bins)")
+    elif flux_mode in ['thermal_only', 'epithermal_only', 'fast_only']:
+        energy_group = flux_mode.replace('_only', '')
+        print(f"Optimization metric: MAPE (for {energy_group} flux only)")
     else:
         print(f"Optimization metric: MAPE (Mean Absolute Percentage Error)")
     print(f"Total trials: {n_trials}, Timeout per trial: {TRIAL_TIMEOUT}s")
@@ -137,6 +140,7 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
             # [KEEP ALL YOUR EXISTING PARAMETER SELECTION CODE HERE - NO CHANGES]
             if model_type == 'xgboost':
                 params = {
+                    ##### For rull screening
                     # 'n_estimators': trial.suggest_int('n_estimators', 50, 2000),
                     # 'max_depth': trial.suggest_int('max_depth', 2, 20),
                     # 'learning_rate': trial.suggest_float('learning_rate', 0.001, 0.5, log=True),
@@ -149,15 +153,11 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
                     # # 'min_child_weight': trial.suggest_int('min_child_weight', 1, 20),
 
 
-
-                    'max_depth': 4,
-                    'min_child_weight': 5,
-
-                    # NARROW ranges on critical parameters
+                    ###### For physics
+                    'max_depth': trial.suggest_int('max_depth', 3, 5),
+                    'min_child_weight': trial.suggest_int('min_child_weight', 4, 6),
                     'learning_rate': trial.suggest_float('learning_rate', 0.007, 0.012),
                     'subsample': trial.suggest_float('subsample', 0.15, 0.25),  # Allow lower!
-
-                    # Less critical but worth tuning
                     'n_estimators': trial.suggest_int('n_estimators', 2500, 4000),
                     'colsample_bytree': trial.suggest_float('colsample_bytree', 0.65, 0.80),
 
@@ -188,19 +188,27 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
 
             elif model_type == 'svm':
                 params = {
-                    'C': trial.suggest_float('C', 0.01, 100, log=True),
-                    'epsilon': trial.suggest_float('epsilon', 0.01, 0.5),
-                    'kernel': trial.suggest_categorical('kernel', ['rbf', 'linear', 'poly']),  # Keep poly!
-                    'max_iter': 50000,
+                    # 'C': trial.suggest_float('C', 1.0, 3.0),  # Very tight around optimal
+                    # 'epsilon': trial.suggest_float('epsilon', 0.005, 0.01),  # Critical parameter, tight range
+                    # 'kernel': trial.suggest_categorical('kernel', ['poly', 'rbf']),  # Keep both
+                    # 'max_iter': 50000,
+                    # 'verbose': True,
+
+                    'C': trial.suggest_float('C', 1.25, 2.5),  # Very tight around optimal
+                    'epsilon': trial.suggest_float('epsilon', 0.002, 0.006),  # Critical parameter, tight range
+                    'kernel': 'rbf',  # Keep both
+                    'max_iter': 10000,
                     'verbose': True,
                 }
+
                 # Kernel-specific parameters
                 if params['kernel'] == 'rbf':
-                    params['gamma'] = trial.suggest_float('gamma', 0.001, 1, log=True)
+                    # Extend gamma range higher since optimal was at boundary
+                    params['gamma'] = trial.suggest_float('gamma', 0.0075, 0.02, log=True)
                 elif params['kernel'] == 'poly':
-                    params['degree'] = trial.suggest_int('degree', 2, 4)  # Usually 2 or 3 is best
-                    params['gamma'] = trial.suggest_float('gamma', 0.001, 1, log=True)
-                    params['coef0'] = trial.suggest_float('coef0', 0, 10)  # CORRECT
+                    params['degree'] = 3  # Fix at 3
+                    params['gamma'] = trial.suggest_float('gamma', 0.003, 0.01, log=True)
+                    params['coef0'] = trial.suggest_float('coef0', 5, 7)  # Tight range
 
                 # CRITICAL FIX: Create pipeline with scaling for SVM
                 base_svr = SVR(**params)

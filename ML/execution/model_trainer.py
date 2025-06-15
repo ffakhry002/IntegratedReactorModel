@@ -263,7 +263,7 @@ class ModelTrainer:
                 model.set_flux_mode(self.data_handler.flux_mode)
             else:
                 # Direct setting for backward compatibility
-                if self.data_handler.flux_mode == 'total':
+                if self.data_handler.flux_mode in ['total', 'thermal_only', 'epithermal_only', 'fast_only']:
                     model._n_flux_outputs = 4
                 else:
                     model._n_flux_outputs = 12

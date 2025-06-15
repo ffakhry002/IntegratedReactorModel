@@ -9,8 +9,9 @@ class XGBoostReactorModel(ReactorModelBase):
         self.model_class_name = 'xgboost'
 
         # Set n_jobs for parallelization
+        # Use n_jobs=1 to avoid conflicts with Optuna parallelization
         if 'n_jobs' not in kwargs:
-            kwargs['n_jobs'] = -1  # Use all cores
+            kwargs['n_jobs'] = 1  # Single core per trial
 
         self.params = kwargs
         self.use_multioutput = use_multioutput

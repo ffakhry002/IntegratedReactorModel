@@ -8,8 +8,9 @@ class RandomForestReactorModel(ReactorModelBase):
         self.model_class_name = 'random_forest'
 
         # Set n_jobs for parallelization if not specified
+        # Use n_jobs=1 to avoid conflicts with Optuna parallelization
         if 'n_jobs' not in kwargs:
-            kwargs['n_jobs'] = -1  # Use all cores
+            kwargs['n_jobs'] = 1  # Single core per trial
 
         self.params = kwargs
 

@@ -20,6 +20,8 @@ class ReactorModelBase(ABC):
         self.flux_mode = flux_mode
         if flux_mode == 'total':
             self._n_flux_outputs = 4
+        elif flux_mode in ['thermal_only', 'epithermal_only', 'fast_only']:
+            self._n_flux_outputs = 4  # Single energy group, 4 positions
         else:  # energy or bin
             self._n_flux_outputs = 12
 
@@ -179,7 +181,9 @@ class ReactorModelBase(ABC):
             model.flux_mode = data['flux_mode']
             if data['flux_mode'] == 'total':
                 model._n_flux_outputs = 4
-            else:
+            elif data['flux_mode'] in ['thermal_only', 'epithermal_only', 'fast_only']:
+                model._n_flux_outputs = 4  # Single energy group, 4 positions
+            else:  # energy or bin
                 model._n_flux_outputs = 12
         else:
             # Backward compatibility - check n_flux_outputs

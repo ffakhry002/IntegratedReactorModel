@@ -8,12 +8,18 @@ import numpy as np
 
 def load_test_results(excel_file_path):
     """Load and prepare test results from Excel file"""
-    # Read the main test results sheet
+    # Read the main test results sheet - try both sheet names
     try:
+        # First try standard sheet name
         df = pd.read_excel(excel_file_path, sheet_name='Test Results')
-    except Exception as e:
-        print(f"ERROR: Could not read Excel file: {e}")
-        raise
+    except:
+        try:
+            # Then try merged results sheet name
+            df = pd.read_excel(excel_file_path, sheet_name='Merged Results')
+            print("📊 Loaded data from 'Merged Results' sheet (merged Excel file)")
+        except Exception as e:
+            print(f"ERROR: Could not read Excel file from either 'Test Results' or 'Merged Results' sheets: {e}")
+            raise
 
     # Check for required columns
     required_cols = ['model_class', 'encoding', 'optimization_method', 'config_id']
