@@ -730,14 +730,25 @@ def main():
         relevant_studies = {}
         for key, path in study_files.items():
             # Parse the full key to check relevance
-            # Keys are like: svm_flux_total, svm_flux_thermal_only, svm_keff
+            # Keys are like: svm_flux_total, svm_flux_thermal_only, svm_keff, random_forest_flux_thermal_only
 
-            parts = key.split('_')
-            if len(parts) < 2:
+            # Handle model names that contain underscores (like random_forest)
+            known_models = ['svm', 'xgboost', 'random_forest']
+            model_name = None
+            target_type = None
+
+            for known_model in known_models:
+                if key.startswith(known_model + '_'):
+                    model_name = known_model
+                    remainder = key[len(known_model) + 1:]  # Remove model name and underscore
+                    parts = remainder.split('_')
+                    if len(parts) >= 1:
+                        target_type = parts[0]
+                    break
+
+            if model_name is None or target_type is None:
+                print(f"  Warning: Could not parse study key: {key}")
                 continue
-
-            model_name = parts[0]
-            target_type = parts[1]
 
             # Check if this model is in the Excel
             if model_name not in models_in_excel:
@@ -751,13 +762,16 @@ def main():
                 else:
                     print(f"  Skipping {key} - no k-eff data in Excel file")
             elif target_type == 'flux':
-                # Determine the flux mode from the key
-                if len(parts) == 3:
-                    # svm_flux_total, svm_flux_energy, svm_flux_bin
-                    flux_mode = parts[2]
-                elif len(parts) == 4 and parts[3] == 'only':
-                    # svm_flux_thermal_only
-                    flux_mode = f"{parts[2]}_only"
+                # Determine the flux mode from the remainder after removing model name
+                remainder = key[len(model_name) + 1:]  # Remove model name and underscore
+                parts = remainder.split('_')
+
+                if len(parts) == 2:
+                    # flux_total, flux_energy, flux_bin
+                    flux_mode = parts[1]
+                elif len(parts) == 3 and parts[2] == 'only':
+                    # flux_thermal_only
+                    flux_mode = f"{parts[1]}_only"
                 else:
                     flux_mode = 'total'  # Default
 
@@ -784,19 +798,34 @@ def main():
                     study = joblib.load(study_path)
 
                     # Use the key to determine proper target naming
-                    # Keys are like: svm_flux_total, svm_flux_thermal_only, svm_keff
-                    parts = key.split('_')
-                    model_name = parts[0]
+                    # Keys are like: svm_flux_total, svm_flux_thermal_only, svm_keff, random_forest_flux_thermal_only
 
-                    if parts[1] == 'keff':
+                    # Parse model name and target using the same logic as filtering
+                    known_models = ['svm', 'xgboost', 'random_forest']
+                    model_name = None
+                    target_remainder = None
+
+                    for known_model in known_models:
+                        if key.startswith(known_model + '_'):
+                            model_name = known_model
+                            target_remainder = key[len(known_model) + 1:]  # Remove model name and underscore
+                            break
+
+                    if model_name is None or target_remainder is None:
+                        print(f"  Warning: Could not parse study key for visualization: {key}")
+                        continue
+
+                    # Parse target from remainder
+                    parts = target_remainder.split('_')
+                    if parts[0] == 'keff':
                         target = 'keff'
-                    elif parts[1] == 'flux':
-                        if len(parts) == 3:
-                            # svm_flux_total, svm_flux_energy, svm_flux_bin
-                            target = f"flux_{parts[2]}"
-                        elif len(parts) == 4 and parts[3] == 'only':
-                            # svm_flux_thermal_only -> flux_thermal
-                            target = f"flux_{parts[2]}"
+                    elif parts[0] == 'flux':
+                        if len(parts) == 2:
+                            # flux_total, flux_energy, flux_bin
+                            target = f"flux_{parts[1]}"
+                        elif len(parts) == 3 and parts[2] == 'only':
+                            # flux_thermal_only -> flux_thermal
+                            target = f"flux_{parts[1]}"
                         else:
                             target = 'flux'
                     else:
