@@ -243,78 +243,100 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
     if model_type == 'xgboost':
         if is_multi_output:
             param_distributions = {
-                'estimator__n_estimators': randint(100, 1500),
-                'estimator__max_depth': randint(3, 15),
-                'estimator__learning_rate': uniform(0.001, 0.3),
-                'estimator__subsample': uniform(0.5, 0.5),
-                'estimator__colsample_bytree': uniform(0.5, 0.5),
-                'estimator__reg_alpha': uniform(0, 1),
-                'estimator__reg_lambda': uniform(0, 1),
-                'estimator__min_child_weight': randint(1, 10)
+                'estimator__n_estimators': randint(50, 5000),
+                'estimator__max_depth': randint(2, 20),
+                'estimator__learning_rate': uniform(0.001, 0.499),
+                'estimator__subsample': uniform(0.3, 0.7),
+                'estimator__colsample_bytree': uniform(0.3, 0.7),
+                'estimator__colsample_bylevel': uniform(0.3, 0.7),
+                'estimator__reg_alpha': uniform(0, 10),
+                'estimator__reg_lambda': uniform(0, 10),
+                'estimator__gamma': uniform(0.0001, 0.0999),
+                'estimator__min_child_weight': randint(1, 20)
             }
         else:
             param_distributions = {
-                'n_estimators': randint(100, 1500),
-                'max_depth': randint(3, 15),
-                'learning_rate': uniform(0.001, 0.3),
-                'subsample': uniform(0.5, 0.5),
-                'colsample_bytree': uniform(0.5, 0.5),
-                'reg_alpha': uniform(0, 1),
-                'reg_lambda': uniform(0, 1),
-                'min_child_weight': randint(1, 10)
+                'n_estimators': randint(50, 5000),
+                'max_depth': randint(2, 20),
+                'learning_rate': uniform(0.001, 0.499),
+                'subsample': uniform(0.3, 0.7),
+                'colsample_bytree': uniform(0.3, 0.7),
+                'colsample_bylevel': uniform(0.3, 0.7),
+                'reg_alpha': uniform(0, 10),
+                'reg_lambda': uniform(0, 10),
+                'gamma': uniform(0.0001, 0.0999),
+                'min_child_weight': randint(1, 20)
             }
     elif model_type == 'random_forest':
         param_distributions = {
-            'n_estimators': randint(100, 1000),
-            'max_depth': randint(5, 50),
-            'min_samples_split': randint(2, 20),
+            'n_estimators': randint(200, 1500),
+            'max_depth': randint(3, 40),
+            'min_samples_split': randint(2, 30),
             'min_samples_leaf': randint(1, 10),
-            'max_features': ['sqrt', 'log2', 0.3, 0.5, 0.7]
+            'max_features': ['sqrt', 'log2', 0.3, 0.5, 0.7, 0.9],
+            'max_samples': uniform(0.2, 0.8),
+            'bootstrap': [True, False]
         }
     elif model_type == 'svm':
         if is_multi_output:
             param_distributions = {
-                'estimator__C': uniform(0.001, 1000),
-                'estimator__gamma': uniform(0.0001, 1),
-                'estimator__epsilon': uniform(0.001, 1),
-                'estimator__kernel': ['rbf', 'poly', 'sigmoid']
+                'estimator__C': uniform(1.0, 99.0),
+                'estimator__gamma': uniform(0.0001, 0.0999),
+                'estimator__epsilon': uniform(0.0005, 0.0995),
+                'estimator__kernel': ['rbf', 'poly'],
+                'estimator__degree': randint(2, 5),
+                'estimator__coef0': uniform(1, 9)
             }
         else:
             param_distributions = {
-                'C': uniform(0.001, 1000),
-                'gamma': uniform(0.0001, 1),
-                'epsilon': uniform(0.001, 1),
-                'kernel': ['rbf', 'poly', 'sigmoid']
+                'C': uniform(1.0, 99.0),
+                'gamma': uniform(0.0001, 0.0999),
+                'epsilon': uniform(0.0005, 0.0995),
+                'kernel': ['rbf', 'poly'],
+                'degree': randint(2, 5),
+                'coef0': uniform(1, 9)
             }
     elif model_type == 'neural_net':
         if is_multi_output:
             param_distributions = {
-                'estimator__hidden_layer_sizes': [(100,), (200,), (100,50), (200,100), (300,200,100)],
-                'estimator__learning_rate_init': uniform(0.0001, 0.01),
-                'estimator__alpha': uniform(0.0001, 0.1),
+                'estimator__hidden_layer_sizes': [
+                    (50,), (100,), (200,), (300,), (400,),
+                    (100, 50), (200, 100), (300, 150), (400, 200),
+                    (200, 100, 50), (300, 200, 100), (400, 300, 200),
+                    (300, 200, 100, 50), (400, 300, 200, 100),
+                    (400, 300, 200, 100, 50)
+                ],
+                'estimator__learning_rate_init': uniform(0.0001, 0.0099),
+                'estimator__alpha': uniform(0.0001, 0.0999),
                 'estimator__activation': ['relu', 'tanh'],
                 'estimator__solver': ['adam', 'lbfgs']
             }
         else:
             param_distributions = {
-                'hidden_layer_sizes': [(100,), (200,), (100,50), (200,100), (300,200,100)],
-                'learning_rate_init': uniform(0.0001, 0.01),
-                'alpha': uniform(0.0001, 0.1),
+                'hidden_layer_sizes': [
+                    (50,), (100,), (200,), (300,), (400,),
+                    (100, 50), (200, 100), (300, 150), (400, 200),
+                    (200, 100, 50), (300, 200, 100), (400, 300, 200),
+                    (300, 200, 100, 50), (400, 300, 200, 100),
+                    (400, 300, 200, 100, 50)
+                ],
+                'learning_rate_init': uniform(0.0001, 0.0099),
+                'alpha': uniform(0.0001, 0.0999),
                 'activation': ['relu', 'tanh'],
                 'solver': ['adam', 'lbfgs']
             }
 
     print(f"\n Random Search Parameters:")
-    print(f"   - Candidates to test: 250")
+    print(f"   - Candidates to test: 500")
     print(f"   - Cross-validation folds: 10")
-    print(f"   - Total fits: 2,500")
+    print(f"   - Total fits: 5,000")
     print(f"   - Timeout: {STAGE_TIMEOUT}s")
 
     random_search = RandomizedSearchCV(
         model_class(),
         param_distributions,
-        n_iter=1000,
-        cv=cv,  # Use the CV strategy defined at the beginning
+        n_iter=500,
+        cv=cv,
         scoring=scoring,
         n_jobs=n_jobs,
         verbose=2,

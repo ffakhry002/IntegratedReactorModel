@@ -120,9 +120,13 @@ class SVMReactorModel(ReactorModelBase):
         self.model_class_name = 'svm'
 
         self.params = kwargs
-        # Add shrinking=False to address the warning
+        # Add better defaults to help with convergence
         if 'shrinking' not in self.params:
             self.params['shrinking'] = False
+        if 'max_iter' not in self.params:
+            self.params['max_iter'] = 100000  # Increase default max_iter
+        if 'tol' not in self.params:
+            self.params['tol'] = 1e-4  # Slightly relaxed tolerance
 
         self.scale_features = scale_features
 
@@ -140,9 +144,10 @@ class SVMReactorModel(ReactorModelBase):
                 ('scaler', StandardScaler()),
                 ('svr', base_svr)
             ])
-            self.flux_model = MultiOutputRegressor(pipeline, n_jobs=-1)
+            # Use n_jobs=1 to avoid parallel conflicts and improve convergence
+            self.flux_model = MultiOutputRegressor(pipeline, n_jobs=1)
         else:
-            self.flux_model = MultiOutputRegressor(base_svr, n_jobs=-1)
+            self.flux_model = MultiOutputRegressor(base_svr, n_jobs=1)
 
         self.flux_model.fit(X_train, y_flux)
         return self

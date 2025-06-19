@@ -214,8 +214,10 @@ class ModelTrainer:
                 'C': 10.0,
                 'gamma': 0.01,
                 'epsilon': 0.1,
-                'cache_size': 500,
-                'max_iter': 5000,
+                'cache_size': 1000,
+                'max_iter': 100000,
+                'tol': 1e-4,
+                'shrinking': False,
                 'verbose': True
             },
             'neural_net': {
