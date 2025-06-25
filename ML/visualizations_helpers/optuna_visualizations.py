@@ -245,31 +245,50 @@ def save_hyperparameter_history(study: optuna.Study, save_dir: str) -> None:
             # Check if parameter is numeric or categorical
             try:
                 # Try to convert first few values to float to check if numeric
-                numeric_values = [float(v) for v in values[:min(5, len(values))]]
+                test_values = values[:min(5, len(values))]
+                numeric_test = []
+                for v in test_values:
+                    if isinstance(v, (int, float)):
+                        numeric_test.append(float(v))
+                    elif isinstance(v, str) and v.replace('.', '').replace('-', '').isdigit():
+                        numeric_test.append(float(v))
+                    else:
+                        raise ValueError("Not numeric")
                 is_numeric = True
             except (ValueError, TypeError):
                 is_numeric = False
 
             if is_numeric:
                 # Handle numeric parameters normally
-                numeric_values = [float(v) for v in values]
-                axes[idx].scatter(trial_numbers, numeric_values, alpha=0.6)
-                axes[idx].set_ylabel(str(param))
-                axes[idx].grid(True, alpha=0.3)
-
-                # Add best value line
-                best_value = study.best_params[original_param]
                 try:
-                    best_numeric = float(best_value)
-                    axes[idx].axhline(y=best_numeric, color='red', linestyle='--',
-                                    label=f'Best: {best_numeric:.4g}')
-                    axes[idx].legend()
+                    numeric_values = []
+                    for v in values:
+                        if isinstance(v, (int, float)):
+                            numeric_values.append(float(v))
+                        else:
+                            numeric_values.append(float(v))
+
+                    axes[idx].scatter(trial_numbers, numeric_values, alpha=0.6)
+                    axes[idx].set_ylabel(str(param))
+                    axes[idx].grid(True, alpha=0.3)
+
+                    # Add best value line
+                    best_value = study.best_params[original_param]
+                    try:
+                        best_numeric = float(best_value)
+                        axes[idx].axhline(y=best_numeric, color='red', linestyle='--',
+                                        label=f'Best: {best_numeric:.4g}')
+                        axes[idx].legend()
+                    except (ValueError, TypeError):
+                        # If best_value can't be converted to float, just show as string
+                        axes[idx].text(0.02, 0.98, f'Best: {best_value}',
+                                     transform=axes[idx].transAxes, verticalalignment='top',
+                                     bbox=dict(boxstyle='round', facecolor='red', alpha=0.7))
                 except (ValueError, TypeError):
-                    # If best_value can't be converted to float, just show as string
-                    axes[idx].axhline(y=0, color='red', linestyle='--',
-                                    label=f'Best: {best_value}')
-                    axes[idx].legend()
-            else:
+                    # Fall back to categorical handling if conversion fails
+                    is_numeric = False
+
+            if not is_numeric:
                 # Handle categorical parameters
                 # Convert categorical values to numeric indices for plotting
                 unique_values = list(set(values))

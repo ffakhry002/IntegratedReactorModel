@@ -168,15 +168,16 @@ class ModelTrainer:
         from sklearn.neural_network import MLPRegressor
 
         if target == 'flux':
-            # Multi-output for flux
+            # Multi-output for flux - return lambdas that accept **kwargs
             if model_type == 'xgboost':
-                return lambda: MultiOutputRegressor(xgb.XGBRegressor())
+                return lambda **kwargs: MultiOutputRegressor(xgb.XGBRegressor(**kwargs))
             elif model_type == 'random_forest':
-                return lambda: RandomForestRegressor()
+                # Random Forest has native multi-output support
+                return lambda **kwargs: RandomForestRegressor(**kwargs)
             elif model_type == 'svm':
-                return lambda: MultiOutputRegressor(SVR())
+                return lambda **kwargs: MultiOutputRegressor(SVR(**kwargs))
             else:  # neural_net
-                return lambda: MultiOutputRegressor(MLPRegressor())
+                return lambda **kwargs: MultiOutputRegressor(MLPRegressor(**kwargs))
         else:  # keff - single output
             if model_type == 'xgboost':
                 return xgb.XGBRegressor

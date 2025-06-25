@@ -9,15 +9,35 @@ from datetime import datetime
 import warnings
 from functools import wraps
 import signal
+import platform
+from typing import Dict, Tuple, List, Union, Optional, Any
+from dataclasses import dataclass
+from abc import ABC, abstractmethod
 
-# Global timeout settings
-STAGE_TIMEOUT = 3600*2  # 2 hours per stage
-TOTAL_TIMEOUT = 7200*3  # 6 hours total
+# ============================================================================
+# CONFIGURATION
+# ============================================================================
+@dataclass
+class OptimizationConfig:
+    """Configuration for optimization process"""
+    stage_timeout: int = 3600 * 200  # 20 hours per stage
+    total_timeout: int = 7200 * 300  # 30 hours total
+    default_random_iter: int = 1000
+    default_bayesian_iter: int = 100
+    fast_random_iter: int = 100
+    fast_bayesian_iter: int = 20
 
+config = OptimizationConfig()
+
+# ============================================================================
+# TIMEOUT HANDLING
+# ============================================================================
 class TimeoutException(Exception):
+    """Custom exception for timeout handling"""
     pass
 
 def timeout_handler(signum, frame):
+    """Signal handler for timeout"""
     raise TimeoutException("Operation timed out")
 
 def with_timeout(timeout_seconds):
@@ -25,126 +45,1139 @@ def with_timeout(timeout_seconds):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            # Set the signal handler and a timeout alarm
-            signal.signal(signal.SIGALRM, timeout_handler)
-            signal.alarm(timeout_seconds)
-            try:
-                result = func(*args, **kwargs)
-            finally:
-                # Disable the alarm
-                signal.alarm(0)
-            return result
+            if platform.system() != 'Windows':
+                signal.signal(signal.SIGALRM, timeout_handler)
+                signal.alarm(timeout_seconds)
+                try:
+                    result = func(*args, **kwargs)
+                finally:
+                    signal.alarm(0)
+                return result
+            else:
+                print(f"   ⚠️  Windows detected - using time-based timeout monitoring")
+                start_time = time.time()
+                try:
+                    result = func(*args, **kwargs)
+                    elapsed = time.time() - start_time
+                    if elapsed > timeout_seconds:
+                        print(f"   ⚠️  Function completed but took {elapsed:.1f}s (> {timeout_seconds}s timeout)")
+                    return result
+                except Exception as e:
+                    elapsed = time.time() - start_time
+                    if elapsed > timeout_seconds:
+                        raise TimeoutException(f"Operation likely timed out on Windows after {elapsed:.1f}s")
+                    raise e
         return wrapper
     return decorator
 
-def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost',
-                           n_jobs=-1, target_type='flux', use_log_flux=True, groups=None):
-    """
-    Three-stage hyperparameter optimization: Random → Grid → Bayesian
-    Complete implementation for all model types with timeouts and verbosity
-    NOW WITH PROPER GROUP-AWARE CV
+# ============================================================================
+# PARAMETER BOUND UTILITIES
+# ============================================================================
+class BoundsCalculator:
+    """Utility class for calculating parameter bounds"""
 
-    Args:
-        target_type: 'flux' or 'keff' - determines optimization metric
-        use_log_flux: whether flux data is log-transformed
-        groups: array indicating which samples belong to same original config
-    """
+    @staticmethod
+    def safe_bounds(lower: float, upper: float, min_val: Optional[float] = None,
+                   max_val: Optional[float] = None, ensure_different: bool = True) -> Tuple[float, float]:
+        """Ensure bounds are valid with lower < upper for continuous parameters"""
+        # Apply absolute bounds
+        if min_val is not None:
+            lower = max(min_val, lower)
+            upper = max(min_val, upper)
+        if max_val is not None:
+            lower = min(max_val, lower)
+            upper = min(max_val, upper)
 
-    print(f"\n{'='*60}")
-    print(f"Three-Stage Optimization for {model_type}")
-    print(f"Target: {target_type.upper()}")
-    print(f"Optimization metric: {'MAPE' if target_type == 'flux' else 'MSE'}")
-    print(f"Stage timeout: {STAGE_TIMEOUT}s, Total timeout: {TOTAL_TIMEOUT}s")
-    print(f"{'='*60}")
+        # Ensure lower < upper
+        if lower >= upper:
+            if upper < lower:
+                lower, upper = upper, lower
+            else:
+                center = (lower + upper) / 2
+                if abs(center) > 1e-6:
+                    if center > 0:
+                        lower = center * 0.9
+                        upper = center * 1.1
+                    else:
+                        lower = center * 1.1
+                        upper = center * 0.9
+                else:
+                    if min_val is not None and min_val > 0:
+                        offset = min_val * 0.1
+                    elif max_val is not None and max_val > 0:
+                        offset = max_val * 0.01
+                    else:
+                        offset = 0.1
+                    lower = center - offset
+                    upper = center + offset
 
-    # Track overall progress
-    optimization_start_time = time.time()
-    best_params_so_far = {}
-    best_score_so_far = float('-inf')
+        # Ensure minimum difference
+        if ensure_different and (upper - lower) < 1e-6:
+            center = (lower + upper) / 2
+            if abs(center) > 1e-6:
+                lower = center * (1 - 1e-6)
+                upper = center * (1 + 1e-6)
+            else:
+                lower = center - 1e-6
+                upper = center + 1e-6
 
-    # Check if this is multi-output (flux) or single output (keff)
-    is_multi_output = len(y_train.shape) > 1 and y_train.shape[1] > 1
+        # Final check with absolute bounds
+        if min_val is not None:
+            lower = max(min_val, lower)
+            upper = max(min_val + 1e-6, upper)
+        if max_val is not None:
+            upper = min(max_val, upper)
+            lower = min(max_val - 1e-6, lower)
 
-    print(f"\n📊 Data Info:")
-    print(f"   - Training samples: {X_train.shape[0]}")
-    print(f"   - Features: {X_train.shape[1]}")
-    print(f"   - Output type: {'Multi-output' if is_multi_output else 'Single output'}")
-    if is_multi_output:
-        print(f"   - Number of outputs: {y_train.shape[1]}")
-    print(f"   - Using {n_jobs} parallel jobs")
+        # Last resort safety check
+        if lower >= upper:
+            if min_val is not None and max_val is not None:
+                if max_val - min_val > 1e-6:
+                    lower = min_val
+                    upper = min_val + min(1e-6, (max_val - min_val) / 2)
+                else:
+                    lower = min_val
+                    upper = max_val
+            elif min_val is not None:
+                lower = min_val
+                upper = min_val + 1e-6
+            elif max_val is not None:
+                lower = max_val - 1e-6
+                upper = max_val
+            else:
+                center = (lower + upper) / 2
+                lower = center - 1e-6
+                upper = center + 1e-6
 
-    # SET UP CROSS-VALIDATION STRATEGY
-    if groups is not None:
-        cv = GroupKFold(n_splits=10)
-        n_unique_configs = len(np.unique(groups))
-        print(f"   - Using GroupKFold with {n_unique_configs} unique configurations")
-        print(f"   - Preventing augmentation leakage in CV")
+        return lower, upper
+
+    @staticmethod
+    def safe_integer_bounds(lower: int, upper: int, min_val: Optional[int] = None,
+                           max_val: Optional[int] = None) -> Tuple[int, int]:
+        """Ensure integer bounds are valid with lower < upper"""
+        lower = int(lower)
+        upper = int(upper)
+
+        if min_val is not None and max_val is not None and min_val == max_val:
+            print(f"   ⚠️  WARNING: Only one integer value allowed ({min_val}), consider using Categorical")
+            return min_val, min_val
+
+        # Apply absolute bounds
+        if min_val is not None:
+            lower = max(min_val, lower)
+            upper = max(min_val, upper)
+        if max_val is not None:
+            lower = min(max_val, lower)
+            upper = min(max_val, upper)
+
+        # Ensure lower < upper
+        if lower >= upper:
+            if upper < lower:
+                lower, upper = upper, lower
+            else:
+                upper = lower + 1
+
+        # Final check
+        if min_val is not None:
+            lower = max(min_val, lower)
+            upper = max(min_val + 1, upper)
+        if max_val is not None:
+            upper = min(max_val, upper)
+            lower = min(max_val - 1, lower)
+
+        return lower, upper
+
+    @staticmethod
+    def get_safe_range_20_percent(value: float, param_type: str = 'continuous',
+                                 min_val: Optional[float] = None,
+                                 max_val: Optional[float] = None,
+                                 param_name: Optional[str] = None) -> Tuple[float, float]:
+        """Helper function to get ±20% range with bounds checking and ML parameter constraints"""
+
+        # Use ML-aware constraints if parameter name is provided
+        if param_name:
+            ml_min = MLParameterConstraints.get_safe_min_value(param_name, min_val)
+            if ml_min is not None:
+                min_val = ml_min
+            value = MLParameterConstraints.validate_value(param_name, value)
+
+        # Handle edge case: value is essentially zero
+        if abs(value) < 1e-9:
+            if min_val is not None and min_val > 0:
+                # Parameter cannot be zero, use minimum value as starting point
+                lower_ideal = min_val
+                upper_ideal = min_val * 2.0  # Conservative upper bound
+            elif min_val is not None and min_val == 0:
+                # Parameter can be zero
+                lower_ideal = 0
+                if max_val is not None:
+                    upper_ideal = max_val * 0.01
+                else:
+                    upper_ideal = 1e-6
+            else:
+                # No constraints given, but check ML constraints
+                if param_name and param_name in MLParameterConstraints.CANNOT_BE_ZERO:
+                    safe_min = MLParameterConstraints.get_safe_min_value(param_name)
+                    lower_ideal = safe_min
+                    upper_ideal = safe_min * 2.0
+                else:
+                    lower_ideal = 0
+                    if max_val is not None:
+                        upper_ideal = max_val * 0.01
+                    else:
+                        upper_ideal = 1e-6
+        else:
+            # Standard ±20% calculation
+            if value > 0:
+                lower_ideal = value * 0.8
+                upper_ideal = value * 1.2
+            else:
+                # Negative value - swap to maintain lower < upper
+                lower_ideal = value * 1.2
+                upper_ideal = value * 0.8
+
+        # Convert to integer if needed
+        if param_type == 'integer':
+            lower_ideal = int(round(lower_ideal))
+            upper_ideal = int(round(upper_ideal))
+
+        # Ensure lower < upper BEFORE applying constraints
+        if lower_ideal >= upper_ideal:
+            lower_ideal, upper_ideal = upper_ideal, lower_ideal
+            if lower_ideal >= upper_ideal:
+                if param_type == 'integer':
+                    upper_ideal = lower_ideal + 1
+                else:
+                    upper_ideal = lower_ideal + 1e-6
+
+        # Apply constraint bounds CAREFULLY
+        if min_val is not None:
+            if lower_ideal < min_val:
+                lower_ideal = min_val
+                # If upper is also below min_val, adjust it
+                if upper_ideal < min_val:
+                    if param_type == 'integer':
+                        upper_ideal = min_val + 1
+                    else:
+                        upper_ideal = min_val * 1.5 if min_val > 0 else min_val + 0.1
+
+        if max_val is not None:
+            if upper_ideal > max_val:
+                upper_ideal = max_val
+                # If lower is also above max_val, adjust it
+                if lower_ideal > max_val:
+                    if param_type == 'integer':
+                        lower_ideal = max_val - 1
+                    else:
+                        lower_ideal = max_val * 0.7 if max_val > 0 else max_val - 0.1
+
+        # CRITICAL: Final validation for ML parameter constraints
+        # Apply parameter-specific validation
+        if param_name:
+            lower_ideal = MLParameterConstraints.validate_value(param_name, lower_ideal)
+            upper_ideal = MLParameterConstraints.validate_value(param_name, upper_ideal)
+
+        # Final safety check - ensure valid bounds
+        if lower_ideal >= upper_ideal:
+            print(f"   ⚠️  WARNING: Invalid bounds calculated for {param_type} parameter {param_name or 'unknown'}")
+            print(f"      Original value: {value}, min_val: {min_val}, max_val: {max_val}")
+            print(f"      Calculated bounds: [{lower_ideal}, {upper_ideal}]")
+
+            # Emergency fallback to safe bounds
+            if param_type == 'integer':
+                return BoundsCalculator.safe_integer_bounds(lower_ideal, upper_ideal, min_val, max_val)
+            else:
+                return BoundsCalculator.safe_bounds(lower_ideal, upper_ideal, min_val, max_val)
+
+        return lower_ideal, upper_ideal
+
+# ============================================================================
+# GRID CREATION
+# ============================================================================
+def create_focused_grid(best_value: float, param_type: str = 'continuous',
+                       min_val: Optional[float] = None, max_val: Optional[float] = None,
+                       n_values: int = 5) -> List[Union[int, float]]:
+    """Create a focused grid around the best value with fixed ±20% range"""
+    if best_value is None:
+        return []
+
+    if param_type == 'integer':
+        if best_value <= 10:
+            # For small integers, use fixed offsets but respect min_val
+            offsets = [-2, -1, 0, 1, 2]
+            if min_val is not None:
+                # Filter offsets to ensure we don't go below min_val
+                valid_offsets = [o for o in offsets if best_value + o >= min_val]
+                if len(valid_offsets) < 5:
+                    # Add more positive offsets to get 5 values
+                    extra_positive = 5 - len(valid_offsets)
+                    current_offset = 2
+                    while len(valid_offsets) < 5 and current_offset <= 10:
+                        current_offset += 1
+                        if best_value + current_offset not in [best_value + o for o in valid_offsets]:
+                            valid_offsets.append(current_offset)
+                raw_values = [best_value + offset for offset in valid_offsets[:5]]
+            else:
+                raw_values = [best_value + offset for offset in offsets]
+        else:
+            # For larger integers, use percentage-based approach
+            factors = [0.8, 0.9, 1.0, 1.1, 1.2]
+            raw_values = [int(round(best_value * factor)) for factor in factors]
+
+            # Check for duplicates
+            unique_check = sorted(list(set(raw_values)))
+            if len(unique_check) < 4:
+                # Fallback to fixed offsets
+                raw_values = [best_value - 2, best_value - 1, best_value, best_value + 1, best_value + 2]
+
+        raw_values = [int(val) for val in raw_values]
     else:
-        cv = 10  # Regular KFold
+        # For continuous parameters, use percentage factors
+        factors = [0.8, 0.9, 1.0, 1.1, 1.2]
+        raw_values = [best_value * factor for factor in factors]
+
+    # Apply bounds to raw values and prevent constraint violations
+    bounded_values = []
+    for val in raw_values:
+        # Apply min constraint first
+        if min_val is not None:
+            val = max(min_val, val)
+        # Apply max constraint
+        if max_val is not None:
+            val = min(max_val, val)
+        bounded_values.append(val)
+
+    # Remove duplicates while preserving order
+    unique_values = []
+    seen = set()
+    for val in bounded_values:
+        if val not in seen:
+            unique_values.append(val)
+            seen.add(val)
+
+    unique_values = sorted(unique_values)
+
+    if len(unique_values) >= n_values:
+        # Select evenly distributed values
+        indices = np.linspace(0, len(unique_values) - 1, n_values).astype(int)
+        final_values = [unique_values[i] for i in indices]
+    else:
+        # Need more values - generate them intelligently
+        if len(unique_values) == 1:
+            center = unique_values[0]
+            if param_type == 'integer':
+                # For integers, create small variations around center
+                target_values = [center-2, center-1, center, center+1, center+2]
+            else:
+                # For continuous, create small percentage variations
+                target_values = [center*0.95, center*0.975, center, center*1.025, center*1.05]
+
+            final_values = []
+            for val in target_values:
+                # Apply constraints
+                if min_val is not None:
+                    val = max(min_val, val)
+                if max_val is not None:
+                    val = min(max_val, val)
+                if param_type == 'integer':
+                    val = int(round(val))
+                if val not in final_values:
+                    final_values.append(val)
+
+            final_values = sorted(final_values)
+        else:
+            # Interpolate between existing unique values
+            min_unique = min(unique_values)
+            max_unique = max(unique_values)
+
+            if param_type == 'integer':
+                if max_unique > min_unique:
+                    final_values = []
+                    step = max(1, (max_unique - min_unique) // (n_values - 1))
+                    for i in range(n_values):
+                        val = min_unique + i * step
+                        val = min(max_unique, val)
+                        if val not in final_values:
+                            final_values.append(val)
+
+                    # Fill remaining slots if needed
+                    while len(final_values) < n_values and len(final_values) > 0:
+                        last_val = final_values[-1]
+                        if last_val < max_unique:
+                            final_values.append(last_val + 1)
+                        else:
+                            break
+                else:
+                    final_values = unique_values
+            else:
+                # For continuous, use linear interpolation
+                final_values = list(np.linspace(min_unique, max_unique, n_values))
+
+    # Final bounds check and constraint validation
+    result = []
+    for val in final_values[:n_values]:  # Ensure we don't exceed n_values
+        # Apply constraints one more time
+        if min_val is not None:
+            val = max(min_val, val)
+        if max_val is not None:
+            val = min(max_val, val)
+        if param_type == 'integer':
+            val = int(round(val))
+
+        # Avoid duplicates
+        if val not in result:
+            result.append(val)
+
+    # Ensure we have enough values and fill if needed
+    result = sorted(result)
+    if len(result) < n_values and min_val is not None and max_val is not None:
+        if param_type == 'integer':
+            # Use full range if available
+            full_range = list(range(int(min_val), int(max_val) + 1))
+            if len(full_range) >= n_values:
+                indices = np.linspace(0, len(full_range) - 1, n_values).astype(int)
+                result = [full_range[i] for i in indices]
+        else:
+            # Use linear spacing for continuous
+            result = list(np.linspace(min_val, max_val, n_values))
+
+    return sorted(result[:n_values])
+
+# ============================================================================
+# PARAMETER UTILITIES
+# ============================================================================
+_NO_DEFAULT = object()
+
+def get_param_value(params: Dict[str, Any], base_key: str,
+                   default: Any = _NO_DEFAULT, verbose: bool = False) -> Any:
+    """Get parameter value checking both with and without estimator__ prefix"""
+    prefixed_key = f'estimator__{base_key}'
+    if prefixed_key in params:
+        return params[prefixed_key]
+    elif base_key in params:
+        return params[base_key]
+    elif default is not _NO_DEFAULT:
+        if verbose:
+            print(f"   Parameter '{base_key}' not found, using default: {default}")
+        return default
+    else:
+        raise KeyError(f"Parameter '{base_key}' not found")
+
+def get_optional_param(params: Dict[str, Any], base_key: str, default: Any) -> Any:
+    """Get optional parameter value silently"""
+    return get_param_value(params, base_key, default, verbose=False)
+
+# ============================================================================
+# PARAMETER CONSTRAINTS SYSTEM
+# ============================================================================
+class MLParameterConstraints:
+    """Defines constraints for ML parameters to ensure valid values"""
+
+        # Parameters that CANNOT be zero (must be > 0)
+    CANNOT_BE_ZERO = {
+        'learning_rate', 'epsilon', 'learning_rate_init',
+        'alpha', 'C', 'n_estimators', 'max_depth', 'min_child_weight',
+        'min_samples_split', 'min_samples_leaf'
+    }
+
+    # Parameters that CAN be zero (>= 0)
+    CAN_BE_ZERO = {
+        'reg_alpha', 'reg_lambda', 'gamma'
+    }
+
+    # Parameters that must be positive integers
+    POSITIVE_INTEGERS = {
+        'n_estimators', 'max_depth', 'min_child_weight', 'degree',
+        'min_samples_split', 'min_samples_leaf'
+    }
+
+    # Parameters that must be in (0, 1] range
+    UNIT_INTERVAL = {
+        'subsample', 'colsample_bytree', 'colsample_bylevel', 'max_features', 'max_samples'
+    }
+
+    @classmethod
+    def get_safe_min_value(cls, param_name: str, original_min: Optional[float] = None) -> Optional[float]:
+        """Get the safe minimum value for a parameter considering ML constraints"""
+        if param_name in cls.CANNOT_BE_ZERO:
+            if original_min is None or original_min <= 0:
+                # Set safe minimums for parameters that cannot be zero
+                safe_minimums = {
+                    'learning_rate': 0.001,
+                    'epsilon': 0.0005,
+                    'learning_rate_init': 0.0001,
+                    'alpha': 0.0001,
+                    'C': 0.1,
+                    'n_estimators': 1,
+                    'max_depth': 1,
+                    'min_child_weight': 1,
+                    'min_samples_split': 2,
+                    'min_samples_leaf': 1
+                }
+                return safe_minimums.get(param_name, 0.0001)
+            else:
+                return max(original_min, 0.0001)
+        elif param_name in cls.CAN_BE_ZERO:
+            return 0.0
+        elif param_name in cls.POSITIVE_INTEGERS:
+            return max(1, original_min) if original_min is not None else 1
+        else:
+            return original_min
+
+    @classmethod
+    def validate_value(cls, param_name: str, value: float) -> float:
+        """Validate and adjust a parameter value according to ML constraints"""
+        if param_name in cls.CANNOT_BE_ZERO and value <= 0:
+            safe_min = cls.get_safe_min_value(param_name)
+            print(f"   ⚠️  WARNING: {param_name}={value} invalid, using {safe_min}")
+            return safe_min
+        elif param_name in cls.POSITIVE_INTEGERS and value < 1:
+            print(f"   ⚠️  WARNING: {param_name}={value} invalid, using 1")
+            return 1
+        elif param_name in cls.UNIT_INTERVAL and (value <= 0 or value > 1):
+            clamped = max(0.1, min(1.0, value))
+            print(f"   ⚠️  WARNING: {param_name}={value} invalid, using {clamped}")
+            return clamped
+        return value
+
+# ============================================================================
+# MODEL PARAMETER HANDLERS
+# ============================================================================
+class ModelParameterHandler(ABC):
+    """Abstract base class for model-specific parameter handling"""
+
+    @abstractmethod
+    def get_default_params(self) -> Dict[str, Any]:
+        """Get default parameters for the model"""
+        pass
+
+    @abstractmethod
+    def get_fixed_params(self) -> Dict[str, Any]:
+        """Get fixed parameters that are not optimized"""
+        pass
+
+    @abstractmethod
+    def get_random_distributions(self, needs_wrapper: bool) -> Dict[str, Any]:
+        """Get parameter distributions for random search"""
+        pass
+
+    @abstractmethod
+    def create_grid_params(self, best_params: Dict[str, Any], needs_wrapper: bool) -> Dict[str, Any]:
+        """Create grid search parameters"""
+        pass
+
+    @abstractmethod
+    def create_bayesian_spaces(self, best_params: Dict[str, Any], needs_wrapper: bool) -> Dict[str, Any]:
+        """Create Bayesian search spaces"""
+        pass
+
+class XGBoostParameterHandler(ModelParameterHandler):
+    """Parameter handler for XGBoost models"""
+
+    def get_default_params(self) -> Dict[str, Any]:
+        return {
+            'n_estimators': 300,
+            'max_depth': 6,
+            'learning_rate': 0.1,
+            'subsample': 0.8,
+            'colsample_bytree': 0.8,
+            # Fixed parameters (not optimized)
+            'colsample_bylevel': 1.0,  # Changed from 0.8 to 1.0 as discussed
+            'reg_alpha': 0.0,
+            'reg_lambda': 1.0,
+            'gamma': 0.0,
+            'min_child_weight': 1
+        }
+
+    def get_fixed_params(self) -> Dict[str, Any]:
+        """Fixed parameters that are not optimized during hyperparameter search"""
+        return {
+            'colsample_bylevel': 1.0,
+            'reg_alpha': 0.0,
+            'reg_lambda': 1.0,
+            'gamma': 0.0,
+            'min_child_weight': 1
+        }
+
+    def get_random_distributions(self, needs_wrapper: bool) -> Dict[str, Any]:
+        base_params = {
+            # Only optimize these 5 parameters
+            'n_estimators': randint(50, 5000),
+            'max_depth': randint(2, 20),
+            'learning_rate': uniform(0.001, 0.499),
+            'subsample': uniform(0.3, 0.7),
+            'colsample_bytree': uniform(0.3, 0.7)
+        }
+        if needs_wrapper:
+            return {f'estimator__{k}': v for k, v in base_params.items()}
+        return base_params
+
+    def create_grid_params(self, best_params: Dict[str, Any], needs_wrapper: bool) -> Dict[str, Any]:
+        prefix = 'estimator__' if needs_wrapper else ''
+        param_grid = {}
+
+        # Only optimize these 5 parameters
+        param_configs = [
+            ('n_estimators', 'integer', 50, 5000),
+            ('max_depth', 'integer', 2, 20),
+            ('learning_rate', 'continuous', 0.001, 0.5),
+            ('subsample', 'continuous', 0.3, 1.0),
+            ('colsample_bytree', 'continuous', 0.3, 1.0)
+        ]
+
+        for param_name, param_type, min_val, max_val in param_configs:
+            value = get_param_value(best_params, param_name)
+            param_grid[f'{prefix}{param_name}'] = create_focused_grid(
+                value, param_type, min_val, max_val)
+
+        return param_grid
+
+    def create_bayesian_spaces(self, best_params: Dict[str, Any], needs_wrapper: bool) -> Dict[str, Any]:
+        prefix = 'estimator__' if needs_wrapper else ''
+        search_spaces = {}
+        bc = BoundsCalculator()
+
+        # Integer parameters - only optimize these 2
+        int_params = [
+            ('n_estimators', 50, 5000),
+            ('max_depth', 2, 20)
+        ]
+
+        for param_name, min_val, max_val in int_params:
+            value = get_param_value(best_params, param_name)
+            lower, upper = bc.get_safe_range_20_percent(value, 'integer', min_val, max_val, param_name)
+            search_spaces[f'{prefix}{param_name}'] = Integer(lower, upper)
+
+        # Continuous parameters with log-uniform prior - only learning_rate
+        value = get_param_value(best_params, 'learning_rate')
+        lower, upper = bc.get_safe_range_20_percent(value, 'continuous', 0.001, 0.5, 'learning_rate')
+        search_spaces[f'{prefix}learning_rate'] = Real(lower, upper, prior='log-uniform')
+
+        # Continuous parameters with uniform prior - only these 2
+        uniform_params = [
+            ('subsample', 0.3, 1.0),
+            ('colsample_bytree', 0.3, 1.0)
+        ]
+
+        for param_name, min_val, max_val in uniform_params:
+            value = get_param_value(best_params, param_name)
+            lower, upper = bc.get_safe_range_20_percent(value, 'continuous', min_val, max_val, param_name)
+            search_spaces[f'{prefix}{param_name}'] = Real(lower, upper)
+
+        return search_spaces
+
+class RandomForestParameterHandler(ModelParameterHandler):
+    """Parameter handler for Random Forest models"""
+
+    def get_default_params(self) -> Dict[str, Any]:
+        return {
+            'n_estimators': 300,
+            'max_depth': 20,
+            'min_samples_split': 5,
+            'min_samples_leaf': 2,
+            'max_features': 'sqrt',
+            # Fixed parameter (not optimized)
+            'max_samples': None,  # Changed from 0.8 to None as suggested
+            'random_state': 42
+        }
+
+    def get_fixed_params(self) -> Dict[str, Any]:
+        """Fixed parameters that are not optimized during hyperparameter search"""
+        return {
+            'max_samples': None,
+            'random_state': 42
+        }
+
+    def get_random_distributions(self, needs_wrapper: bool) -> Dict[str, Any]:
+        base_params = {
+            'n_estimators': randint(50, 1500),
+            'max_depth': randint(10, 40),
+            'min_samples_split': randint(5, 30),
+            'min_samples_leaf': randint(2, 10),
+            'max_features': ['sqrt', 'log2', 0.3, 0.5, 0.7, 0.9]
+            # max_samples and random_state are fixed parameters
+        }
+        if needs_wrapper:
+            return {f'estimator__{k}': v for k, v in base_params.items()}
+        return base_params
+
+    def create_grid_params(self, best_params: Dict[str, Any], needs_wrapper: bool) -> Dict[str, Any]:
+        param_grid = {}
+
+        # Integer parameters
+        int_params = [
+            ('n_estimators', 50, 1500),
+            ('max_depth', 10, 40),
+            ('min_samples_split', 5, 30),
+            ('min_samples_leaf', 2, 10)
+        ]
+
+        for param_name, min_val, max_val in int_params:
+            value = get_param_value(best_params, param_name)
+            param_grid[param_name] = create_focused_grid(
+                value, 'integer', min_val, max_val)
+
+        # max_features special handling
+        max_features = get_param_value(best_params, 'max_features')
+        if isinstance(max_features, (int, float)):
+            param_grid['max_features'] = create_focused_grid(
+                max_features, 'continuous', 0.3, 0.9)
+        else:
+            param_grid['max_features'] = [max_features, 0.5, 0.7]
+
+        return param_grid
+
+    def create_bayesian_spaces(self, best_params: Dict[str, Any], needs_wrapper: bool) -> Dict[str, Any]:
+        search_spaces = {}
+        bc = BoundsCalculator()
+
+        # Define parameter configurations with specific bounds
+        param_configs = [
+            ('n_estimators', 50, 50, 1500),
+            ('min_samples_split', 2, 5, 30),
+            ('min_samples_leaf', 1, 2, 10),
+            ('max_depth', 3, 10, 40)
+        ]
+
+        for param_name, delta, min_val, max_val in param_configs:
+            value = get_param_value(best_params, param_name)
+            lower, upper = bc.safe_integer_bounds(value-delta, value+delta, min_val, max_val)
+            search_spaces[param_name] = Integer(lower, upper)
+
+        # max_features special handling
+        max_features = get_param_value(best_params, 'max_features')
+        if isinstance(max_features, (int, float)):
+            lower, upper = bc.safe_bounds(max_features*0.8, max_features*1.2, 0.3, 0.9)
+            search_spaces['max_features'] = Real(lower, upper)
+        else:
+            search_spaces['max_features'] = Categorical([max_features, 0.5, 0.7])
+
+        return search_spaces
+
+class SVMParameterHandler(ModelParameterHandler):
+    """Parameter handler for SVM models"""
+
+    def get_default_params(self) -> Dict[str, Any]:
+        return {
+            'C': 10.0,
+            'gamma': 0.01,
+            'epsilon': 0.01,
+            'kernel': 'rbf',
+            'random_state': 42
+        }
+
+    def get_fixed_params(self) -> Dict[str, Any]:
+        """Fixed parameters that are not optimized during hyperparameter search"""
+        return {
+            'random_state': 42
+        }
+
+    def get_random_distributions(self, needs_wrapper: bool) -> Dict[str, Any]:
+        base_params = {
+            'C': uniform(1.0, 99.0),
+            'epsilon': uniform(0.0005, 0.0995),
+            'kernel': ['rbf', 'poly'],
+            'gamma': uniform(0.0001, 0.0999),
+            'degree': randint(2, 6),
+            'coef0': uniform(1.0, 9.0),
+            # random_state is a fixed parameter
+        }
+        if needs_wrapper:
+            return {f'estimator__{k}': v for k, v in base_params.items()}
+        return base_params
+
+    def create_grid_params(self, best_params: Dict[str, Any], needs_wrapper: bool) -> Dict[str, Any]:
+        prefix = 'estimator__' if needs_wrapper else ''
+
+        # Base parameters for all kernels
+        base_grid = {}
+        for param_name, param_type, min_val, max_val in [
+            ('C', 'continuous', 1.0, 100.0),
+            ('gamma', 'continuous', 0.0001, 0.1),
+            ('epsilon', 'continuous', 0.0005, 0.1)
+        ]:
+            value = get_param_value(best_params, param_name)
+            base_grid[f'{prefix}{param_name}'] = create_focused_grid(
+                value, param_type, min_val, max_val)
+
+        # Create kernel-specific grids
+        best_kernel = get_param_value(best_params, 'kernel')
+
+        # RBF grid
+        rbf_grid = base_grid.copy()
+        rbf_grid[f'{prefix}kernel'] = ['rbf']
+
+        # Poly grid
+        poly_grid = base_grid.copy()
+        poly_grid[f'{prefix}kernel'] = ['poly']
+
+        degree = get_param_value(best_params, 'degree')
+        coef0 = get_param_value(best_params, 'coef0')
+        poly_grid[f'{prefix}degree'] = create_focused_grid(degree, 'integer', 2, 5)
+        poly_grid[f'{prefix}coef0'] = create_focused_grid(coef0, 'continuous', 1, 10)
+
+        # Return appropriate grid based on best kernel
+        if best_kernel == 'rbf':
+            return [rbf_grid, poly_grid]
+        else:
+            return [poly_grid, rbf_grid]
+
+    def create_bayesian_spaces(self, best_params: Dict[str, Any], needs_wrapper: bool) -> Dict[str, Any]:
+        prefix = 'estimator__' if needs_wrapper else ''
+        search_spaces = {}
+        bc = BoundsCalculator()
+
+        # Continuous parameters with log-uniform prior
+        log_params = [
+            ('C', 1.0, 100.0),
+            ('gamma', 0.0001, 0.1),
+            ('epsilon', 0.0005, 0.1)
+        ]
+
+        for param_name, min_val, max_val in log_params:
+            value = get_param_value(best_params, param_name)
+
+            # Add comprehensive safety checks for each parameter
+            try:
+                lower, upper = bc.get_safe_range_20_percent(value, 'continuous', min_val, max_val, param_name)
+
+                # Critical validation: ensure lower < upper before creating Real object
+                if lower >= upper:
+                    print(f"   ⚠️  WARNING: Invalid bounds for {param_name}: [{lower}, {upper}]")
+                    print(f"      Value: {value}, min_val: {min_val}, max_val: {max_val}")
+
+                    # Emergency fallback: use conservative range around min_val
+                    if param_name == 'epsilon':
+                        lower, upper = 0.0005, 0.01  # Safe epsilon range
+                    elif param_name == 'gamma':
+                        lower, upper = 0.0001, 0.01  # Safe gamma range
+                    elif param_name == 'C':
+                        lower, upper = 1.0, 10.0     # Safe C range
+                    else:
+                        lower, upper = min_val, min_val * 2
+
+                    print(f"      Using fallback bounds: [{lower}, {upper}]")
+
+                # Final safety check
+                if lower >= upper:
+                    raise ValueError(f"Cannot create valid bounds for {param_name}")
+
+                # Additional constraint validation for ML parameters
+                if param_name in ['gamma', 'epsilon'] and lower <= 0:
+                    print(f"   ⚠️  WARNING: {param_name} cannot be <= 0, adjusting lower bound")
+                    lower = min_val
+                    if upper <= lower:
+                        upper = lower * 2.0
+
+                search_spaces[f'{prefix}{param_name}'] = Real(lower, upper, prior='log-uniform')
+                print(f"   ✅ {param_name}: Real({lower:.6f}, {upper:.6f})")
+
+            except Exception as e:
+                print(f"   ❌ ERROR creating bounds for {param_name}: {str(e)}")
+                print(f"      Using safe default bounds")
+
+                # Ultimate fallback to safe defaults
+                if param_name == 'C':
+                    search_spaces[f'{prefix}{param_name}'] = Real(1.0, 100.0, prior='log-uniform')
+                elif param_name == 'gamma':
+                    search_spaces[f'{prefix}{param_name}'] = Real(0.0001, 0.1, prior='log-uniform')
+                elif param_name == 'epsilon':
+                    search_spaces[f'{prefix}{param_name}'] = Real(0.0005, 0.1, prior='log-uniform')
+
+        # Kernel selection
+        search_spaces[f'{prefix}kernel'] = Categorical(['rbf', 'poly'])
+
+        # Poly-specific parameters with safety checks
+        try:
+            degree = get_param_value(best_params, 'degree')
+            coef0 = get_param_value(best_params, 'coef0')
+
+            degree_lower, degree_upper = bc.safe_integer_bounds(degree-1, degree+1, 2, 5)
+            coef0_lower, coef0_upper = bc.safe_bounds(coef0*0.5, coef0*2.0, 1, 10)
+
+            # Validate integer bounds
+            if degree_lower >= degree_upper:
+                print(f"   ⚠️  WARNING: Invalid degree bounds, using fallback")
+                degree_lower, degree_upper = 2, 5
+
+            # Validate continuous bounds
+            if coef0_lower >= coef0_upper:
+                print(f"   ⚠️  WARNING: Invalid coef0 bounds, using fallback")
+                coef0_lower, coef0_upper = 1.0, 10.0
+
+            search_spaces[f'{prefix}degree'] = Integer(degree_lower, degree_upper)
+            search_spaces[f'{prefix}coef0'] = Real(coef0_lower, coef0_upper)
+
+            print(f"   ✅ degree: Integer({degree_lower}, {degree_upper})")
+            print(f"   ✅ coef0: Real({coef0_lower:.3f}, {coef0_upper:.3f})")
+
+        except Exception as e:
+            print(f"   ❌ ERROR creating poly parameter bounds: {str(e)}")
+            print(f"      Using safe default bounds")
+            search_spaces[f'{prefix}degree'] = Integer(2, 5)
+            search_spaces[f'{prefix}coef0'] = Real(1.0, 10.0)
+
+        return search_spaces
+
+class NeuralNetParameterHandler(ModelParameterHandler):
+    """Parameter handler for Neural Network models"""
+
+    def get_default_params(self) -> Dict[str, Any]:
+        return {
+            'hidden_layer_sizes': (100,),
+            'learning_rate_init': 0.001,
+            'alpha': 0.001,
+            'activation': 'relu',
+            'solver': 'adam',
+            'random_state': 42,
+            'max_iter': 1000
+        }
+
+    def get_fixed_params(self) -> Dict[str, Any]:
+        """Fixed parameters that are not optimized during hyperparameter search"""
+        return {
+            'random_state': 42,
+            'max_iter': 1000
+        }
+
+    def get_random_distributions(self, needs_wrapper: bool) -> Dict[str, Any]:
+        base_params = {
+            'hidden_layer_sizes': [(100,), (200,), (100,50), (200,100), (300,200,100)],
+            'learning_rate_init': uniform(0.0001, 0.0099),
+            'alpha': uniform(0.0001, 0.0999),
+            'activation': ['relu', 'tanh'],
+            'solver': ['adam', 'lbfgs']
+            # random_state and max_iter are fixed parameters
+        }
+        if needs_wrapper:
+            return {f'estimator__{k}': v for k, v in base_params.items()}
+        return base_params
+
+    def create_grid_params(self, best_params: Dict[str, Any], needs_wrapper: bool) -> Dict[str, Any]:
+        prefix = 'estimator__' if needs_wrapper else ''
+        param_grid = {}
+
+        # Hidden layer sizes
+        layers = get_param_value(best_params, 'hidden_layer_sizes')
+        layer_variations = self._generate_layer_variations(layers)
+        param_grid[f'{prefix}hidden_layer_sizes'] = layer_variations[:5]
+
+        # Continuous parameters
+        for param_name, min_val, max_val in [
+            ('learning_rate_init', 0.0001, 0.01),
+            ('alpha', 0.0001, 0.1)
+        ]:
+            value = get_param_value(best_params, param_name)
+            param_grid[f'{prefix}{param_name}'] = create_focused_grid(
+                value, 'continuous', min_val, max_val)
+
+        # Categorical parameters
+        param_grid[f'{prefix}activation'] = [get_param_value(best_params, 'activation')]
+
+        return param_grid
+
+    def create_bayesian_spaces(self, best_params: Dict[str, Any], needs_wrapper: bool) -> Dict[str, Any]:
+        prefix = 'estimator__' if needs_wrapper else ''
+        search_spaces = {}
+        bc = BoundsCalculator()
+
+        # Continuous parameters with log-uniform prior
+        for param_name, min_val, max_val in [
+            ('learning_rate_init', 0.0001, 0.01),
+            ('alpha', 0.0001, 0.1)
+        ]:
+            value = get_param_value(best_params, param_name)
+            lower, upper = bc.safe_bounds(value*0.5, value*2.0, min_val, max_val)
+            search_spaces[f'{prefix}{param_name}'] = Real(lower, upper, prior='log-uniform')
+
+        # Categorical parameters
+        layers = get_param_value(best_params, 'hidden_layer_sizes')
+        activation = get_param_value(best_params, 'activation')
+
+        search_spaces[f'{prefix}hidden_layer_sizes'] = Categorical([layers])
+        search_spaces[f'{prefix}activation'] = Categorical([activation])
+
+        return search_spaces
+
+    def _generate_layer_variations(self, layers: Tuple[int, ...]) -> List[Tuple[int, ...]]:
+        """Generate variations of neural network architectures"""
+        layer_variations = []
+        if isinstance(layers, tuple):
+            base_layers = list(layers)
+            deltas = [-50, -25, 0, 25, 50]
+            for delta in deltas:
+                new_layers = tuple(max(50, min(400, l + delta)) for l in base_layers)
+                if new_layers not in layer_variations:
+                    layer_variations.append(new_layers)
+
+            # Add standard architectures if needed
+            standard_architectures = [(100,), (200,), (100,50), (200,100), (300,), (100,100), (200,200)]
+            for arch in standard_architectures:
+                if arch not in layer_variations and len(layer_variations) < 5:
+                    layer_variations.append(arch)
+        else:
+            layer_variations = [(100,), (200,), (100,50), (200,100), (300,)]
+
+        # Ensure we have enough variations
+        for size in [150, 250, 350]:
+            if len(layer_variations) >= 5:
+                break
+            arch = (size,)
+            if arch not in layer_variations:
+                layer_variations.append(arch)
+
+        return layer_variations
+
+# ============================================================================
+# PARAMETER HANDLER FACTORY
+# ============================================================================
+class ParameterHandlerFactory:
+    """Factory for creating model-specific parameter handlers"""
+
+    _handlers = {
+        'xgboost': XGBoostParameterHandler,
+        'random_forest': RandomForestParameterHandler,
+        'svm': SVMParameterHandler,
+        'neural_net': NeuralNetParameterHandler
+    }
+
+    @classmethod
+    def create_handler(cls, model_type: str) -> ModelParameterHandler:
+        """Create appropriate parameter handler for model type"""
+        handler_class = cls._handlers.get(model_type)
+        if handler_class is None:
+            raise ValueError(f"Unknown model type: {model_type}")
+        return handler_class()
+
+# ============================================================================
+# SCORING FUNCTIONS
+# ============================================================================
+def create_mape_scorer(use_log_flux: bool):
+    """Create custom MAPE scorer for flux models"""
+    from sklearn.metrics import make_scorer
+
+    def mape_scorer(y_true, y_pred):
+        """Calculate MAPE, handling log-transformed data"""
+        if use_log_flux:
+            y_true_linear = 10 ** y_true
+            y_pred_linear = 10 ** y_pred
+        else:
+            y_true_linear = y_true
+            y_pred_linear = y_pred
+
+        non_zero_values = y_true_linear[y_true_linear != 0]
+        if len(non_zero_values) > 0:
+            epsilon = max(1e-10, np.percentile(np.abs(non_zero_values), 5))
+        else:
+            epsilon = 1e-10
+
+        if len(y_true_linear.shape) > 1:
+            all_errors = []
+            for i in range(len(y_true_linear)):
+                for j in range(y_true_linear.shape[1]):
+                    if abs(y_true_linear[i, j]) > epsilon:
+                        error = abs((y_pred_linear[i, j] - y_true_linear[i, j]) / y_true_linear[i, j]) * 100
+                        all_errors.append(error)
+            return -np.mean(all_errors) if all_errors else -1000
+        else:
+            mask = np.abs(y_true_linear) > epsilon
+            if np.any(mask):
+                mape = np.mean(np.abs((y_pred_linear[mask] - y_true_linear[mask]) / y_true_linear[mask])) * 100
+                return -mape
+            else:
+                return -1000
+
+    return make_scorer(mape_scorer, greater_is_better=True)
+
+# ============================================================================
+# CROSS-VALIDATION SETUP
+# ============================================================================
+def setup_cross_validation(X_train: np.ndarray, y_train: np.ndarray,
+                          groups: Optional[np.ndarray] = None) -> Tuple[Any, int]:
+    """Set up appropriate cross-validation strategy"""
+    if groups is not None:
+        n_unique_groups = len(np.unique(groups))
+
+        print(f"\nAugmentation Analysis:")
+        print(f"   - Total training samples: {len(X_train)}")
+        print(f"   - Total unique configs: {n_unique_groups}")
+        print(f"   - Average samples per config: {len(X_train) / n_unique_groups:.1f}")
+
+        if len(X_train) % n_unique_groups == 0:
+            samples_per_config = len(X_train) // n_unique_groups
+            print(f"   - Confirmed: {samples_per_config}-fold augmentation detected")
+        else:
+            samples_per_config = len(X_train) / n_unique_groups
+            print(f"   - Warning: Non-integer augmentation: {samples_per_config:.2f} samples per config")
+
+        if n_unique_groups < 2:
+            raise ValueError(f"GroupKFold requires at least 2 unique groups, got {n_unique_groups}")
+
+        n_splits = min(10, n_unique_groups)
+        n_splits = max(2, n_splits)
+
+        if n_splits < 10:
+            print(f"   - WARNING: Only {n_unique_groups} unique groups available, using {n_splits}-fold CV")
+
+        cv = GroupKFold(n_splits=n_splits)
+        print(f"   - Using GroupKFold with {n_unique_groups} unique configurations")
+        print(f"   - Actual CV folds: {n_splits}")
+        print(f"   - Preventing augmentation leakage in CV")
+
+        # Expected split sizes
+        print(f"\n🎯 Expected CV Split Sizes:")
+        configs_per_test_fold = n_unique_groups // n_splits
+        configs_per_train_fold = n_unique_groups - configs_per_test_fold
+        expected_test_samples = configs_per_test_fold * samples_per_config
+        expected_train_samples = configs_per_train_fold * samples_per_config
+        print(f"   - Test fold: ~{configs_per_test_fold} configs × {samples_per_config:.1f} samples = ~{expected_test_samples:.0f} test samples")
+        print(f"   - Train fold: ~{configs_per_train_fold} configs × {samples_per_config:.1f} samples = ~{expected_train_samples:.0f} train samples")
+
+        # Verify first fold
+        print(f"\n🔬 Actual CV Split Verification (Fold 1):")
+        for i, (train_idx, test_idx) in enumerate(cv.split(X_train, y_train, groups)):
+            train_configs = len(np.unique(groups[train_idx]))
+            test_configs = len(np.unique(groups[test_idx]))
+            print(f"   - Fold {i+1}: {len(train_idx)} train samples ({train_configs} configs), {len(test_idx)} test samples ({test_configs} configs)")
+            print(f"   - Train samples per config: {len(train_idx) / train_configs:.1f}")
+            print(f"   - Test samples per config: {len(test_idx) / test_configs:.1f}")
+            break
+    else:
+        cv = 10
+        n_splits = 10
         print(f"   - WARNING: No groups provided - may have CV leakage!")
         print(f"   - Using regular {cv}-fold cross-validation")
 
-    # Create custom MAPE scorer for flux models
-    if target_type == 'flux':
-        from sklearn.metrics import make_scorer
+    return cv, n_splits
 
-        def mape_scorer(y_true, y_pred):
-            """Custom MAPE scorer that handles log-transformed data"""
-            # Convert from log scale if needed
-            if use_log_flux:
-                y_true_linear = 10 ** y_true
-                y_pred_linear = 10 ** y_pred
-            else:
-                y_true_linear = y_true
-                y_pred_linear = y_pred
+# ============================================================================
+# OPTIMIZATION STAGES
+# ============================================================================
+class OptimizationStage:
+    """Base class for optimization stages"""
 
-            # Calculate MAPE (always positive)
-            if len(y_true_linear.shape) > 1:
-                mapes = []
-                for i in range(len(y_true_linear)):
-                    sample_errors = []
-                    for j in range(y_true_linear.shape[1]):
-                        if y_true_linear[i, j] != 0:
-                            error = abs((y_pred_linear[i, j] - y_true_linear[i, j]) / y_true_linear[i, j]) * 100
-                            sample_errors.append(error)
-                    if sample_errors:
-                        mapes.append(np.mean(sample_errors))
-                return np.mean(mapes)
-            else:
-                # Single output
-                mask = y_true_linear != 0
-                mape = np.mean(np.abs((y_pred_linear[mask] - y_true_linear[mask]) / y_true_linear[mask])) * 100
-                return mape
+    def __init__(self, stage_name: str, stage_number: int, total_stages: int):
+        self.stage_name = stage_name
+        self.stage_number = stage_number
+        self.total_stages = total_stages
 
-        # Tell sklearn that lower MAPE is better (not greater)
-        scoring = make_scorer(mape_scorer, greater_is_better=False)
-        print(f"   - Using MAPE scoring (log_flux={use_log_flux}) - lower is better")
-    else:
-        scoring = 'neg_mean_squared_error'
-        print(f"   - Using MSE scoring")
+    def print_header(self):
+        """Print stage header"""
+        print(f"\n{'='*60}")
+        print(f"STAGE {self.stage_number}/{self.total_stages}: {self.stage_name.upper()}")
+        print(f"{'='*60}")
 
-    # Helper function to safely fit with timeout
-    def safe_fit_with_progress(search_cv, X, y, stage_name, groups=None):
-        """Fit with timeout and progress tracking"""
+    def safe_fit_with_progress(self, search_cv, X, y, groups=None, n_splits=10):
+        """Safely fit search with timeout and progress tracking"""
         try:
-            print(f"\n Starting {stage_name} at {datetime.now().strftime('%H:%M:%S')}...")
+            print(f"\n⏱️  Starting {self.stage_name} at {datetime.now().strftime('%H:%M:%S')}...")
 
-            # Add custom scoring wrapper for verbose output
-            original_fit = search_cv.fit
-            fit_count = [0]
+            stage_start_time = time.time()
 
             # Calculate total fits
-            if hasattr(search_cv, 'cv') and hasattr(search_cv.cv, 'n_splits'):
-                cv_folds = search_cv.cv.n_splits
-            elif hasattr(search_cv, 'cv') and isinstance(search_cv.cv, int):
-                cv_folds = search_cv.cv
-            else:
-                cv_folds = 10  # Default
-
             if hasattr(search_cv, 'n_iter'):
-                total_fits = search_cv.n_iter * cv_folds
+                total_fits = search_cv.n_iter * n_splits
             else:
-                # Grid search
                 if hasattr(search_cv, 'param_grid'):
                     if isinstance(search_cv.param_grid, dict):
                         total_combinations = 1
@@ -155,581 +1188,505 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
                             np.prod([len(v) for v in grid.values()])
                             for grid in search_cv.param_grid
                         )
-                    total_fits = total_combinations * cv_folds
+                    total_fits = total_combinations * n_splits
                 else:
-                    total_fits = cv_folds
+                    total_fits = n_splits
 
-            def verbose_fit(*args, **kwargs):
-                start_time = time.time()
-                result = original_fit(*args, **kwargs)
-                fit_count[0] += 1
+            print(f"   Starting {total_fits} model fits...")
 
-                # Print progress every 10%
-                if fit_count[0] % max(1, total_fits // 10) == 0:
-                    elapsed = time.time() - start_time
-                    print(f"   Progress: {fit_count[0]}/{total_fits} fits ({fit_count[0]/total_fits*100:.0f}%) - {elapsed:.1f}s")
-
-                return result
-
-            # Temporarily replace fit method
-            search_cv.fit = verbose_fit
-
-            # Set verbose to 2 for underlying estimators if they support it
+            # Set verbose mode for underlying estimator
             if hasattr(search_cv.estimator, 'set_params'):
                 try:
-                    if model_type == 'xgboost':
+                    model_type = search_cv.estimator.__class__.__name__.lower()
+                    if 'xgb' in model_type:
                         search_cv.estimator.set_params(verbosity=2)
-                    elif model_type == 'random_forest':
+                    elif 'random' in model_type:
                         search_cv.estimator.set_params(verbose=1)
-                    elif model_type == 'svm':
+                    elif 'svm' in model_type or 'svr' in model_type:
                         search_cv.estimator.set_params(verbose=True)
-                    elif model_type == 'neural_net':
+                    elif 'mlp' in model_type:
                         search_cv.estimator.set_params(verbose=True)
                 except Exception as e:
-                    print(f"   ⚠️  Could not set verbose mode for {model_type}: {str(e)[:50]}")
+                    print(f"   ⚠️  Could not set verbose mode: {str(e)[:50]}")
 
             # Fit with timeout
             with warnings.catch_warnings():
                 warnings.filterwarnings('ignore')
-                signal.signal(signal.SIGALRM, timeout_handler)
-                signal.alarm(STAGE_TIMEOUT)
+                if platform.system() != 'Windows':
+                    signal.signal(signal.SIGALRM, timeout_handler)
+                    signal.alarm(config.stage_timeout)
+                else:
+                    print(f"   ⚠️  Windows: No hard timeout - monitoring execution time manually")
+
                 try:
-                    # Pass groups if available
                     if groups is not None:
                         search_cv.fit(X, y, groups=groups)
                     else:
                         search_cv.fit(X, y)
-                    print(f"\n {stage_name} completed successfully!")
-                    if target_type == 'flux':
-                        print(f" Best MAPE: {abs(search_cv.best_score_):.2f}%")
-                    else:
-                        print(f" Best score: {search_cv.best_score_:.6f}")
-                finally:
-                    signal.alarm(0)
 
-            return True, search_cv.best_params_, search_cv.best_score_
+                    elapsed = time.time() - stage_start_time
+
+                    if platform.system() == 'Windows' and elapsed > config.stage_timeout:
+                        print(f"\n⚠️  {self.stage_name} completed but took {elapsed:.1f}s (>{config.stage_timeout}s)")
+                    else:
+                        print(f"\n✅ {self.stage_name} completed successfully in {elapsed:.1f}s!")
+
+                    # Extract target type from scorer
+                    if hasattr(search_cv, 'scoring') and callable(search_cv.scoring):
+                        print(f"   Best MAPE: {abs(search_cv.best_score_):.2f}%")
+                    else:
+                        print(f"   Best MSE: {abs(search_cv.best_score_):.6f}")
+
+                    return True, search_cv.best_params_, search_cv.best_score_, search_cv
+
+                finally:
+                    if platform.system() != 'Windows':
+                        signal.alarm(0)
 
         except TimeoutException:
-            print(f"\n {stage_name} timed out after {STAGE_TIMEOUT}s")
+            print(f"\n⏱️  {self.stage_name} timed out after {config.stage_timeout}s")
             if hasattr(search_cv, 'cv_results_'):
                 scores = search_cv.cv_results_['mean_test_score']
                 if len(scores) > 0:
-                    if target_type == 'flux':
-                        best_idx = np.argmin(scores)
-                    else:
-                        best_idx = np.argmax(scores)
+                    best_idx = np.argmax(scores)
                     best_params = search_cv.cv_results_['params'][best_idx]
                     best_score = scores[best_idx]
                     print(f"   Using partial results: {len(scores)} combinations tested")
-                    if target_type == 'flux':
-                        print(f"   Best MAPE so far: {abs(best_score):.2f}%")
-                    else:
-                        print(f"   Best score so far: {best_score:.6f}")
-                    return True, best_params, best_score
-            return False, {}, float('-inf')
+                    print(f"   Best score so far: {abs(best_score):.4f}")
+                    return True, best_params, best_score, search_cv
+            return False, {}, float('-inf'), None
 
         except Exception as e:
-            print(f"\n {stage_name} failed with error: {str(e)[:100]}")
-            return False, {}, float('-inf')
+            print(f"\n❌ {self.stage_name} failed with error: {str(e)[:100]}")
+            return False, {}, float('-inf'), None
 
-    # Stage 1: Random Search - Cast wide net
+class RandomSearchStage(OptimizationStage):
+    """Random search optimization stage"""
+
+    def __init__(self):
+        super().__init__("Random Search", 1, 3)
+
+    def run(self, X_train, y_train, model_class, param_distributions,
+            cv, n_splits, scoring, n_jobs, groups, n_iter=1000,
+            fixed_params=None):
+        """Execute random search stage"""
+        self.print_header()
+        print("Exploring parameter space broadly...")
+        print(f"This stage tests {n_iter} random parameter combinations")
+
+        stage_start = time.time()
+
+        print(f"\n📊 Random Search Parameters:")
+        print(f"   - Candidates to test: {n_iter}")
+        print(f"   - Cross-validation folds: {n_splits}")
+        print(f"   - Total fits: {n_iter * n_splits}")
+        print(f"   - Timeout: {config.stage_timeout}s")
+
+        # Create model instance with fixed parameters
+        if fixed_params:
+            model = model_class(**fixed_params)
+            print(f"   - Using {len(fixed_params)} fixed parameters during optimization")
+        else:
+            model = model_class()
+
+        random_search = RandomizedSearchCV(
+            model,
+            param_distributions,
+            n_iter=n_iter,
+            cv=cv,
+            scoring=scoring,
+            n_jobs=n_jobs,
+            verbose=2,
+            random_state=42
+        )
+
+        success, best_params, best_score, search_obj = self.safe_fit_with_progress(
+            random_search, X_train, y_train, groups, n_splits
+        )
+
+        stage_time = time.time() - stage_start
+        print(f"\nStage 1 took {stage_time/60:.1f} minutes")
+
+        if success and best_params:
+            print(f"Best params: {best_params}")
+
+        return success, best_params, best_score, search_obj, stage_time
+
+class GridSearchStage(OptimizationStage):
+    """Grid search optimization stage"""
+
+    def __init__(self):
+        super().__init__("Grid Search", 2, 3)
+
+    def run(self, X_train, y_train, model_class, model_type, best_random_params,
+            cv, n_splits, scoring, n_jobs, groups, needs_wrapper,
+            fixed_params=None):
+        """Execute grid search stage"""
+        self.print_header()
+        print("Refining parameters with focused ±20% grid around best Random Search results...")
+        print("This stage provides consistent, predictable fine-tuning around promising values")
+
+        stage_start = time.time()
+
+        # Create parameter grid
+        handler = ParameterHandlerFactory.create_handler(model_type)
+        param_grid = handler.create_grid_params(best_random_params, needs_wrapper)
+
+        # Calculate total combinations
+        if isinstance(param_grid, list):
+            total_combinations = sum(
+                np.prod([len(v) for v in grid.values()]) for grid in param_grid
+            )
+        else:
+            total_combinations = np.prod([len(v) for v in param_grid.values()])
+
+        print(f"\n🔍 Grid Search Parameters:")
+        print(f"   - Parameter combinations: {total_combinations}")
+        print(f"   - Cross-validation folds: {n_splits}")
+        print(f"   - Total fits: {total_combinations * n_splits}")
+        print(f"   - Timeout: {config.stage_timeout}s")
+
+        # Create model instance with fixed parameters
+        if fixed_params:
+            model = model_class(**fixed_params)
+            print(f"   - Using {len(fixed_params)} fixed parameters during optimization")
+        else:
+            model = model_class()
+
+        grid_search = GridSearchCV(
+            model,
+            param_grid,
+            cv=cv,
+            scoring=scoring,
+            n_jobs=n_jobs,
+            verbose=2
+        )
+
+        success, best_params, best_score, search_obj = self.safe_fit_with_progress(
+            grid_search, X_train, y_train, groups, n_splits
+        )
+
+        stage_time = time.time() - stage_start
+        print(f"\nStage 2 took {stage_time/60:.1f} minutes")
+
+        return success, best_params, best_score, search_obj, stage_time
+
+class BayesianSearchStage(OptimizationStage):
+    """Bayesian optimization stage"""
+
+    def __init__(self):
+        super().__init__("Bayesian Optimization", 3, 3)
+
+    def run(self, X_train, y_train, model_class, model_type, best_params_so_far,
+            cv, n_splits, scoring, n_jobs, groups, needs_wrapper, n_iter=100,
+            fixed_params=None):
+        """Execute Bayesian optimization stage"""
+        self.print_header()
+        print("Fine-tuning with intelligent search...")
+
+        stage_start = time.time()
+
+        # Create search spaces
+        handler = ParameterHandlerFactory.create_handler(model_type)
+        search_spaces = handler.create_bayesian_spaces(best_params_so_far, needs_wrapper)
+
+        print(f"\n🎯 Bayesian Search Parameters:")
+        print(f"   - Iterations: {n_iter}")
+        print(f"   - Cross-validation folds: {n_splits}")
+        print(f"   - Total fits: up to {n_iter * n_splits}")
+        print(f"   - Timeout: {config.stage_timeout}s")
+
+        # Create model instance with fixed parameters
+        if fixed_params:
+            model = model_class(**fixed_params)
+            print(f"   - Using {len(fixed_params)} fixed parameters during optimization")
+        else:
+            model = model_class()
+
+        bayes_search = BayesSearchCV(
+            model,
+            search_spaces,
+            n_iter=n_iter,
+            cv=cv,
+            scoring=scoring,
+            n_jobs=n_jobs,
+            verbose=2,
+            random_state=42
+        )
+
+        success, best_params, best_score, search_obj = self.safe_fit_with_progress(
+            bayes_search, X_train, y_train, groups, n_splits
+        )
+
+        stage_time = time.time() - stage_start
+        print(f"\nStage 3 took {stage_time/60:.1f} minutes")
+
+        return success, best_params, best_score, search_obj, stage_time
+
+# ============================================================================
+# MAIN OPTIMIZATION FUNCTION
+# ============================================================================
+def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost',
+                           n_jobs=-1, target_type='flux', use_log_flux=True, groups=None,
+                           n_random_iter=None, n_bayesian_iter=None, fast_mode=False):
+    """
+    Three-stage hyperparameter optimization: Random → Grid → Bayesian
+
+    Args:
+        X_train: Training features
+        y_train: Training targets
+        model_class: Model class to optimize
+        model_type: Type of model ('xgboost', 'random_forest', 'svm', 'neural_net')
+        n_jobs: Number of parallel jobs
+        target_type: 'flux' or 'keff' - determines optimization metric
+        use_log_flux: Whether flux data is log-transformed
+        groups: Array indicating which samples belong to same original config
+        n_random_iter: Number of random search iterations
+        n_bayesian_iter: Number of Bayesian search iterations
+        fast_mode: If True, uses reduced iteration counts for quick testing
+
+    Returns:
+        tuple: (best_params, None)
+    """
+    # Configure iteration counts
+    if fast_mode:
+        actual_random_iter = config.fast_random_iter
+        actual_bayesian_iter = config.fast_bayesian_iter
+        print(f"   🚀 FAST MODE: Using reduced iteration counts for quick testing")
+    else:
+        actual_random_iter = n_random_iter if n_random_iter is not None else config.default_random_iter
+        actual_bayesian_iter = n_bayesian_iter if n_bayesian_iter is not None else config.default_bayesian_iter
+
     print(f"\n{'='*60}")
-    print("STAGE 1/3: RANDOM SEARCH")
+    print(f"THREE-STAGE HYPERPARAMETER OPTIMIZATION")
     print(f"{'='*60}")
-    print("Exploring parameter space broadly...")
-    print("This stage tests 250 random parameter combinations")
-    stage1_start = time.time()
+    print(f"Model: {model_type}")
+    print(f"Target: {target_type.upper()}")
+    print(f"Optimization metric: {'MAPE' if target_type == 'flux' else 'MSE'}")
+    print(f"Random search iterations: {actual_random_iter}")
+    print(f"Bayesian search iterations: {actual_bayesian_iter}")
+    print(f"Stage timeout: {config.stage_timeout}s, Total timeout: {config.total_timeout}s")
+    print(f"{'='*60}")
 
-    if model_type == 'xgboost':
-        if is_multi_output:
-            param_distributions = {
-                'estimator__n_estimators': randint(50, 5000),
-                'estimator__max_depth': randint(2, 20),
-                'estimator__learning_rate': uniform(0.001, 0.499),
-                'estimator__subsample': uniform(0.3, 0.7),
-                'estimator__colsample_bytree': uniform(0.3, 0.7),
-                'estimator__colsample_bylevel': uniform(0.3, 0.7),
-                'estimator__reg_alpha': uniform(0, 10),
-                'estimator__reg_lambda': uniform(0, 10),
-                'estimator__gamma': uniform(0.0001, 0.0999),
-                'estimator__min_child_weight': randint(1, 20)
-            }
-        else:
-            param_distributions = {
-                'n_estimators': randint(50, 5000),
-                'max_depth': randint(2, 20),
-                'learning_rate': uniform(0.001, 0.499),
-                'subsample': uniform(0.3, 0.7),
-                'colsample_bytree': uniform(0.3, 0.7),
-                'colsample_bylevel': uniform(0.3, 0.7),
-                'reg_alpha': uniform(0, 10),
-                'reg_lambda': uniform(0, 10),
-                'gamma': uniform(0.0001, 0.0999),
-                'min_child_weight': randint(1, 20)
-            }
-    elif model_type == 'random_forest':
-        param_distributions = {
-            'n_estimators': randint(200, 1500),
-            'max_depth': randint(3, 40),
-            'min_samples_split': randint(2, 30),
-            'min_samples_leaf': randint(1, 10),
-            'max_features': ['sqrt', 'log2', 0.3, 0.5, 0.7, 0.9],
-            'max_samples': uniform(0.2, 0.8),
-            'bootstrap': [True, False]
-        }
-    elif model_type == 'svm':
-        if is_multi_output:
-            param_distributions = {
-                'estimator__C': uniform(1.0, 99.0),
-                'estimator__gamma': uniform(0.0001, 0.0999),
-                'estimator__epsilon': uniform(0.0005, 0.0995),
-                'estimator__kernel': ['rbf', 'poly'],
-                'estimator__degree': randint(2, 5),
-                'estimator__coef0': uniform(1, 9)
-            }
-        else:
-            param_distributions = {
-                'C': uniform(1.0, 99.0),
-                'gamma': uniform(0.0001, 0.0999),
-                'epsilon': uniform(0.0005, 0.0995),
-                'kernel': ['rbf', 'poly'],
-                'degree': randint(2, 5),
-                'coef0': uniform(1, 9)
-            }
-    elif model_type == 'neural_net':
-        if is_multi_output:
-            param_distributions = {
-                'estimator__hidden_layer_sizes': [
-                    (50,), (100,), (200,), (300,), (400,),
-                    (100, 50), (200, 100), (300, 150), (400, 200),
-                    (200, 100, 50), (300, 200, 100), (400, 300, 200),
-                    (300, 200, 100, 50), (400, 300, 200, 100),
-                    (400, 300, 200, 100, 50)
-                ],
-                'estimator__learning_rate_init': uniform(0.0001, 0.0099),
-                'estimator__alpha': uniform(0.0001, 0.0999),
-                'estimator__activation': ['relu', 'tanh'],
-                'estimator__solver': ['adam', 'lbfgs']
-            }
-        else:
-            param_distributions = {
-                'hidden_layer_sizes': [
-                    (50,), (100,), (200,), (300,), (400,),
-                    (100, 50), (200, 100), (300, 150), (400, 200),
-                    (200, 100, 50), (300, 200, 100), (400, 300, 200),
-                    (300, 200, 100, 50), (400, 300, 200, 100),
-                    (400, 300, 200, 100, 50)
-                ],
-                'learning_rate_init': uniform(0.0001, 0.0099),
-                'alpha': uniform(0.0001, 0.0999),
-                'activation': ['relu', 'tanh'],
-                'solver': ['adam', 'lbfgs']
-            }
+    # Validate model class matches model type
+    model_class_name = model_class.__name__.lower()
+    expected_names = {
+        'xgboost': ['xgbregressor', 'xgbclassifier'],
+        'random_forest': ['randomforestregressor', 'randomforestclassifier'],
+        'svm': ['svr', 'svc', 'linearsvr', 'linearsvc'],
+        'neural_net': ['mlpregressor', 'mlpclassifier', 'neuralnetwork']
+    }
 
-    print(f"\n Random Search Parameters:")
-    print(f"   - Candidates to test: 500")
-    print(f"   - Cross-validation folds: 10")
-    print(f"   - Total fits: 5,000")
-    print(f"   - Timeout: {STAGE_TIMEOUT}s")
+    if model_type in expected_names:
+        if not any(name in model_class_name for name in expected_names[model_type]):
+            print(f"⚠️  WARNING: Model class '{model_class.__name__}' may not match model_type '{model_type}'")
+            print(f"   Expected one of: {expected_names[model_type]}")
 
-    random_search = RandomizedSearchCV(
-        model_class(),
-        param_distributions,
-        n_iter=500,
-        cv=cv,
-        scoring=scoring,
-        n_jobs=n_jobs,
-        verbose=2,
-        random_state=42
-    )
+    optimization_start_time = time.time()
+    best_params_so_far = {}
+    best_score_so_far = float('-inf')
 
-    success, best_random_params, best_random_score = safe_fit_with_progress(
-        random_search, X_train, y_train, "Random Search", groups
-    )
+    # Determine if multi-output and needs wrapper
+    has_multi_output_data = len(y_train.shape) > 1 and y_train.shape[1] > 1
 
-    if success and best_random_params:
+    if has_multi_output_data:
+        try:
+            test_model = model_class()
+
+            # Check if the model instance is already a MultiOutputRegressor wrapper
+            from sklearn.multioutput import MultiOutputRegressor
+
+            if isinstance(test_model, MultiOutputRegressor):
+                print(f"   - Multi-output: Model is already wrapped with MultiOutputRegressor")
+                needs_wrapper = True  # Parameters need estimator__ prefix
+            elif hasattr(test_model, '_more_tags'):
+                tags = test_model._more_tags()
+                native_multioutput = tags.get('multioutput', False) or tags.get('multioutput_only', False)
+                if native_multioutput:
+                    print(f"   - Multi-output: Native support detected, no wrapper needed")
+                    needs_wrapper = False
+                else:
+                    print(f"   - Multi-output: Using MultiOutputRegressor wrapper")
+                    needs_wrapper = True
+            else:
+                # Fallback: check if model type typically needs wrapper
+                native_multioutput = model_type in ['random_forest']  # Only RF has native support
+                if native_multioutput:
+                    print(f"   - Multi-output: Native support detected for {model_type}")
+                    needs_wrapper = False
+                else:
+                    print(f"   - Multi-output: Using MultiOutputRegressor wrapper for {model_type}")
+                    needs_wrapper = True
+        except Exception as e:
+            print(f"   - Multi-output: Error detecting wrapper ({str(e)[:50]}), using safe default")
+            needs_wrapper = True
+    else:
+        needs_wrapper = False
+
+    print(f"\n📊 Data Info:")
+    print(f"   - Training samples: {X_train.shape[0]}")
+    print(f"   - Features: {X_train.shape[1]}")
+    print(f"   - Output type: {'Multi-output' if has_multi_output_data else 'Single output'}")
+    if has_multi_output_data:
+        print(f"   - Number of outputs: {y_train.shape[1]}")
+    print(f"   - Using {n_jobs} parallel jobs")
+
+    # Set up cross-validation
+    cv, n_splits = setup_cross_validation(X_train, y_train, groups)
+
+    # Set up scoring
+    if target_type == 'flux':
+        scoring = create_mape_scorer(use_log_flux)
+        print(f"   - Using MAPE scoring (log_flux={use_log_flux})")
+    else:
+        scoring = 'neg_mean_squared_error'
+        print(f"   - Using MSE scoring")
+
+    # Get parameter handler
+    handler = ParameterHandlerFactory.create_handler(model_type)
+
+    # Extract fixed parameters that should not be optimized
+    fixed_params = handler.get_fixed_params()
+    print(f"\n🔒 Fixed Parameters (not optimized):")
+    for param, value in fixed_params.items():
+        print(f"   - {param}: {value}")
+
+    # ========================================================================
+    # STAGE 1: RANDOM SEARCH
+    # ========================================================================
+    random_stage = RandomSearchStage()
+    param_distributions = handler.get_random_distributions(needs_wrapper)
+
+    success1, best_random_params, best_random_score, random_search_obj, stage1_time = \
+        random_stage.run(X_train, y_train, model_class, param_distributions,
+                        cv, n_splits, scoring, n_jobs, groups, actual_random_iter,
+                        fixed_params=fixed_params)
+
+    if success1 and best_random_params:
         best_params_so_far = best_random_params
         best_score_so_far = best_random_score
-
-    stage1_time = time.time() - stage1_start
-    print(f"\nStage 1 took {stage1_time/60:.1f} minutes")
-    if target_type == 'flux':
-        print(f"Best MAPE: {abs(best_random_score):.2f}%")
     else:
-        print(f"Best score: {best_random_score:.6f}")
-    print(f"Best params: {best_random_params}")
-
-    # Check if Stage 1 failed
-    if not best_random_params:
-        print(f"\n Stage 1 failed to find any parameters. Returning default parameters.")
-        # Return default parameters...
-        return get_default_params(model_type), None
+        print(f"\n❌ Stage 1 failed to find any parameters. Returning default parameters.")
+        default_params = handler.get_default_params()
+        if needs_wrapper and model_type in ['xgboost', 'svm', 'neural_net']:
+            prefixed_params = {f'estimator__{k}': v for k, v in default_params.items()}
+            return prefixed_params, None
+        else:
+            return default_params, None
 
     # Check total timeout
-    if time.time() - optimization_start_time > TOTAL_TIMEOUT:
-        print(f"\n Total timeout reached. Returning best parameters found so far.")
+    if time.time() - optimization_start_time > config.total_timeout:
+        print(f"\n⏱️  Total timeout reached. Returning best parameters found so far.")
         return best_params_so_far, None
 
-    # Helper function to get parameter value with or without prefix
-    def get_param_value(params, base_key, default=None):
-        """Get parameter value checking both with and without estimator__ prefix"""
-        prefixed_key = f'estimator__{base_key}'
-        if prefixed_key in params:
-            return params[prefixed_key]
-        elif base_key in params:
-            return params[base_key]
-        elif default is not None:
-            print(f"   Parameter '{base_key}' not found, using default: {default}")
-            return default
-        else:
-            raise KeyError(f"Parameter '{base_key}' not found")
+    # ========================================================================
+    # STAGE 2: GRID SEARCH
+    # ========================================================================
+    grid_stage = GridSearchStage()
 
-    # Stage 2: Grid Search - Focus on promising region
-    print(f"\n{'='*60}")
-    print("STAGE 2/3: GRID SEARCH")
-    print(f"{'='*60}")
-    print("Refining parameters around best region from Random Search...")
-    stage2_start = time.time()
+    success2, best_grid_params, best_grid_score, grid_search_obj, stage2_time = \
+        grid_stage.run(X_train, y_train, model_class, model_type,
+                      best_random_params, cv, n_splits, scoring, n_jobs,
+                      groups, needs_wrapper, fixed_params=fixed_params)
 
-    # Create focused grid around best random search params
-    if model_type == 'xgboost':
-        if is_multi_output:
-            n_est = get_param_value(best_random_params, 'n_estimators')
-            depth = get_param_value(best_random_params, 'max_depth')
-            lr = get_param_value(best_random_params, 'learning_rate')
-
-            param_grid = {
-                'estimator__n_estimators': [max(100, n_est-200), n_est-100, n_est, n_est+100, min(1500, n_est+200)],
-                'estimator__max_depth': [max(3, depth-2), depth-1, depth, depth+1, min(15, depth+2)],
-                'estimator__learning_rate': [max(0.001, lr*0.5), lr*0.75, lr, lr*1.25, min(0.3, lr*1.5)],
-                'estimator__subsample': [0.6, 0.7, 0.8, 0.9],
-                'estimator__colsample_bytree': [0.6, 0.7, 0.8, 0.9]
-            }
-        else:
-            n_est = get_param_value(best_random_params, 'n_estimators')
-            depth = get_param_value(best_random_params, 'max_depth')
-            lr = get_param_value(best_random_params, 'learning_rate')
-
-            param_grid = {
-                'n_estimators': [max(100, n_est-200), n_est-100, n_est, n_est+100, min(1500, n_est+200)],
-                'max_depth': [max(3, depth-2), depth-1, depth, depth+1, min(15, depth+2)],
-                'learning_rate': [max(0.001, lr*0.5), lr*0.75, lr, lr*1.25, min(0.3, lr*1.5)],
-                'subsample': [0.6, 0.7, 0.8, 0.9],
-                'colsample_bytree': [0.6, 0.7, 0.8, 0.9]
-            }
-
-    elif model_type == 'random_forest':
-        n_est = get_param_value(best_random_params, 'n_estimators')
-        depth = get_param_value(best_random_params, 'max_depth', 20)
-        min_split = get_param_value(best_random_params, 'min_samples_split')
-
-        param_grid = {
-            'n_estimators': [max(100, n_est-100), n_est-50, n_est, n_est+50, min(1000, n_est+100)],
-            'max_depth': [max(5, depth-5), depth-2, depth, depth+2, min(50, depth+5)] if depth else [None, 10, 20, 30, 40],
-            'min_samples_split': [max(2, min_split-3), min_split-1, min_split, min_split+1, min(20, min_split+3)],
-            'min_samples_leaf': [1, 2, 4, 6, 8]
-        }
-
-    elif model_type == 'svm':
-        if is_multi_output:
-            C = get_param_value(best_random_params, 'C')
-            gamma = get_param_value(best_random_params, 'gamma')
-            eps = get_param_value(best_random_params, 'epsilon')
-
-            param_grid = {
-                'estimator__C': [C/10, C/3, C, C*3, C*10],
-                'estimator__gamma': [gamma/10, gamma/3, gamma, gamma*3, gamma*10],
-                'estimator__epsilon': [max(0.001, eps*0.5), eps*0.75, eps, eps*1.25, min(1.0, eps*1.5)],
-                'estimator__kernel': [get_param_value(best_random_params, 'kernel')]
-            }
-        else:
-            C = get_param_value(best_random_params, 'C')
-            gamma = get_param_value(best_random_params, 'gamma')
-            eps = get_param_value(best_random_params, 'epsilon')
-
-            param_grid = {
-                'C': [C/10, C/3, C, C*3, C*10],
-                'gamma': [gamma/10, gamma/3, gamma, gamma*3, gamma*10],
-                'epsilon': [max(0.001, eps*0.5), eps*0.75, eps, eps*1.25, min(1.0, eps*1.5)],
-                'kernel': [get_param_value(best_random_params, 'kernel')]
-            }
-
-    elif model_type == 'neural_net':
-        if is_multi_output:
-            layers = get_param_value(best_random_params, 'hidden_layer_sizes')
-            lr = get_param_value(best_random_params, 'learning_rate_init')
-            alpha = get_param_value(best_random_params, 'alpha')
-
-            layer_variations = []
-            if isinstance(layers, tuple):
-                base_layers = list(layers)
-                for delta in [-50, -25, 0, 25, 50]:
-                    new_layers = tuple(max(50, min(400, l + delta)) for l in base_layers)
-                    if new_layers not in layer_variations:
-                        layer_variations.append(new_layers)
-
-            param_grid = {
-                'estimator__hidden_layer_sizes': layer_variations[:5],
-                'estimator__learning_rate_init': [max(0.0001, lr*0.5), lr*0.75, lr, lr*1.25, min(0.01, lr*1.5)],
-                'estimator__alpha': [max(0.0001, alpha*0.5), alpha*0.75, alpha, alpha*1.25, min(0.1, alpha*1.5)],
-                'estimator__activation': [get_param_value(best_random_params, 'activation')]
-            }
-        else:
-            layers = get_param_value(best_random_params, 'hidden_layer_sizes')
-            lr = get_param_value(best_random_params, 'learning_rate_init')
-            alpha = get_param_value(best_random_params, 'alpha')
-
-            layer_variations = []
-            if isinstance(layers, tuple):
-                base_layers = list(layers)
-                for delta in [-50, -25, 0, 25, 50]:
-                    new_layers = tuple(max(50, min(400, l + delta)) for l in base_layers)
-                    if new_layers not in layer_variations:
-                        layer_variations.append(new_layers)
-
-            param_grid = {
-                'hidden_layer_sizes': layer_variations[:5],
-                'learning_rate_init': [max(0.0001, lr*0.5), lr*0.75, lr, lr*1.25, min(0.01, lr*1.5)],
-                'alpha': [max(0.0001, alpha*0.5), alpha*0.75, alpha, alpha*1.25, min(0.1, alpha*1.5)],
-                'activation': [get_param_value(best_random_params, 'activation')]
-            }
-
-    # Calculate total combinations
-    total_combinations = 1
-    for param_values in param_grid.values():
-        total_combinations *= len(param_values)
-
-    print(f"\n🔍 Grid Search Parameters:")
-    print(f"   - Parameter combinations: {total_combinations}")
-    print(f"   - Cross-validation folds: 10")
-    print(f"   - Total fits: {total_combinations * 10}")
-    print(f"   - Timeout: {STAGE_TIMEOUT}s")
-
-    grid_model = model_class()
-
-    grid_search = GridSearchCV(
-        grid_model,
-        param_grid,
-        cv=cv,  # Use the CV strategy defined at the beginning
-        scoring=scoring,
-        n_jobs=n_jobs,
-        verbose=2
-    )
-
-    success, best_grid_params, best_grid_score = safe_fit_with_progress(
-        grid_search, X_train, y_train, "Grid Search", groups
-    )
-
-    if success and best_grid_params:
-        if target_type == 'flux':
-            improved = best_grid_score > best_score_so_far
-        else:
-            improved = best_grid_score > best_score_so_far
-
-        if improved:
+    if success2 and best_grid_params:
+        if best_grid_score > best_score_so_far:
             best_params_so_far = best_grid_params
             best_score_so_far = best_grid_score
-            print(f"\n Grid search improved performance!")
+            print(f"\n✅ Grid search improved performance!")
         else:
             print(f"\n Grid search did not improve performance.")
 
-    stage2_time = time.time() - stage2_start
-    print(f"\nStage 2 took {stage2_time/60:.1f} minutes")
-
     # Check total timeout
-    if time.time() - optimization_start_time > TOTAL_TIMEOUT:
-        print(f"\n Total timeout reached. Returning best parameters found so far.")
+    if time.time() - optimization_start_time > config.total_timeout:
+        print(f"\n⏱️  Total timeout reached. Returning best parameters found so far.")
         return best_params_so_far, None
 
-    # Stage 3: Bayesian Optimization - Fine tuning
-    print(f"\n{'='*60}")
-    print("STAGE 3/3: BAYESIAN OPTIMIZATION")
-    print(f"{'='*60}")
-    print("Fine-tuning with intelligent search...")
-    stage3_start = time.time()
+    # ========================================================================
+    # STAGE 3: BAYESIAN OPTIMIZATION
+    # ========================================================================
+    bayes_stage = BayesianSearchStage()
 
-    # Update best params with grid results
-    best_params = {**best_random_params, **best_grid_params}
+    success3, best_bayes_params, best_bayes_score, bayes_search_obj, stage3_time = \
+        bayes_stage.run(X_train, y_train, model_class, model_type,
+                       best_params_so_far, cv, n_splits, scoring, n_jobs,
+                       groups, needs_wrapper, actual_bayesian_iter,
+                       fixed_params=fixed_params)
 
-    # Define search spaces for Bayesian optimization
-    if model_type == 'xgboost':
-        if is_multi_output:
-            n_est = get_param_value(best_params, 'n_estimators')
-            depth = get_param_value(best_params, 'max_depth')
-            lr = get_param_value(best_params, 'learning_rate')
-            subsample = get_param_value(best_params, 'subsample')
-            colsample = get_param_value(best_params, 'colsample_bytree')
-
-            search_spaces = {
-                'estimator__n_estimators': Integer(max(100, n_est-100), min(1500, n_est+100)),
-                'estimator__max_depth': Integer(max(3, depth-1), min(15, depth+1)),
-                'estimator__learning_rate': Real(max(0.001, lr*0.8), min(0.3, lr*1.2), prior='log-uniform'),
-                'estimator__subsample': Real(max(0.5, subsample-0.1), min(1.0, subsample+0.1)),
-                'estimator__colsample_bytree': Real(max(0.5, colsample-0.1), min(1.0, colsample+0.1))
-            }
-        else:
-            n_est = get_param_value(best_params, 'n_estimators')
-            depth = get_param_value(best_params, 'max_depth')
-            lr = get_param_value(best_params, 'learning_rate')
-            subsample = get_param_value(best_params, 'subsample')
-            colsample = get_param_value(best_params, 'colsample_bytree')
-
-            search_spaces = {
-                'n_estimators': Integer(max(100, n_est-100), min(1500, n_est+100)),
-                'max_depth': Integer(max(3, depth-1), min(15, depth+1)),
-                'learning_rate': Real(max(0.001, lr*0.8), min(0.3, lr*1.2), prior='log-uniform'),
-                'subsample': Real(max(0.5, subsample-0.1), min(1.0, subsample+0.1)),
-                'colsample_bytree': Real(max(0.5, colsample-0.1), min(1.0, colsample+0.1))
-            }
-
-    elif model_type == 'random_forest':
-        n_est = get_param_value(best_params, 'n_estimators')
-        min_split = get_param_value(best_params, 'min_samples_split')
-        min_leaf = get_param_value(best_params, 'min_samples_leaf')
-
-        search_spaces = {
-            'n_estimators': Integer(max(100, n_est-50), min(1000, n_est+50)),
-            'min_samples_split': Integer(max(2, min_split-2), min(20, min_split+2)),
-            'min_samples_leaf': Integer(max(1, min_leaf-1), min(10, min_leaf+2))
-        }
-
-        depth = get_param_value(best_params, 'max_depth', None)
-        if depth is not None:
-            search_spaces['max_depth'] = Integer(max(5, depth-3), min(50, depth+3))
-
-    elif model_type == 'svm':
-        if is_multi_output:
-            C = get_param_value(best_params, 'C')
-            gamma = get_param_value(best_params, 'gamma')
-            eps = get_param_value(best_params, 'epsilon')
-            kernel = get_param_value(best_params, 'kernel')
-
-            search_spaces = {
-                'estimator__C': Real(C/5, C*5, prior='log-uniform'),
-                'estimator__gamma': Real(gamma/5, gamma*5, prior='log-uniform'),
-                'estimator__epsilon': Real(max(0.001, eps*0.5), min(1.0, eps*1.5)),
-                'estimator__kernel': Categorical([kernel])
-            }
-        else:
-            C = get_param_value(best_params, 'C')
-            gamma = get_param_value(best_params, 'gamma')
-            eps = get_param_value(best_params, 'epsilon')
-            kernel = get_param_value(best_params, 'kernel')
-
-            search_spaces = {
-                'C': Real(C/5, C*5, prior='log-uniform'),
-                'gamma': Real(gamma/5, gamma*5, prior='log-uniform'),
-                'epsilon': Real(max(0.001, eps*0.5), min(1.0, eps*1.5)),
-                'kernel': Categorical([kernel])
-            }
-
-    elif model_type == 'neural_net':
-        if is_multi_output:
-            lr = get_param_value(best_params, 'learning_rate_init')
-            alpha = get_param_value(best_params, 'alpha')
-            layers = get_param_value(best_params, 'hidden_layer_sizes')
-            activation = get_param_value(best_params, 'activation')
-
-            search_spaces = {
-                'estimator__learning_rate_init': Real(lr*0.5, lr*2.0, prior='log-uniform'),
-                'estimator__alpha': Real(alpha*0.5, alpha*2.0, prior='log-uniform'),
-                'estimator__hidden_layer_sizes': Categorical([layers]),
-                'estimator__activation': Categorical([activation])
-            }
-        else:
-            lr = get_param_value(best_params, 'learning_rate_init')
-            alpha = get_param_value(best_params, 'alpha')
-            layers = get_param_value(best_params, 'hidden_layer_sizes')
-            activation = get_param_value(best_params, 'activation')
-
-            search_spaces = {
-                'learning_rate_init': Real(lr*0.5, lr*2.0, prior='log-uniform'),
-                'alpha': Real(alpha*0.5, alpha*2.0, prior='log-uniform'),
-                'hidden_layer_sizes': Categorical([layers]),
-                'activation': Categorical([activation])
-            }
-
-    bayes_search = BayesSearchCV(
-        model_class(),
-        search_spaces,
-        n_iter=100,
-        cv=cv,  # Use the CV strategy defined at the beginning
-        scoring=scoring,
-        n_jobs=n_jobs,
-        verbose=2,
-        random_state=42
-    )
-
-    success, best_bayes_params, best_bayes_score = safe_fit_with_progress(
-        bayes_search, X_train, y_train, "Bayesian Optimization", groups
-    )
-
-    if success and best_bayes_params:
-        if target_type == 'flux':
-            improved = best_bayes_score > best_score_so_far
-        else:
-            improved = best_bayes_score > best_score_so_far
-
-        if improved:
+    if success3 and best_bayes_params:
+        if best_bayes_score > best_score_so_far:
             best_params_so_far = best_bayes_params
             best_score_so_far = best_bayes_score
-            print(f"\n Bayesian search improved performance!")
+            print(f"\n✅ Bayesian search improved performance!")
         else:
             print(f"\n Bayesian search did not improve performance.")
 
-    stage3_time = time.time() - stage3_start
+    # ========================================================================
+    # FINAL SUMMARY
+    # ========================================================================
     total_time = time.time() - optimization_start_time
 
-    print(f"\nStage 3 took {stage3_time/60:.1f} minutes")
     print(f"\n{'='*60}")
     print("OPTIMIZATION COMPLETE!")
     print(f"{'='*60}")
+    print(f"Total optimization time: {total_time/60:.1f} minutes")
+    print(f"  - Stage 1 (Random):   {stage1_time/60:.1f} minutes")
+    print(f"  - Stage 2 (Grid):     {stage2_time/60:.1f} minutes")
+    print(f"  - Stage 3 (Bayesian): {stage3_time/60:.1f} minutes")
 
-    # Clean up parameters for final model creation
-    if is_multi_output and model_type in ['xgboost', 'svm', 'neural_net']:
+    if target_type == 'flux':
+        print(f"\nFinal best MAPE: {abs(best_score_so_far):.2f}%")
+    else:
+        print(f"\nFinal best MSE: {abs(best_score_so_far):.6f}")
+
+    # Prepare final parameters - fixed params were used throughout optimization
+    handler = ParameterHandlerFactory.create_handler(model_type)
+    default_params = handler.get_default_params()
+
+    # Clean up parameters for final model and ensure complete parameter set
+    if needs_wrapper and model_type in ['xgboost', 'svm', 'neural_net']:
         clean_params = {}
         for key, value in best_params_so_far.items():
             if key.startswith('estimator__'):
-                clean_params[key.replace('estimator__', '')] = value
+                clean_key = key.replace('estimator__', '')
+                clean_params[clean_key] = value
             else:
-                clean_params[key] = value
-        print(f"\n Best parameters (cleaned):")
-        for param, value in clean_params.items():
+                if key not in [k.replace('estimator__', '') for k in best_params_so_far.keys() if k.startswith('estimator__')]:
+                    clean_params[key] = value
+
+        # Ensure all default parameters are included (optimized + fixed)
+        for param, value in default_params.items():
+            if param not in clean_params:
+                clean_params[param] = value
+
+        print(f"\nOptimal parameters (fixed parameters were used throughout optimization):")
+        optimized_params = {k: v for k, v in clean_params.items() if k not in fixed_params}
+        fixed_params_used = {k: v for k, v in clean_params.items() if k in fixed_params}
+
+        print(f"   Optimized parameters:")
+        for param, value in optimized_params.items():
             print(f"   - {param}: {value}")
+        print(f"   Fixed parameters:")
+        for param, value in fixed_params_used.items():
+            print(f"   - {param}: {value}")
+
         return clean_params, None
     else:
-        print(f"\n Best parameters:")
-        for param, value in best_params_so_far.items():
-            print(f"   - {param}: {value}")
-        return best_params_so_far, None
+        # Ensure all default parameters are included (optimized + fixed)
+        final_params = best_params_so_far.copy()
+        for param, value in default_params.items():
+            if param not in final_params:
+                final_params[param] = value
 
-def get_default_params(model_type):
-    """Get default parameters for model type"""
-    defaults = {
-        'xgboost': {
-            'n_estimators': 300,
-            'max_depth': 6,
-            'learning_rate': 0.1,
-            'subsample': 0.8,
-            'colsample_bytree': 0.8
-        },
-        'random_forest': {
-            'n_estimators': 300,
-            'max_depth': 20,
-            'min_samples_split': 5,
-            'min_samples_leaf': 2
-        },
-        'svm': {
-            'C': 1.0,
-            'gamma': 0.1,
-            'epsilon': 0.1,
-            'kernel': 'rbf'
-        },
-        'neural_net': {
-            'hidden_layer_sizes': (100,),
-            'learning_rate_init': 0.001,
-            'alpha': 0.001,
-            'activation': 'relu'
-        }
-    }
-    return defaults.get(model_type, {})
+        print(f"\nOptimal parameters (fixed parameters were used throughout optimization):")
+        optimized_params = {k: v for k, v in final_params.items() if k not in fixed_params}
+        fixed_params_used = {k: v for k, v in final_params.items() if k in fixed_params}
+
+        print(f"   Optimized parameters:")
+        for param, value in optimized_params.items():
+            print(f"   - {param}: {value}")
+        print(f"   Fixed parameters:")
+        for param, value in fixed_params_used.items():
+            print(f"   - {param}: {value}")
+
+        return final_params, None

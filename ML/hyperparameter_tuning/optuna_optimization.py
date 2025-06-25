@@ -154,12 +154,12 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
                 model = MultiOutputRegressor(xgb.XGBRegressor(**params))
 
             elif model_type == 'random_forest':
-                min_samples_leaf = trial.suggest_int('min_samples_leaf', 1, 10)
+                min_samples_leaf = trial.suggest_int('min_samples_leaf', 2, 10)
 
                 params = {
-                    'n_estimators': trial.suggest_int('n_estimators', 200, 1500),
-                    'max_depth': trial.suggest_int('max_depth', 3, 40),
-                    'min_samples_split': trial.suggest_int('min_samples_split', max(2, 2 * min_samples_leaf), 30),
+                    'n_estimators': trial.suggest_int('n_estimators', 50, 1500),
+                    'max_depth': trial.suggest_int('max_depth', 10, 40),
+                    'min_samples_split': trial.suggest_int('min_samples_split', max(5, 2 * min_samples_leaf), 30),
                     'min_samples_leaf': min_samples_leaf,
                     'max_features': trial.suggest_categorical('max_features', ['sqrt', 'log2', 0.3, 0.5, 0.7, 0.9]),
                     'max_samples': trial.suggest_float('max_samples', 0.2, 1.0),
@@ -173,14 +173,13 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
                 kernel = trial.suggest_categorical('kernel', ['rbf', 'poly'])
 
                 params = {
-                    ##### For thermal
-                    'C': trial.suggest_float('C', 1.0, 100.0, log=True),
+                    'C': trial.suggest_float('C', 1.0, 100.0),
                     'epsilon': trial.suggest_float('epsilon', 0.0005, 0.1, log=True),
                     'kernel': kernel,
                     'max_iter': 200000,
-                    'tol': trial.suggest_float('tol', 1e-4, 1e-2, log=True)
+                    'tol': trial.suggest_float('tol', 1e-4, 1e-2, log=True),
                     'shrinking': False,
-                    'gamma': trial.suggest_float('gamma', 0.0001, 0.1, log=True)
+                    'gamma': trial.suggest_float('gamma', 0.0001, 0.1, log=True),
                     'verbose': True,
                 }
 
@@ -411,16 +410,15 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
 
             elif model_type == 'random_forest':
                 # Matching flux optimization exactly
-                min_samples_leaf = trial.suggest_int('min_samples_leaf', 1, 10)
+                min_samples_leaf = trial.suggest_int('min_samples_leaf', 2, 10)
 
                 params = {
-                    'n_estimators': trial.suggest_int('n_estimators', 200, 1500),
-                    'max_depth': trial.suggest_int('max_depth', 3, 40),
-                    'min_samples_split': trial.suggest_int('min_samples_split', max(2, 2 * min_samples_leaf), 30),
+                    'n_estimators': trial.suggest_int('n_estimators', 50, 1500),
+                    'max_depth': trial.suggest_int('max_depth', 10, 40),
+                    'min_samples_split': trial.suggest_int('min_samples_split', max(5, 2 * min_samples_leaf), 30),
                     'min_samples_leaf': min_samples_leaf,
                     'max_features': trial.suggest_categorical('max_features', ['sqrt', 'log2', 0.3, 0.5, 0.7, 0.9]),
                     'max_samples': trial.suggest_float('max_samples', 0.2, 1.0),
-                    'bootstrap': trial.suggest_categorical('bootstrap', [True, False]),
                     'n_jobs': 1,
                     'verbose': 0
                 }
