@@ -1,3 +1,5 @@
+##### THIS IS CODE DUOS
+
 import numpy as np
 from sklearn.model_selection import RandomizedSearchCV, GridSearchCV, GroupKFold, KFold
 from skopt import BayesSearchCV
@@ -450,18 +452,36 @@ _NO_DEFAULT = object()
 
 def get_param_value(params: Dict[str, Any], base_key: str,
                    default: Any = _NO_DEFAULT, verbose: bool = False) -> Any:
-    """Get parameter value checking both with and without estimator__ prefix"""
-    prefixed_key = f'estimator__{base_key}'
-    if prefixed_key in params:
-        return params[prefixed_key]
-    elif base_key in params:
+    """Get parameter value checking for all possible prefixes (estimator__svr__, estimator__, svr__, direct)"""
+    # Check in order of specificity (most specific first)
+
+    # 1. Double-nested for SVM flux models: estimator__svr__C
+    double_nested_key = f'estimator__svr__{base_key}'
+    if double_nested_key in params:
+        return params[double_nested_key]
+
+    # 2. SVR prefix for SVM keff models: svr__C
+    svr_key = f'svr__{base_key}'
+    if svr_key in params:
+        return params[svr_key]
+
+    # 3. Estimator prefix for other multi-output models: estimator__C
+    estimator_key = f'estimator__{base_key}'
+    if estimator_key in params:
+        return params[estimator_key]
+
+    # 4. Direct key for single-output models: C
+    if base_key in params:
         return params[base_key]
-    elif default is not _NO_DEFAULT:
+
+    # Handle default case
+    if default is not _NO_DEFAULT:
         if verbose:
             print(f"   Parameter '{base_key}' not found, using default: {default}")
         return default
     else:
-        raise KeyError(f"Parameter '{base_key}' not found")
+        available_keys = list(params.keys())
+        raise KeyError(f"Parameter '{base_key}' not found. Available keys: {available_keys}")
 
 def get_optional_param(params: Dict[str, Any], base_key: str, default: Any) -> Any:
     """Get optional parameter value silently"""
@@ -586,7 +606,8 @@ class XGBoostParameterHandler(ModelParameterHandler):
             'reg_alpha': 0.0,
             'reg_lambda': 1.0,
             'gamma': 0.0,
-            'min_child_weight': 1
+            'min_child_weight': 1,
+            'random_state': 42
         }
 
     def get_fixed_params(self) -> Dict[str, Any]:
@@ -596,7 +617,8 @@ class XGBoostParameterHandler(ModelParameterHandler):
             'reg_alpha': 0.0,
             'reg_lambda': 1.0,
             'gamma': 0.0,
-            'min_child_weight': 1
+            'min_child_weight': 1,
+            'random_state': 42
         }
 
     def get_random_distributions(self, needs_wrapper: bool) -> Dict[str, Any]:
@@ -607,6 +629,7 @@ class XGBoostParameterHandler(ModelParameterHandler):
             'learning_rate': uniform(0.001, 0.499),
             'subsample': uniform(0.3, 0.7),
             'colsample_bytree': uniform(0.3, 0.7)
+            # Other parameters (random_state, etc.) are fixed
         }
         if needs_wrapper:
             return {f'estimator__{k}': v for k, v in base_params.items()}
@@ -763,31 +786,33 @@ class SVMParameterHandler(ModelParameterHandler):
             'gamma': 0.01,
             'epsilon': 0.01,
             'kernel': 'rbf',
-            'random_state': 42
+            'shrinking': True,      # Matches Optuna for better performance
+            'max_iter': -1       # Matches Optuna
         }
 
     def get_fixed_params(self) -> Dict[str, Any]:
         """Fixed parameters that are not optimized during hyperparameter search"""
-        return {
-            'random_state': 42
-        }
+        return {}
 
     def get_random_distributions(self, needs_wrapper: bool) -> Dict[str, Any]:
         base_params = {
             'C': uniform(1.0, 99.0),
             'epsilon': uniform(0.0005, 0.0995),
-            'kernel': ['rbf', 'poly'],
+            # 'kernel': ['rbf', 'poly'],
+            'kernel': ['rbf'],
             'gamma': uniform(0.0001, 0.0999),
-            'degree': randint(2, 6),
-            'coef0': uniform(1.0, 9.0),
+            # 'degree': randint(3, 5),  # Now allow up to degree 5 with scaling
+            # 'coef0': uniform(1.0, 9.0),
+            'shrinking': [True],     # Keep False for consistency with Optuna
+            'max_iter': [-1],     # Fixed like Optuna
             # random_state is a fixed parameter
         }
-        if needs_wrapper:
-            return {f'estimator__{k}': v for k, v in base_params.items()}
+        # For SVM, always return clean parameters since we create Pipeline with svr__ prefix
         return base_params
 
     def create_grid_params(self, best_params: Dict[str, Any], needs_wrapper: bool) -> Dict[str, Any]:
-        prefix = 'estimator__' if needs_wrapper else ''
+        # For SVM, always use clean parameters since we create Pipeline with svr__ prefix
+        prefix = ''
 
         # Base parameters for all kernels
         base_grid = {}
@@ -807,23 +832,26 @@ class SVMParameterHandler(ModelParameterHandler):
         rbf_grid = base_grid.copy()
         rbf_grid[f'{prefix}kernel'] = ['rbf']
 
-        # Poly grid
-        poly_grid = base_grid.copy()
-        poly_grid[f'{prefix}kernel'] = ['poly']
+        # # Poly grid
+        # poly_grid = base_grid.copy()
+        # poly_grid[f'{prefix}kernel'] = ['poly']
 
-        degree = get_param_value(best_params, 'degree')
-        coef0 = get_param_value(best_params, 'coef0')
-        poly_grid[f'{prefix}degree'] = create_focused_grid(degree, 'integer', 2, 5)
-        poly_grid[f'{prefix}coef0'] = create_focused_grid(coef0, 'continuous', 1, 10)
+        # degree = get_param_value(best_params, 'degree')
+        # coef0 = get_param_value(best_params, 'coef0')
+        # poly_grid[f'{prefix}degree'] = create_focused_grid(degree, 'integer', 3, 5)  # Allow up to degree 5
+        # poly_grid[f'{prefix}coef0'] = create_focused_grid(coef0, 'continuous', 1, 10)
 
-        # Return appropriate grid based on best kernel
-        if best_kernel == 'rbf':
-            return [rbf_grid, poly_grid]
-        else:
-            return [poly_grid, rbf_grid]
+        # # Return appropriate grid based on best kernel
+        # if best_kernel == 'rbf':
+        #     return [rbf_grid, poly_grid]
+        # else:
+        #     return [poly_grid, rbf_grid]
+        base_grid[f'{prefix}kernel'] = ['rbf']
+        return base_grid
 
     def create_bayesian_spaces(self, best_params: Dict[str, Any], needs_wrapper: bool) -> Dict[str, Any]:
-        prefix = 'estimator__' if needs_wrapper else ''
+        # For SVM, always use clean parameters since we create Pipeline with svr__ prefix
+        prefix = ''
         search_spaces = {}
         bc = BoundsCalculator()
 
@@ -885,37 +913,38 @@ class SVMParameterHandler(ModelParameterHandler):
                     search_spaces[f'{prefix}{param_name}'] = Real(0.0005, 0.1, prior='log-uniform')
 
         # Kernel selection
-        search_spaces[f'{prefix}kernel'] = Categorical(['rbf', 'poly'])
+        # search_spaces[f'{prefix}kernel'] = Categorical(['rbf', 'poly'])
+        search_spaces[f'{prefix}kernel'] = Categorical(['rbf'])
 
-        # Poly-specific parameters with safety checks
-        try:
-            degree = get_param_value(best_params, 'degree')
-            coef0 = get_param_value(best_params, 'coef0')
+        # # Poly-specific parameters with safety checks
+        # try:
+        #     degree = get_param_value(best_params, 'degree')
+        #     coef0 = get_param_value(best_params, 'coef0')
 
-            degree_lower, degree_upper = bc.safe_integer_bounds(degree-1, degree+1, 2, 5)
-            coef0_lower, coef0_upper = bc.safe_bounds(coef0*0.5, coef0*2.0, 1, 10)
+        #     degree_lower, degree_upper = bc.safe_integer_bounds(degree-1, degree+1, 3, 5)  # Allow up to degree 5
+        #     coef0_lower, coef0_upper = bc.safe_bounds(coef0*0.5, coef0*2.0, 1, 10)
 
-            # Validate integer bounds
-            if degree_lower >= degree_upper:
-                print(f"   ⚠️  WARNING: Invalid degree bounds, using fallback")
-                degree_lower, degree_upper = 2, 5
+        #     # Validate integer bounds
+        #     if degree_lower >= degree_upper:
+        #         print(f"   ⚠️  WARNING: Invalid degree bounds, using fallback")
+        #         degree_lower, degree_upper = 3, 5
 
-            # Validate continuous bounds
-            if coef0_lower >= coef0_upper:
-                print(f"   ⚠️  WARNING: Invalid coef0 bounds, using fallback")
-                coef0_lower, coef0_upper = 1.0, 10.0
+        #     # Validate continuous bounds
+        #     if coef0_lower >= coef0_upper:
+        #         print(f"   ⚠️  WARNING: Invalid coef0 bounds, using fallback")
+        #         coef0_lower, coef0_upper = 1.0, 10.0
 
-            search_spaces[f'{prefix}degree'] = Integer(degree_lower, degree_upper)
-            search_spaces[f'{prefix}coef0'] = Real(coef0_lower, coef0_upper)
+        #     search_spaces[f'{prefix}degree'] = Integer(degree_lower, degree_upper)
+        #     search_spaces[f'{prefix}coef0'] = Real(coef0_lower, coef0_upper)
 
-            print(f"   ✅ degree: Integer({degree_lower}, {degree_upper})")
-            print(f"   ✅ coef0: Real({coef0_lower:.3f}, {coef0_upper:.3f})")
+        #     print(f"   ✅ degree: Integer({degree_lower}, {degree_upper})")
+        #     print(f"   ✅ coef0: Real({coef0_lower:.3f}, {coef0_upper:.3f})")
 
-        except Exception as e:
-            print(f"   ❌ ERROR creating poly parameter bounds: {str(e)}")
-            print(f"      Using safe default bounds")
-            search_spaces[f'{prefix}degree'] = Integer(2, 5)
-            search_spaces[f'{prefix}coef0'] = Real(1.0, 10.0)
+        # except Exception as e:
+        #     print(f"   ❌ ERROR creating poly parameter bounds: {str(e)}")
+        #     print(f"      Using safe default bounds")
+        #     search_spaces[f'{prefix}degree'] = Integer(3, 5)  # Allow up to degree 5
+        #     search_spaces[f'{prefix}coef0'] = Real(1.0, 10.0)
 
         return search_spaces
 
@@ -1235,7 +1264,7 @@ class OptimizationStage:
                     if hasattr(search_cv, 'scoring') and callable(search_cv.scoring):
                         print(f"   Best MAPE: {abs(search_cv.best_score_):.2f}%")
                     else:
-                        print(f"   Best MSE: {abs(search_cv.best_score_):.6f}")
+                        print(f"   Best MSE: {abs(search_cv.best_score_):.10f}")
 
                     return True, search_cv.best_params_, search_cv.best_score_, search_cv
 
@@ -1268,7 +1297,7 @@ class RandomSearchStage(OptimizationStage):
 
     def run(self, X_train, y_train, model_class, param_distributions,
             cv, n_splits, scoring, n_jobs, groups, n_iter=1000,
-            fixed_params=None):
+            fixed_params=None, model_type=None):
         """Execute random search stage"""
         self.print_header()
         print("Exploring parameter space broadly...")
@@ -1288,6 +1317,45 @@ class RandomSearchStage(OptimizationStage):
             print(f"   - Using {len(fixed_params)} fixed parameters during optimization")
         else:
             model = model_class()
+
+        # CRITICAL FIX: Add scaling for SVM and MultiOutputRegressor for flux
+        if model_type == 'svm' and not hasattr(model, 'named_steps'):
+            from sklearn.preprocessing import StandardScaler
+            from sklearn.pipeline import Pipeline
+            from sklearn.multioutput import MultiOutputRegressor
+
+            # Create Pipeline with scaling
+            pipeline = Pipeline([
+                ('scaler', StandardScaler()),
+                ('svr', model)
+            ])
+
+            # Check if we need MultiOutputRegressor for flux targets
+            has_multi_output_data = len(y_train.shape) > 1 and y_train.shape[1] > 1
+            if has_multi_output_data:
+                model = MultiOutputRegressor(pipeline)
+                print(f"   - Added StandardScaler pipeline + MultiOutputRegressor for SVM flux")
+
+                # Update param_distributions to use 'estimator__svr__' prefix
+                updated_distributions = {}
+                for key, value in param_distributions.items():
+                    if not key.startswith('estimator__') and not key.startswith('svr__'):
+                        updated_distributions[f'estimator__svr__{key}'] = value
+                    else:
+                        updated_distributions[key] = value
+                param_distributions = updated_distributions
+            else:
+                model = pipeline
+                print(f"   - Added StandardScaler pipeline for SVM")
+
+                # Update param_distributions to use 'svr__' prefix
+                updated_distributions = {}
+                for key, value in param_distributions.items():
+                    if not key.startswith('svr__') and not key.startswith('estimator__'):
+                        updated_distributions[f'svr__{key}'] = value
+                    else:
+                        updated_distributions[key] = value
+                param_distributions = updated_distributions
 
         random_search = RandomizedSearchCV(
             model,
@@ -1353,6 +1421,69 @@ class GridSearchStage(OptimizationStage):
         else:
             model = model_class()
 
+        # CRITICAL FIX: Add scaling for SVM and MultiOutputRegressor for flux
+        if model_type == 'svm' and not hasattr(model, 'named_steps'):
+            from sklearn.preprocessing import StandardScaler
+            from sklearn.pipeline import Pipeline
+            from sklearn.multioutput import MultiOutputRegressor
+
+            # Create Pipeline with scaling
+            pipeline = Pipeline([
+                ('scaler', StandardScaler()),
+                ('svr', model)
+            ])
+
+            # Check if we need MultiOutputRegressor for flux targets
+            has_multi_output_data = len(y_train.shape) > 1 and y_train.shape[1] > 1
+            if has_multi_output_data:
+                model = MultiOutputRegressor(pipeline)
+                print(f"   - Added StandardScaler pipeline + MultiOutputRegressor for SVM flux")
+
+                # Update param_grid to use 'estimator__svr__' prefix
+                if isinstance(param_grid, list):
+                    updated_grids = []
+                    for grid in param_grid:
+                        updated_grid = {}
+                        for key, value in grid.items():
+                            if not key.startswith('estimator__') and not key.startswith('svr__'):
+                                updated_grid[f'estimator__svr__{key}'] = value
+                            else:
+                                updated_grid[key] = value
+                        updated_grids.append(updated_grid)
+                    param_grid = updated_grids
+                else:
+                    updated_grid = {}
+                    for key, value in param_grid.items():
+                        if not key.startswith('estimator__') and not key.startswith('svr__'):
+                            updated_grid[f'estimator__svr__{key}'] = value
+                        else:
+                            updated_grid[key] = value
+                    param_grid = updated_grid
+            else:
+                model = pipeline
+                print(f"   - Added StandardScaler pipeline for SVM")
+
+                # Update param_grid to use 'svr__' prefix
+                if isinstance(param_grid, list):
+                    updated_grids = []
+                    for grid in param_grid:
+                        updated_grid = {}
+                        for key, value in grid.items():
+                            if not key.startswith('svr__') and not key.startswith('estimator__'):
+                                updated_grid[f'svr__{key}'] = value
+                            else:
+                                updated_grid[key] = value
+                        updated_grids.append(updated_grid)
+                    param_grid = updated_grids
+                else:
+                    updated_grid = {}
+                    for key, value in param_grid.items():
+                        if not key.startswith('svr__') and not key.startswith('estimator__'):
+                            updated_grid[f'svr__{key}'] = value
+                        else:
+                            updated_grid[key] = value
+                    param_grid = updated_grid
+
         grid_search = GridSearchCV(
             model,
             param_grid,
@@ -1403,6 +1534,45 @@ class BayesianSearchStage(OptimizationStage):
         else:
             model = model_class()
 
+        # CRITICAL FIX: Add scaling for SVM and MultiOutputRegressor for flux
+        if model_type == 'svm' and not hasattr(model, 'named_steps'):
+            from sklearn.preprocessing import StandardScaler
+            from sklearn.pipeline import Pipeline
+            from sklearn.multioutput import MultiOutputRegressor
+
+            # Create Pipeline with scaling
+            pipeline = Pipeline([
+                ('scaler', StandardScaler()),
+                ('svr', model)
+            ])
+
+            # Check if we need MultiOutputRegressor for flux targets
+            has_multi_output_data = len(y_train.shape) > 1 and y_train.shape[1] > 1
+            if has_multi_output_data:
+                model = MultiOutputRegressor(pipeline)
+                print(f"   - Added StandardScaler pipeline + MultiOutputRegressor for SVM flux")
+
+                # Update search_spaces to use 'estimator__svr__' prefix
+                updated_spaces = {}
+                for key, value in search_spaces.items():
+                    if not key.startswith('estimator__') and not key.startswith('svr__'):
+                        updated_spaces[f'estimator__svr__{key}'] = value
+                    else:
+                        updated_spaces[key] = value
+                search_spaces = updated_spaces
+            else:
+                model = pipeline
+                print(f"   - Added StandardScaler pipeline for SVM")
+
+                # Update search_spaces to use 'svr__' prefix
+                updated_spaces = {}
+                for key, value in search_spaces.items():
+                    if not key.startswith('svr__') and not key.startswith('estimator__'):
+                        updated_spaces[f'svr__{key}'] = value
+                    else:
+                        updated_spaces[key] = value
+                search_spaces = updated_spaces
+
         bayes_search = BayesSearchCV(
             model,
             search_spaces,
@@ -1422,6 +1592,27 @@ class BayesianSearchStage(OptimizationStage):
         print(f"\nStage 3 took {stage_time/60:.1f} minutes")
 
         return success, best_params, best_score, search_obj, stage_time
+
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+def clean_optimization_parameters(params_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """Clean parameter names by removing optimization prefixes (estimator__svr__, estimator__, svr__)"""
+    clean_params = {}
+    for key, value in params_dict.items():
+        if key.startswith('estimator__svr__'):
+            # Handle double-nested parameters for SVM flux models
+            clean_key = key.replace('estimator__svr__', '')
+            clean_params[clean_key] = value
+        elif key.startswith('estimator__'):
+            clean_key = key.replace('estimator__', '')
+            clean_params[clean_key] = value
+        elif key.startswith('svr__'):
+            clean_key = key.replace('svr__', '')
+            clean_params[clean_key] = value
+        else:
+            clean_params[key] = value
+    return clean_params
 
 # ============================================================================
 # MAIN OPTIMIZATION FUNCTION
@@ -1560,7 +1751,7 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
     success1, best_random_params, best_random_score, random_search_obj, stage1_time = \
         random_stage.run(X_train, y_train, model_class, param_distributions,
                         cv, n_splits, scoring, n_jobs, groups, actual_random_iter,
-                        fixed_params=fixed_params)
+                        fixed_params=fixed_params, model_type=model_type)
 
     if success1 and best_random_params:
         best_params_so_far = best_random_params
@@ -1568,16 +1759,13 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
     else:
         print(f"\n❌ Stage 1 failed to find any parameters. Returning default parameters.")
         default_params = handler.get_default_params()
-        if needs_wrapper and model_type in ['xgboost', 'svm', 'neural_net']:
-            prefixed_params = {f'estimator__{k}': v for k, v in default_params.items()}
-            return prefixed_params, None
-        else:
-            return default_params, None
+        # Always return clean parameters (no prefixes) for final model training
+        return default_params, None
 
     # Check total timeout
     if time.time() - optimization_start_time > config.total_timeout:
         print(f"\n⏱️  Total timeout reached. Returning best parameters found so far.")
-        return best_params_so_far, None
+        return clean_optimization_parameters(best_params_so_far), None
 
     # ========================================================================
     # STAGE 2: GRID SEARCH
@@ -1600,7 +1788,7 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
     # Check total timeout
     if time.time() - optimization_start_time > config.total_timeout:
         print(f"\n⏱️  Total timeout reached. Returning best parameters found so far.")
-        return best_params_so_far, None
+        return clean_optimization_parameters(best_params_so_far), None
 
     # ========================================================================
     # STAGE 3: BAYESIAN OPTIMIZATION
@@ -1637,7 +1825,7 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
     if target_type == 'flux':
         print(f"\nFinal best MAPE: {abs(best_score_so_far):.2f}%")
     else:
-        print(f"\nFinal best MSE: {abs(best_score_so_far):.6f}")
+        print(f"\nFinal best MSE: {abs(best_score_so_far):.10f}")
 
     # Prepare final parameters - fixed params were used throughout optimization
     handler = ParameterHandlerFactory.create_handler(model_type)
@@ -1645,14 +1833,7 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
 
     # Clean up parameters for final model and ensure complete parameter set
     if needs_wrapper and model_type in ['xgboost', 'svm', 'neural_net']:
-        clean_params = {}
-        for key, value in best_params_so_far.items():
-            if key.startswith('estimator__'):
-                clean_key = key.replace('estimator__', '')
-                clean_params[clean_key] = value
-            else:
-                if key not in [k.replace('estimator__', '') for k in best_params_so_far.keys() if k.startswith('estimator__')]:
-                    clean_params[key] = value
+        clean_params = clean_optimization_parameters(best_params_so_far)
 
         # Ensure all default parameters are included (optimized + fixed)
         for param, value in default_params.items():
@@ -1672,8 +1853,10 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
 
         return clean_params, None
     else:
+        # Clean up parameters for final model (handle SVM pipeline parameters)
+        final_params = clean_optimization_parameters(best_params_so_far)
+
         # Ensure all default parameters are included (optimized + fixed)
-        final_params = best_params_so_far.copy()
         for param, value in default_params.items():
             if param not in final_params:
                 final_params[param] = value

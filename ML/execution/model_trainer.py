@@ -175,7 +175,9 @@ class ModelTrainer:
                 # Random Forest has native multi-output support
                 return lambda **kwargs: RandomForestRegressor(**kwargs)
             elif model_type == 'svm':
-                return lambda **kwargs: MultiOutputRegressor(SVR(**kwargs))
+                # CRITICAL FIX: Return raw SVR for optimization
+                # The optimization stages will handle Pipeline + MultiOutputRegressor wrapping
+                return SVR
             else:  # neural_net
                 return lambda **kwargs: MultiOutputRegressor(MLPRegressor(**kwargs))
         else:  # keff - single output
