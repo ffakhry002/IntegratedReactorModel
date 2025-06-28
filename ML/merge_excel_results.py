@@ -13,6 +13,61 @@ import pandas as pd
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
+
+def select_excel_file(prompt_message):
+    """Interactive Excel file selection from ML/outputs/excel_reports"""
+    excel_dir = "ML/outputs/excel_reports"
+    excel_path = Path(excel_dir)
+
+    if not excel_path.exists():
+        print(f"Error: Excel directory {excel_dir} does not exist.")
+        return None
+
+    # Get all Excel files
+    excel_files = list(excel_path.glob("*.xlsx"))
+
+    if not excel_files:
+        print(f"No Excel files found in {excel_dir}")
+        return None
+
+    print(f"\n{prompt_message}")
+    print(f"Available Excel files in {excel_dir}:")
+    print("-" * 60)
+
+    for i, excel_file in enumerate(excel_files, 1):
+        file_size = excel_file.stat().st_size / (1024 * 1024)  # MB
+        mod_time = datetime.fromtimestamp(excel_file.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+        print(f"{i:2d}. {excel_file.name}")
+        print(f"     Size: {file_size:.1f} MB | Modified: {mod_time}")
+
+    print(f"{len(excel_files) + 1:2d}. Custom path")
+    print("-" * 60)
+
+    while True:
+        try:
+            choice = input(f"Select Excel file (1-{len(excel_files) + 1}): ").strip()
+
+            if choice.isdigit():
+                choice_num = int(choice)
+                if 1 <= choice_num <= len(excel_files):
+                    selected_file = excel_files[choice_num - 1]
+                    print(f"Selected: {selected_file.name}")
+                    return str(selected_file)
+                elif choice_num == len(excel_files) + 1:
+                    custom_path = input("Enter custom Excel file path: ").strip()
+                    if os.path.exists(custom_path):
+                        return custom_path
+                    else:
+                        print("File not found. Please try again.")
+                else:
+                    print(f"Please enter a number between 1 and {len(excel_files) + 1}")
+            else:
+                print("Please enter a valid number")
+
+        except (ValueError, KeyboardInterrupt):
+            print("\nOperation cancelled.")
+            return None
 
 def load_excel_data(filepath):
     """Load Excel file and return dataframe"""
@@ -296,9 +351,9 @@ def get_output_path(default_name):
         output_name += '.xlsx'
 
     # Create outputs directory if it doesn't exist
-    os.makedirs('outputs/excel_reports', exist_ok=True)
+    os.makedirs('ML/outputs/excel_reports', exist_ok=True)
 
-    return os.path.join('outputs/excel_reports', output_name)
+    return os.path.join('ML/outputs/excel_reports', output_name)
 
 def main():
     """Main merge utility"""
@@ -307,10 +362,16 @@ def main():
 
         if choice == '1':
             # All Energy Merge
-            print("\n📁 Please provide the three energy Excel files:")
-            thermal_file = input("Thermal flux Excel file: ").strip()
-            epithermal_file = input("Epithermal flux Excel file: ").strip()
-            fast_file = input("Fast flux Excel file: ").strip()
+            print("\n📁 Please select the three energy Excel files:")
+            thermal_file = select_excel_file("📁 Select thermal flux Excel file:")
+            if not thermal_file:
+                continue
+            epithermal_file = select_excel_file("📁 Select epithermal flux Excel file:")
+            if not epithermal_file:
+                continue
+            fast_file = select_excel_file("📁 Select fast flux Excel file:")
+            if not fast_file:
+                continue
 
             # Load data
             thermal_df = load_excel_data(thermal_file)
@@ -342,9 +403,13 @@ def main():
 
         elif choice == '2':
             # Total + K-eff Merge
-            print("\n📁 Please provide the two Excel files:")
-            total_file = input("Total flux Excel file: ").strip()
-            keff_file = input("K-eff Excel file: ").strip()
+            print("\n📁 Please select the two Excel files:")
+            total_file = select_excel_file("📁 Select total flux Excel file:")
+            if not total_file:
+                continue
+            keff_file = select_excel_file("📁 Select K-eff Excel file:")
+            if not keff_file:
+                continue
 
             # Load data
             total_df = load_excel_data(total_file)
@@ -372,9 +437,13 @@ def main():
 
         elif choice == '3':
             # K-eff + Multi-energy Merge
-            print("\n📁 Please provide the two Excel files:")
-            multi_file = input("Multi-energy Excel file: ").strip()
-            keff_file = input("K-eff Excel file: ").strip()
+            print("\n📁 Please select the two Excel files:")
+            multi_file = select_excel_file("📁 Select multi-energy Excel file:")
+            if not multi_file:
+                continue
+            keff_file = select_excel_file("📁 Select K-eff Excel file:")
+            if not keff_file:
+                continue
 
             # Load data
             multi_df = load_excel_data(multi_file)
@@ -402,11 +471,19 @@ def main():
 
         elif choice == '4':
             # K-eff + Energy Merge (all four)
-            print("\n📁 Please provide all four Excel files:")
-            thermal_file = input("Thermal flux Excel file: ").strip()
-            epithermal_file = input("Epithermal flux Excel file: ").strip()
-            fast_file = input("Fast flux Excel file: ").strip()
-            keff_file = input("K-eff Excel file: ").strip()
+            print("\n📁 Please select all four Excel files:")
+            thermal_file = select_excel_file("📁 Select thermal flux Excel file:")
+            if not thermal_file:
+                continue
+            epithermal_file = select_excel_file("📁 Select epithermal flux Excel file:")
+            if not epithermal_file:
+                continue
+            fast_file = select_excel_file("📁 Select fast flux Excel file:")
+            if not fast_file:
+                continue
+            keff_file = select_excel_file("📁 Select K-eff Excel file:")
+            if not keff_file:
+                continue
 
             # Load data
             thermal_df = load_excel_data(thermal_file)

@@ -169,6 +169,7 @@ Project Structure:
 │   ├── test.py                # Testing utilities
 │   ├── latticecheck.py        # Lattice configuration checking
 │   ├── visualization_run.py   # ML visualization runner
+│   ├── merge_excel_results.py # Excel results merging utility
 │   │
 │   ├── ML_models/             # Machine learning model implementations
 │   │   ├── __init__.py        # Package initialization
@@ -209,13 +210,23 @@ Project Structure:
 │   ├── visualizations_helpers/ # ML visualization utilities
 │   │   ├── __init__.py
 │   │   ├── config_error_plots.py # Configuration-specific error plots
+│   │   ├── core_config_visualizations.py # Core configuration visualization utilities
 │   │   ├── data_loader.py     # Data loading for visualizations
 │   │   ├── energy_breakdown_plots.py # Energy group breakdown visualizations
 │   │   ├── feature_importance.py # Feature importance analysis plots
+│   │   ├── optuna_visualizations.py # Optuna study visualization utilities
 │   │   ├── performance_heatmaps.py # Model performance heatmaps
 │   │   ├── rel_error_trackers.py # Relative error tracking plots
 │   │   ├── spatial_error_heatmaps.py # Spatial error distribution heatmaps
 │   │   └── summary_statistics.py # Comprehensive summary statistics and plots
+│   │
+│   ├── outputs/               # ML output storage directory
+│   │   ├── results/           # Model training and evaluation results
+│   │   ├── excel_reports/     # Excel-formatted result reports
+│   │   ├── logs/              # Training and optimization logs
+│   │   ├── models/            # Saved trained models
+│   │   ├── visualizations/    # Generated visualization plots
+│   │   └── optuna_studies/    # Saved Optuna optimization studies
 │   │
 │   └── data/                  # ML training and test data
 │       ├── train.txt          # Training dataset
@@ -242,11 +253,19 @@ Project Structure:
 └── core_selection/             # Core design selection and sampling methods
     ├── main.py                # Main execution entry point for sampling studies
     ├── run_sampling.py        # Sampling method execution controller
-    ├── dictionaries_exported.py # Exported parameter dictionaries
+    ├── analyze_mean_min_edge_positions.py # Mean minimum edge position analysis
     ├── calculate_geometric_parameters.py # Physics parameter calculations
     ├── export_run_dictionaries.py # Dictionary export utilities
     ├── generate_core_configurations.py # Core configuration generator
+    ├── interactive_parameter_selection.py # Interactive parameter selection interface
     ├── visualize_all_samples.py # Comprehensive visualization script
+    │
+    ├── visualization_code/    # Visualization and analysis utilities
+    │   ├── __init__.py       # Package initialization
+    │   ├── analysis_plots.py # Diversity and convergence analysis plots
+    │   ├── config_visualizer.py # Core configuration visualization utilities
+    │   ├── data_loader.py    # Data loading utilities for visualization
+    │   └── parameter_plots.py # Parameter space visualization plots
     │
     ├── sampling_methods/      # Sampling algorithm implementations
     │   ├── __init__.py       # Package initialization
@@ -303,55 +322,3 @@ Project Structure:
         ├── progress_display.py # Progress bar and status display
         ├── serial_executor.py # Serial execution fallback
         └── task_runner.py    # Individual task execution wrapper
-
-Single Runtime Directory Structure:
-============================
-The following directories are created automatically during simulation execution:
-
-simulation_data/                # Main simulation output directory
-├── Geometry_and_Materials/     # Geometry plots and material definitions
-├── ThermalHydraulics/         # Thermal hydraulics results
-│   ├── cosine_calculation/    # Cosine power approximation results
-│   ├── hot_element/          # Hot element power profile results
-│   └── core_average/         # Core average power profile results
-├── transport_data/            # OpenMC eigenvalue calculation data
-├── flux_plots/               # Neutron flux visualization plots
-├── power_plots/              # Power distribution plots
-├── depletion_data/           # Depletion calculation outputs
-└── depletion_plots/          # Depletion evolution plots
-
-Parametric Runtime Directory Structure:
-============================
-The following directories are created automatically during a parametric study execution:
-
-parametric_simulation_20250527_031447/           # Timestamped parametric study directory
-├── parametric_study_log.txt                     # Log file containing run parameters and results
-├── run_1/                                       # Individual parameter case directory
-│   ├── Geometry_and_Materials/                  # Case-specific geometry plots
-│   ├── ThermalHydraulics/
-│   │   ├── cosine_calculation/
-│   │   ├── hot_element/
-│   │   └── core_average/
-│   ├── transport_data/
-│   ├── flux_plots/
-│   ├── power_plots/
-│   ├── depletion_data/
-│   └── depletion_plots/
-├── run_2/                                       # Second parameter case
-│   └── [Same structure as run_1]
-├── run_3/                                       # Third parameter case
-│   └── [Same structure as run_1]
-├── run_4/                                       # Fourth parameter case
-│   └── [Same structure as run_1]
-├── run_5/                                       # Fifth parameter case
-│   └── [Same structure as run_1]
-├── run_6/                                       # Sixth parameter case
-│   └── [Same structure as run_1]
-├── run_7/                                       # Seventh parameter case
-│   └── [Same structure as run_1]
-├── run_8/                                       # Eighth parameter case
-│   └── [Same structure as run_1]
-└── run_9/                                       # Ninth parameter case
-    └── [Same structure as run_1]
-
-etc.
