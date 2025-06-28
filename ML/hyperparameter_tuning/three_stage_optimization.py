@@ -4,7 +4,7 @@ import numpy as np
 from sklearn.model_selection import RandomizedSearchCV, GridSearchCV, GroupKFold, KFold
 from skopt import BayesSearchCV
 from skopt.space import Real, Integer, Categorical
-from scipy.stats import uniform, randint
+from scipy.stats import uniform, randint, loguniform
 import joblib
 import time
 from datetime import datetime
@@ -524,7 +524,8 @@ class MLParameterConstraints:
                 # Set safe minimums for parameters that cannot be zero
                 safe_minimums = {
                     'learning_rate': 0.001,
-                    'epsilon': 0.0005,
+                    'epsilon': 0.00005,
+                    'gamma': 0.00001,
                     'learning_rate_init': 0.0001,
                     'alpha': 0.0001,
                     'C': 0.1,
@@ -534,9 +535,9 @@ class MLParameterConstraints:
                     'min_samples_split': 2,
                     'min_samples_leaf': 1
                 }
-                return safe_minimums.get(param_name, 0.0001)
+                return safe_minimums.get(param_name, 0.00001)
             else:
-                return max(original_min, 0.0001)
+                return max(original_min, 0.00001)
         elif param_name in cls.CAN_BE_ZERO:
             return 0.0
         elif param_name in cls.POSITIVE_INTEGERS:
@@ -624,7 +625,7 @@ class XGBoostParameterHandler(ModelParameterHandler):
     def get_random_distributions(self, needs_wrapper: bool) -> Dict[str, Any]:
         base_params = {
             # Only optimize these 5 parameters
-            'n_estimators': randint(50, 5000),
+            'n_estimators': randint(50, 10000),
             'max_depth': randint(2, 20),
             'learning_rate': uniform(0.001, 0.499),
             'subsample': uniform(0.3, 0.7),
@@ -641,7 +642,7 @@ class XGBoostParameterHandler(ModelParameterHandler):
 
         # Only optimize these 5 parameters
         param_configs = [
-            ('n_estimators', 'integer', 50, 5000),
+            ('n_estimators', 'integer', 50, 10000),
             ('max_depth', 'integer', 2, 20),
             ('learning_rate', 'continuous', 0.001, 0.5),
             ('subsample', 'continuous', 0.3, 1.0),
@@ -662,7 +663,7 @@ class XGBoostParameterHandler(ModelParameterHandler):
 
         # Integer parameters - only optimize these 2
         int_params = [
-            ('n_estimators', 50, 5000),
+            ('n_estimators', 50, 10000),
             ('max_depth', 2, 20)
         ]
 
@@ -796,11 +797,11 @@ class SVMParameterHandler(ModelParameterHandler):
 
     def get_random_distributions(self, needs_wrapper: bool) -> Dict[str, Any]:
         base_params = {
-            'C': uniform(1.0, 99.0),
-            'epsilon': uniform(0.0005, 0.0995),
+            'C': uniform(1.0, 999.0),
+            'epsilon': loguniform(0.00005, 0.1),
             # 'kernel': ['rbf', 'poly'],
             'kernel': ['rbf'],
-            'gamma': uniform(0.0001, 0.0999),
+            'gamma': loguniform(0.00001, 0.1),
             # 'degree': randint(3, 5),  # Now allow up to degree 5 with scaling
             # 'coef0': uniform(1.0, 9.0),
             'shrinking': [True],     # Keep False for consistency with Optuna
@@ -817,9 +818,9 @@ class SVMParameterHandler(ModelParameterHandler):
         # Base parameters for all kernels
         base_grid = {}
         for param_name, param_type, min_val, max_val in [
-            ('C', 'continuous', 1.0, 100.0),
-            ('gamma', 'continuous', 0.0001, 0.1),
-            ('epsilon', 'continuous', 0.0005, 0.1)
+            ('C', 'continuous', 1.0, 1000.0),
+            ('gamma', 'continuous', 0.00001, 0.1),
+            ('epsilon', 'continuous', 0.00005, 0.1)
         ]:
             value = get_param_value(best_params, param_name)
             base_grid[f'{prefix}{param_name}'] = create_focused_grid(
@@ -857,9 +858,9 @@ class SVMParameterHandler(ModelParameterHandler):
 
         # Continuous parameters with log-uniform prior
         log_params = [
-            ('C', 1.0, 100.0),
-            ('gamma', 0.0001, 0.1),
-            ('epsilon', 0.0005, 0.1)
+            ('C', 1.0, 1000.0),
+            ('gamma', 0.00001, 0.1),
+            ('epsilon', 0.00005, 0.1)
         ]
 
         for param_name, min_val, max_val in log_params:
@@ -876,11 +877,11 @@ class SVMParameterHandler(ModelParameterHandler):
 
                     # Emergency fallback: use conservative range around min_val
                     if param_name == 'epsilon':
-                        lower, upper = 0.0005, 0.01  # Safe epsilon range
+                        lower, upper = 0.00005, 0.01  # Safe epsilon range
                     elif param_name == 'gamma':
-                        lower, upper = 0.0001, 0.01  # Safe gamma range
+                        lower, upper = 0.00001, 0.01  # Safe gamma range
                     elif param_name == 'C':
-                        lower, upper = 1.0, 10.0     # Safe C range
+                        lower, upper = 1.0, 1000.0     # Safe C range
                     else:
                         lower, upper = min_val, min_val * 2
 
@@ -906,11 +907,11 @@ class SVMParameterHandler(ModelParameterHandler):
 
                 # Ultimate fallback to safe defaults
                 if param_name == 'C':
-                    search_spaces[f'{prefix}{param_name}'] = Real(1.0, 100.0, prior='log-uniform')
+                    search_spaces[f'{prefix}{param_name}'] = Real(1.0, 1000.0, prior='log-uniform')
                 elif param_name == 'gamma':
-                    search_spaces[f'{prefix}{param_name}'] = Real(0.0001, 0.1, prior='log-uniform')
+                    search_spaces[f'{prefix}{param_name}'] = Real(0.00001, 0.1, prior='log-uniform')
                 elif param_name == 'epsilon':
-                    search_spaces[f'{prefix}{param_name}'] = Real(0.0005, 0.1, prior='log-uniform')
+                    search_spaces[f'{prefix}{param_name}'] = Real(0.00005, 0.1, prior='log-uniform')
 
         # Kernel selection
         # search_spaces[f'{prefix}kernel'] = Categorical(['rbf', 'poly'])

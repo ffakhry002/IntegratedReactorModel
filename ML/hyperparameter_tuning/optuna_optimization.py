@@ -135,7 +135,7 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
             if model_type == 'xgboost':
                 params = {
                     # ##### For full screening
-                    'n_estimators': trial.suggest_int('n_estimators', 50, 5000),
+                    'n_estimators': trial.suggest_int('n_estimators', 50, 10000),
                     'max_depth': trial.suggest_int('max_depth', 2, 20),
                     'learning_rate': trial.suggest_float('learning_rate', 0.001, 0.5, log=True),
                     'subsample': trial.suggest_float('subsample', 0.3, 1.0),
@@ -173,13 +173,13 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
                 kernel = trial.suggest_categorical('kernel', ['rbf', 'poly'])
 
                 params = {
-                    'C': trial.suggest_float('C', 1.0, 100.0),
-                    'epsilon': trial.suggest_float('epsilon', 0.0005, 0.1, log=True),
+                    'C': trial.suggest_float('C', 1.0, 1000.0),
+                    'epsilon': trial.suggest_float('epsilon', 0.00005, 0.1, log=True),
                     'kernel': kernel,
                     'max_iter': 200000,
                     'tol': trial.suggest_float('tol', 1e-4, 1e-2, log=True),
                     'shrinking': False,
-                    'gamma': trial.suggest_float('gamma', 0.0001, 0.1, log=True),
+                    'gamma': trial.suggest_float('gamma', 0.00001, 0.1, log=True),
                     'verbose': True,
                 }
 
@@ -391,7 +391,7 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
             if model_type == 'xgboost':
                 params = {
                     # ##### Matching flux optimization exactly
-                    'n_estimators': trial.suggest_int('n_estimators', 50, 5000),
+                    'n_estimators': trial.suggest_int('n_estimators', 50, 10000),
                     'max_depth': trial.suggest_int('max_depth', 2, 20),
                     'learning_rate': trial.suggest_float('learning_rate', 0.001, 0.5, log=True),
                     'subsample': trial.suggest_float('subsample', 0.3, 1.0),
@@ -430,8 +430,8 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
                 kernel = trial.suggest_categorical('kernel', ['rbf', 'poly'])
 
                 params = {
-                    'C': trial.suggest_float('C', 1.0, 100.0),
-                    'epsilon': trial.suggest_float('epsilon', 0.0005, 0.1, log=True),
+                    'C': trial.suggest_float('C', 1.0, 1000.0),
+                    'epsilon': trial.suggest_float('epsilon', 0.00005, 0.1, log=True),
                     'kernel': kernel,
                     'max_iter': 200000,
                     'tol': trial.suggest_float('tol', 1e-4, 1e-2, log=True),
@@ -441,9 +441,9 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
 
                 # Kernel-specific parameters matching flux optimization
                 if kernel == 'rbf':
-                    params['gamma'] = trial.suggest_float('gamma', 0.0001, 0.1, log=True)
+                    params['gamma'] = trial.suggest_float('gamma', 0.00001, 0.1, log=True)
                 elif kernel == 'poly':
-                    params['gamma'] = trial.suggest_float('gamma', 0.0001, 0.1, log=True)
+                    params['gamma'] = trial.suggest_float('gamma', 0.00001, 0.1, log=True)
                     params['degree'] = trial.suggest_int('degree', 2, 5)
                     params['coef0'] = trial.suggest_float('coef0', 1, 10)
 
