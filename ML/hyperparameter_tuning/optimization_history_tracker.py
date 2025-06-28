@@ -657,12 +657,12 @@ class OptimizationHistoryTracker:
 
         # Define colors
         colors = {
-            'xgboost': PatternFill(start_color="ADD8E6", end_color="ADD8E6", fill_type="solid"),
-            'random_forest': PatternFill(start_color="90EE90", end_color="90EE90", fill_type="solid"),
-            'svm': PatternFill(start_color="FFB347", end_color="FFB347", fill_type="solid"),
-            'neural_network': PatternFill(start_color="DDA0DD", end_color="DDA0DD", fill_type="solid"),
-            'param_header': PatternFill(start_color="D3D3D3", end_color="D3D3D3", fill_type="solid"),
-            'param_cell': PatternFill(start_color="F5F5F5", end_color="F5F5F5", fill_type="solid")
+            'xgboost': PatternFill(start_color="ADD8E6", end_color="ADD8E6", fill_type="solid"),  # Light blue
+            'random_forest': PatternFill(start_color="FFB347", end_color="FFB347", fill_type="solid"),  # Light orange
+            'svm': PatternFill(start_color="90EE90", end_color="90EE90", fill_type="solid"),  # Light green
+            'neural_network': PatternFill(start_color="DDA0DD", end_color="DDA0DD", fill_type="solid"),  # Light purple
+            'param_header': PatternFill(start_color="D3D3D3", end_color="D3D3D3", fill_type="solid"),  # Light grey
+            'param_cell': PatternFill(start_color="F5F5F5", end_color="F5F5F5", fill_type="solid")  # Very light grey
         }
 
         # Header formatting
