@@ -250,6 +250,10 @@ def run_single_parametric_case(run_num, run_dict, param_dir, log_file):
     print(f"Description: {run_dict.get('description', 'No description')}")
     print(f"Modified parameters: {[k for k in run_dict.keys() if k != 'description']}")
 
+    # Reset OpenMC auto IDs at the start of each run to prevent ID conflicts
+    openmc.mixin.reset_auto_ids()
+    print("OpenMC auto IDs reset for clean run")
+
     # Create run directory
     run_dir = os.path.join(param_dir, f"run_{run_num}")
     os.makedirs(run_dir)

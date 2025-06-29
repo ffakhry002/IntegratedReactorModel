@@ -66,6 +66,7 @@ def create_coreflux_tallys(inputs_dict=None):
 
     # Create mesh filter
     mesh_filter = openmc.MeshFilter(mesh)
+    print(f"Created core flux mesh filter - Dimensions: {mesh.dimension}")
 
     # Define three energy groups using cutoffs from inputs
     thermal_cutoff = inputs_dict.get('thermal_cutoff', 0.625)  # Default: 0.625 eV
@@ -74,6 +75,7 @@ def create_coreflux_tallys(inputs_dict=None):
     # Create energy bins for three groups: [0, thermal, fast, 20M]
     energy_bins = [0.0, thermal_cutoff, fast_cutoff, 20.0e6]
     energy_filter = openmc.EnergyFilter(energy_bins)
+    print("Created core flux energy filter - 3-group structure")
 
     # Create mesh tally with three energy groups
     mesh_tally = openmc.Tally(name='flux_mesh')
