@@ -44,7 +44,6 @@ ML/outputs/excel_reports/
 logs/
 ML/models/
 ML/results/
-ML/data/
 ML/outputs/
 
 myenv/
