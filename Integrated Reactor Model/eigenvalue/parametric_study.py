@@ -3,6 +3,7 @@ Parametric study functionality for the integrated reactor model.
 """
 
 import os
+import openmc
 import shutil
 import copy
 import time
