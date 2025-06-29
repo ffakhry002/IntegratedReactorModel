@@ -1,0 +1,2545 @@
+================================================================================
+PARAMETRIC STUDY LOG
+================================================================================
+Study started: 2025-06-06 21:46:24
+Total number of runs: 32
+================================================================================
+
+BASE INPUTS:
+================================================================================
+
+Parametric Study Configuration
+===============================================================================
+parametric_study: True
+
+Core Configuration
+===============================================================================
+core_lattice:
+    [
+        ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+        ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+        ['F', 'F', 'I_1', 'F', 'F', 'I_4', 'F', 'F'],
+        ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+        ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+        ['F', 'F', 'I_2', 'F', 'F', 'I_3', 'F', 'F'],
+        ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
+        ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+    ]
+core_power: 10.0 [MW]
+assembly_type: Plate
+
+Geometry Specifications
+===============================================================================
+tank_radius: 0.25 [m]
+reflector_thickness: 0.1 [m]
+bioshield_thickness: 0.25 [m]
+bottom_bioshield_thickness: 0.9 [m]
+bottom_reflector_thickness: 0.3 [m]
+feed_thickness: 0 [m]
+plenum_height: 1.7 [m]
+top_reflector_thickness: 0.0 [m]
+top_bioshield_thickness: 0.0 [m]
+fuel_height: 0.6 [m]
+
+Materials Configuration
+===============================================================================
+coolant_type: Light Water
+clad_type: Al6061
+fuel_type: U3Si2
+reflector_material: mgo
+bioshield_material: Concrete
+n%: 19.75 [%]
+n%E: 93 [%]
+
+Thermal Hydraulics Parameters
+===============================================================================
+reactor_pressure: 300000.0 [Pa]
+flow_rate: 3 [m/s]
+T_inlet: 315.15 [K]
+input_power_density: 100 [kW/L]
+max_linear_power: 70 [kW/m]
+average_linear_power: 50 [kW/m]
+cos_curve_squeeze: 0
+CP_PD_MLP_ALP: CP
+
+Irradiation Position Parameters
+===============================================================================
+irradiation_clad: False
+irradiation_clad_thickness: 0.0015 [m]
+irradiation_cell_fill: Vacuum
+
+OpenMC Transport Parameters
+===============================================================================
+batches: 150
+inactive: 20
+particles: 10000
+energy_structure: log1001
+thermal_cutoff: 0.625 [eV]
+fast_cutoff: 100000.0 [eV]
+power_tally_axial_segments: 50
+irradiation_axial_segments: 200
+core_mesh_dimension: [201, 201, 201]
+entropy_mesh_dimension: [20, 20, 20]
+Core_Three_Group_Energy_Bins: True
+tally_power: False
+element_level_power_tallies: False
+
+Depletion Calculation Parameters
+===============================================================================
+deplete_core: False
+deplete_assembly: False
+deplete_assembly_enhanced: False
+deplete_element: False
+deplete_element_enhanced: False
+depletion_timestep_units: MWd/kgHM
+depletion_timesteps: [
+        {'steps': 5, 'size': 1},
+        {'steps': 5, 'size': 0.5},
+        {'steps': 5, 'size': 2.5},
+        {'steps': 5, 'size': 5},
+        {'steps': 5, 'size': 10}
+    ]
+depletion_particles: 5000
+depletion_batches: 120
+depletion_inactive: 20
+depletion_integrator: predictor
+depletion_chain: casl
+depletion_nuclides: [
+    U235, U238, Pu239, Xe135, Sm149, Cs137, Sr90, I131
+]
+
+Miscellaneous Settings
+===============================================================================
+outputs_folder: local_outputs
+pixels: (1000, 1000)
+
+Derived Values
+===============================================================================
+n_guide_tubes: 1
+num_assemblies: 48
+
+Plate Assembly Geometry
+===============================================================================
+fuel_meat_width: 0.0391 [m]
+fuel_plate_width: 0.0481 [m]
+fuel_plate_pitch: 0.0037 [m]
+fuel_meat_thickness: 0.00147 [m]
+clad_thickness: 0.00025 [m]
+plates_per_assembly: 13
+clad_structure_width: 0.0015 [m]
+
+================================================================================
+
+RUN 257:
+----------------------------------------
+Description: random_geometric_1
+Timestamp: 2025-06-11 04:26:09
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_1', 'F', 'I_2', 'F', 'F', 'F'], ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'I_4', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.095778 ± 0.000296
+I_1 Flux 2.3035e+14 [6.8877% thermal, 39.8259% epithermal, 53.2865% fast]
+I_2 Flux 2.5786e+14 [6.6073% thermal, 40.3263% epithermal, 53.0664% fast]
+I_3 Flux 1.9885e+14 [8.5813% thermal, 38.5992% epithermal, 52.8195% fast]
+I_4 Flux 1.9845e+14 [8.6528% thermal, 38.4210% epithermal, 52.9262% fast]
+
+================================================================================
+
+RUN 258:
+----------------------------------------
+Description: random_geometric_2
+Timestamp: 2025-06-11 04:32:56
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'I_1', 'F', 'F'], ['I_2', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'], ['C', 'I_4', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.099855 ± 0.000270
+I_1 Flux 2.3521e+14 [6.7418% thermal, 40.0376% epithermal, 53.2206% fast]
+I_2 Flux 1.9149e+14 [17.3976% thermal, 35.7833% epithermal, 46.8192% fast]
+I_3 Flux 2.0744e+14 [8.4650% thermal, 38.7318% epithermal, 52.8032% fast]
+I_4 Flux 1.9926e+14 [24.0062% thermal, 34.0953% epithermal, 41.8984% fast]
+
+================================================================================
+
+RUN 259:
+----------------------------------------
+Description: random_geometric_3
+Timestamp: 2025-06-11 04:39:41
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'I_1', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_2', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'I_4', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.095824 ± 0.000257
+I_1 Flux 2.4689e+14 [6.6674% thermal, 40.0752% epithermal, 53.2574% fast]
+I_2 Flux 2.5522e+14 [6.6525% thermal, 40.2837% epithermal, 53.0638% fast]
+I_3 Flux 2.1842e+14 [6.8080% thermal, 39.7459% epithermal, 53.4462% fast]
+I_4 Flux 1.9182e+14 [26.0690% thermal, 33.2829% epithermal, 40.6481% fast]
+
+================================================================================
+
+RUN 260:
+----------------------------------------
+Description: random_geometric_4
+Timestamp: 2025-06-11 04:46:28
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['I_1', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'], ['F', 'I_3', 'F', 'F', 'F', 'F', 'I_4', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.097231 ± 0.000258
+I_1 Flux 1.8934e+14 [17.3632% thermal, 35.8843% epithermal, 46.7525% fast]
+I_2 Flux 2.5724e+14 [6.5575% thermal, 40.3569% epithermal, 53.0856% fast]
+I_3 Flux 2.1051e+14 [7.9607% thermal, 38.8414% epithermal, 53.1979% fast]
+I_4 Flux 2.2240e+14 [6.8169% thermal, 39.5842% epithermal, 53.5989% fast]
+
+================================================================================
+
+RUN 261:
+----------------------------------------
+Description: random_geometric_5
+Timestamp: 2025-06-11 04:53:28
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'I_3', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'I_4', 'C', 'C']]
+
+Success: True
+k-effective: 1.099508 ± 0.000268
+I_1 Flux 1.9293e+14 [26.0253% thermal, 33.2898% epithermal, 40.6849% fast]
+I_2 Flux 2.4938e+14 [6.6371% thermal, 40.2627% epithermal, 53.1003% fast]
+I_3 Flux 2.0735e+14 [8.4691% thermal, 38.7038% epithermal, 52.8272% fast]
+I_4 Flux 1.8707e+14 [25.9498% thermal, 33.2916% epithermal, 40.7586% fast]
+
+================================================================================
+
+RUN 262:
+----------------------------------------
+Description: random_geometric_6
+Timestamp: 2025-06-11 05:00:15
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'I_1', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'I_4', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.094594 ± 0.000285
+I_1 Flux 2.4785e+14 [6.6032% thermal, 40.1213% epithermal, 53.2755% fast]
+I_2 Flux 2.1624e+14 [6.8773% thermal, 39.5600% epithermal, 53.5627% fast]
+I_3 Flux 2.3439e+14 [7.1699% thermal, 39.9263% epithermal, 52.9038% fast]
+I_4 Flux 2.1958e+14 [7.4538% thermal, 39.7415% epithermal, 52.8047% fast]
+
+================================================================================
+
+RUN 263:
+----------------------------------------
+Description: random_geometric_7
+Timestamp: 2025-06-11 05:07:02
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'I_1', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'I_4', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.096791 ± 0.000292
+I_1 Flux 1.8825e+14 [26.0575% thermal, 33.3074% epithermal, 40.6351% fast]
+I_2 Flux 2.4127e+14 [6.7239% thermal, 40.1104% epithermal, 53.1658% fast]
+I_3 Flux 2.4408e+14 [6.7195% thermal, 40.0248% epithermal, 53.2557% fast]
+I_4 Flux 2.1358e+14 [8.4123% thermal, 38.7636% epithermal, 52.8241% fast]
+
+================================================================================
+
+RUN 264:
+----------------------------------------
+Description: random_geometric_8
+Timestamp: 2025-06-11 05:13:47
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'I_1', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'I_3', 'F', 'F', 'I_4', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.099874 ± 0.000271
+I_1 Flux 1.9806e+14 [18.0093% thermal, 35.7216% epithermal, 46.2691% fast]
+I_2 Flux 2.1806e+14 [6.8985% thermal, 39.6253% epithermal, 53.4763% fast]
+I_3 Flux 2.1565e+14 [6.9285% thermal, 39.5856% epithermal, 53.4859% fast]
+I_4 Flux 1.9914e+14 [24.1147% thermal, 34.0413% epithermal, 41.8440% fast]
+
+================================================================================
+
+RUN 265:
+----------------------------------------
+Description: random_geometric_9
+Timestamp: 2025-06-11 05:20:33
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_1', 'F', 'F', 'F', 'I_2', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'I_3', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'I_4', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.097717 ± 0.000274
+I_1 Flux 2.1951e+14 [6.8973% thermal, 39.6387% epithermal, 53.4640% fast]
+I_2 Flux 2.5018e+14 [6.6338% thermal, 40.2581% epithermal, 53.1081% fast]
+I_3 Flux 2.1105e+14 [8.0872% thermal, 38.8343% epithermal, 53.0785% fast]
+I_4 Flux 1.9014e+14 [17.8234% thermal, 35.9953% epithermal, 46.1813% fast]
+
+================================================================================
+
+RUN 266:
+----------------------------------------
+Description: random_geometric_10
+Timestamp: 2025-06-11 05:27:20
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_3'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'I_4', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.100058 ± 0.000286
+I_1 Flux 2.0582e+14 [8.8591% thermal, 39.0452% epithermal, 52.0957% fast]
+I_2 Flux 2.2052e+14 [7.8347% thermal, 39.4789% epithermal, 52.6864% fast]
+I_3 Flux 1.9561e+14 [17.2714% thermal, 35.7772% epithermal, 46.9514% fast]
+I_4 Flux 2.0059e+14 [24.1017% thermal, 33.9846% epithermal, 41.9136% fast]
+
+================================================================================
+
+RUN 267:
+----------------------------------------
+Description: random_geometric_11
+Timestamp: 2025-06-11 05:34:06
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'I_1', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'I_3', 'I_4', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.099411 ± 0.000270
+I_1 Flux 2.1056e+14 [8.4317% thermal, 38.6815% epithermal, 52.8869% fast]
+I_2 Flux 2.5030e+14 [6.6376% thermal, 40.2013% epithermal, 53.1612% fast]
+I_3 Flux 1.8589e+14 [19.7820% thermal, 35.1476% epithermal, 45.0704% fast]
+I_4 Flux 1.8562e+14 [19.7641% thermal, 35.1607% epithermal, 45.0752% fast]
+
+================================================================================
+
+RUN 268:
+----------------------------------------
+Description: random_geometric_12
+Timestamp: 2025-06-11 05:40:58
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_1', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_2'], ['F', 'F', 'I_3', 'F', 'I_4', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.096453 ± 0.000260
+I_1 Flux 2.4583e+14 [6.6450% thermal, 40.1802% epithermal, 53.1748% fast]
+I_2 Flux 1.9381e+14 [17.3539% thermal, 35.7727% epithermal, 46.8734% fast]
+I_3 Flux 2.2883e+14 [6.7408% thermal, 39.9625% epithermal, 53.2967% fast]
+I_4 Flux 2.4156e+14 [6.6476% thermal, 40.1234% epithermal, 53.2290% fast]
+
+================================================================================
+
+RUN 269:
+----------------------------------------
+Description: random_geometric_13
+Timestamp: 2025-06-11 05:47:39
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'I_2', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_3', 'F', 'F', 'F', 'I_4', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.100334 ± 0.000262
+I_1 Flux 1.8922e+14 [25.9735% thermal, 33.4870% epithermal, 40.5395% fast]
+I_2 Flux 2.0049e+14 [24.1414% thermal, 34.1410% epithermal, 41.7176% fast]
+I_3 Flux 2.0949e+14 [8.3534% thermal, 38.7258% epithermal, 52.9208% fast]
+I_4 Flux 2.3650e+14 [6.7081% thermal, 40.0698% epithermal, 53.2221% fast]
+
+================================================================================
+
+RUN 270:
+----------------------------------------
+Description: random_geometric_14
+Timestamp: 2025-06-11 05:54:24
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'I_1', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'I_2', 'F'], ['F', 'I_3', 'F', 'F', 'F', 'I_4', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.096275 ± 0.000264
+I_1 Flux 2.3058e+14 [6.7993% thermal, 39.9807% epithermal, 53.2200% fast]
+I_2 Flux 2.1168e+14 [6.9229% thermal, 39.6178% epithermal, 53.4593% fast]
+I_3 Flux 2.1191e+14 [8.3911% thermal, 38.7328% epithermal, 52.8762% fast]
+I_4 Flux 2.2400e+14 [6.8131% thermal, 39.8045% epithermal, 53.3824% fast]
+
+================================================================================
+
+RUN 271:
+----------------------------------------
+Description: random_geometric_15
+Timestamp: 2025-06-11 06:01:13
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'I_1', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['I_2', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'I_4', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.097845 ± 0.000285
+I_1 Flux 2.3364e+14 [6.7750% thermal, 39.9161% epithermal, 53.3089% fast]
+I_2 Flux 1.9002e+14 [17.3299% thermal, 35.7644% epithermal, 46.9057% fast]
+I_3 Flux 2.2039e+14 [6.9671% thermal, 39.5967% epithermal, 53.4362% fast]
+I_4 Flux 2.1798e+14 [6.8736% thermal, 39.5924% epithermal, 53.5340% fast]
+
+================================================================================
+
+RUN 272:
+----------------------------------------
+Description: random_geometric_16
+Timestamp: 2025-06-11 06:07:58
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'I_1', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'I_4', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.100722 ± 0.000260
+I_1 Flux 1.9468e+14 [9.1162% thermal, 38.7889% epithermal, 52.0949% fast]
+I_2 Flux 1.9849e+14 [8.4497% thermal, 39.3304% epithermal, 52.2200% fast]
+I_3 Flux 2.0046e+14 [7.9488% thermal, 39.2186% epithermal, 52.8327% fast]
+I_4 Flux 1.9051e+14 [17.9398% thermal, 35.7323% epithermal, 46.3279% fast]
+
+================================================================================
+
+RUN 273:
+----------------------------------------
+Description: random_geometric_17
+Timestamp: 2025-06-11 06:14:43
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'I_1', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'], ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'I_4', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.093925 ± 0.000252
+I_1 Flux 2.2849e+14 [7.1970% thermal, 40.0450% epithermal, 52.7580% fast]
+I_2 Flux 2.3384e+14 [7.0802% thermal, 40.0836% epithermal, 52.8362% fast]
+I_3 Flux 2.5879e+14 [6.6442% thermal, 40.2543% epithermal, 53.1015% fast]
+I_4 Flux 2.2777e+14 [6.7590% thermal, 39.9463% epithermal, 53.2947% fast]
+
+================================================================================
+
+RUN 274:
+----------------------------------------
+Description: random_geometric_18
+Timestamp: 2025-06-11 06:21:27
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'I_1', 'F', 'F', 'F', 'F', 'I_2', 'C'], ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_4', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.099674 ± 0.000282
+I_1 Flux 1.9567e+14 [23.9452% thermal, 34.2734% epithermal, 41.7814% fast]
+I_2 Flux 2.0149e+14 [24.0662% thermal, 34.1634% epithermal, 41.7704% fast]
+I_3 Flux 2.2299e+14 [8.6364% thermal, 38.7089% epithermal, 52.6547% fast]
+I_4 Flux 2.0680e+14 [8.4362% thermal, 38.7301% epithermal, 52.8337% fast]
+
+================================================================================
+
+RUN 275:
+----------------------------------------
+Description: random_geometric_19
+Timestamp: 2025-06-11 06:28:13
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_2', 'F', 'F', 'I_3', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'I_4', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.096732 ± 0.000296
+I_1 Flux 2.0876e+14 [8.4304% thermal, 38.7686% epithermal, 52.8011% fast]
+I_2 Flux 2.4103e+14 [6.7122% thermal, 39.9410% epithermal, 53.3468% fast]
+I_3 Flux 2.5152e+14 [6.5771% thermal, 40.2695% epithermal, 53.1534% fast]
+I_4 Flux 1.9876e+14 [24.1464% thermal, 34.0666% epithermal, 41.7870% fast]
+
+================================================================================
+
+RUN 276:
+----------------------------------------
+Description: random_geometric_20
+Timestamp: 2025-06-11 06:35:02
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'I_1', 'F', 'F', 'C'], ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'I_3', 'C'], ['C', 'C', 'F', 'F', 'F', 'I_4', 'C', 'C']]
+
+Success: True
+k-effective: 1.099277 ± 0.000307
+I_1 Flux 2.1993e+14 [6.9754% thermal, 39.6092% epithermal, 53.4154% fast]
+I_2 Flux 2.4296e+14 [6.6669% thermal, 40.0803% epithermal, 53.2528% fast]
+I_3 Flux 1.9414e+14 [25.4004% thermal, 33.4436% epithermal, 41.1560% fast]
+I_4 Flux 1.8581e+14 [27.1735% thermal, 32.8643% epithermal, 39.9622% fast]
+
+================================================================================
+
+RUN 277:
+----------------------------------------
+Description: random_geometric_21
+Timestamp: 2025-06-11 06:41:48
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'I_1', 'F', 'F'], ['F', 'I_2', 'I_3', 'F', 'I_4', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.093559 ± 0.000292
+I_1 Flux 2.3074e+14 [6.7946% thermal, 39.8757% epithermal, 53.3297% fast]
+I_2 Flux 2.1694e+14 [7.0600% thermal, 39.6918% epithermal, 53.2482% fast]
+I_3 Flux 2.3149e+14 [6.8137% thermal, 39.8813% epithermal, 53.3050% fast]
+I_4 Flux 2.5024e+14 [6.6273% thermal, 40.2370% epithermal, 53.1357% fast]
+
+================================================================================
+
+RUN 278:
+----------------------------------------
+Description: random_geometric_22
+Timestamp: 2025-06-11 06:48:33
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_2'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_4'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.099502 ± 0.000253
+I_1 Flux 2.1033e+14 [8.3968% thermal, 38.7924% epithermal, 52.8108% fast]
+I_2 Flux 1.8314e+14 [26.4035% thermal, 33.2558% epithermal, 40.3407% fast]
+I_3 Flux 2.6183e+14 [6.6312% thermal, 40.2834% epithermal, 53.0854% fast]
+I_4 Flux 1.8415e+14 [26.2683% thermal, 33.1621% epithermal, 40.5696% fast]
+
+================================================================================
+
+RUN 279:
+----------------------------------------
+Description: random_geometric_23
+Timestamp: 2025-06-11 06:55:31
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['I_1', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'I_2', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'I_3', 'C'], ['C', 'C', 'I_4', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.102184 ± 0.000293
+I_1 Flux 1.9156e+14 [26.2566% thermal, 33.2215% epithermal, 40.5219% fast]
+I_2 Flux 2.1458e+14 [6.8885% thermal, 39.4406% epithermal, 53.6709% fast]
+I_3 Flux 1.9633e+14 [24.0465% thermal, 34.0522% epithermal, 41.9013% fast]
+I_4 Flux 1.8586e+14 [25.9939% thermal, 33.3536% epithermal, 40.6525% fast]
+
+================================================================================
+
+RUN 280:
+----------------------------------------
+Description: random_geometric_24
+Timestamp: 2025-06-11 07:02:20
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'I_2', 'F'], ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'I_4', 'C', 'C']]
+
+Success: True
+k-effective: 1.101761 ± 0.000298
+I_1 Flux 1.9665e+14 [17.9504% thermal, 35.8006% epithermal, 46.2490% fast]
+I_2 Flux 2.1754e+14 [6.8470% thermal, 39.6083% epithermal, 53.5446% fast]
+I_3 Flux 1.8976e+14 [26.2223% thermal, 33.3300% epithermal, 40.4477% fast]
+I_4 Flux 1.8763e+14 [26.0712% thermal, 33.3491% epithermal, 40.5797% fast]
+
+================================================================================
+
+RUN 281:
+----------------------------------------
+Description: random_geometric_25
+Timestamp: 2025-06-11 07:09:08
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'I_1', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'I_2', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'I_4', 'C', 'C']]
+
+Success: True
+k-effective: 1.096999 ± 0.000245
+I_1 Flux 2.0248e+14 [24.1188% thermal, 33.9536% epithermal, 41.9276% fast]
+I_2 Flux 2.4527e+14 [7.1908% thermal, 40.2239% epithermal, 52.5853% fast]
+I_3 Flux 2.5379e+14 [7.0470% thermal, 40.3745% epithermal, 52.5785% fast]
+I_4 Flux 1.9156e+14 [26.0300% thermal, 33.3109% epithermal, 40.6592% fast]
+
+================================================================================
+
+RUN 282:
+----------------------------------------
+Description: random_geometric_26
+Timestamp: 2025-06-11 07:15:58
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_2', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'I_3', 'F', 'F', 'I_4', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.098200 ± 0.000281
+I_1 Flux 1.9757e+14 [17.8208% thermal, 35.8694% epithermal, 46.3098% fast]
+I_2 Flux 2.5818e+14 [6.6219% thermal, 40.2603% epithermal, 53.1179% fast]
+I_3 Flux 2.1713e+14 [6.9642% thermal, 39.6141% epithermal, 53.4217% fast]
+I_4 Flux 1.9806e+14 [24.0555% thermal, 34.0023% epithermal, 41.9422% fast]
+
+================================================================================
+
+RUN 283:
+----------------------------------------
+Description: random_geometric_27
+Timestamp: 2025-06-11 07:22:52
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'I_1', 'F', 'F', 'F', 'F', 'I_2', 'F'], ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_4', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.094943 ± 0.000263
+I_1 Flux 2.0586e+14 [8.4727% thermal, 38.6461% epithermal, 52.8811% fast]
+I_2 Flux 2.1004e+14 [8.4326% thermal, 38.7332% epithermal, 52.8342% fast]
+I_3 Flux 2.5538e+14 [6.6203% thermal, 40.3140% epithermal, 53.0657% fast]
+I_4 Flux 2.3266e+14 [6.7161% thermal, 39.9068% epithermal, 53.3770% fast]
+
+================================================================================
+
+RUN 284:
+----------------------------------------
+Description: random_geometric_28
+Timestamp: 2025-06-11 07:29:42
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'I_2', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.095885 ± 0.000250
+I_1 Flux 1.8911e+14 [17.8513% thermal, 35.8840% epithermal, 46.2647% fast]
+I_2 Flux 2.1031e+14 [8.0727% thermal, 38.8932% epithermal, 53.0341% fast]
+I_3 Flux 2.4357e+14 [6.6470% thermal, 40.1906% epithermal, 53.1624% fast]
+I_4 Flux 2.6247e+14 [6.6138% thermal, 40.2906% epithermal, 53.0957% fast]
+
+================================================================================
+
+RUN 285:
+----------------------------------------
+Description: random_geometric_29
+Timestamp: 2025-06-11 07:36:37
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'I_1', 'I_2', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'I_4', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.097950 ± 0.000286
+I_1 Flux 2.4360e+14 [6.7496% thermal, 40.1075% epithermal, 53.1429% fast]
+I_2 Flux 2.4403e+14 [6.7260% thermal, 40.1013% epithermal, 53.1727% fast]
+I_3 Flux 1.8753e+14 [26.2856% thermal, 33.2445% epithermal, 40.4698% fast]
+I_4 Flux 1.9482e+14 [17.8051% thermal, 35.7957% epithermal, 46.3992% fast]
+
+================================================================================
+
+RUN 286:
+----------------------------------------
+Description: random_geometric_30
+Timestamp: 2025-06-11 07:43:32
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'I_1', 'F', 'F', 'F', 'I_2', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'I_3', 'F', 'F'], ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.097010 ± 0.000295
+I_1 Flux 1.9684e+14 [24.0499% thermal, 34.0122% epithermal, 41.9379% fast]
+I_2 Flux 2.0324e+14 [8.9474% thermal, 38.9981% epithermal, 52.0545% fast]
+I_3 Flux 2.1783e+14 [7.8081% thermal, 39.4311% epithermal, 52.7608% fast]
+I_4 Flux 2.5592e+14 [6.6359% thermal, 40.2735% epithermal, 53.0906% fast]
+
+================================================================================
+
+RUN 287:
+----------------------------------------
+Description: random_geometric_31
+Timestamp: 2025-06-11 07:50:28
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'I_1', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'I_4', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.095447 ± 0.000294
+I_1 Flux 2.1181e+14 [6.9865% thermal, 39.5621% epithermal, 53.4514% fast]
+I_2 Flux 2.2064e+14 [6.8530% thermal, 39.8335% epithermal, 53.3135% fast]
+I_3 Flux 2.4706e+14 [6.6912% thermal, 40.1492% epithermal, 53.1596% fast]
+I_4 Flux 2.1335e+14 [6.9611% thermal, 39.5225% epithermal, 53.5164% fast]
+
+================================================================================
+
+RUN 288:
+----------------------------------------
+Description: random_geometric_32
+Timestamp: 2025-06-11 07:57:28
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'I_2', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_3'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_4', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.100807 ± 0.000245
+I_1 Flux 1.8534e+14 [25.9470% thermal, 33.6120% epithermal, 40.4410% fast]
+I_2 Flux 2.1099e+14 [8.8777% thermal, 38.3139% epithermal, 52.8084% fast]
+I_3 Flux 1.9378e+14 [17.3501% thermal, 35.7551% epithermal, 46.8949% fast]
+I_4 Flux 2.0934e+14 [8.3788% thermal, 38.7143% epithermal, 52.9069% fast]
+
+================================================================================
+
+RUN 289:
+----------------------------------------
+Description: random_geometric_33
+Timestamp: 2025-06-11 08:04:27
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'I_1', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'I_4', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.095722 ± 0.000290
+I_1 Flux 1.8926e+14 [26.1207% thermal, 33.3428% epithermal, 40.5365% fast]
+I_2 Flux 2.3358e+14 [6.7857% thermal, 39.9255% epithermal, 53.2887% fast]
+I_3 Flux 2.5494e+14 [6.6728% thermal, 40.2218% epithermal, 53.1054% fast]
+I_4 Flux 2.3395e+14 [6.7490% thermal, 40.0093% epithermal, 53.2417% fast]
+
+================================================================================
+
+RUN 290:
+----------------------------------------
+Description: random_geometric_34
+Timestamp: 2025-06-11 08:11:19
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'I_1', 'C', 'C'], ['C', 'I_2', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'I_3', 'F', 'F'], ['C', 'F', 'F', 'I_4', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.099238 ± 0.000285
+I_1 Flux 1.9024e+14 [25.9683% thermal, 33.3509% epithermal, 40.6809% fast]
+I_2 Flux 2.0287e+14 [24.1880% thermal, 34.0075% epithermal, 41.8044% fast]
+I_3 Flux 2.3247e+14 [6.7636% thermal, 39.9273% epithermal, 53.3091% fast]
+I_4 Flux 2.2010e+14 [6.9574% thermal, 39.6229% epithermal, 53.4197% fast]
+
+================================================================================
+
+RUN 291:
+----------------------------------------
+Description: random_geometric_35
+Timestamp: 2025-06-11 08:18:12
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_2', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'I_3', 'C'], ['C', 'C', 'F', 'I_4', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.098895 ± 0.000280
+I_1 Flux 2.1291e+14 [8.4370% thermal, 38.7850% epithermal, 52.7780% fast]
+I_2 Flux 2.5965e+14 [6.5924% thermal, 40.2859% epithermal, 53.1217% fast]
+I_3 Flux 1.9740e+14 [24.0717% thermal, 34.0375% epithermal, 41.8908% fast]
+I_4 Flux 1.9001e+14 [17.8979% thermal, 35.7781% epithermal, 46.3240% fast]
+
+================================================================================
+
+RUN 292:
+----------------------------------------
+Description: random_geometric_36
+Timestamp: 2025-06-11 08:24:57
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_1', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'I_3', 'F', 'F', 'I_4', 'C', 'C']]
+
+Success: True
+k-effective: 1.100136 ± 0.000284
+I_1 Flux 2.1497e+14 [6.9867% thermal, 39.6189% epithermal, 53.3944% fast]
+I_2 Flux 2.3560e+14 [6.6783% thermal, 40.0932% epithermal, 53.2285% fast]
+I_3 Flux 1.8071e+14 [26.1040% thermal, 33.2514% epithermal, 40.6446% fast]
+I_4 Flux 1.8479e+14 [26.1331% thermal, 33.2542% epithermal, 40.6126% fast]
+
+================================================================================
+
+RUN 293:
+----------------------------------------
+Description: random_geometric_37
+Timestamp: 2025-06-11 08:31:44
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'I_1', 'F', 'F', 'F'], ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'I_3', 'F', 'I_4', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.095171 ± 0.000236
+I_1 Flux 2.4993e+14 [6.6655% thermal, 40.2148% epithermal, 53.1197% fast]
+I_2 Flux 2.4714e+14 [6.7121% thermal, 40.1881% epithermal, 53.0998% fast]
+I_3 Flux 2.1516e+14 [6.9276% thermal, 39.5136% epithermal, 53.5588% fast]
+I_4 Flux 2.0635e+14 [8.4252% thermal, 38.6786% epithermal, 52.8962% fast]
+
+================================================================================
+
+RUN 294:
+----------------------------------------
+Description: random_geometric_38
+Timestamp: 2025-06-11 08:38:36
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'I_1', 'F', 'F'], ['F', 'F', 'F', 'I_2', 'F', 'F', 'I_3', 'F'], ['C', 'F', 'F', 'F', 'I_4', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.096058 ± 0.000266
+I_1 Flux 2.3173e+14 [6.9771% thermal, 39.9567% epithermal, 53.0662% fast]
+I_2 Flux 2.3447e+14 [6.6547% thermal, 40.0463% epithermal, 53.2990% fast]
+I_3 Flux 2.0131e+14 [8.5473% thermal, 38.7512% epithermal, 52.7015% fast]
+I_4 Flux 2.0975e+14 [6.9557% thermal, 39.6329% epithermal, 53.4115% fast]
+
+================================================================================
+
+RUN 295:
+----------------------------------------
+Description: random_geometric_39
+Timestamp: 2025-06-11 08:45:22
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'I_1', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'I_4', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.099483 ± 0.000278
+I_1 Flux 2.1053e+14 [8.4215% thermal, 38.8268% epithermal, 52.7517% fast]
+I_2 Flux 2.2110e+14 [6.8916% thermal, 39.6116% epithermal, 53.4968% fast]
+I_3 Flux 2.0815e+14 [8.4078% thermal, 38.7634% epithermal, 52.8288% fast]
+I_4 Flux 1.8988e+14 [26.0965% thermal, 33.2341% epithermal, 40.6694% fast]
+
+================================================================================
+
+RUN 296:
+----------------------------------------
+Description: random_geometric_40
+Timestamp: 2025-06-11 08:52:07
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['I_1', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'I_3', 'F', 'I_4', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.095826 ± 0.000288
+I_1 Flux 1.9078e+14 [17.3637% thermal, 35.6897% epithermal, 46.9466% fast]
+I_2 Flux 2.4047e+14 [6.7255% thermal, 39.9426% epithermal, 53.3319% fast]
+I_3 Flux 2.4047e+14 [6.6379% thermal, 40.2081% epithermal, 53.1540% fast]
+I_4 Flux 2.3287e+14 [6.7661% thermal, 39.8906% epithermal, 53.3433% fast]
+
+================================================================================
+
+RUN 297:
+----------------------------------------
+Description: random_geometric_41
+Timestamp: 2025-06-11 08:58:52
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'I_2', 'F'], ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.098677 ± 0.000272
+I_1 Flux 2.0458e+14 [8.4015% thermal, 38.6787% epithermal, 52.9197% fast]
+I_2 Flux 2.0924e+14 [8.4861% thermal, 38.6992% epithermal, 52.8147% fast]
+I_3 Flux 1.8913e+14 [17.3028% thermal, 35.8030% epithermal, 46.8942% fast]
+I_4 Flux 2.4999e+14 [6.5878% thermal, 40.2320% epithermal, 53.1801% fast]
+
+================================================================================
+
+RUN 298:
+----------------------------------------
+Description: random_geometric_42
+Timestamp: 2025-06-11 09:05:38
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['I_2', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.097329 ± 0.000299
+I_1 Flux 1.9078e+14 [17.8327% thermal, 35.7688% epithermal, 46.3985% fast]
+I_2 Flux 1.8723e+14 [26.3537% thermal, 33.0704% epithermal, 40.5759% fast]
+I_3 Flux 2.5956e+14 [6.6348% thermal, 40.1989% epithermal, 53.1663% fast]
+I_4 Flux 2.5026e+14 [6.6339% thermal, 40.2602% epithermal, 53.1058% fast]
+
+================================================================================
+
+RUN 299:
+----------------------------------------
+Description: random_geometric_43
+Timestamp: 2025-06-11 09:12:26
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['I_2', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'I_4', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.097511 ± 0.000271
+I_1 Flux 2.0413e+14 [8.4159% thermal, 38.7462% epithermal, 52.8379% fast]
+I_2 Flux 1.8649e+14 [17.3245% thermal, 35.7415% epithermal, 46.9340% fast]
+I_3 Flux 2.5592e+14 [6.6600% thermal, 40.2318% epithermal, 53.1081% fast]
+I_4 Flux 2.2091e+14 [6.9469% thermal, 39.6299% epithermal, 53.4231% fast]
+
+================================================================================
+
+RUN 300:
+----------------------------------------
+Description: random_geometric_44
+Timestamp: 2025-06-11 09:19:12
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['I_2', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'I_3', 'I_4', 'C', 'C']]
+
+Success: True
+k-effective: 1.102965 ± 0.000287
+I_1 Flux 2.0968e+14 [8.4625% thermal, 38.6543% epithermal, 52.8832% fast]
+I_2 Flux 1.8811e+14 [17.3340% thermal, 35.8797% epithermal, 46.7863% fast]
+I_3 Flux 1.8910e+14 [23.9101% thermal, 33.5836% epithermal, 42.5063% fast]
+I_4 Flux 1.8239e+14 [27.8066% thermal, 33.1371% epithermal, 39.0563% fast]
+
+================================================================================
+
+RUN 301:
+----------------------------------------
+Description: random_geometric_45
+Timestamp: 2025-06-11 09:26:00
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'I_1', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'I_3', 'F', 'C'], ['C', 'C', 'F', 'F', 'I_4', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.100325 ± 0.000282
+I_1 Flux 1.9468e+14 [17.8617% thermal, 35.7960% epithermal, 46.3423% fast]
+I_2 Flux 2.0832e+14 [8.4520% thermal, 38.7199% epithermal, 52.8280% fast]
+I_3 Flux 2.0413e+14 [9.7009% thermal, 37.9010% epithermal, 52.3981% fast]
+I_4 Flux 1.9101e+14 [17.8374% thermal, 35.8591% epithermal, 46.3035% fast]
+
+================================================================================
+
+RUN 302:
+----------------------------------------
+Description: random_geometric_46
+Timestamp: 2025-06-11 09:32:51
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'I_1', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_3'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'I_4', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.100845 ± 0.000287
+I_1 Flux 1.9636e+14 [24.1085% thermal, 34.0374% epithermal, 41.8541% fast]
+I_2 Flux 2.3867e+14 [6.7473% thermal, 39.9506% epithermal, 53.3022% fast]
+I_3 Flux 1.8560e+14 [17.3643% thermal, 35.6558% epithermal, 46.9799% fast]
+I_4 Flux 1.9157e+14 [26.0015% thermal, 33.2953% epithermal, 40.7032% fast]
+
+================================================================================
+
+RUN 303:
+----------------------------------------
+Description: random_geometric_47
+Timestamp: 2025-06-11 09:39:35
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_1'], ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'I_3', 'F', 'I_4', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.100778 ± 0.000265
+I_1 Flux 1.9586e+14 [17.4923% thermal, 35.6991% epithermal, 46.8086% fast]
+I_2 Flux 2.1067e+14 [6.9321% thermal, 39.4303% epithermal, 53.6375% fast]
+I_3 Flux 1.9264e+14 [24.1707% thermal, 34.0851% epithermal, 41.7442% fast]
+I_4 Flux 2.1002e+14 [6.9751% thermal, 39.3625% epithermal, 53.6624% fast]
+
+================================================================================
+
+RUN 304:
+----------------------------------------
+Description: random_geometric_48
+Timestamp: 2025-06-11 09:46:18
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'I_1', 'I_2', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'I_4', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.097929 ± 0.000272
+I_1 Flux 2.0170e+14 [8.5013% thermal, 38.7826% epithermal, 52.7161% fast]
+I_2 Flux 2.0915e+14 [7.6686% thermal, 39.0955% epithermal, 53.2359% fast]
+I_3 Flux 2.1694e+14 [6.8919% thermal, 39.5988% epithermal, 53.5092% fast]
+I_4 Flux 2.1390e+14 [8.3957% thermal, 38.7852% epithermal, 52.8191% fast]
+
+================================================================================
+
+RUN 305:
+----------------------------------------
+Description: random_geometric_49
+Timestamp: 2025-06-11 09:53:04
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'I_1', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['I_2', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'I_4', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.100913 ± 0.000272
+I_1 Flux 1.9900e+14 [8.4235% thermal, 38.6548% epithermal, 52.9217% fast]
+I_2 Flux 1.8538e+14 [17.0068% thermal, 36.3491% epithermal, 46.6442% fast]
+I_3 Flux 2.0526e+14 [11.4325% thermal, 37.3864% epithermal, 51.1811% fast]
+I_4 Flux 2.0481e+14 [24.1916% thermal, 34.1432% epithermal, 41.6652% fast]
+
+================================================================================
+
+RUN 306:
+----------------------------------------
+Description: random_geometric_50
+Timestamp: 2025-06-11 09:59:49
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'I_2', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_3'], ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.099162 ± 0.000282
+I_1 Flux 1.8633e+14 [26.0436% thermal, 33.2998% epithermal, 40.6566% fast]
+I_2 Flux 2.0135e+14 [8.5079% thermal, 38.7141% epithermal, 52.7781% fast]
+I_3 Flux 1.8855e+14 [17.3998% thermal, 35.7119% epithermal, 46.8884% fast]
+I_4 Flux 2.6568e+14 [6.6207% thermal, 40.3205% epithermal, 53.0588% fast]
+
+================================================================================
+
+RUN 307:
+----------------------------------------
+Description: random_geometric_51
+Timestamp: 2025-06-11 10:06:36
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'I_1', 'I_2', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'I_3', 'I_4', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.095519 ± 0.000277
+I_1 Flux 2.4350e+14 [6.7674% thermal, 39.9732% epithermal, 53.2594% fast]
+I_2 Flux 2.4386e+14 [6.7895% thermal, 40.0592% epithermal, 53.1513% fast]
+I_3 Flux 2.0510e+14 [8.4724% thermal, 38.7309% epithermal, 52.7967% fast]
+I_4 Flux 2.1172e+14 [7.6402% thermal, 39.1719% epithermal, 53.1879% fast]
+
+================================================================================
+
+RUN 308:
+----------------------------------------
+Description: random_geometric_52
+Timestamp: 2025-06-11 10:13:21
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'I_1', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_2'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'I_3', 'F', 'F', 'I_4', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.099967 ± 0.000277
+I_1 Flux 2.2274e+14 [6.9010% thermal, 39.6710% epithermal, 53.4280% fast]
+I_2 Flux 1.8637e+14 [26.3816% thermal, 33.3385% epithermal, 40.2799% fast]
+I_3 Flux 2.2001e+14 [6.9063% thermal, 39.5787% epithermal, 53.5150% fast]
+I_4 Flux 1.9763e+14 [23.9799% thermal, 34.1352% epithermal, 41.8849% fast]
+
+================================================================================
+
+RUN 309:
+----------------------------------------
+Description: random_geometric_53
+Timestamp: 2025-06-11 10:20:09
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'I_2', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'I_4', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.103978 ± 0.000270
+I_1 Flux 1.8031e+14 [26.1200% thermal, 33.1573% epithermal, 40.7227% fast]
+I_2 Flux 1.8529e+14 [17.9958% thermal, 35.6527% epithermal, 46.3515% fast]
+I_3 Flux 1.8913e+14 [17.4635% thermal, 35.7674% epithermal, 46.7691% fast]
+I_4 Flux 2.0531e+14 [24.0713% thermal, 34.0832% epithermal, 41.8454% fast]
+
+================================================================================
+
+RUN 310:
+----------------------------------------
+Description: random_geometric_54
+Timestamp: 2025-06-11 10:26:59
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'], ['C', 'F', 'I_2', 'F', 'F', 'F', 'F', 'C'], ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'I_4', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.102001 ± 0.000313
+I_1 Flux 1.8296e+14 [17.9659% thermal, 35.7857% epithermal, 46.2484% fast]
+I_2 Flux 1.9408e+14 [9.7342% thermal, 37.8055% epithermal, 52.4602% fast]
+I_3 Flux 1.8076e+14 [26.4597% thermal, 33.0741% epithermal, 40.4662% fast]
+I_4 Flux 2.2222e+14 [6.8571% thermal, 39.6590% epithermal, 53.4839% fast]
+
+================================================================================
+
+RUN 311:
+----------------------------------------
+Description: random_geometric_55
+Timestamp: 2025-06-11 10:33:45
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'I_1', 'F', 'F', 'C'], ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'I_3', 'I_4', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.095747 ± 0.000271
+I_1 Flux 2.2118e+14 [6.9737% thermal, 39.6529% epithermal, 53.3734% fast]
+I_2 Flux 2.4227e+14 [6.7508% thermal, 40.1563% epithermal, 53.0928% fast]
+I_3 Flux 2.1370e+14 [7.0679% thermal, 39.4678% epithermal, 53.4643% fast]
+I_4 Flux 2.1413e+14 [7.0279% thermal, 39.5313% epithermal, 53.4408% fast]
+
+================================================================================
+
+RUN 312:
+----------------------------------------
+Description: random_geometric_56
+Timestamp: 2025-06-11 10:40:35
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'I_1', 'F', 'C', 'C'], ['C', 'F', 'F', 'I_2', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'I_4', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.099694 ± 0.000296
+I_1 Flux 1.8867e+14 [17.8985% thermal, 35.9663% epithermal, 46.1352% fast]
+I_2 Flux 2.0979e+14 [8.1214% thermal, 38.9228% epithermal, 52.9559% fast]
+I_3 Flux 2.4181e+14 [6.6843% thermal, 40.2489% epithermal, 53.0668% fast]
+I_4 Flux 1.9241e+14 [26.1101% thermal, 33.3350% epithermal, 40.5549% fast]
+
+================================================================================
+
+RUN 313:
+----------------------------------------
+Description: random_geometric_57
+Timestamp: 2025-06-11 10:47:27
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_2'], ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['I_4', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.101600 ± 0.000272
+I_1 Flux 1.8976e+14 [17.8980% thermal, 35.7398% epithermal, 46.3622% fast]
+I_2 Flux 1.8911e+14 [26.1944% thermal, 33.1742% epithermal, 40.6315% fast]
+I_3 Flux 2.4360e+14 [6.6353% thermal, 40.2382% epithermal, 53.1264% fast]
+I_4 Flux 1.8796e+14 [26.4535% thermal, 33.0350% epithermal, 40.5115% fast]
+
+================================================================================
+
+RUN 314:
+----------------------------------------
+Description: random_geometric_58
+Timestamp: 2025-06-11 10:54:21
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'I_1', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'I_4', 'C', 'C']]
+
+Success: True
+k-effective: 1.102345 ± 0.000292
+I_1 Flux 1.9561e+14 [17.9595% thermal, 35.7884% epithermal, 46.2520% fast]
+I_2 Flux 2.1235e+14 [6.9299% thermal, 39.4727% epithermal, 53.5974% fast]
+I_3 Flux 1.8408e+14 [26.3783% thermal, 33.2503% epithermal, 40.3714% fast]
+I_4 Flux 1.9079e+14 [26.0111% thermal, 33.2590% epithermal, 40.7299% fast]
+
+================================================================================
+
+RUN 315:
+----------------------------------------
+Description: random_geometric_59
+Timestamp: 2025-06-11 11:01:09
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'I_1', 'F', 'I_2', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_3'], ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.101786 ± 0.000292
+I_1 Flux 1.8630e+14 [17.9483% thermal, 35.6033% epithermal, 46.4484% fast]
+I_2 Flux 1.8182e+14 [26.1510% thermal, 33.2432% epithermal, 40.6058% fast]
+I_3 Flux 1.8906e+14 [17.3601% thermal, 35.8055% epithermal, 46.8344% fast]
+I_4 Flux 2.5216e+14 [6.6504% thermal, 40.1688% epithermal, 53.1807% fast]
+
+================================================================================
+
+RUN 316:
+----------------------------------------
+Description: random_geometric_60
+Timestamp: 2025-06-11 11:08:09
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'], ['C', 'I_4', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.099300 ± 0.000282
+I_1 Flux 1.9602e+14 [17.8453% thermal, 35.7717% epithermal, 46.3829% fast]
+I_2 Flux 2.4369e+14 [6.6285% thermal, 40.1094% epithermal, 53.2621% fast]
+I_3 Flux 2.1037e+14 [8.3453% thermal, 38.6833% epithermal, 52.9714% fast]
+I_4 Flux 2.0020e+14 [24.0770% thermal, 34.0601% epithermal, 41.8628% fast]
+
+================================================================================
+
+RUN 317:
+----------------------------------------
+Description: random_geometric_61
+Timestamp: 2025-06-11 11:15:08
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['I_1', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'I_2', 'I_3', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'I_4', 'C', 'C']]
+
+Success: True
+k-effective: 1.104056 ± 0.000273
+I_1 Flux 1.8487e+14 [26.1959% thermal, 33.2423% epithermal, 40.5618% fast]
+I_2 Flux 1.8690e+14 [23.1012% thermal, 35.0275% epithermal, 41.8713% fast]
+I_3 Flux 1.9849e+14 [14.2172% thermal, 36.2339% epithermal, 49.5489% fast]
+I_4 Flux 1.8484e+14 [26.0627% thermal, 33.2628% epithermal, 40.6745% fast]
+
+================================================================================
+
+RUN 318:
+----------------------------------------
+Description: random_geometric_62
+Timestamp: 2025-06-11 11:22:05
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'I_4', 'C', 'C']]
+
+Success: True
+k-effective: 1.099305 ± 0.000273
+I_1 Flux 1.8985e+14 [26.1039% thermal, 33.3110% epithermal, 40.5851% fast]
+I_2 Flux 2.4248e+14 [6.6459% thermal, 40.2160% epithermal, 53.1381% fast]
+I_3 Flux 2.2949e+14 [6.7047% thermal, 39.9358% epithermal, 53.3595% fast]
+I_4 Flux 1.9104e+14 [26.0653% thermal, 33.2826% epithermal, 40.6520% fast]
+
+================================================================================
+
+RUN 319:
+----------------------------------------
+Description: random_geometric_63
+Timestamp: 2025-06-11 11:29:06
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'I_1', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'I_4', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.096501 ± 0.000260
+I_1 Flux 1.9844e+14 [24.1212% thermal, 33.9794% epithermal, 41.8994% fast]
+I_2 Flux 2.3713e+14 [7.1034% thermal, 40.2052% epithermal, 52.6914% fast]
+I_3 Flux 2.3795e+14 [7.0754% thermal, 40.2001% epithermal, 52.7244% fast]
+I_4 Flux 2.3651e+14 [6.7431% thermal, 39.8773% epithermal, 53.3796% fast]
+
+================================================================================
+
+RUN 320:
+----------------------------------------
+Description: random_geometric_64
+Timestamp: 2025-06-11 11:35:58
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'I_1', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'I_3', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'I_4', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.097848 ± 0.000262
+I_1 Flux 2.3853e+14 [6.7802% thermal, 39.9217% epithermal, 53.2981% fast]
+I_2 Flux 2.4205e+14 [6.6252% thermal, 40.2169% epithermal, 53.1579% fast]
+I_3 Flux 2.0208e+14 [8.4535% thermal, 38.5905% epithermal, 52.9561% fast]
+I_4 Flux 1.8905e+14 [17.7920% thermal, 35.7999% epithermal, 46.4081% fast]
+
+================================================================================
+
+RUN 321:
+----------------------------------------
+Description: random_lattice_1
+Timestamp: 2025-06-11 11:42:50
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_3'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'I_4', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.100642 ± 0.000265
+I_1 Flux 1.9178e+14 [17.9286% thermal, 35.7235% epithermal, 46.3478% fast]
+I_2 Flux 2.4263e+14 [6.7555% thermal, 40.0977% epithermal, 53.1468% fast]
+I_3 Flux 1.9110e+14 [17.2558% thermal, 35.7703% epithermal, 46.9739% fast]
+I_4 Flux 1.9553e+14 [17.8141% thermal, 35.8048% epithermal, 46.3811% fast]
+
+================================================================================
+
+RUN 322:
+----------------------------------------
+Description: random_lattice_2
+Timestamp: 2025-06-11 11:49:42
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'I_2', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_3', 'F', 'F', 'F', 'F', 'I_4', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.099354 ± 0.000280
+I_1 Flux 1.8055e+14 [26.1630% thermal, 34.4977% epithermal, 39.3393% fast]
+I_2 Flux 1.9919e+14 [15.5462% thermal, 35.8722% epithermal, 48.5816% fast]
+I_3 Flux 2.1168e+14 [6.8747% thermal, 39.5016% epithermal, 53.6237% fast]
+I_4 Flux 2.2144e+14 [6.8879% thermal, 39.5133% epithermal, 53.5989% fast]
+
+================================================================================
+
+RUN 323:
+----------------------------------------
+Description: random_lattice_3
+Timestamp: 2025-06-11 11:56:39
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'], ['C', 'I_2', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'I_4', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.100072 ± 0.000281
+I_1 Flux 1.8873e+14 [18.0025% thermal, 35.6547% epithermal, 46.3427% fast]
+I_2 Flux 1.9421e+14 [24.0630% thermal, 33.9918% epithermal, 41.9453% fast]
+I_3 Flux 2.4729e+14 [6.6809% thermal, 40.2348% epithermal, 53.0843% fast]
+I_4 Flux 2.1205e+14 [8.4456% thermal, 38.7743% epithermal, 52.7801% fast]
+
+================================================================================
+
+RUN 324:
+----------------------------------------
+Description: random_lattice_4
+Timestamp: 2025-06-11 12:03:32
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'I_2', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'I_4', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.097807 ± 0.000285
+I_1 Flux 1.8702e+14 [25.9816% thermal, 33.3620% epithermal, 40.6565% fast]
+I_2 Flux 1.9707e+14 [24.1243% thermal, 34.0101% epithermal, 41.8656% fast]
+I_3 Flux 2.5958e+14 [6.5933% thermal, 40.2762% epithermal, 53.1305% fast]
+I_4 Flux 2.4672e+14 [6.6797% thermal, 40.1156% epithermal, 53.2047% fast]
+
+================================================================================
+
+RUN 325:
+----------------------------------------
+Description: random_lattice_5
+Timestamp: 2025-06-11 12:10:23
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_3', 'I_4', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.094555 ± 0.000308
+I_1 Flux 1.9366e+14 [17.8908% thermal, 35.6148% epithermal, 46.4944% fast]
+I_2 Flux 2.4446e+14 [6.6181% thermal, 40.2342% epithermal, 53.1477% fast]
+I_3 Flux 2.5244e+14 [6.6890% thermal, 40.1692% epithermal, 53.1418% fast]
+I_4 Flux 2.4546e+14 [6.7327% thermal, 40.2377% epithermal, 53.0296% fast]
+
+================================================================================
+
+RUN 326:
+----------------------------------------
+Description: random_lattice_6
+Timestamp: 2025-06-11 12:17:12
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'I_1', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'I_2', 'I_3', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.093866 ± 0.000299
+I_1 Flux 2.1546e+14 [7.4662% thermal, 39.7811% epithermal, 52.7527% fast]
+I_2 Flux 2.2688e+14 [7.3008% thermal, 39.8384% epithermal, 52.8608% fast]
+I_3 Flux 2.3175e+14 [6.8754% thermal, 39.8060% epithermal, 53.3186% fast]
+I_4 Flux 2.5753e+14 [6.6010% thermal, 40.3965% epithermal, 53.0025% fast]
+
+================================================================================
+
+RUN 327:
+----------------------------------------
+Description: random_lattice_7
+Timestamp: 2025-06-11 12:24:08
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'I_2', 'F', 'C'], ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'I_4', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.099578 ± 0.000285
+I_1 Flux 1.8353e+14 [26.1048% thermal, 33.2954% epithermal, 40.5998% fast]
+I_2 Flux 1.9907e+14 [8.4212% thermal, 38.7196% epithermal, 52.8591% fast]
+I_3 Flux 2.2535e+14 [6.8597% thermal, 39.7372% epithermal, 53.4031% fast]
+I_4 Flux 2.1445e+14 [6.8924% thermal, 39.6404% epithermal, 53.4672% fast]
+
+================================================================================
+
+RUN 328:
+----------------------------------------
+Description: random_lattice_8
+Timestamp: 2025-06-11 12:31:05
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'I_2', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'I_4', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.094865 ± 0.000287
+I_1 Flux 2.0816e+14 [8.3866% thermal, 38.7950% epithermal, 52.8184% fast]
+I_2 Flux 2.4389e+14 [6.6592% thermal, 40.1057% epithermal, 53.2351% fast]
+I_3 Flux 2.5991e+14 [6.6959% thermal, 40.2603% epithermal, 53.0438% fast]
+I_4 Flux 2.1050e+14 [8.4458% thermal, 38.7279% epithermal, 52.8262% fast]
+
+================================================================================
+
+RUN 329:
+----------------------------------------
+Description: random_lattice_9
+Timestamp: 2025-06-11 12:38:04
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'I_1', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'I_3', 'F', 'F', 'I_4', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.098560 ± 0.000295
+I_1 Flux 2.0275e+14 [24.0346% thermal, 34.0464% epithermal, 41.9190% fast]
+I_2 Flux 2.3608e+14 [6.7237% thermal, 39.9155% epithermal, 53.3608% fast]
+I_3 Flux 2.0784e+14 [8.4539% thermal, 38.6641% epithermal, 52.8820% fast]
+I_4 Flux 2.0734e+14 [8.4757% thermal, 38.7697% epithermal, 52.7547% fast]
+
+================================================================================
+
+RUN 330:
+----------------------------------------
+Description: random_lattice_10
+Timestamp: 2025-06-11 12:44:58
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'], ['F', 'I_3', 'F', 'F', 'I_4', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.096060 ± 0.000276
+I_1 Flux 1.8488e+14 [25.9627% thermal, 33.3632% epithermal, 40.6742% fast]
+I_2 Flux 2.3025e+14 [6.7876% thermal, 40.0366% epithermal, 53.1758% fast]
+I_3 Flux 2.1552e+14 [6.8260% thermal, 39.5650% epithermal, 53.6090% fast]
+I_4 Flux 2.5415e+14 [6.6649% thermal, 40.2167% epithermal, 53.1185% fast]
+
+================================================================================
+
+RUN 331:
+----------------------------------------
+Description: random_lattice_11
+Timestamp: 2025-06-11 12:51:49
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_3', 'F', 'I_4', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.096114 ± 0.000269
+I_1 Flux 1.9056e+14 [26.0594% thermal, 33.3729% epithermal, 40.5678% fast]
+I_2 Flux 2.3437e+14 [7.0517% thermal, 40.1014% epithermal, 52.8468% fast]
+I_3 Flux 2.2697e+14 [7.1907% thermal, 40.1022% epithermal, 52.7071% fast]
+I_4 Flux 2.4513e+14 [6.7234% thermal, 40.1896% epithermal, 53.0870% fast]
+
+================================================================================
+
+RUN 332:
+----------------------------------------
+Description: random_lattice_12
+Timestamp: 2025-06-11 12:58:42
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'I_4', 'C', 'C']]
+
+Success: True
+k-effective: 1.098740 ± 0.000297
+I_1 Flux 1.8922e+14 [25.8699% thermal, 33.3898% epithermal, 40.7403% fast]
+I_2 Flux 2.1679e+14 [6.9216% thermal, 39.5990% epithermal, 53.4794% fast]
+I_3 Flux 2.6285e+14 [6.6626% thermal, 40.2630% epithermal, 53.0743% fast]
+I_4 Flux 1.9160e+14 [26.1117% thermal, 33.3124% epithermal, 40.5759% fast]
+
+================================================================================
+
+RUN 333:
+----------------------------------------
+Description: random_lattice_13
+Timestamp: 2025-06-11 13:05:36
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_2', 'F', 'I_3', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_4'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.099164 ± 0.000256
+I_1 Flux 1.8856e+14 [26.0245% thermal, 33.3639% epithermal, 40.6116% fast]
+I_2 Flux 2.5482e+14 [6.6187% thermal, 40.2721% epithermal, 53.1093% fast]
+I_3 Flux 2.0889e+14 [8.0405% thermal, 38.8598% epithermal, 53.0997% fast]
+I_4 Flux 1.8807e+14 [17.3641% thermal, 35.8296% epithermal, 46.8063% fast]
+
+================================================================================
+
+RUN 334:
+----------------------------------------
+Description: random_lattice_14
+Timestamp: 2025-06-11 13:12:32
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'I_2', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_3', 'F', 'F', 'F', 'I_4', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.100039 ± 0.000261
+I_1 Flux 1.8873e+14 [26.0116% thermal, 33.3899% epithermal, 40.5985% fast]
+I_2 Flux 1.9825e+14 [23.9936% thermal, 34.1213% epithermal, 41.8850% fast]
+I_3 Flux 2.3776e+14 [6.7492% thermal, 40.0364% epithermal, 53.2144% fast]
+I_4 Flux 2.0877e+14 [8.4054% thermal, 38.7100% epithermal, 52.8845% fast]
+
+================================================================================
+
+RUN 335:
+----------------------------------------
+Description: random_lattice_15
+Timestamp: 2025-06-11 13:19:27
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'], ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.094978 ± 0.000302
+I_1 Flux 2.0880e+14 [8.4268% thermal, 38.7703% epithermal, 52.8030% fast]
+I_2 Flux 2.4417e+14 [6.6755% thermal, 40.1841% epithermal, 53.1404% fast]
+I_3 Flux 2.2037e+14 [6.9042% thermal, 39.6447% epithermal, 53.4511% fast]
+I_4 Flux 2.4704e+14 [6.6409% thermal, 40.2058% epithermal, 53.1533% fast]
+
+================================================================================
+
+RUN 336:
+----------------------------------------
+Description: random_lattice_16
+Timestamp: 2025-06-11 13:26:21
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'], ['C', 'F', 'I_2', 'F', 'F', 'I_3', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['I_4', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.102793 ± 0.000286
+I_1 Flux 1.8145e+14 [17.9994% thermal, 35.6569% epithermal, 46.3438% fast]
+I_2 Flux 1.9426e+14 [9.6847% thermal, 37.9082% epithermal, 52.4071% fast]
+I_3 Flux 1.9952e+14 [8.4908% thermal, 38.6217% epithermal, 52.8875% fast]
+I_4 Flux 1.8872e+14 [17.3144% thermal, 35.8817% epithermal, 46.8039% fast]
+
+================================================================================
+
+RUN 337:
+----------------------------------------
+Description: random_lattice_17
+Timestamp: 2025-06-11 13:33:24
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.095636 ± 0.000294
+I_1 Flux 1.9282e+14 [17.9092% thermal, 35.5898% epithermal, 46.5010% fast]
+I_2 Flux 2.3601e+14 [7.0643% thermal, 40.2523% epithermal, 52.6833% fast]
+I_3 Flux 2.3556e+14 [7.0739% thermal, 40.3001% epithermal, 52.6260% fast]
+I_4 Flux 2.4154e+14 [6.7110% thermal, 40.0806% epithermal, 53.2083% fast]
+
+================================================================================
+
+RUN 338:
+----------------------------------------
+Description: random_lattice_18
+Timestamp: 2025-06-11 13:40:25
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'I_2', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_4', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.102592 ± 0.000288
+I_1 Flux 1.7855e+14 [26.2040% thermal, 34.4770% epithermal, 39.3190% fast]
+I_2 Flux 1.9664e+14 [15.5605% thermal, 35.8813% epithermal, 48.5582% fast]
+I_3 Flux 1.7942e+14 [17.3832% thermal, 35.8359% epithermal, 46.7809% fast]
+I_4 Flux 1.9974e+14 [8.3100% thermal, 38.7399% epithermal, 52.9501% fast]
+
+================================================================================
+
+RUN 339:
+----------------------------------------
+Description: random_lattice_19
+Timestamp: 2025-06-11 13:47:22
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'], ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'I_4', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.096691 ± 0.000292
+I_1 Flux 2.0449e+14 [8.4997% thermal, 38.8170% epithermal, 52.6832% fast]
+I_2 Flux 2.3536e+14 [6.9281% thermal, 39.8312% epithermal, 53.2408% fast]
+I_3 Flux 2.1177e+14 [6.9509% thermal, 39.5921% epithermal, 53.4570% fast]
+I_4 Flux 2.2147e+14 [6.9349% thermal, 39.6231% epithermal, 53.4419% fast]
+
+================================================================================
+
+RUN 340:
+----------------------------------------
+Description: random_lattice_20
+Timestamp: 2025-06-11 13:54:23
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'], ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'I_4', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.097178 ± 0.000282
+I_1 Flux 1.8687e+14 [26.1087% thermal, 33.3376% epithermal, 40.5537% fast]
+I_2 Flux 2.3956e+14 [6.6563% thermal, 40.0215% epithermal, 53.3222% fast]
+I_3 Flux 2.1486e+14 [6.9488% thermal, 39.5272% epithermal, 53.5240% fast]
+I_4 Flux 2.3896e+14 [6.7056% thermal, 39.9800% epithermal, 53.3144% fast]
+
+================================================================================
+
+RUN 341:
+----------------------------------------
+Description: random_lattice_21
+Timestamp: 2025-06-11 14:01:27
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'I_2', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'I_3', 'F', 'I_4', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.096749 ± 0.000293
+I_1 Flux 1.8465e+14 [26.0717% thermal, 33.3015% epithermal, 40.6268% fast]
+I_2 Flux 2.0196e+14 [8.4500% thermal, 38.7585% epithermal, 52.7915% fast]
+I_3 Flux 2.5634e+14 [6.6454% thermal, 40.2469% epithermal, 53.1077% fast]
+I_4 Flux 2.4054e+14 [6.6666% thermal, 40.1154% epithermal, 53.2179% fast]
+
+================================================================================
+
+RUN 342:
+----------------------------------------
+Description: random_lattice_22
+Timestamp: 2025-06-11 14:08:22
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'I_4', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.097035 ± 0.000288
+I_1 Flux 1.9541e+14 [17.9428% thermal, 35.7624% epithermal, 46.2948% fast]
+I_2 Flux 2.5989e+14 [6.6743% thermal, 40.2077% epithermal, 53.1179% fast]
+I_3 Flux 2.4651e+14 [6.6490% thermal, 40.2149% epithermal, 53.1362% fast]
+I_4 Flux 2.0224e+14 [24.0902% thermal, 33.9724% epithermal, 41.9374% fast]
+
+================================================================================
+
+RUN 343:
+----------------------------------------
+Description: random_lattice_23
+Timestamp: 2025-06-11 14:15:16
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'], ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'I_4', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.095893 ± 0.000304
+I_1 Flux 2.0185e+14 [8.5086% thermal, 38.5798% epithermal, 52.9116% fast]
+I_2 Flux 2.0161e+14 [8.5993% thermal, 38.5837% epithermal, 52.8170% fast]
+I_3 Flux 2.5481e+14 [6.6513% thermal, 40.2747% epithermal, 53.0740% fast]
+I_4 Flux 2.3710e+14 [6.7039% thermal, 39.9611% epithermal, 53.3350% fast]
+
+================================================================================
+
+RUN 344:
+----------------------------------------
+Description: random_lattice_24
+Timestamp: 2025-06-11 14:22:17
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'I_2', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'I_4', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.104612 ± 0.000284
+I_1 Flux 1.7885e+14 [26.2754% thermal, 33.1881% epithermal, 40.5365% fast]
+I_2 Flux 1.8528e+14 [17.9734% thermal, 35.6465% epithermal, 46.3801% fast]
+I_3 Flux 1.8063e+14 [26.2642% thermal, 33.2830% epithermal, 40.4528% fast]
+I_4 Flux 1.9632e+14 [17.7958% thermal, 35.8772% epithermal, 46.3269% fast]
+
+================================================================================
+
+RUN 345:
+----------------------------------------
+Description: random_lattice_25
+Timestamp: 2025-06-11 14:29:10
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'I_1', 'F', 'F', 'I_2', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'I_4', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.097757 ± 0.000262
+I_1 Flux 1.9856e+14 [24.0934% thermal, 33.9950% epithermal, 41.9116% fast]
+I_2 Flux 2.1990e+14 [6.9701% thermal, 39.5016% epithermal, 53.5283% fast]
+I_3 Flux 2.2701e+14 [6.8103% thermal, 39.8068% epithermal, 53.3829% fast]
+I_4 Flux 2.1750e+14 [6.9256% thermal, 39.6288% epithermal, 53.4456% fast]
+
+================================================================================
+
+RUN 346:
+----------------------------------------
+Description: random_lattice_26
+Timestamp: 2025-06-11 14:35:59
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_2', 'F', 'F', 'F', 'I_3', 'F'], ['C', 'F', 'F', 'F', 'I_4', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.098244 ± 0.000289
+I_1 Flux 1.9798e+14 [17.7915% thermal, 35.8242% epithermal, 46.3843% fast]
+I_2 Flux 2.3082e+14 [6.7169% thermal, 39.9698% epithermal, 53.3133% fast]
+I_3 Flux 2.0487e+14 [8.4459% thermal, 38.6574% epithermal, 52.8967% fast]
+I_4 Flux 2.1416e+14 [6.8460% thermal, 39.5670% epithermal, 53.5870% fast]
+
+================================================================================
+
+RUN 347:
+----------------------------------------
+Description: random_lattice_27
+Timestamp: 2025-06-11 14:42:48
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_2', 'F', 'F', 'I_3', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.095292 ± 0.000279
+I_1 Flux 1.9217e+14 [17.9189% thermal, 35.8263% epithermal, 46.2548% fast]
+I_2 Flux 2.4531e+14 [6.6334% thermal, 40.1501% epithermal, 53.2165% fast]
+I_3 Flux 2.4428e+14 [6.7732% thermal, 40.1823% epithermal, 53.0445% fast]
+I_4 Flux 2.5640e+14 [6.6957% thermal, 40.3137% epithermal, 52.9906% fast]
+
+================================================================================
+
+RUN 348:
+----------------------------------------
+Description: random_lattice_28
+Timestamp: 2025-06-11 14:49:37
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_3', 'F', 'I_4', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.095570 ± 0.000298
+I_1 Flux 1.9094e+14 [26.0218% thermal, 33.3586% epithermal, 40.6196% fast]
+I_2 Flux 2.3704e+14 [6.7543% thermal, 40.1835% epithermal, 53.0621% fast]
+I_3 Flux 2.5371e+14 [6.6784% thermal, 40.2449% epithermal, 53.0767% fast]
+I_4 Flux 2.1655e+14 [6.8846% thermal, 39.6319% epithermal, 53.4835% fast]
+
+================================================================================
+
+RUN 349:
+----------------------------------------
+Description: random_lattice_29
+Timestamp: 2025-06-11 14:56:28
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'I_2', 'F', 'F', 'I_3'], ['I_4', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.101640 ± 0.000277
+I_1 Flux 1.8348e+14 [26.1026% thermal, 33.4020% epithermal, 40.4954% fast]
+I_2 Flux 2.4123e+14 [6.6418% thermal, 40.1855% epithermal, 53.1727% fast]
+I_3 Flux 1.8599e+14 [26.2468% thermal, 33.2425% epithermal, 40.5108% fast]
+I_4 Flux 1.8961e+14 [17.4158% thermal, 35.7868% epithermal, 46.7975% fast]
+
+================================================================================
+
+RUN 350:
+----------------------------------------
+Description: random_lattice_30
+Timestamp: 2025-06-11 15:03:27
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'I_2', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'], ['I_4', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.103732 ± 0.000265
+I_1 Flux 1.7828e+14 [26.1898% thermal, 33.1723% epithermal, 40.6379% fast]
+I_2 Flux 1.8295e+14 [26.0742% thermal, 33.3574% epithermal, 40.5685% fast]
+I_3 Flux 2.0554e+14 [8.0142% thermal, 38.8397% epithermal, 53.1461% fast]
+I_4 Flux 1.8524e+14 [17.3449% thermal, 35.9136% epithermal, 46.7415% fast]
+
+================================================================================
+
+RUN 351:
+----------------------------------------
+Description: random_lattice_31
+Timestamp: 2025-06-11 15:10:24
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'I_1', 'F', 'F', 'I_2', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'I_4', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.098802 ± 0.000237
+I_1 Flux 2.0001e+14 [24.0788% thermal, 34.0634% epithermal, 41.8579% fast]
+I_2 Flux 2.1239e+14 [6.9269% thermal, 39.6210% epithermal, 53.4521% fast]
+I_3 Flux 2.0795e+14 [7.4093% thermal, 39.6119% epithermal, 52.9788% fast]
+I_4 Flux 2.0911e+14 [7.3859% thermal, 39.5270% epithermal, 53.0871% fast]
+
+================================================================================
+
+RUN 352:
+----------------------------------------
+Description: random_lattice_32
+Timestamp: 2025-06-11 15:17:20
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['I_2', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'I_4', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.099371 ± 0.000282
+I_1 Flux 1.8910e+14 [26.1246% thermal, 33.2916% epithermal, 40.5838% fast]
+I_2 Flux 1.8880e+14 [17.3337% thermal, 35.8526% epithermal, 46.8137% fast]
+I_3 Flux 2.5986e+14 [6.6223% thermal, 40.3710% epithermal, 53.0067% fast]
+I_4 Flux 2.0997e+14 [8.3890% thermal, 38.7797% epithermal, 52.8313% fast]
+
+================================================================================
+
+RUN 353:
+----------------------------------------
+Description: random_lattice_33
+Timestamp: 2025-06-11 15:24:10
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'I_1', 'I_2', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'I_3', 'F', 'F'], ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.097724 ± 0.000297
+I_1 Flux 1.8913e+14 [23.1294% thermal, 34.9294% epithermal, 41.9412% fast]
+I_2 Flux 2.0099e+14 [14.3036% thermal, 36.1627% epithermal, 49.5338% fast]
+I_3 Flux 2.2903e+14 [6.7688% thermal, 39.8760% epithermal, 53.3552% fast]
+I_4 Flux 2.5339e+14 [6.6008% thermal, 40.1177% epithermal, 53.2815% fast]
+
+================================================================================
+
+RUN 354:
+----------------------------------------
+Description: random_lattice_34
+Timestamp: 2025-06-11 15:31:00
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'I_2', 'F', 'F', 'C'], ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_4', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.098880 ± 0.000319
+I_1 Flux 1.8475e+14 [17.9213% thermal, 35.8900% epithermal, 46.1888% fast]
+I_2 Flux 2.0735e+14 [8.0374% thermal, 38.8091% epithermal, 53.1535% fast]
+I_3 Flux 1.9925e+14 [8.4804% thermal, 38.7481% epithermal, 52.7715% fast]
+I_4 Flux 2.3231e+14 [6.9041% thermal, 39.9767% epithermal, 53.1192% fast]
+
+================================================================================
+
+RUN 355:
+----------------------------------------
+Description: random_lattice_35
+Timestamp: 2025-06-11 15:37:46
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'I_1', 'I_2', 'F', 'C', 'C'], ['C', 'I_3', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.101809 ± 0.000261
+I_1 Flux 1.8045e+14 [19.7644% thermal, 35.0961% epithermal, 45.1395% fast]
+I_2 Flux 1.8110e+14 [19.8037% thermal, 35.2410% epithermal, 44.9553% fast]
+I_3 Flux 1.9070e+14 [24.1027% thermal, 33.9411% epithermal, 41.9563% fast]
+I_4 Flux 2.5396e+14 [6.6473% thermal, 40.1954% epithermal, 53.1573% fast]
+
+================================================================================
+
+RUN 356:
+----------------------------------------
+Description: random_lattice_36
+Timestamp: 2025-06-11 15:44:37
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'I_1', 'F', 'F', 'I_2', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'I_4', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.098298 ± 0.000323
+I_1 Flux 1.9747e+14 [24.1598% thermal, 33.8918% epithermal, 41.9484% fast]
+I_2 Flux 2.1362e+14 [7.3974% thermal, 39.8857% epithermal, 52.7170% fast]
+I_3 Flux 2.2929e+14 [7.1402% thermal, 40.0492% epithermal, 52.8107% fast]
+I_4 Flux 2.1823e+14 [6.9156% thermal, 39.5583% epithermal, 53.5260% fast]
+
+================================================================================
+
+RUN 357:
+----------------------------------------
+Description: random_lattice_37
+Timestamp: 2025-06-11 15:51:37
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'], ['C', 'I_2', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'I_4', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.098919 ± 0.000266
+I_1 Flux 1.8876e+14 [17.9341% thermal, 35.6564% epithermal, 46.4095% fast]
+I_2 Flux 1.9527e+14 [24.1614% thermal, 33.8518% epithermal, 41.9868% fast]
+I_3 Flux 2.5787e+14 [6.6008% thermal, 40.3140% epithermal, 53.0852% fast]
+I_4 Flux 2.2227e+14 [6.9584% thermal, 39.6551% epithermal, 53.3865% fast]
+
+================================================================================
+
+RUN 358:
+----------------------------------------
+Description: random_lattice_38
+Timestamp: 2025-06-11 15:58:31
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'I_4', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.096865 ± 0.000283
+I_1 Flux 1.9427e+14 [17.8675% thermal, 35.8230% epithermal, 46.3096% fast]
+I_2 Flux 2.4334e+14 [6.7147% thermal, 40.1976% epithermal, 53.0877% fast]
+I_3 Flux 2.5585e+14 [6.6838% thermal, 40.1968% epithermal, 53.1194% fast]
+I_4 Flux 1.9466e+14 [17.8964% thermal, 35.6736% epithermal, 46.4300% fast]
+
+================================================================================
+
+RUN 359:
+----------------------------------------
+Description: random_lattice_39
+Timestamp: 2025-06-11 16:05:25
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'I_2', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_3'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'I_4', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.102261 ± 0.000264
+I_1 Flux 1.8512e+14 [25.9765% thermal, 33.2991% epithermal, 40.7244% fast]
+I_2 Flux 2.1188e+14 [6.9670% thermal, 39.6015% epithermal, 53.4315% fast]
+I_3 Flux 1.8595e+14 [26.2076% thermal, 33.2301% epithermal, 40.5623% fast]
+I_4 Flux 1.9399e+14 [25.9586% thermal, 33.4195% epithermal, 40.6220% fast]
+
+================================================================================
+
+RUN 360:
+----------------------------------------
+Description: random_lattice_40
+Timestamp: 2025-06-11 16:12:17
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'I_3', 'F', 'F', 'I_4', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.097548 ± 0.000268
+I_1 Flux 1.9604e+14 [17.8217% thermal, 35.7708% epithermal, 46.4074% fast]
+I_2 Flux 2.1759e+14 [6.8705% thermal, 39.6462% epithermal, 53.4833% fast]
+I_3 Flux 2.4453e+14 [6.6530% thermal, 40.1887% epithermal, 53.1583% fast]
+I_4 Flux 2.0888e+14 [8.3826% thermal, 38.6982% epithermal, 52.9192% fast]
+
+================================================================================
+
+RUN 361:
+----------------------------------------
+Description: random_lattice_41
+Timestamp: 2025-06-11 16:19:10
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'I_2', 'F', 'C'], ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_4', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.100523 ± 0.000267
+I_1 Flux 1.8084e+14 [26.1772% thermal, 33.2461% epithermal, 40.5767% fast]
+I_2 Flux 2.0509e+14 [8.4569% thermal, 38.7086% epithermal, 52.8345% fast]
+I_3 Flux 1.9648e+14 [8.4653% thermal, 38.5357% epithermal, 52.9990% fast]
+I_4 Flux 2.0600e+14 [8.4441% thermal, 38.7312% epithermal, 52.8247% fast]
+
+================================================================================
+
+RUN 362:
+----------------------------------------
+Description: random_lattice_42
+Timestamp: 2025-06-11 16:26:03
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'I_1', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'I_3', 'F', 'F'], ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.095037 ± 0.000275
+I_1 Flux 2.0136e+14 [24.0655% thermal, 34.0076% epithermal, 41.9269% fast]
+I_2 Flux 2.4360e+14 [6.6786% thermal, 39.9717% epithermal, 53.3497% fast]
+I_3 Flux 2.4903e+14 [6.6801% thermal, 40.1155% epithermal, 53.2045% fast]
+I_4 Flux 2.4848e+14 [6.6518% thermal, 40.1797% epithermal, 53.1685% fast]
+
+================================================================================
+
+RUN 363:
+----------------------------------------
+Description: random_lattice_43
+Timestamp: 2025-06-11 16:33:10
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'I_1', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_2', 'F', 'I_3', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'I_4', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.097746 ± 0.000254
+I_1 Flux 2.0329e+14 [24.1325% thermal, 33.8823% epithermal, 41.9852% fast]
+I_2 Flux 2.5713e+14 [6.7001% thermal, 40.3672% epithermal, 52.9327% fast]
+I_3 Flux 2.1277e+14 [6.8913% thermal, 39.5624% epithermal, 53.5463% fast]
+I_4 Flux 2.0455e+14 [8.3751% thermal, 38.8510% epithermal, 52.7739% fast]
+
+================================================================================
+
+RUN 364:
+----------------------------------------
+Description: random_lattice_44
+Timestamp: 2025-06-11 16:40:02
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'I_4', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.099190 ± 0.000260
+I_1 Flux 1.8520e+14 [26.0894% thermal, 33.3291% epithermal, 40.5814% fast]
+I_2 Flux 2.0015e+14 [8.4912% thermal, 38.6322% epithermal, 52.8766% fast]
+I_3 Flux 2.5764e+14 [6.6489% thermal, 40.1852% epithermal, 53.1659% fast]
+I_4 Flux 1.9730e+14 [17.8195% thermal, 35.7929% epithermal, 46.3876% fast]
+
+================================================================================
+
+RUN 365:
+----------------------------------------
+Description: random_lattice_45
+Timestamp: 2025-06-11 16:46:52
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'], ['C', 'I_2', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'], ['C', 'F', 'F', 'F', 'I_4', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.101003 ± 0.000268
+I_1 Flux 1.9053e+14 [17.9268% thermal, 35.6830% epithermal, 46.3902% fast]
+I_2 Flux 1.9813e+14 [24.1785% thermal, 33.9208% epithermal, 41.9008% fast]
+I_3 Flux 2.0720e+14 [8.3907% thermal, 38.8063% epithermal, 52.8030% fast]
+I_4 Flux 2.1825e+14 [6.9077% thermal, 39.7557% epithermal, 53.3366% fast]
+
+================================================================================
+
+RUN 366:
+----------------------------------------
+Description: random_lattice_46
+Timestamp: 2025-06-11 16:53:44
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'I_4', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.096524 ± 0.000277
+I_1 Flux 1.9040e+14 [26.0819% thermal, 33.2450% epithermal, 40.6731% fast]
+I_2 Flux 2.4375e+14 [6.6817% thermal, 40.0617% epithermal, 53.2566% fast]
+I_3 Flux 2.5860e+14 [6.6624% thermal, 40.2971% epithermal, 53.0405% fast]
+I_4 Flux 2.1032e+14 [8.4630% thermal, 38.7686% epithermal, 52.7684% fast]
+
+================================================================================
+
+RUN 367:
+----------------------------------------
+Description: random_lattice_47
+Timestamp: 2025-06-11 17:00:43
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'I_2', 'F', 'F', 'C'], ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'I_4', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.099155 ± 0.000250
+I_1 Flux 1.8858e+14 [17.9094% thermal, 35.8691% epithermal, 46.2215% fast]
+I_2 Flux 2.0989e+14 [8.1275% thermal, 38.8325% epithermal, 53.0400% fast]
+I_3 Flux 2.2620e+14 [6.7526% thermal, 39.8303% epithermal, 53.4172% fast]
+I_4 Flux 1.9817e+14 [17.9083% thermal, 35.7243% epithermal, 46.3674% fast]
+
+================================================================================
+
+RUN 368:
+----------------------------------------
+Description: random_lattice_48
+Timestamp: 2025-06-11 17:07:34
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['I_2', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'I_4', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.100829 ± 0.000298
+I_1 Flux 1.8568e+14 [26.0215% thermal, 33.3342% epithermal, 40.6443% fast]
+I_2 Flux 1.8696e+14 [16.8676% thermal, 36.4534% epithermal, 46.6790% fast]
+I_3 Flux 2.0735e+14 [11.3651% thermal, 37.5029% epithermal, 51.1321% fast]
+I_4 Flux 2.1269e+14 [8.3708% thermal, 38.7054% epithermal, 52.9238% fast]
+
+================================================================================
+
+RUN 369:
+----------------------------------------
+Description: random_lattice_49
+Timestamp: 2025-06-11 17:14:31
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_2', 'F', 'F', 'F'], ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'I_4'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.100564 ± 0.000277
+I_1 Flux 1.8765e+14 [25.9038% thermal, 33.4368% epithermal, 40.6594% fast]
+I_2 Flux 2.6236e+14 [6.6467% thermal, 40.3823% epithermal, 52.9711% fast]
+I_3 Flux 1.9160e+14 [17.2904% thermal, 35.7605% epithermal, 46.9491% fast]
+I_4 Flux 1.9423e+14 [17.3801% thermal, 35.7157% epithermal, 46.9041% fast]
+
+================================================================================
+
+RUN 370:
+----------------------------------------
+Description: random_lattice_50
+Timestamp: 2025-06-11 17:21:25
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'I_2', 'I_3', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'I_4', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.101290 ± 0.000267
+I_1 Flux 1.8178e+14 [28.2277% thermal, 33.3122% epithermal, 38.4602% fast]
+I_2 Flux 1.8768e+14 [25.7755% thermal, 33.5697% epithermal, 40.6548% fast]
+I_3 Flux 1.9954e+14 [21.1916% thermal, 33.6875% epithermal, 45.1209% fast]
+I_4 Flux 2.1460e+14 [8.4744% thermal, 38.7201% epithermal, 52.8055% fast]
+
+================================================================================
+
+RUN 371:
+----------------------------------------
+Description: random_lattice_51
+Timestamp: 2025-06-11 17:28:17
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'I_2', 'I_3', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['I_4', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.102424 ± 0.000275
+I_1 Flux 1.7806e+14 [25.8378% thermal, 34.8270% epithermal, 39.3352% fast]
+I_2 Flux 1.9235e+14 [15.1497% thermal, 36.3065% epithermal, 48.5438% fast]
+I_3 Flux 2.0134e+14 [11.1459% thermal, 37.1509% epithermal, 51.7032% fast]
+I_4 Flux 1.8638e+14 [17.3241% thermal, 35.7731% epithermal, 46.9028% fast]
+
+================================================================================
+
+RUN 372:
+----------------------------------------
+Description: random_lattice_52
+Timestamp: 2025-06-11 17:35:16
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_4'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.099801 ± 0.000267
+I_1 Flux 1.8790e+14 [26.0574% thermal, 33.3187% epithermal, 40.6239% fast]
+I_2 Flux 2.3123e+14 [6.7183% thermal, 39.8274% epithermal, 53.4544% fast]
+I_3 Flux 2.2117e+14 [6.8840% thermal, 39.6288% epithermal, 53.4872% fast]
+I_4 Flux 1.9013e+14 [26.3722% thermal, 33.1591% epithermal, 40.4687% fast]
+
+================================================================================
+
+RUN 373:
+----------------------------------------
+Description: random_lattice_53
+Timestamp: 2025-06-11 17:42:09
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['I_2', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.099332 ± 0.000272
+I_1 Flux 1.8760e+14 [26.0096% thermal, 33.4194% epithermal, 40.5710% fast]
+I_2 Flux 1.9184e+14 [17.4062% thermal, 35.7952% epithermal, 46.7985% fast]
+I_3 Flux 2.1983e+14 [6.8852% thermal, 39.6258% epithermal, 53.4890% fast]
+I_4 Flux 2.5015e+14 [6.6628% thermal, 40.2253% epithermal, 53.1119% fast]
+
+================================================================================
+
+RUN 374:
+----------------------------------------
+Description: random_lattice_54
+Timestamp: 2025-06-11 17:49:03
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_2'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'], ['C', 'I_4', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.101267 ± 0.000264
+I_1 Flux 1.9501e+14 [17.8331% thermal, 35.8188% epithermal, 46.3482% fast]
+I_2 Flux 1.9439e+14 [17.4664% thermal, 35.6862% epithermal, 46.8474% fast]
+I_3 Flux 2.2881e+14 [8.6126% thermal, 38.7558% epithermal, 52.6316% fast]
+I_4 Flux 2.0003e+14 [24.0277% thermal, 34.2269% epithermal, 41.7455% fast]
+
+================================================================================
+
+RUN 375:
+----------------------------------------
+Description: random_lattice_55
+Timestamp: 2025-06-11 17:55:56
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'I_1', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'I_3', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.094179 ± 0.000271
+I_1 Flux 2.1748e+14 [6.9854% thermal, 39.6110% epithermal, 53.4035% fast]
+I_2 Flux 2.3010e+14 [6.7015% thermal, 39.9290% epithermal, 53.3694% fast]
+I_3 Flux 2.5284e+14 [6.9899% thermal, 40.3810% epithermal, 52.6290% fast]
+I_4 Flux 2.4716e+14 [7.0970% thermal, 40.3429% epithermal, 52.5601% fast]
+
+================================================================================
+
+RUN 376:
+----------------------------------------
+Description: random_lattice_56
+Timestamp: 2025-06-11 18:02:53
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'I_3', 'F', 'F'], ['C', 'F', 'I_4', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.096470 ± 0.000268
+I_1 Flux 2.0947e+14 [8.4279% thermal, 38.7789% epithermal, 52.7932% fast]
+I_2 Flux 2.3255e+14 [6.7390% thermal, 39.8662% epithermal, 53.3948% fast]
+I_3 Flux 2.3381e+14 [6.7558% thermal, 39.9803% epithermal, 53.2639% fast]
+I_4 Flux 2.1115e+14 [8.4183% thermal, 38.8352% epithermal, 52.7465% fast]
+
+================================================================================
+
+RUN 377:
+----------------------------------------
+Description: random_lattice_57
+Timestamp: 2025-06-11 18:09:47
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.095058 ± 0.000278
+I_1 Flux 2.0580e+14 [8.4348% thermal, 38.6847% epithermal, 52.8805% fast]
+I_2 Flux 2.3515e+14 [7.0795% thermal, 40.1465% epithermal, 52.7740% fast]
+I_3 Flux 2.3606e+14 [7.0582% thermal, 40.3329% epithermal, 52.6089% fast]
+I_4 Flux 2.4764e+14 [6.6538% thermal, 40.2098% epithermal, 53.1364% fast]
+
+================================================================================
+
+RUN 378:
+----------------------------------------
+Description: random_lattice_58
+Timestamp: 2025-06-11 18:16:39
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'], ['I_3', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'I_4', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.100689 ± 0.000268
+I_1 Flux 1.8461e+14 [26.0808% thermal, 33.3099% epithermal, 40.6093% fast]
+I_2 Flux 2.2210e+14 [6.8966% thermal, 39.6269% epithermal, 53.4765% fast]
+I_3 Flux 1.8661e+14 [17.4103% thermal, 35.8531% epithermal, 46.7366% fast]
+I_4 Flux 2.1241e+14 [8.4253% thermal, 38.7707% epithermal, 52.8040% fast]
+
+================================================================================
+
+RUN 379:
+----------------------------------------
+Description: random_lattice_59
+Timestamp: 2025-06-11 18:23:36
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'I_1', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'I_3', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.094862 ± 0.000268
+I_1 Flux 2.0363e+14 [24.1664% thermal, 34.0496% epithermal, 41.7840% fast]
+I_2 Flux 2.5809e+14 [6.5945% thermal, 40.3179% epithermal, 53.0876% fast]
+I_3 Flux 2.4345e+14 [6.6645% thermal, 40.1792% epithermal, 53.1563% fast]
+I_4 Flux 2.4428e+14 [6.6618% thermal, 40.1019% epithermal, 53.2363% fast]
+
+================================================================================
+
+RUN 380:
+----------------------------------------
+Description: random_lattice_60
+Timestamp: 2025-06-11 18:30:27
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'I_4', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.096345 ± 0.000282
+I_1 Flux 1.9229e+14 [17.9006% thermal, 35.7618% epithermal, 46.3376% fast]
+I_2 Flux 2.5378e+14 [6.7093% thermal, 40.2296% epithermal, 53.0611% fast]
+I_3 Flux 2.3966e+14 [6.7496% thermal, 40.1318% epithermal, 53.1187% fast]
+I_4 Flux 2.0668e+14 [8.4321% thermal, 38.6664% epithermal, 52.9015% fast]
+
+================================================================================
+
+RUN 381:
+----------------------------------------
+Description: random_lattice_61
+Timestamp: 2025-06-11 18:37:26
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'I_2', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.097688 ± 0.000265
+I_1 Flux 1.8379e+14 [26.1313% thermal, 33.3101% epithermal, 40.5586% fast]
+I_2 Flux 2.0532e+14 [8.4131% thermal, 38.7670% epithermal, 52.8199% fast]
+I_3 Flux 2.1431e+14 [6.9110% thermal, 39.6694% epithermal, 53.4196% fast]
+I_4 Flux 2.6090e+14 [6.6089% thermal, 40.3149% epithermal, 53.0762% fast]
+
+================================================================================
+
+RUN 382:
+----------------------------------------
+Description: random_lattice_62
+Timestamp: 2025-06-11 18:44:25
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'I_2', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'], ['F', 'F', 'F', 'F', 'F', 'I_4', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.098413 ± 0.000242
+I_1 Flux 1.8847e+14 [26.0093% thermal, 33.4405% epithermal, 40.5502% fast]
+I_2 Flux 2.1391e+14 [7.0190% thermal, 39.3845% epithermal, 53.5965% fast]
+I_3 Flux 2.1452e+14 [6.9043% thermal, 39.6818% epithermal, 53.4139% fast]
+I_4 Flux 2.2827e+14 [6.7452% thermal, 39.7748% epithermal, 53.4800% fast]
+
+================================================================================
+
+RUN 383:
+----------------------------------------
+Description: random_lattice_63
+Timestamp: 2025-06-11 18:51:26
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'I_1', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'I_2', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_3', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'I_4'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.101371 ± 0.000253
+I_1 Flux 1.8624e+14 [17.8284% thermal, 35.7721% epithermal, 46.3995% fast]
+I_2 Flux 1.9942e+14 [8.4945% thermal, 38.5798% epithermal, 52.9257% fast]
+I_3 Flux 2.1856e+14 [6.8639% thermal, 39.5873% epithermal, 53.5488% fast]
+I_4 Flux 1.9122e+14 [17.3263% thermal, 35.8209% epithermal, 46.8527% fast]
+
+================================================================================
+
+RUN 384:
+----------------------------------------
+Description: random_lattice_64
+Timestamp: 2025-06-11 18:58:20
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'I_1', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'I_2', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'I_4', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.097543 ± 0.000275
+I_1 Flux 1.8915e+14 [25.8937% thermal, 33.6223% epithermal, 40.4840% fast]
+I_2 Flux 2.1476e+14 [8.8834% thermal, 38.3724% epithermal, 52.7441% fast]
+I_3 Flux 2.3777e+14 [7.1915% thermal, 39.9322% epithermal, 52.8762% fast]
+I_4 Flux 2.2219e+14 [7.4550% thermal, 39.6958% epithermal, 52.8492% fast]
+
+================================================================================
+
+RUN 385:
+----------------------------------------
+Description: Self adjusted 1
+Timestamp: 2025-06-29 00:37:28
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_1', 'F', 'F', 'F', 'F', 'I_2', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_3', 'F', 'F', 'F', 'F', 'I_4', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.098155 ± 0.000266
+I_1 Flux 2.1671e+14 [6.8950% thermal, 39.5334% epithermal, 53.5716% fast]
+I_2 Flux 2.1720e+14 [6.8586% thermal, 39.6551% epithermal, 53.4863% fast]
+I_3 Flux 2.0556e+14 [8.4148% thermal, 38.7107% epithermal, 52.8744% fast]
+I_4 Flux 2.0595e+14 [8.4490% thermal, 38.7678% epithermal, 52.7832% fast]
+
+================================================================================
+
+RUN 386:
+----------------------------------------
+Description: Self adjusted 2
+Timestamp: 2025-06-29 00:45:35
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'I_1', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'I_4', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.096375 ± 0.000268
+I_1 Flux 2.0363e+14 [24.0882% thermal, 33.9839% epithermal, 41.9279% fast]
+I_2 Flux 2.5889e+14 [6.7653% thermal, 40.2783% epithermal, 52.9564% fast]
+I_3 Flux 2.5931e+14 [6.6512% thermal, 40.2336% epithermal, 53.1152% fast]
+I_4 Flux 2.0202e+14 [24.0843% thermal, 33.9291% epithermal, 41.9867% fast]
+
+================================================================================
+
+RUN 387:
+----------------------------------------
+Description: Self adjusted 3
+Timestamp: 2025-06-29 00:53:43
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'I_1', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['I_2', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'I_4', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.097483 ± 0.000302
+I_1 Flux 2.1904e+14 [6.9130% thermal, 39.6038% epithermal, 53.4832% fast]
+I_2 Flux 1.9265e+14 [17.2863% thermal, 35.7458% epithermal, 46.9679% fast]
+I_3 Flux 2.5961e+14 [6.6714% thermal, 40.2956% epithermal, 53.0330% fast]
+I_4 Flux 2.0927e+14 [8.4712% thermal, 38.8166% epithermal, 52.7121% fast]
+
+================================================================================
+
+RUN 388:
+----------------------------------------
+Description: Self adjusted 4
+Timestamp: 2025-06-29 01:01:45
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_1', 'I_2', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_3', 'I_4', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.095983 ± 0.000283
+I_1 Flux 2.0762e+14 [7.6162% thermal, 39.6933% epithermal, 52.6905% fast]
+I_2 Flux 2.1823e+14 [7.3393% thermal, 39.7631% epithermal, 52.8976% fast]
+I_3 Flux 2.0790e+14 [7.6152% thermal, 39.7496% epithermal, 52.6352% fast]
+I_4 Flux 2.1864e+14 [7.3856% thermal, 39.7683% epithermal, 52.8461% fast]
+
+================================================================================
+
+RUN 389:
+----------------------------------------
+Description: Self adjusted 5
+Timestamp: 2025-06-29 01:09:53
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'I_1', 'F', 'I_2', 'F', 'F'], ['F', 'F', 'I_3', 'F', 'I_4', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.091559 ± 0.000267
+I_1 Flux 2.5196e+14 [6.7267% thermal, 40.2254% epithermal, 53.0479% fast]
+I_2 Flux 2.4387e+14 [6.7207% thermal, 40.0665% epithermal, 53.2128% fast]
+I_3 Flux 2.4391e+14 [6.6899% thermal, 40.1499% epithermal, 53.1602% fast]
+I_4 Flux 2.5201e+14 [6.7313% thermal, 40.1700% epithermal, 53.0987% fast]
+
+================================================================================
+
+RUN 390:
+----------------------------------------
+Description: Self adjusted 6
+Timestamp: 2025-06-29 01:17:58
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'I_1', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_2', 'F', 'F', 'F', 'F', 'I_3', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'I_4', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.097111 ± 0.000289
+I_1 Flux 2.1002e+14 [8.4603% thermal, 38.7125% epithermal, 52.8273% fast]
+I_2 Flux 2.2037e+14 [6.8604% thermal, 39.6090% epithermal, 53.5307% fast]
+I_3 Flux 2.1816e+14 [6.8455% thermal, 39.6091% epithermal, 53.5454% fast]
+I_4 Flux 2.1899e+14 [6.9181% thermal, 39.7210% epithermal, 53.3609% fast]
+
+================================================================================
+
+RUN 391:
+----------------------------------------
+Description: Self adjusted 7
+Timestamp: 2025-06-29 01:25:56
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'I_1', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_2', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'I_3', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'I_4', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.094379 ± 0.000296
+I_1 Flux 2.2000e+14 [6.8963% thermal, 39.6360% epithermal, 53.4677% fast]
+I_2 Flux 2.4657e+14 [6.6227% thermal, 40.2291% epithermal, 53.1482% fast]
+I_3 Flux 2.4762e+14 [6.6733% thermal, 40.1959% epithermal, 53.1308% fast]
+I_4 Flux 2.2112e+14 [6.8699% thermal, 39.5861% epithermal, 53.5440% fast]
+
+================================================================================
+
+RUN 392:
+----------------------------------------
+Description: Self adjusted 8
+Timestamp: 2025-06-29 01:34:00
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'I_1', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'I_2', 'F', 'F'], ['F', 'F', 'I_3', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.093942 ± 0.000295
+I_1 Flux 2.0961e+14 [8.4203% thermal, 38.6637% epithermal, 52.9160% fast]
+I_2 Flux 2.4683e+14 [6.6480% thermal, 40.1868% epithermal, 53.1652% fast]
+I_3 Flux 2.4497e+14 [6.6722% thermal, 40.1249% epithermal, 53.2029% fast]
+I_4 Flux 2.4666e+14 [6.6570% thermal, 40.2043% epithermal, 53.1388% fast]
+
+================================================================================
+
+RUN 393:
+----------------------------------------
+Description: Self adjusted 9
+Timestamp: 2025-06-29 01:42:06
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'I_1', 'F', 'F', 'F', 'F'], ['I_2', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'], ['F', 'F', 'F', 'F', 'I_4', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.096074 ± 0.000265
+I_1 Flux 2.4456e+14 [6.6478% thermal, 40.1783% epithermal, 53.1740% fast]
+I_2 Flux 1.9386e+14 [17.3344% thermal, 35.7699% epithermal, 46.8958% fast]
+I_3 Flux 2.1927e+14 [6.8910% thermal, 39.6501% epithermal, 53.4589% fast]
+I_4 Flux 2.5889e+14 [6.6640% thermal, 40.3819% epithermal, 52.9541% fast]
+
+================================================================================
+
+RUN 394:
+----------------------------------------
+Description: Self adjusted 10
+Timestamp: 2025-06-29 01:50:14
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'I_1', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'I_2', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'I_3', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'I_4', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.096534 ± 0.000302
+I_1 Flux 2.1975e+14 [6.9387% thermal, 39.6029% epithermal, 53.4583% fast]
+I_2 Flux 2.1841e+14 [6.8580% thermal, 39.6987% epithermal, 53.4433% fast]
+I_3 Flux 2.2163e+14 [6.9052% thermal, 39.6413% epithermal, 53.4535% fast]
+I_4 Flux 2.2026e+14 [6.9821% thermal, 39.5968% epithermal, 53.4211% fast]
+
+================================================================================
+
+RUN 395:
+----------------------------------------
+Description: Self adjusted 11
+Timestamp: 2025-06-29 01:58:22
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_1', 'F', 'F', 'I_2', 'F', 'F'], ['F', 'F', 'I_3', 'F', 'F', 'I_4', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.093140 ± 0.000313
+I_1 Flux 2.4194e+14 [7.0985% thermal, 40.1927% epithermal, 52.7088% fast]
+I_2 Flux 2.4206e+14 [7.0284% thermal, 40.2094% epithermal, 52.7622% fast]
+I_3 Flux 2.4209e+14 [7.0524% thermal, 40.2309% epithermal, 52.7167% fast]
+I_4 Flux 2.4198e+14 [7.0060% thermal, 40.3204% epithermal, 52.6736% fast]
+
+================================================================================
+
+RUN 396:
+----------------------------------------
+Description: Self adjusted 12
+Timestamp: 2025-06-29 02:06:33
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'I_1', 'F', 'F', 'C'], ['F', 'F', 'F', 'I_2', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'I_3', 'F', 'F', 'F'], ['F', 'F', 'F', 'I_4', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.093261 ± 0.000258
+I_1 Flux 2.1813e+14 [7.0326% thermal, 39.6421% epithermal, 53.3253% fast]
+I_2 Flux 2.3872e+14 [6.7422% thermal, 40.0617% epithermal, 53.1961% fast]
+I_3 Flux 2.5513e+14 [6.6579% thermal, 40.2883% epithermal, 53.0538% fast]
+I_4 Flux 2.4680e+14 [6.7209% thermal, 40.1737% epithermal, 53.1054% fast]
+
+================================================================================
+
+RUN 397:
+----------------------------------------
+Description: Self-adjusted 13
+Timestamp: 2025-06-29 02:14:50
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'I_1', 'I_2', 'F', 'F', 'F', 'F'], ['F', 'F', 'I_3', 'I_4', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.093978 ± 0.000272
+I_1 Flux 2.2443e+14 [7.4302% thermal, 40.0758% epithermal, 52.4940% fast]
+I_2 Flux 2.2980e+14 [7.3839% thermal, 40.0412% epithermal, 52.5749% fast]
+I_3 Flux 2.2988e+14 [7.3596% thermal, 40.0827% epithermal, 52.5577% fast]
+I_4 Flux 2.3626e+14 [7.2587% thermal, 40.0452% epithermal, 52.6961% fast]
+
+================================================================================
+
+RUN 398:
+----------------------------------------
+Description: Self-adjusted 14
+Timestamp: 2025-06-29 02:23:15
+
+Modified Parameters:
+  core_lattice: [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['F', 'F', 'I_1', 'F', 'I_2', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'], ['F', 'F', 'F', 'I_3', 'F', 'I_4', 'F', 'F'], ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'], ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']]
+
+Success: True
+k-effective: 1.093427 ± 0.000276
+I_1 Flux 2.3331e+14 [6.7741% thermal, 39.9388% epithermal, 53.2870% fast]
+I_2 Flux 2.4582e+14 [6.6620% thermal, 40.1662% epithermal, 53.1718% fast]
+I_3 Flux 2.4555e+14 [6.6570% thermal, 40.1777% epithermal, 53.1653% fast]
+I_4 Flux 2.3360e+14 [6.8200% thermal, 39.9340% epithermal, 53.2460% fast]
+
+================================================================================
