@@ -22,6 +22,7 @@ def create_irradiation_tallies(inputs_dict=None):
     # Get energy group structure
     energy_bins = get_energy_bins(inputs_dict)
     energy_filter = openmc.EnergyFilter(energy_bins)
+    print(f"Created irradiation energy filter - ID: {energy_filter.id}, Groups: {len(energy_bins)-1}")
 
     # Create tallies for each irradiation position in the core
     core_layout = inputs_dict['core_lattice']
@@ -31,6 +32,7 @@ def create_irradiation_tallies(inputs_dict=None):
                 # Create cell filter for this position
                 cell_id = generate_cell_id('irradiation', (i, j))
                 cell_filter = openmc.CellFilter([cell_id])
+                # Cell filter created for each irradiation position
 
                 # Create tally for this position
                 tally = openmc.Tally(name=pos)

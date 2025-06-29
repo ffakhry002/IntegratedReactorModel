@@ -50,3 +50,6 @@ ML/outputs/
 myenv/
 root/
 openmc/
+
+# Hyperparameter tuning outputs
+ML/hyperparameter_tuning/optimisation_history.xlsx

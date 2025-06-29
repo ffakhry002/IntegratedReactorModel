@@ -77,6 +77,10 @@ def run_eigenvalue(inputs_dict=None):
 
     print(f"Starting eigenvalue calculation with {batches} batches, {inactive} inactive, {particles} particles")
 
+    # Reset OpenMC auto IDs before creating any geometry objects
+    openmc.mixin.reset_auto_ids()
+    print("OpenMC auto IDs reset before geometry creation")
+
     # Create materials and geometry
     mat_dict, materials = make_materials(mat_list=None, inputs_dict=inputs_dict)
     core_universe, first_irr_universe = build_core_uni(mat_dict, inputs_dict=inputs_dict)
