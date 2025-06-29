@@ -91,6 +91,12 @@ class ReactorEncodings:
         """
         Method 3: Physics-based encoding with global and local features
         FIXED: No label-specific features, only spatial physics
+
+        Returns feature vector with:
+        - 2 global features (avg distance, symmetry balance)
+        - 3 local features per irradiation position
+        - 1 NCI value per irradiation position
+        Total: 2 + 4*(3+1) = 18 features for 4 positions
         """
         irr_positions = []
 
@@ -112,8 +118,11 @@ class ReactorEncodings:
             # NO LABEL-SPECIFIC FEATURES - just spatial physics
             local_features.extend(local_feat)
 
-        # Combine
-        feature_vec = np.concatenate([global_features, local_features])
+        # Add NCI features for each position
+        nci_features = ReactorEncodings._compute_nci_for_positions(position_order)
+
+        # Combine all features
+        feature_vec = np.concatenate([global_features, local_features, nci_features])
 
         return feature_vec, irr_positions, position_order
 
@@ -138,16 +147,7 @@ class ReactorEncodings:
         symmetry_balance = np.linalg.norm(center_of_mass - center)
         symmetry_balance_norm = symmetry_balance / max_possible_dist
 
-        # 3. Clustering coefficient (minimum enclosing circle radius)
-        if len(positions) > 1:
-            # Use the approach from the paper
-            centroid = np.mean(positions_array, axis=0)
-            max_dist_from_centroid = max([np.linalg.norm(pos - centroid) for pos in positions_array])
-            clustering_coeff = max_dist_from_centroid / max_possible_dist
-        else:
-            clustering_coeff = 0
-
-        return np.array([avg_distance_norm, symmetry_balance_norm, clustering_coeff])
+        return np.array([avg_distance_norm, symmetry_balance_norm])
 
     @staticmethod
     def _compute_local_features(lattice: np.ndarray, i: int, j: int) -> List[float]:
@@ -177,6 +177,50 @@ class ReactorEncodings:
         center_dist_norm = center_dist / max_dist
 
         return [local_fuel_density, edge_dist_norm, center_dist_norm]
+
+    @staticmethod
+    def _compute_nci_for_positions(positions: List[Tuple], lambda_decay: float = 1.5) -> List[float]:
+        """
+        Compute Neutron Competition Index for each irradiation position.
+        NCI_i = sum over j≠i of contribution based on distance thresholds:
+        - d < sqrt(4.9): exp(-d_ij / lambda) (exponential decay)
+        - sqrt(4.9) <= d <= sqrt(5.1): 0.1 (constant small value)
+        - d > sqrt(5.1): 0 (no contribution)
+
+        Args:
+            positions: List of (row, col) tuples for irradiation positions
+            lambda_decay: Decay parameter (default 1.5)
+
+        Returns:
+            List of NCI values, one per position
+        """
+        # Convert to continuous coordinates (center of cells)
+        continuous_positions = [(i + 0.5, j + 0.5) for i, j in positions]
+
+        # Distance thresholds
+        threshold_low = np.sqrt(4.9)   # ~2.21
+        threshold_high = np.sqrt(5.1)  # ~2.26
+
+        nci_values = []
+        for i, pos_i in enumerate(continuous_positions):
+            nci = 0.0
+            for j, pos_j in enumerate(continuous_positions):
+                if i != j:
+                    # Euclidean distance
+                    dist = np.sqrt((pos_i[0] - pos_j[0])**2 + (pos_i[1] - pos_j[1])**2)
+
+                    # Apply threshold-based contribution
+                    if dist < threshold_low:
+                        # Close distance: exponential decay
+                        nci += np.exp(-dist / lambda_decay)
+                    elif threshold_low <= dist <= threshold_high:
+                        # Medium distance: constant small contribution
+                        nci += 0.1
+                    # else: dist > threshold_high, contributes 0 (no addition)
+
+            nci_values.append(nci)
+
+        return nci_values
 
     @staticmethod
     def spatial_convolution_encoding(lattice: np.ndarray) -> Tuple[np.ndarray, List[Tuple], List[Tuple]]:

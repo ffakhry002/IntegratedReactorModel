@@ -1,0 +1,2049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reactor Encoding Visualizations</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .encoding-section {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .encoding-title {
+            font-size: 24px;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .encoding-description {
+            color: #666;
+            margin-bottom: 20px;
+        }
+        .visualization-container {
+            display: flex;
+            gap: 30px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+        .lattice-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 40px);
+            grid-template-rows: repeat(8, 40px);
+            gap: 2px;
+            background: #ddd;
+            padding: 10px;
+            border-radius: 5px;
+            position: relative;
+        }
+        .cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            border: 1px solid #999;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+        .cell:hover {
+            transform: scale(1.1);
+            z-index: 10;
+        }
+        .cell-F { background: #ff9999; color: #333; }
+        .cell-C { background: #9999ff; color: white; }
+        .cell-I { background: #99ff99; color: #333; }
+        .cell-empty { background: #f0f0f0; color: #999; }
+
+        .feature-display {
+            flex: 1;
+            min-width: 300px;
+        }
+        .feature-box {
+            background: #f8f8f8;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        .feature-title {
+            font-weight: bold;
+            color: #34495e;
+            margin-bottom: 5px;
+        }
+        .feature-value {
+            font-family: monospace;
+            color: #666;
+        }
+        .highlight {
+            background: #fffacd !important;
+            border: 2px solid #ff6b6b !important;
+        }
+        .encoding-visual {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 5px;
+        }
+        .mini-grid {
+            display: inline-grid;
+            grid-template-columns: repeat(3, 20px);
+            grid-template-rows: repeat(3, 20px);
+            gap: 1px;
+            background: #ccc;
+            padding: 2px;
+            margin-right: 10px;
+        }
+        .mini-cell {
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+        }
+        .graph-viz {
+            position: relative;
+            width: 320px;
+            height: 320px;
+            border: 1px solid #ddd;
+            background: white;
+        }
+        .graph-node {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            z-index: 10;
+        }
+        .graph-node:hover {
+            transform: scale(1.2);
+            z-index: 100;
+        }
+        .graph-edge {
+            position: absolute;
+            background: #666;
+            opacity: 0.3;
+        }
+        .legend {
+            margin-top: 10px;
+            display: flex;
+            gap: 20px;
+            font-size: 14px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .legend-box {
+            width: 20px;
+            height: 20px;
+            border: 1px solid #999;
+        }
+        .center-marker {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: red;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 20;
+            left: 50%;
+            top: 50%;
+        }
+        .feature-vector-display {
+            background: #2c3e50;
+            color: #fff;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin-top: 10px;
+        }
+        .vector-segment {
+            display: inline-block;
+            margin: 0 5px;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+        .vec-type { background: #e74c3c; }
+        .vec-pos { background: #3498db; }
+        .vec-cell { background: #2ecc71; }
+        .physics-calc {
+            background: #f0f0f0;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .conv-grid {
+            display: inline-grid;
+            grid-template-columns: repeat(8, 25px);
+            grid-template-rows: repeat(8, 25px);
+            gap: 1px;
+            background: #ccc;
+            padding: 5px;
+            margin: 10px 0;
+        }
+        .conv-cell {
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            color: #000;
+            border: 1px solid #ddd;
+        }
+        .conv-highlight {
+            background: #ffeb3b !important;
+            border: 2px solid #f44336 !important;
+        }
+        .conv-neighbor {
+            background: #e3f2fd !important;
+        }
+        .edge-info {
+            position: absolute;
+            font-size: 10px;
+            background: white;
+            padding: 2px;
+            border-radius: 2px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Reactor Encoding Method Visualizations</h1>
+
+    <!-- Interactive Core Designer -->
+    <div class="encoding-section">
+        <h2 class="encoding-title">Interactive Core Designer</h2>
+        <p class="encoding-description">
+            Click to design your own reactor core configuration. All visualizations below will update automatically.
+        </p>
+        <div style="display: flex; gap: 30px; align-items: flex-start;">
+            <div>
+                <div class="lattice-grid" id="designer-grid"></div>
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-box cell-F"></div> Fuel (F)</div>
+                    <div class="legend-item"><div class="legend-box cell-C"></div> Coolant (C)</div>
+                    <div class="legend-item"><div class="legend-box cell-I"></div> Irradiation (I)</div>
+                </div>
+                <div style="margin-top: 10px;">
+                    <label>Place: </label>
+                    <select id="cell-type-selector">
+                        <option value="F">Fuel (F)</option>
+                        <option value="C">Coolant (C)</option>
+                        <option value="I">Irradiation (I)</option>
+                    </select>
+                    <button onclick="resetToDefault()" style="margin-left: 10px;">Reset to Default</button>
+                </div>
+            </div>
+            <div class="feature-display">
+                <div class="feature-box">
+                    <div class="feature-title">Current Core Configuration:</div>
+                    <div id="core-config-display" style="font-family: monospace; font-size: 12px;"></div>
+                </div>
+                <div class="feature-box">
+                    <div class="feature-title">Show Encoding:</div>
+                    <button onclick="showCoreVector('one_hot')" style="margin-right: 5px;">One-Hot</button>
+                    <button onclick="showCoreVector('categorical')" style="margin-right: 5px;">Categorical</button>
+                    <button onclick="showCoreVector('physics')" style="margin-right: 5px;">Physics</button>
+                    <button onclick="showCoreVector('spatial')" style="margin-right: 5px;">Spatial Conv</button>
+                    <button onclick="showCoreVector('graph')">Graph-Based</button>
+                    <div id="core-vector-display" style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 5px; font-size: 11px; max-height: 200px; overflow-y: auto;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Method 1: One-hot encoding -->
+    <div class="encoding-section">
+        <h2 class="encoding-title">Method 1: One-hot Encoding with Position Features</h2>
+        <p class="encoding-description">
+            Encodes each cell type as a 3-bit vector [F, C, I] and adds normalized position features.
+            All irradiation positions are encoded identically as [0, 0, 1].
+        </p>
+        <div class="visualization-container">
+            <div>
+                <div class="lattice-grid" id="grid1"></div>
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-box cell-F"></div> Fuel (F)</div>
+                    <div class="legend-item"><div class="legend-box cell-C"></div> Coolant (C)</div>
+                    <div class="legend-item"><div class="legend-box cell-I"></div> Irradiation (I)</div>
+                </div>
+                <p style="margin-top: 10px; font-size: 14px; color: #666;">
+                    <em>Hover over any cell in the grid to see its individual encoding vector</em>
+                </p>
+            </div>
+            <div class="feature-display">
+                <div class="feature-box">
+                    <div class="feature-title">Cell Type Encoding:</div>
+                    <div class="feature-value">
+                        F → [1, 0, 0]<br>
+                        C → [0, 1, 0]<br>
+                        I* → [0, 0, 1] (all irradiation positions)
+                    </div>
+                </div>
+                <div class="feature-box">
+                    <div class="feature-title">Position Features:</div>
+                    <div class="feature-value">
+                        Each cell gets [row/7, col/7]<br>
+                        Example: Cell at (3,4) → [0.43, 0.57]
+                    </div>
+                </div>
+                <div class="feature-box">
+                    <div class="feature-title">Individual Cell Vector:</div>
+                    <div id="individual-cell-vector" style="font-family: monospace; background: #f0f0f0; padding: 10px; border-radius: 5px; min-height: 60px;">
+                        <em>Hover over a cell to see its vector</em>
+                    </div>
+                </div>
+                <div class="feature-box">
+                    <div class="feature-title">Total Feature Vector Structure:</div>
+                    <div id="feature-vector-viz"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Method 2: Categorical encoding -->
+    <div class="encoding-section">
+        <h2 class="encoding-title">Method 2: Categorical Encoding with Radial Distance</h2>
+        <p class="encoding-description">
+            Simple integer encoding for cell types plus radial distance from reactor geometric center at (3.5, 3.5).
+            Note: The center (3.5, 3.5) is between cells, not at any fuel position.
+        </p>
+        <div class="visualization-container">
+            <div>
+                <div class="lattice-grid" id="grid2"></div>
+                <p style="margin-top: 10px; font-size: 14px;">
+                    Center at (3.5, 3.5) is between the four middle cells
+                </p>
+            </div>
+            <div class="feature-display">
+                <div class="feature-box">
+                    <div class="feature-title">Categorical Values:</div>
+                    <div class="feature-value">
+                        C → 0<br>
+                        F → 1<br>
+                        I* → 2 (all irradiation positions)<br>
+                        Empty → -1
+                    </div>
+                </div>
+                <div class="feature-box">
+                    <div class="feature-title">Why Radial Distance from (3.5, 3.5)?</div>
+                    <div class="feature-value">
+                        • Geometric center of 8×8 grid<br>
+                        • Captures symmetry properties<br>
+                        • Physics: neutron flux typically peaks at core center<br>
+                        • Distance correlates with neutron exposure
+                    </div>
+                </div>
+                <div class="encoding-visual" id="radial-viz"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Method 3: Physics-based encoding -->
+    <div class="encoding-section">
+        <h2 class="encoding-title">Method 3: Physics-based Encoding</h2>
+        <p class="encoding-description">
+            Combines global configuration features with local physics properties for each irradiation position.
+        </p>
+        <div class="visualization-container">
+            <div>
+                <div class="lattice-grid" id="grid3"></div>
+            </div>
+            <div class="feature-display">
+                <div class="feature-box">
+                    <div class="feature-title">Global Features - Interactive Visualization:</div>
+                    <div id="global-physics-viz">
+                        <canvas id="physics-global-canvas" width="400" height="300"></canvas>
+                        <div id="global-feature-controls" style="margin-top: 10px;">
+                            <button onclick="showGlobalFeature('distance')" style="margin-right: 5px;">Average Distance</button>
+                            <button onclick="showGlobalFeature('symmetry')">Symmetry Balance</button>
+                        </div>
+                        <div id="global-feature-detail" style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 5px; font-size: 12px;"></div>
+                    </div>
+                </div>
+                <div class="feature-box">
+                    <div class="feature-title">Local Features - Interactive per I-position:</div>
+                    <div id="local-physics-viz">
+                        <div style="margin-bottom: 10px;">
+                            <label>Select I-position: </label>
+                            <select id="i-position-selector" onchange="updateLocalFeatures()">
+                            </select>
+                            <button onclick="refreshLocalFeatures()" style="margin-left: 10px; padding: 5px 10px; background: #3498db; color: white; border: none; border-radius: 3px; cursor: pointer;">Refresh</button>
+                        </div>
+                        <canvas id="physics-local-canvas" width="450" height="580"></canvas>
+                        <div id="local-feature-detail" style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 5px; font-size: 12px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Method 4: Spatial convolution encoding -->
+    <div class="encoding-section">
+        <h2 class="encoding-title">Method 4: Spatial Convolution Encoding</h2>
+        <p class="encoding-description">
+            Encodes each cell with its 3×3 neighborhood pattern, capturing local spatial context.
+        </p>
+        <div class="visualization-container">
+            <div>
+                <h4>Interactive Grid - Hover to see neighborhoods</h4>
+                <div class="conv-grid" id="conv-interactive"></div>
+            </div>
+            <div class="feature-display">
+                <div class="feature-box">
+                    <div class="feature-title">How it works:</div>
+                    <div class="feature-value">
+                        1. For each cell in the 8×8 grid<br>
+                        2. Extract its 3×3 neighborhood (with padding)<br>
+                        3. Encode each of the 9 cells as [C, F, I, X]<br>
+                        4. Result: 64 cells × 9 neighbors × 4 bits = 2,304 features
+                    </div>
+                </div>
+                <div class="encoding-visual">
+                    <div id="conv-examples"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Method 5: Graph-based encoding -->
+    <div class="encoding-section">
+        <h2 class="encoding-title">Method 5: Graph-based Encoding</h2>
+        <p class="encoding-description">
+            Treats the reactor as a graph where cells are nodes connected to adjacent cells.
+        </p>
+        <div class="visualization-container">
+            <div>
+                <h4>Interactive Graph - Hover nodes to see connections</h4>
+                <div class="graph-viz" id="graph-viz"></div>
+            </div>
+            <div class="feature-display">
+                <div class="feature-box">
+                    <div class="feature-title">Graph Features per Node:</div>
+                    <div id="graph-feature-detail"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Method 6: Raw 2D grid - REMOVED -->
+
+
+    <script>
+        // Sample reactor lattice - I3 moved to edge
+        let lattice = [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'I1', 'F', 'F', 'I3', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I2', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'I4', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ];
+
+        // Default lattice for reset
+        const defaultLattice = [
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
+            ['C', 'F', 'F', 'I1', 'F', 'F', 'I3', 'C'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'I2', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+            ['C', 'F', 'F', 'F', 'I4', 'F', 'F', 'C'],
+            ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ];
+
+        // Create basic grid
+        function createGrid(gridId, showCenter = false, interactive = false) {
+            const grid = document.getElementById(gridId);
+            grid.innerHTML = '';
+
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    const cell = document.createElement('div');
+                    const cellType = lattice[i][j];
+                    cell.className = 'cell';
+                    cell.dataset.row = i;
+                    cell.dataset.col = j;
+
+                    if (cellType === 'F') {
+                        cell.classList.add('cell-F');
+                        cell.textContent = 'F';
+                    } else if (cellType === 'C') {
+                        cell.classList.add('cell-C');
+                        cell.textContent = 'C';
+                    } else if (cellType.startsWith('I')) {
+                        cell.classList.add('cell-I');
+                        cell.textContent = 'I';
+                    } else {
+                        cell.classList.add('cell-empty');
+                        cell.textContent = '·';
+                    }
+
+                    cell.title = `Position (${i}, ${j})`;
+
+                    // Add hover functionality for Method 1 (one-hot encoding)
+                    if (gridId === 'grid1') {
+                        cell.addEventListener('mouseenter', () => {
+                            showIndividualCellVector(i, j, cellType);
+                        });
+                        cell.addEventListener('mouseleave', () => {
+                            document.getElementById('individual-cell-vector').innerHTML = '<em>Hover over a cell to see its vector</em>';
+                        });
+                    }
+
+                    // Add click functionality for designer grid
+                    if (interactive) {
+                        cell.addEventListener('click', () => {
+                            const selectedType = document.getElementById('cell-type-selector').value;
+                            placeCellType(i, j, selectedType);
+                        });
+                    }
+
+                    grid.appendChild(cell);
+                }
+            }
+
+            if (showCenter) {
+                // Center marker is handled in CSS
+            }
+        }
+
+        // Create all basic grids
+        createGrid('grid1');
+        createGrid('grid2', true);
+        createGrid('grid3');
+
+        // Create feature vector visualization for Method 1
+        function createFeatureVectorViz() {
+            const viz = document.getElementById('feature-vector-viz');
+            viz.innerHTML = `
+                <div class="feature-vector-display">
+                    <div style="margin-bottom: 10px;">Feature vector layout (320 total values):</div>
+                    <div>
+                        <span class="vector-segment vec-type">[Cell types: 64×3 = 192 values]</span>
+                        <span class="vector-segment vec-pos">[Positions: 64×2 = 128 values]</span>
+                    </div>
+                    <div style="margin-top: 10px; font-size: 11px;">
+                        First 15 values: [1,0,0, 1,0,0, 0,1,0, 0,1,0, 0,1,0...] (cell types)<br>
+                        After all cell types: [0/7,0/7, 0/7,1/7, 0/7,2/7...] (positions)
+                    </div>
+                </div>
+            `;
+        }
+        createFeatureVectorViz();
+
+        // Create improved radial distance visualization for Method 2
+        function createRadialViz() {
+            const viz = document.getElementById('radial-viz');
+            const canvas = document.createElement('canvas');
+            canvas.width = 320;
+            canvas.height = 320;
+            viz.appendChild(canvas);
+
+            const ctx = canvas.getContext('2d');
+            const cellSize = 40;
+
+            // Draw cells with radial distance values
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    const x = j * cellSize;
+                    const y = i * cellSize;
+
+                    // Calculate distance from cell center to grid center
+                    const cellCenterX = i;  // row
+                    const cellCenterY = j;  // col
+                    const dist = Math.sqrt(Math.pow(cellCenterX - 3.5, 2) + Math.pow(cellCenterY - 3.5, 2));
+                    const maxDist = 3.5 * Math.sqrt(2);
+                    const normalizedDist = dist / maxDist;
+
+                    // Color based on distance
+                    const intensity = Math.floor((1 - normalizedDist) * 255);
+                    ctx.fillStyle = `rgb(${intensity}, ${intensity}, ${255})`;
+                    ctx.fillRect(x, y, cellSize - 2, cellSize - 2);
+
+                    // Draw distance value
+                    ctx.fillStyle = normalizedDist < 0.5 ? 'white' : 'black';
+                    ctx.font = '10px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(normalizedDist.toFixed(2), x + cellSize/2, y + cellSize/2);
+                }
+            }
+
+            // Draw center marker at grid intersection
+            ctx.fillStyle = 'red';
+            ctx.beginPath();
+            ctx.arc(4 * cellSize, 4 * cellSize, 4, 0, 2 * Math.PI);
+            ctx.fill();
+
+            const label = document.createElement('div');
+            label.style.marginTop = '10px';
+            label.innerHTML = `
+                <strong>Radial distance from center (3.5, 3.5)</strong><br>
+                Values show normalized distance (0 = center, 1 = corner)<br>
+                Center is between cells, capturing reactor symmetry
+            `;
+            viz.appendChild(label);
+        }
+        createRadialViz();
+
+        // Create interactive physics visualizations for Method 3
+        let currentGlobalFeature = 'distance';
+        let currentLocalPosition = [1, 3];
+
+        function createPhysicsVisualizations() {
+            updateIPositionSelector();
+            showGlobalFeature('distance');
+            updateLocalFeatures();
+        }
+
+        function updateIPositionSelector() {
+            const selector = document.getElementById('i-position-selector');
+            selector.innerHTML = '';
+
+            const iPositions = [];
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    if (lattice[i][j].startsWith('I')) {
+                        iPositions.push({row: i, col: j, label: lattice[i][j]});
+                    }
+                }
+            }
+
+            if (iPositions.length === 0) {
+                selector.innerHTML = '<option value="">No I positions</option>';
+                return;
+            }
+
+            iPositions.forEach((pos, index) => {
+                const option = document.createElement('option');
+                option.value = `${pos.row},${pos.col}`;
+                option.textContent = `${pos.label} at (${pos.row},${pos.col})`;
+                if (index === 0) option.selected = true; // Auto-select first option
+                selector.appendChild(option);
+            });
+        }
+
+        function showGlobalFeature(feature) {
+            currentGlobalFeature = feature;
+            const canvas = document.getElementById('physics-global-canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const scale = 35;
+            const offsetX = 50;
+            const offsetY = 40;
+
+            // Draw grid
+            ctx.strokeStyle = '#ddd';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 8; i++) {
+                ctx.beginPath();
+                ctx.moveTo(offsetX + i * scale, offsetY);
+                ctx.lineTo(offsetX + i * scale, offsetY + 8 * scale);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(offsetX, offsetY + i * scale);
+                ctx.lineTo(offsetX + 8 * scale, offsetY + i * scale);
+                ctx.stroke();
+            }
+
+            // Draw cells
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    const cellType = lattice[i][j];
+                    if (cellType === 'F') {
+                        ctx.fillStyle = '#ffcccc';
+                        ctx.fillRect(offsetX + j * scale + 1, offsetY + i * scale + 1, scale - 2, scale - 2);
+                    } else if (cellType === 'C') {
+                        ctx.fillStyle = '#ccccff';
+                        ctx.fillRect(offsetX + j * scale + 1, offsetY + i * scale + 1, scale - 2, scale - 2);
+                    }
+                }
+            }
+
+            // I-positions with continuous coordinates (cell centers) - dynamically from lattice
+            const iPositions = [];
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    if (lattice[i][j].startsWith('I')) {
+                        iPositions.push({
+                            row: i,
+                            col: j,
+                            x: j + 0.5,
+                            y: i + 0.5,
+                            label: lattice[i][j]
+                        });
+                    }
+                }
+            }
+
+            // Draw I-positions
+            iPositions.forEach((pos, idx) => {
+                ctx.fillStyle = '#99ff99';
+                ctx.fillRect(offsetX + pos.col * scale + 1, offsetY + pos.row * scale + 1, scale - 2, scale - 2);
+                ctx.fillStyle = '#333';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(`I${idx + 1}`, offsetX + pos.col * scale + scale/2, offsetY + pos.row * scale + scale/2 + 5);
+            });
+
+            // True geometric center
+            const centerX = offsetX + 4.0 * scale;
+            const centerY = offsetY + 4.0 * scale;
+
+            const detail = document.getElementById('global-feature-detail');
+
+            if (feature === 'distance') {
+                // Draw lines from each I to center
+                ctx.strokeStyle = '#3498db';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 3]);
+
+                let totalDist = 0;
+                iPositions.forEach((pos, idx) => {
+                    const posX = offsetX + pos.x * scale;
+                    const posY = offsetY + pos.y * scale;
+
+                    ctx.beginPath();
+                    ctx.moveTo(posX, posY);
+                    ctx.lineTo(centerX, centerY);
+                    ctx.stroke();
+
+                    // Calculate and show distance
+                    const dist = Math.sqrt(Math.pow(pos.x - 4, 2) + Math.pow(pos.y - 4, 2));
+                    totalDist += dist;
+
+                    // Draw distance label
+                    ctx.fillStyle = '#3498db';
+                    ctx.font = '11px Arial';
+                    const midX = (posX + centerX) / 2;
+                    const midY = (posY + centerY) / 2;
+                    ctx.fillText(dist.toFixed(2), midX + 10, midY);
+                });
+                ctx.setLineDash([]);
+
+                // Draw center
+                ctx.fillStyle = 'red';
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, 5, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.fillStyle = '#333';
+                ctx.font = '10px Arial';
+                ctx.fillText('Center', centerX - 20, centerY + 20);
+
+                const avgDist = iPositions.length > 0 ? totalDist / iPositions.length : 0;
+                const maxDist = Math.sqrt(2) * 4.0;
+                const normalized = avgDist / maxDist;
+
+                detail.innerHTML = `
+                    <strong>Average Distance to Core Center:</strong><br>
+                    • Center is at (4.0, 4.0) - the geometric center<br>
+                    • Distances: ${iPositions.map((pos, idx) => `${pos.label}=${Math.sqrt(Math.pow(pos.x - 4, 2) + Math.pow(pos.y - 4, 2)).toFixed(2)}`).join(', ')}<br>
+                    • Average = ${avgDist.toFixed(2)} (${totalDist.toFixed(2)}/${iPositions.length})<br>
+                    • Normalized = ${avgDist.toFixed(2)} / ${maxDist.toFixed(2)} = <strong>${normalized.toFixed(3)}</strong>
+                `;
+
+            } else if (feature === 'symmetry') {
+                // Calculate center of mass
+                let sumX = 0, sumY = 0;
+                iPositions.forEach(pos => {
+                    sumX += pos.x;
+                    sumY += pos.y;
+                });
+                const comX = iPositions.length > 0 ? sumX / iPositions.length : 4.0;
+                const comY = iPositions.length > 0 ? sumY / iPositions.length : 4.0;
+                const comPixelX = offsetX + comX * scale;
+                const comPixelY = offsetY + comY * scale;
+
+                // Draw lines from each I to show center of mass calculation
+                ctx.strokeStyle = '#27ae60';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([3, 3]);
+                iPositions.forEach(pos => {
+                    const posX = offsetX + pos.x * scale;
+                    const posY = offsetY + pos.y * scale;
+                    ctx.beginPath();
+                    ctx.moveTo(posX, posY);
+                    ctx.lineTo(comPixelX, comPixelY);
+                    ctx.stroke();
+                });
+                ctx.setLineDash([]);
+
+                // Draw center of mass
+                ctx.fillStyle = '#27ae60';
+                ctx.beginPath();
+                ctx.arc(comPixelX, comPixelY, 6, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 10px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('CoM', comPixelX, comPixelY + 3);
+
+                // Draw reactor center
+                ctx.fillStyle = 'red';
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, 5, 0, 2 * Math.PI);
+                ctx.fill();
+
+                // Draw distance between CoM and center
+                ctx.strokeStyle = '#e74c3c';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(comPixelX, comPixelY);
+                ctx.lineTo(centerX, centerY);
+                ctx.stroke();
+
+                const symmetryDist = Math.sqrt(Math.pow(comX - 4.0, 2) + Math.pow(comY - 4.0, 2));
+                const maxDist = Math.sqrt(2) * 4.0;
+                const normalized = symmetryDist / maxDist;
+
+                detail.innerHTML = `
+                    <strong>Symmetry Balance (Center of Mass):</strong><br>
+                    • I-positions: ${iPositions.map(pos => `(${pos.x.toFixed(1)},${pos.y.toFixed(1)})`).join(', ')}<br>
+                    • Center of Mass = ((${sumX.toFixed(1)})/${iPositions.length}, (${sumY.toFixed(1)})/${iPositions.length}) = (${comX.toFixed(2)}, ${comY.toFixed(2)})<br>
+                    • Distance from CoM to reactor center = ${symmetryDist.toFixed(3)}<br>
+                    • Normalized = ${symmetryDist.toFixed(3)} / ${maxDist.toFixed(2)} = <strong>${normalized.toFixed(3)}</strong><br>
+                    • <em>Lower values = better symmetry</em>
+                `;
+            }
+        }
+
+        function updateLocalFeatures() {
+            const selector = document.getElementById('i-position-selector');
+            if (!selector.value || selector.value === '') {
+                const detail = document.getElementById('local-feature-detail');
+                detail.innerHTML = '<em>No irradiation positions available. Add some I positions in the designer above.</em>';
+                return;
+            }
+
+            const [row, col] = selector.value.split(',').map(Number);
+            currentLocalPosition = [row, col];
+
+            const canvas = document.getElementById('physics-local-canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const detail = document.getElementById('local-feature-detail');
+
+            // Feature 1: Local Fuel Density (3x3 neighborhood)
+            const nScale = 40;
+            const nOffsetX = 20;
+            const nOffsetY = 20;
+
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 14px Arial';
+            ctx.fillText('1. Local Fuel Density', nOffsetX, nOffsetY - 5);
+
+            let fuelCount = 0;
+            for (let di = -1; di <= 1; di++) {
+                for (let dj = -1; dj <= 1; dj++) {
+                    const ni = row + di;
+                    const nj = col + dj;
+                    const x = nOffsetX + (dj + 1) * nScale;
+                    const y = nOffsetY + (di + 1) * nScale;
+
+                    if (ni >= 0 && ni < 8 && nj >= 0 && nj < 8) {
+                        const cellType = lattice[ni][nj];
+                        if (cellType === 'F') {
+                            ctx.fillStyle = '#ff9999';
+                            fuelCount++;
+                        } else if (cellType === 'C') {
+                            ctx.fillStyle = '#9999ff';
+                        } else if (cellType.startsWith('I')) {
+                            ctx.fillStyle = '#99ff99';
+                            if (di !== 0 || dj !== 0) fuelCount++; // I counts as fuel for neighbors
+                        }
+                        ctx.fillRect(x, y, nScale - 2, nScale - 2);
+
+                        ctx.fillStyle = '#333';
+                        ctx.font = '16px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(cellType[0], x + nScale/2, y + nScale/2 + 5);
+                    } else {
+                        ctx.fillStyle = '#ddd';
+                        ctx.fillRect(x, y, nScale - 2, nScale - 2);
+                        ctx.fillStyle = '#999';
+                        ctx.font = '16px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.fillText('×', x + nScale/2, y + nScale/2 + 5);
+                    }
+
+                    // Highlight center
+                    if (di === 0 && dj === 0) {
+                        ctx.strokeStyle = '#ff6b6b';
+                        ctx.lineWidth = 3;
+                        ctx.strokeRect(x, y, nScale - 2, nScale - 2);
+                    }
+                }
+            }
+
+            // Feature 2: Distance to Edge (Coolant or Grid Boundary)
+            const edgeOffsetX = 200;
+            const edgeOffsetY = 20;
+            const edgeScale = 20;
+
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText('2. Distance to Edge (Coolant/Boundary)', edgeOffsetX, edgeOffsetY - 5);
+
+                                    // Function to calculate distance to nearest coolant (including virtual coolant outside grid)
+            function calculateEdgeDistance(targetRow, targetCol) {
+                let minDist = Infinity;
+
+                // First check if directly adjacent to coolant (distance = 0)
+                // Check all 4 adjacent cells
+                const adjacentOffsets = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+                for (let [di, dj] of adjacentOffsets) {
+                    const checkRow = targetRow + di;
+                    const checkCol = targetCol + dj;
+
+                    // Check if adjacent to virtual coolant (outside grid)
+                    if (checkRow < 0 || checkRow > 7 || checkCol < 0 || checkCol > 7) {
+                        return 0; // Touching virtual coolant at edge
+                    }
+
+                    // Check if adjacent to coolant cell
+                    if (lattice[checkRow][checkCol] === 'C') {
+                        return 0; // Touching coolant cell
+                    }
+                }
+
+                // Check diagonal cells (distance = sqrt(2)/2 if touching diagonally)
+                const diagonalOffsets = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+                for (let [di, dj] of diagonalOffsets) {
+                    const checkRow = targetRow + di;
+                    const checkCol = targetCol + dj;
+
+                    // Check if diagonal to virtual coolant
+                    if (checkRow < 0 || checkRow > 7 || checkCol < 0 || checkCol > 7) {
+                        minDist = Math.min(minDist, Math.sqrt(2) / 2);
+                    }
+                    // Check if diagonal to coolant cell
+                    else if (lattice[checkRow][checkCol] === 'C') {
+                        minDist = Math.min(minDist, Math.sqrt(2) / 2);
+                    }
+                }
+
+                // If not adjacent or diagonal to any coolant, calculate actual distances
+                if (minDist === Infinity) {
+                    // Center of the target cell
+                    const targetCenterX = targetCol + 0.5;
+                    const targetCenterY = targetRow + 0.5;
+
+                    // Check all coolant cells in the grid
+                    for (let i = 0; i < 8; i++) {
+                        for (let j = 0; j < 8; j++) {
+                            if (lattice[i][j] === 'C') {
+                                // Calculate distance from target center to nearest edge/corner of coolant cell
+                                const coolantLeft = j;
+                                const coolantRight = j + 1;
+                                const coolantTop = i;
+                                const coolantBottom = i + 1;
+
+                                // Find closest point on coolant cell to target center
+                                const closestX = Math.max(coolantLeft, Math.min(targetCenterX, coolantRight));
+                                const closestY = Math.max(coolantTop, Math.min(targetCenterY, coolantBottom));
+
+                                // Distance from target center to closest point on coolant
+                                const dist = Math.sqrt(
+                                    Math.pow(targetCenterX - closestX, 2) +
+                                    Math.pow(targetCenterY - closestY, 2)
+                                );
+                                minDist = Math.min(minDist, dist);
+                            }
+                        }
+                    }
+
+                    // Check distance to boundaries (virtual coolant)
+                    const distToLeft = targetCenterX;
+                    const distToRight = 8 - targetCenterX;
+                    const distToTop = targetCenterY;
+                    const distToBottom = 8 - targetCenterY;
+
+                    minDist = Math.min(minDist, distToLeft, distToRight, distToTop, distToBottom);
+                }
+
+                return minDist;
+            }
+
+            const edgeDist = calculateEdgeDistance(row, col);
+
+                        for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    const dist = calculateEdgeDistance(i, j);
+
+                    // Color scheme: darker blue for smaller distances, lighter for larger
+                    const maxDist = 4.0; // Maximum possible distance is about 4 (from center to corner)
+                    const normalizedDist = Math.min(dist / maxDist, 1.0);
+                    const intensity = Math.floor(normalizedDist * 200) + 55;
+                    ctx.fillStyle = `rgb(${255 - intensity}, ${255 - intensity}, 255)`;
+
+                    ctx.fillRect(edgeOffsetX + j * edgeScale, edgeOffsetY + i * edgeScale, edgeScale - 1, edgeScale - 1);
+
+                    if (i === row && j === col) {
+                        ctx.strokeStyle = '#ff6b6b';
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(edgeOffsetX + j * edgeScale, edgeOffsetY + i * edgeScale, edgeScale - 1, edgeScale - 1);
+
+                        // Use white text for dark backgrounds, black for light
+                        const normalizedDist = Math.min(dist / 4.0, 1.0);
+                        ctx.fillStyle = normalizedDist < 0.5 ? '#fff' : '#000';
+                        ctx.font = 'bold 9px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(dist.toFixed(1), edgeOffsetX + j * edgeScale + edgeScale/2, edgeOffsetY + i * edgeScale + edgeScale/2 + 3);
+                    }
+                }
+            }
+
+            // Feature 3: Distance to Core Center
+            const coreOffsetY = 220;
+
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText('3. Distance to Core Center', nOffsetX, coreOffsetY - 5);
+
+            // Draw mini grid
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    const cellType = lattice[i][j];
+                    if (cellType === 'F') {
+                        ctx.fillStyle = '#ffcccc';
+                    } else if (cellType === 'C') {
+                        ctx.fillStyle = '#ccccff';
+                    } else if (cellType.startsWith('I')) {
+                        ctx.fillStyle = '#ccffcc';
+                    } else {
+                        ctx.fillStyle = '#f0f0f0';
+                    }
+                    ctx.fillRect(nOffsetX + j * edgeScale, coreOffsetY + i * edgeScale, edgeScale - 1, edgeScale - 1);
+                }
+            }
+
+            // Highlight current position
+            ctx.fillStyle = '#99ff99';
+            ctx.fillRect(nOffsetX + col * edgeScale, coreOffsetY + row * edgeScale, edgeScale - 1, edgeScale - 1);
+
+            // Draw line to center
+            const posX = nOffsetX + col * edgeScale + edgeScale/2;
+            const posY = coreOffsetY + row * edgeScale + edgeScale/2;
+            const centerX = nOffsetX + 4.0 * edgeScale;
+            const centerY = coreOffsetY + 4.0 * edgeScale;
+
+            ctx.strokeStyle = '#3498db';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([3, 3]);
+            ctx.beginPath();
+            ctx.moveTo(posX, posY);
+            ctx.lineTo(centerX, centerY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Draw center
+            ctx.fillStyle = 'red';
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 3, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Label the center
+            ctx.fillStyle = '#333';
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Center', centerX, centerY + 15);
+            ctx.fillText('(4,4)', centerX, centerY + 25);
+
+            const coreDist = Math.sqrt(Math.pow(row + 0.5 - 4, 2) + Math.pow(col + 0.5 - 4, 2));
+            const maxDist = Math.sqrt(2) * 4;
+
+            // Add distance label on the blue arrow
+            const midX = (posX + centerX) / 2;
+            const midY = (posY + centerY) / 2;
+            ctx.fillStyle = '#3498db';
+            ctx.font = 'bold 11px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(coreDist.toFixed(2), midX + 5, midY - 5);
+
+                                    // Feature 4: NCI (Neutron Competition Index)
+            const nciOffsetX = 230;  // Move to the right
+            const nciOffsetY = 200;
+
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText('4. NCI (Neutron Competition Index)', nciOffsetX, nciOffsetY - 5);
+
+            // I-positions with their coordinates - dynamically from lattice
+            const iPositions = [];
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    if (lattice[i][j].startsWith('I')) {
+                        iPositions.push({
+                            row: i,
+                            col: j,
+                            x: j + 0.5,
+                            y: i + 0.5,
+                            label: lattice[i][j]
+                        });
+                    }
+                }
+            }
+
+                        // Draw mini grid showing all I positions
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    const cellType = lattice[i][j];
+                    if (cellType === 'F') {
+                        ctx.fillStyle = '#ffcccc';
+                    } else if (cellType === 'C') {
+                        ctx.fillStyle = '#ccccff';
+                    } else if (cellType.startsWith('I')) {
+                        ctx.fillStyle = '#ccffcc';
+                    } else {
+                        ctx.fillStyle = '#f0f0f0';
+                    }
+                    ctx.fillRect(nciOffsetX + j * edgeScale, nciOffsetY + i * edgeScale, edgeScale - 1, edgeScale - 1);
+                }
+            }
+
+            // Calculate NCI for current position
+            const currentPos = {x: col + 0.5, y: row + 0.5};
+            let nci = 0;
+            const lambda = 1.5; // decay parameter from actual implementation
+            const threshold_low = Math.sqrt(4.9);   // ~2.21
+            const threshold_high = Math.sqrt(5.1);  // ~2.26
+
+            // Highlight current position
+            ctx.fillStyle = '#99ff99';
+            ctx.fillRect(nciOffsetX + col * edgeScale, nciOffsetY + row * edgeScale, edgeScale - 1, edgeScale - 1);
+
+            // Add explanation text
+            ctx.fillStyle = '#333';
+            ctx.font = '11px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText('NCI Formula with distance thresholds:', nciOffsetX, nciOffsetY + 175);
+            ctx.fillText(`• d < ${threshold_low.toFixed(2)}: exp(-d/λ) where λ=${lambda}`, nciOffsetX, nciOffsetY + 190);
+            ctx.fillText(`• ${threshold_low.toFixed(2)} ≤ d ≤ ${threshold_high.toFixed(2)}: 0.1 (constant)`, nciOffsetX, nciOffsetY + 205);
+            ctx.fillText(`• d > ${threshold_high.toFixed(2)}: 0 (no contribution)`, nciOffsetX, nciOffsetY + 220);
+            ctx.fillText('Higher NCI = more neutron competition', nciOffsetX, nciOffsetY + 235);
+
+            // Draw connections to other I positions and calculate NCI
+            ctx.strokeStyle = '#9b59b6';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([3, 3]);
+
+            let nciComponents = [];
+            let placedBoxes = []; // Track actual box positions and dimensions
+
+            for (let otherPos of iPositions) {
+                if (otherPos.row === row && otherPos.col === col) continue; // Skip self
+
+                const distance = Math.sqrt(Math.pow(currentPos.x - otherPos.x, 2) + Math.pow(currentPos.y - otherPos.y, 2));
+                let contribution = 0;
+
+                // Apply distance thresholds
+                if (distance < threshold_low) {
+                    contribution = Math.exp(-distance / lambda);
+                } else if (distance <= threshold_high) {
+                    contribution = 0.1;
+                } // else contribution remains 0
+
+                nci += contribution;
+                nciComponents.push({pos: otherPos, dist: distance, contrib: contribution});
+
+                // Draw line to other I position
+                const fromX = nciOffsetX + col * edgeScale + edgeScale/2;
+                const fromY = nciOffsetY + row * edgeScale + edgeScale/2;
+                const toX = nciOffsetX + otherPos.col * edgeScale + edgeScale/2;
+                const toY = nciOffsetY + otherPos.row * edgeScale + edgeScale/2;
+
+                ctx.beginPath();
+                ctx.moveTo(fromX, fromY);
+                ctx.lineTo(toX, toY);
+                ctx.stroke();
+
+                // Calculate ideal box position
+                let boxX = (fromX + toX) / 2 - 20;
+                let boxY = (fromY + toY) / 2 - 15;
+                const boxWidth = 45;
+                const boxHeight = 28;
+
+                // Function to check if two boxes overlap
+                function boxesOverlap(box1, box2) {
+                    return !(box1.x + box1.width < box2.x ||
+                            box2.x + box2.width < box1.x ||
+                            box1.y + box1.height < box2.y ||
+                            box2.y + box2.height < box1.y);
+                }
+
+                // Find a non-overlapping position
+                let attempts = 0;
+                let currentBox = {x: boxX, y: boxY, width: boxWidth, height: boxHeight};
+
+                while (attempts < 20) {
+                    let hasOverlap = false;
+                    for (let existingBox of placedBoxes) {
+                        if (boxesOverlap(currentBox, existingBox)) {
+                            hasOverlap = true;
+                            break;
+                        }
+                    }
+
+                    if (!hasOverlap) break;
+
+                    // Try different positions: down, right, up, left, diagonal
+                    switch (attempts % 8) {
+                        case 0: currentBox.y += 35; break;
+                        case 1: currentBox.x += 50; break;
+                        case 2: currentBox.y -= 35; break;
+                        case 3: currentBox.x -= 50; break;
+                        case 4: currentBox.x += 25; currentBox.y += 35; break;
+                        case 5: currentBox.x -= 25; currentBox.y += 35; break;
+                        case 6: currentBox.x += 25; currentBox.y -= 35; break;
+                        case 7: currentBox.x -= 25; currentBox.y -= 35; break;
+                    }
+                    attempts++;
+                }
+
+                // Constrain box to canvas bounds
+                currentBox.x = Math.max(nciOffsetX, Math.min(currentBox.x, nciOffsetX + 160 - boxWidth));
+                currentBox.y = Math.max(nciOffsetY, Math.min(currentBox.y, nciOffsetY + 300 - boxHeight));
+
+                // Store the final position
+                placedBoxes.push(currentBox);
+                boxX = currentBox.x;
+                boxY = currentBox.y;
+
+                // Draw distance and contribution in a box with better visibility
+                ctx.fillStyle = 'rgba(255,255,255,0.95)';
+                ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+
+                ctx.strokeStyle = '#9b59b6';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+
+                ctx.fillStyle = '#9b59b6';
+                ctx.font = 'bold 9px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(`d=${distance.toFixed(1)}`, boxX + boxWidth/2, boxY + 12);
+                ctx.fillText(`${contribution.toFixed(3)}`, boxX + boxWidth/2, boxY + 22);
+            }
+            ctx.setLineDash([]);
+
+            detail.innerHTML = `
+                <strong>Local Features for I at (${row}, ${col}):</strong><br><br>
+                1. <strong>Fuel Density:</strong> ${fuelCount}/8 neighbors are fuel = ${(fuelCount/8).toFixed(2)}<br>
+                2. <strong>Edge Distance:</strong> Distance to nearest coolant or boundary = ${edgeDist.toFixed(2)}<br>
+                   &nbsp;&nbsp;&nbsp;Normalized: ${edgeDist.toFixed(2)}/4.0 = ${(edgeDist/4.0).toFixed(3)}<br>
+                3. <strong>Core Distance:</strong> √((${row}.5-4)² + (${col}.5-4)²) = ${coreDist.toFixed(2)}<br>
+                   &nbsp;&nbsp;&nbsp;Normalized: ${coreDist.toFixed(2)}/${maxDist.toFixed(2)} = ${(coreDist/maxDist).toFixed(2)}<br>
+                4. <strong>NCI:</strong> Σ exp(-d_ij/λ) where λ=1.5<br>
+                   &nbsp;&nbsp;&nbsp;${nciComponents.map(c => `d(${c.pos.label})=${c.dist.toFixed(1)} → ${c.contrib.toFixed(3)}`).join('<br>&nbsp;&nbsp;&nbsp;')}<br>
+                   &nbsp;&nbsp;&nbsp;Total NCI = ${nci.toFixed(3)}<br><br>
+                <strong>Feature vector for this position:</strong> [${(fuelCount/8).toFixed(2)}, ${(edgeDist/4.0).toFixed(3)}, ${(coreDist/maxDist).toFixed(2)}, ${nci.toFixed(3)}]
+            `;
+        }
+
+        createPhysicsVisualizations();
+
+        // Function to refresh local features (force update to current grid)
+        function refreshLocalFeatures() {
+            updateIPositionSelector();
+            const selector = document.getElementById('i-position-selector');
+            if (selector.value && selector.value !== '') {
+                updateLocalFeatures();
+            } else {
+                document.getElementById('local-feature-detail').innerHTML = '<em>No irradiation positions available. Add some I positions in the designer above.</em>';
+            }
+            // Also refresh global features
+            showGlobalFeature(currentGlobalFeature);
+        }
+
+        // Make functions globally available
+        window.showGlobalFeature = showGlobalFeature;
+        window.updateLocalFeatures = updateLocalFeatures;
+        window.refreshLocalFeatures = refreshLocalFeatures;
+
+        // Create interactive convolution visualization for Method 4
+        function createConvInteractive() {
+            const grid = document.getElementById('conv-interactive');
+            grid.innerHTML = '';
+
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    const cell = document.createElement('div');
+                    const cellType = lattice[i][j];
+                    cell.className = 'conv-cell';
+
+                    if (cellType === 'F') {
+                        cell.style.background = '#ff9999';
+                        cell.style.color = '#000';
+                        cell.textContent = 'F';
+                    } else if (cellType === 'C') {
+                        cell.style.background = '#9999ff';
+                        cell.style.color = '#000';
+                        cell.textContent = 'C';
+                    } else if (cellType.startsWith('I')) {
+                        cell.style.background = '#99ff99';
+                        cell.style.color = '#000';
+                        cell.textContent = 'I';
+                    }
+
+                    // Add hover effect
+                    cell.addEventListener('mouseenter', () => {
+                        // Clear previous highlights
+                        document.querySelectorAll('.conv-highlight, .conv-neighbor').forEach(el => {
+                            el.classList.remove('conv-highlight', 'conv-neighbor');
+                        });
+
+                        // Highlight current cell
+                        cell.classList.add('conv-highlight');
+
+                        // Highlight 3x3 neighborhood
+                        for (let di = -1; di <= 1; di++) {
+                            for (let dj = -1; dj <= 1; dj++) {
+                                if (di === 0 && dj === 0) continue;
+                                const ni = i + di;
+                                const nj = j + dj;
+                                if (ni >= 0 && ni < 8 && nj >= 0 && nj < 8) {
+                                    const idx = ni * 8 + nj;
+                                    grid.children[idx].classList.add('conv-neighbor');
+                                }
+                            }
+                        }
+
+                        // Update example display
+                        updateConvExample(i, j);
+                    });
+
+                    grid.appendChild(cell);
+                }
+            }
+        }
+
+        function updateConvExample(i, j) {
+            const examples = document.getElementById('conv-examples');
+            let neighborhood = [];
+
+            // Get 3x3 neighborhood with padding
+            for (let di = -1; di <= 1; di++) {
+                for (let dj = -1; dj <= 1; dj++) {
+                    const ni = i + di;
+                    const nj = j + dj;
+                    if (ni < 0 || ni >= 8 || nj < 0 || nj >= 8) {
+                        neighborhood.push('X');
+                    } else {
+                        const cell = lattice[ni][nj];
+                        if (cell === 'F') neighborhood.push('F');
+                        else if (cell === 'C') neighborhood.push('C');
+                        else if (cell.startsWith('I')) neighborhood.push('I');
+                        else neighborhood.push('·');
+                    }
+                }
+            }
+
+            examples.innerHTML = `
+                <strong>Neighborhood for cell (${i},${j}):</strong><br>
+                <div style="display: flex; align-items: center; gap: 20px; margin-top: 10px;">
+                    <div class="mini-grid">
+                        ${neighborhood.map((cell, idx) => {
+                            let cls = 'mini-cell';
+                            let style = '';
+                            if (cell === 'F') {
+                                cls += ' cell-F';
+                                style = 'background: #ff9999; color: #000; font-weight: bold;';
+                            } else if (cell === 'C') {
+                                cls += ' cell-C';
+                                style = 'background: #9999ff; color: #000; font-weight: bold;';
+                            } else if (cell === 'I') {
+                                cls += ' cell-I';
+                                style = 'background: #99ff99; color: #000; font-weight: bold;';
+                            } else if (cell === 'X') {
+                                style = 'background: #ddd; color: #666; font-weight: bold;';
+                            } else {
+                                style = 'background: #f0f0f0; color: #999; font-weight: bold;';
+                            }
+
+                            if (idx === 4) cls += ' conv-highlight';
+                            return `<div class="${cls}" style="${style}">${cell}</div>`;
+                        }).join('')}
+                    </div>
+                    <div>
+                        Encoding: [${neighborhood.map(cell => {
+                            if (cell === 'C') return '1,0,0,0';
+                            else if (cell === 'F') return '0,1,0,0';
+                            else if (cell === 'I') return '0,0,1,0';
+                            else return '0,0,0,1';
+                        }).join(', ')}]<br>
+                        <span style="font-size: 11px; color: #666;">36 values for this cell's neighborhood</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        createConvInteractive();
+        updateConvExample(3, 3); // Show center cell by default
+
+        // Create improved graph visualization for Method 5
+        function createGraphViz() {
+            const viz = document.getElementById('graph-viz');
+            viz.innerHTML = '';
+            const scale = 40;
+
+            // Create connection lines container
+            const linesContainer = document.createElement('div');
+            linesContainer.id = 'graph-lines';
+            linesContainer.style.position = 'absolute';
+            linesContainer.style.width = '100%';
+            linesContainer.style.height = '100%';
+            viz.appendChild(linesContainer);
+
+            // Create nodes
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    const node = document.createElement('div');
+                    node.className = 'graph-node';
+                    const cellType = lattice[i][j];
+                    const nodeId = i * 8 + j;
+
+                    if (cellType === 'F') {
+                        node.classList.add('cell-F');
+                        node.textContent = 'F';
+                    } else if (cellType === 'C') {
+                        node.classList.add('cell-C');
+                        node.textContent = 'C';
+                    } else if (cellType.startsWith('I')) {
+                        node.classList.add('cell-I');
+                        node.textContent = 'I';
+                    }
+
+                    node.style.left = (j * scale) + 'px';
+                    node.style.top = (i * scale) + 'px';
+                    node.title = `Node ${nodeId} (${i}, ${j})`;
+                    node.dataset.i = i;
+                    node.dataset.j = j;
+
+                    // Add hover effect
+                    node.addEventListener('mouseenter', (e) => {
+                        drawConnectionLines(i, j, scale);
+                        updateGraphFeatures(i, j, cellType);
+                    });
+
+                    node.addEventListener('mouseleave', () => {
+                        const linesContainer = document.getElementById('graph-lines');
+                        linesContainer.innerHTML = '';
+                    });
+
+                    viz.appendChild(node);
+                }
+            }
+        }
+
+        function drawConnectionLines(i, j, scale) {
+            const linesContainer = document.getElementById('graph-lines');
+            linesContainer.innerHTML = '';
+
+            const centerX = j * scale + 15;
+            const centerY = i * scale + 15;
+
+            // Draw lines to neighbors
+            const neighbors = [
+                {di: -1, dj: 0}, // top
+                {di: 1, dj: 0},  // bottom
+                {di: 0, dj: -1}, // left
+                {di: 0, dj: 1}   // right
+            ];
+
+            neighbors.forEach(({di, dj}) => {
+                const ni = i + di;
+                const nj = j + dj;
+
+                if (ni >= 0 && ni < 8 && nj >= 0 && nj < 8) {
+                    const line = document.createElement('div');
+                    line.style.position = 'absolute';
+                    line.style.background = '#ff4444';
+                    line.style.transformOrigin = 'left center';
+
+                    const targetX = nj * scale + 15;
+                    const targetY = ni * scale + 15;
+
+                    const dx = targetX - centerX;
+                    const dy = targetY - centerY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+                    line.style.left = centerX + 'px';
+                    line.style.top = (centerY - 1) + 'px';
+                    line.style.width = distance + 'px';
+                    line.style.height = '2px';
+                    line.style.transform = `rotate(${angle}deg)`;
+
+                    linesContainer.appendChild(line);
+                }
+            });
+        }
+
+        function updateGraphFeatures(i, j, cellType) {
+            const detail = document.getElementById('graph-feature-detail');
+            const examples = document.getElementById('graph-examples');
+
+            // Calculate neighbor features
+            let neighbors = [];
+            let neighborTypes = [];
+            if (i > 0) { neighbors.push(lattice[i-1][j]); neighborTypes.push(lattice[i-1][j]); }
+            if (i < 7) { neighbors.push(lattice[i+1][j]); neighborTypes.push(lattice[i+1][j]); }
+            if (j > 0) { neighbors.push(lattice[i][j-1]); neighborTypes.push(lattice[i][j-1]); }
+            if (j < 7) { neighbors.push(lattice[i][j+1]); neighborTypes.push(lattice[i][j+1]); }
+
+            const degree = neighbors.length;
+            const degreeNorm = degree / 4;
+
+            detail.innerHTML = `
+                <div class="physics-calc">
+                    <strong>Node at (${i},${j}) - ${cellType}:</strong><br><br>
+
+                    1. <strong>Own features:</strong><br>
+                    &nbsp;&nbsp;Type encoding: ${
+                        cellType === 'C' ? '[1, 0, 0]' :
+                        cellType === 'F' ? '[0, 1, 0]' :
+                        '[0, 0, 1]'
+                    }<br><br>
+
+                    2. <strong>Neighbor aggregation:</strong><br>
+                    &nbsp;&nbsp;Neighbors: [${neighborTypes.join(', ')}]<br>
+                    &nbsp;&nbsp;Average features: [${
+                        neighbors.length > 0 ?
+                        [
+                            neighbors.filter(n => n === 'C').length / neighbors.length,
+                            neighbors.filter(n => n === 'F').length / neighbors.length,
+                            neighbors.filter(n => n.startsWith('I')).length / neighbors.length
+                        ].map(v => v.toFixed(2)).join(', ') : '0, 0, 0'
+                    }]<br><br>
+
+                    3. <strong>Degree centrality:</strong><br>
+                    &nbsp;&nbsp;Connections: ${degree}/4 = ${degreeNorm.toFixed(2)}<br><br>
+
+                    <strong>Total: 7 features per node × 64 nodes = 448 features</strong>
+                </div>
+            `;
+        }
+
+        createGraphViz();
+
+        // Initialize graph features
+        const graphDetail = document.getElementById('graph-feature-detail');
+        graphDetail.innerHTML = `
+            <div style="padding: 10px;">
+                <strong>How Graph Encoding Works:</strong><br><br>
+                • Each cell becomes a graph node<br>
+                • Edges connect adjacent cells (4-connected)<br>
+                • Node features combine own type + neighbor info<br>
+                • Captures local connectivity patterns<br><br>
+                <em>Hover over nodes to see their features!</em>
+            </div>
+        `;
+
+        // Create CNN channel visualizations for Method 6
+        function createCNNChannels() {
+            // Control channel
+            const gridC = document.getElementById('grid6-c');
+            gridC.innerHTML = '';
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    if (lattice[i][j] === 'C') {
+                        cell.style.background = '#000';
+                        cell.textContent = '1';
+                        cell.style.color = 'white';
+                    } else {
+                        cell.style.background = '#fff';
+                        cell.textContent = '0';
+                        cell.style.color = '#ccc';
+                    }
+                    gridC.appendChild(cell);
+                }
+            }
+
+            // Fuel channel
+            const gridF = document.getElementById('grid6-f');
+            gridF.innerHTML = '';
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    if (lattice[i][j] === 'F') {
+                        cell.style.background = '#000';
+                        cell.textContent = '1';
+                        cell.style.color = 'white';
+                    } else {
+                        cell.style.background = '#fff';
+                        cell.textContent = '0';
+                        cell.style.color = '#ccc';
+                    }
+                    gridF.appendChild(cell);
+                }
+            }
+
+            // Irradiation channel
+            const gridI = document.getElementById('grid6-i');
+            gridI.innerHTML = '';
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    if (lattice[i][j].startsWith('I')) {
+                        cell.style.background = '#000';
+                        cell.textContent = '1';
+                        cell.style.color = 'white';
+                    } else {
+                        cell.style.background = '#fff';
+                        cell.textContent = '0';
+                        cell.style.color = '#ccc';
+                    }
+                    gridI.appendChild(cell);
+                }
+            }
+        }
+        createCNNChannels();
+
+        // ========================================
+        // NEW FUNCTIONALITY
+        // ========================================
+
+        // Function to show individual cell vector for Method 1
+        function showIndividualCellVector(row, col, cellType) {
+            const typeEncoding = cellType === 'F' ? '[1, 0, 0]' :
+                                cellType === 'C' ? '[0, 1, 0]' :
+                                '[0, 0, 1]';
+            const posEncoding = `[${(row/7).toFixed(3)}, ${(col/7).toFixed(3)}]`;
+
+            document.getElementById('individual-cell-vector').innerHTML = `
+                <strong>Cell at (${row}, ${col}) - Type: ${cellType}</strong><br>
+                Type encoding: ${typeEncoding}<br>
+                Position encoding: ${posEncoding}<br>
+                <strong>Full vector: [${typeEncoding.slice(1, -1)}, ${posEncoding.slice(1, -1)}]</strong>
+            `;
+        }
+
+        // Function to create the interactive designer grid
+        function createDesignerGrid() {
+            createGrid('designer-grid', false, true);
+            updateCoreConfigDisplay();
+        }
+
+        // Function to place a cell type at a position
+        function placeCellType(row, col, cellType) {
+            // Handle irradiation position numbering
+            if (cellType === 'I') {
+                const iPositions = getIPositions();
+                cellType = `I${iPositions.length + 1}`;
+            }
+
+            lattice[row][col] = cellType;
+            updateAllVisualizations();
+            updateCoreConfigDisplay();
+        }
+
+        // Function to reset to default configuration
+        function resetToDefault() {
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    lattice[i][j] = defaultLattice[i][j];
+                }
+            }
+            updateAllVisualizations();
+            updateCoreConfigDisplay();
+        }
+
+        // Function to get current I positions
+        function getIPositions() {
+            const positions = [];
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    if (lattice[i][j].startsWith('I')) {
+                        positions.push({row: i, col: j, x: j + 0.5, y: i + 0.5, label: lattice[i][j]});
+                    }
+                }
+            }
+            return positions;
+        }
+
+        // Function to update core configuration display
+        function updateCoreConfigDisplay() {
+            let display = '';
+            for (let i = 0; i < 8; i++) {
+                display += lattice[i].join(' ') + '<br>';
+            }
+            document.getElementById('core-config-display').innerHTML = display;
+        }
+
+        // Function to show core vector encodings
+        function showCoreVector(encodingType) {
+            const display = document.getElementById('core-vector-display');
+
+            if (encodingType === 'one_hot') {
+                let vector = [];
+                let positions = [];
+
+                // Cell type encodings
+                for (let i = 0; i < 8; i++) {
+                    for (let j = 0; j < 8; j++) {
+                        const cellType = lattice[i][j];
+                        if (cellType === 'F') vector.push(1, 0, 0);
+                        else if (cellType === 'C') vector.push(0, 1, 0);
+                        else vector.push(0, 0, 1); // All I positions
+                    }
+                }
+
+                // Position encodings
+                for (let i = 0; i < 8; i++) {
+                    for (let j = 0; j < 8; j++) {
+                        vector.push((i/7).toFixed(3), (j/7).toFixed(3));
+                    }
+                }
+
+                display.innerHTML = `
+                    <strong>One-Hot Encoding (${vector.length} features):</strong><br>
+                    <div style="max-height: 150px; overflow-y: auto; font-family: monospace;">
+                        [${vector.join(', ')}]
+                    </div>
+                `;
+
+            } else if (encodingType === 'categorical') {
+                let vector = [];
+
+                for (let i = 0; i < 8; i++) {
+                    for (let j = 0; j < 8; j++) {
+                        const cellType = lattice[i][j];
+                        const catValue = cellType === 'C' ? 0 : cellType === 'F' ? 1 : 2;
+                        const dist = Math.sqrt(Math.pow(i - 4.0, 2) + Math.pow(j - 4.0, 2)) / (4.0 * Math.sqrt(2));
+                        vector.push(catValue, dist.toFixed(3));
+                    }
+                }
+
+                display.innerHTML = `
+                    <strong>Categorical Encoding (${vector.length} features):</strong><br>
+                    <div style="max-height: 150px; overflow-y: auto; font-family: monospace;">
+                        [${vector.join(', ')}]
+                    </div>
+                `;
+
+            } else if (encodingType === 'physics') {
+                const iPos = getIPositions();
+                if (iPos.length === 0) {
+                    display.innerHTML = '<em>No irradiation positions found. Add some I positions first.</em>';
+                    return;
+                }
+
+                // Calculate global features
+                let totalDist = 0;
+                iPos.forEach(pos => {
+                    totalDist += Math.sqrt(Math.pow(pos.x - 4, 2) + Math.pow(pos.y - 4, 2));
+                });
+                const avgDist = totalDist / iPos.length / (Math.sqrt(2) * 4);
+
+                let sumX = 0, sumY = 0;
+                iPos.forEach(pos => { sumX += pos.x; sumY += pos.y; });
+                const comX = sumX / iPos.length;
+                const comY = sumY / iPos.length;
+                const symmetryDist = Math.sqrt(Math.pow(comX - 4, 2) + Math.pow(comY - 4, 2)) / (Math.sqrt(2) * 4);
+
+                // Calculate local features for each I position
+                let localFeatures = [];
+                iPos.forEach(pos => {
+                    // Fuel density
+                    let fuelCount = 0;
+                    for (let di = -1; di <= 1; di++) {
+                        for (let dj = -1; dj <= 1; dj++) {
+                            if (di === 0 && dj === 0) continue;
+                            const ni = pos.row + di, nj = pos.col + dj;
+                            if (ni >= 0 && ni < 8 && nj >= 0 && nj < 8) {
+                                if (lattice[ni][nj] === 'F' || lattice[ni][nj].startsWith('I')) fuelCount++;
+                            }
+                        }
+                    }
+                    const fuelDensity = fuelCount / 8;
+
+                                                            // Edge distance (to nearest coolant including virtual coolant outside grid)
+                    let minEdgeDist = Infinity;
+
+                    // First check if directly adjacent to coolant (distance = 0)
+                    const adjacentOffsets = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+                    let isAdjacent = false;
+                    for (let [di, dj] of adjacentOffsets) {
+                        const checkRow = pos.row + di;
+                        const checkCol = pos.col + dj;
+
+                        // Check if adjacent to virtual coolant (outside grid)
+                        if (checkRow < 0 || checkRow > 7 || checkCol < 0 || checkCol > 7) {
+                            minEdgeDist = 0;
+                            isAdjacent = true;
+                            break;
+                        }
+
+                        // Check if adjacent to coolant cell
+                        if (lattice[checkRow][checkCol] === 'C') {
+                            minEdgeDist = 0;
+                            isAdjacent = true;
+                            break;
+                        }
+                    }
+
+                    if (!isAdjacent) {
+                        // Check diagonal cells (distance = sqrt(2)/2 if touching diagonally)
+                        const diagonalOffsets = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+                        for (let [di, dj] of diagonalOffsets) {
+                            const checkRow = pos.row + di;
+                            const checkCol = pos.col + dj;
+
+                            // Check if diagonal to virtual coolant
+                            if (checkRow < 0 || checkRow > 7 || checkCol < 0 || checkCol > 7) {
+                                minEdgeDist = Math.min(minEdgeDist, Math.sqrt(2) / 2);
+                            }
+                            // Check if diagonal to coolant cell
+                            else if (lattice[checkRow][checkCol] === 'C') {
+                                minEdgeDist = Math.min(minEdgeDist, Math.sqrt(2) / 2);
+                            }
+                        }
+
+                        // If not adjacent or diagonal to any coolant, calculate actual distances
+                        if (minEdgeDist === Infinity) {
+                            // Center of the position
+                            const posCenterX = pos.col + 0.5;
+                            const posCenterY = pos.row + 0.5;
+
+                            // Check all coolant cells in the grid
+                            for (let i = 0; i < 8; i++) {
+                                for (let j = 0; j < 8; j++) {
+                                    if (lattice[i][j] === 'C') {
+                                        const coolantLeft = j;
+                                        const coolantRight = j + 1;
+                                        const coolantTop = i;
+                                        const coolantBottom = i + 1;
+
+                                        const closestX = Math.max(coolantLeft, Math.min(posCenterX, coolantRight));
+                                        const closestY = Math.max(coolantTop, Math.min(posCenterY, coolantBottom));
+
+                                        const dist = Math.sqrt(
+                                            Math.pow(posCenterX - closestX, 2) +
+                                            Math.pow(posCenterY - closestY, 2)
+                                        );
+                                        minEdgeDist = Math.min(minEdgeDist, dist);
+                                    }
+                                }
+                            }
+
+                            // Check distance to boundaries
+                            const distToLeft = posCenterX;
+                            const distToRight = 8 - posCenterX;
+                            const distToTop = posCenterY;
+                            const distToBottom = 8 - posCenterY;
+
+                            minEdgeDist = Math.min(minEdgeDist, distToLeft, distToRight, distToTop, distToBottom);
+                        }
+                    }
+
+                    const edgeDist = minEdgeDist / 4; // Normalize by max possible distance
+
+                    // Core distance
+                    const coreDist = Math.sqrt(Math.pow(pos.y - 4, 2) + Math.pow(pos.x - 4, 2)) / (Math.sqrt(2) * 4);
+
+                    // NCI with correct thresholds
+                    let nci = 0;
+                    const lambda = 1.5;
+                    const threshold_low = Math.sqrt(4.9);
+                    const threshold_high = Math.sqrt(5.1);
+
+                    iPos.forEach(otherPos => {
+                        if (otherPos !== pos) {
+                            const dist = Math.sqrt(Math.pow(pos.x - otherPos.x, 2) + Math.pow(pos.y - otherPos.y, 2));
+                            if (dist < threshold_low) {
+                                nci += Math.exp(-dist / lambda);
+                            } else if (dist <= threshold_high) {
+                                nci += 0.1;
+                            }
+                        }
+                    });
+
+                    localFeatures.push(fuelDensity.toFixed(3), edgeDist.toFixed(3), coreDist.toFixed(3), nci.toFixed(3));
+                });
+
+                const physicsVector = [avgDist.toFixed(3), symmetryDist.toFixed(3), ...localFeatures];
+
+                display.innerHTML = `
+                    <strong>Physics-Based Encoding (${physicsVector.length} features):</strong><br>
+                    Global: [${avgDist.toFixed(3)}, ${symmetryDist.toFixed(3)}]<br>
+                    ${iPos.map((pos, idx) => `${pos.label}: [${localFeatures.slice(idx*4, (idx+1)*4).join(', ')}]`).join('<br>')}<br>
+                    <div style="max-height: 100px; overflow-y: auto; font-family: monospace; margin-top: 5px;">
+                        Full vector: [${physicsVector.join(', ')}]
+                    </div>
+                `;
+
+            } else if (encodingType === 'spatial') {
+                // Spatial convolution encoding
+                let vector = [];
+
+                // For each cell, encode its 3x3 neighborhood
+                for (let i = 0; i < 8; i++) {
+                    for (let j = 0; j < 8; j++) {
+                        // Get 3x3 neighborhood with padding
+                        for (let di = -1; di <= 1; di++) {
+                            for (let dj = -1; dj <= 1; dj++) {
+                                const ni = i + di;
+                                const nj = j + dj;
+
+                                if (ni < 0 || ni >= 8 || nj < 0 || nj >= 8) {
+                                    // Padding
+                                    vector.push(0, 0, 0, 1);
+                                } else {
+                                    const cellType = lattice[ni][nj];
+                                    if (cellType === 'C') {
+                                        vector.push(1, 0, 0, 0);
+                                    } else if (cellType === 'F') {
+                                        vector.push(0, 1, 0, 0);
+                                    } else if (cellType.startsWith('I')) {
+                                        vector.push(0, 0, 1, 0);
+                                    } else {
+                                        vector.push(0, 0, 0, 1);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                display.innerHTML = `
+                    <strong>Spatial Convolution Encoding (${vector.length} features):</strong><br>
+                    <em>Each cell's 3×3 neighborhood encoded as 4-bit vectors</em><br>
+                    <em>64 cells × 9 neighbors × 4 bits = 2,304 features</em><br>
+                    <div style="max-height: 150px; overflow-y: auto; font-family: monospace; margin-top: 5px;">
+                        [${vector.slice(0, 100).join(', ')}...]
+                    </div>
+                `;
+
+            } else if (encodingType === 'graph') {
+                // Graph-based encoding
+                let vector = [];
+
+                // For each cell
+                for (let i = 0; i < 8; i++) {
+                    for (let j = 0; j < 8; j++) {
+                        const cellType = lattice[i][j];
+
+                        // Own features
+                        if (cellType === 'C') {
+                            vector.push(1, 0, 0);
+                        } else if (cellType === 'F') {
+                            vector.push(0, 1, 0);
+                        } else if (cellType.startsWith('I')) {
+                            vector.push(0, 0, 1);
+                        } else {
+                            vector.push(0, 0, 0);
+                        }
+
+                        // Aggregate neighbor features (4-connected)
+                        const neighbors = [[-1,0], [1,0], [0,-1], [0,1]];
+                        let neighborCounts = [0, 0, 0]; // C, F, I counts
+                        let validNeighbors = 0;
+
+                        for (let [di, dj] of neighbors) {
+                            const ni = i + di;
+                            const nj = j + dj;
+                            if (ni >= 0 && ni < 8 && nj >= 0 && nj < 8) {
+                                validNeighbors++;
+                                const neighborType = lattice[ni][nj];
+                                if (neighborType === 'C') neighborCounts[0]++;
+                                else if (neighborType === 'F') neighborCounts[1]++;
+                                else if (neighborType.startsWith('I')) neighborCounts[2]++;
+                            }
+                        }
+
+                        // Average neighbor features
+                        if (validNeighbors > 0) {
+                            vector.push(
+                                (neighborCounts[0] / validNeighbors).toFixed(3),
+                                (neighborCounts[1] / validNeighbors).toFixed(3),
+                                (neighborCounts[2] / validNeighbors).toFixed(3)
+                            );
+                        } else {
+                            vector.push(0, 0, 0);
+                        }
+
+                        // Degree centrality
+                        vector.push((validNeighbors / 4).toFixed(3));
+                    }
+                }
+
+                display.innerHTML = `
+                    <strong>Graph-Based Encoding (${vector.length} features):</strong><br>
+                    <em>Each node: [own features (3) + neighbor avg (3) + degree (1)]</em><br>
+                    <em>64 nodes × 7 features = 448 features</em><br>
+                    <div style="max-height: 150px; overflow-y: auto; font-family: monospace; margin-top: 5px;">
+                        [${vector.slice(0, 100).join(', ')}...]
+                    </div>
+                `;
+            }
+        }
+
+        // Function to update all visualizations when core changes
+        function updateAllVisualizations() {
+            createGrid('designer-grid', false, true);
+            createGrid('grid1');
+            createGrid('grid2', true);
+            createGrid('grid3');
+            createConvInteractive();
+            createGraphViz();
+            createCNNChannels();
+            createRadialViz();
+            createPhysicsVisualizations();
+            // Update I-position selector and refresh local features
+            updateIPositionSelector();
+            const selector = document.getElementById('i-position-selector');
+            if (selector.value && selector.value !== '') {
+                updateLocalFeatures();
+            } else {
+                // Clear local features display if no I-positions
+                document.getElementById('local-feature-detail').innerHTML = '<em>No irradiation positions available. Add some I positions in the designer above.</em>';
+            }
+        }
+
+        // Initialize the designer grid
+        createDesignerGrid();
+
+        // Make functions globally available
+        window.resetToDefault = resetToDefault;
+        window.showCoreVector = showCoreVector;
+    </script>
+</body>
+</html>

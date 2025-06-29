@@ -215,8 +215,8 @@ class ModelTrainer:
             'svm': {
                 'kernel': 'rbf',
                 'C': 10.0,
-                'gamma': 0.01,
-                'epsilon': 0.1,
+                'gamma': 0.005,
+                'epsilon': 0.01,   # CRITICAL FIX: Reduced from 0.1 - large epsilon causes trivial solutions
                 'cache_size': 1000,
                 'max_iter': 100000,
                 'tol': 1e-4,

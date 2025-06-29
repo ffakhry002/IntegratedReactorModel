@@ -124,40 +124,42 @@ def extract_feature_importances(model_data, model_type, target):
     return None
 
 def create_full_feature_plot(importances, model_type, target, output_dir):
-    """Create a plot showing all 15 individual features"""
+    """Create a plot showing all 18 individual features"""
 
-    # Reorganize features to group by type
-    # Original order: Global(3), then Pos1(3), Pos2(3), Pos3(3), Pos4(3)
-    # New order: Global(3), FuelDensity(4), EdgeDist(4), CenterDist(4)
+    # New structure: Global(2), Local(12), NCI(4) = 18 features
+    # No clustering feature exists in the encoding
 
     # Extract importances in new order
     reordered_importances = [
-        # Global features (0-2)
+        # Global features (0-1)
         importances[0],  # Global: Avg Distance
         importances[1],  # Global: Symmetry
-        importances[2],  # Global: Clustering
-        # Fuel Density for all positions (3,6,9,12)
-        importances[3],   # Pos1: Fuel Density
-        importances[6],   # Pos2: Fuel Density
-        importances[9],   # Pos3: Fuel Density
-        importances[12],  # Pos4: Fuel Density
-        # Edge Distance for all positions (4,7,10,13)
-        importances[4],   # Pos1: Edge Distance
-        importances[7],   # Pos2: Edge Distance
-        importances[10],  # Pos3: Edge Distance
-        importances[13],  # Pos4: Edge Distance
-        # Center Distance for all positions (5,8,11,14)
-        importances[5],   # Pos1: Center Distance
-        importances[8],   # Pos2: Center Distance
-        importances[11],  # Pos3: Center Distance
-        importances[14],  # Pos4: Center Distance
+        # Fuel Density for all positions (2,5,8,11)
+        importances[2],   # Pos1: Fuel Density
+        importances[5],   # Pos2: Fuel Density
+        importances[8],   # Pos3: Fuel Density
+        importances[11],  # Pos4: Fuel Density
+        # Edge Distance for all positions (3,6,9,12)
+        importances[3],   # Pos1: Edge Distance
+        importances[6],   # Pos2: Edge Distance
+        importances[9],   # Pos3: Edge Distance
+        importances[12],  # Pos4: Edge Distance
+        # Center Distance for all positions (4,7,10,13)
+        importances[4],   # Pos1: Center Distance
+        importances[7],   # Pos2: Center Distance
+        importances[10],  # Pos3: Center Distance
+        importances[13],  # Pos4: Center Distance
+        # NCI for all positions (14,15,16,17)
+        importances[14],  # Pos1: NCI
+        importances[15],  # Pos2: NCI
+        importances[16],  # Pos3: NCI
+        importances[17],  # Pos4: NCI
     ]
 
     # Define feature names in new order
     feature_names = [
         'Global: Avg Distance',
         'Global: Symmetry',
-        'Global: Clustering',
         'Pos1: Fuel Density',
         'Pos2: Fuel Density',
         'Pos3: Fuel Density',
@@ -169,21 +171,26 @@ def create_full_feature_plot(importances, model_type, target, output_dir):
         'Pos1: Center Distance',
         'Pos2: Center Distance',
         'Pos3: Center Distance',
-        'Pos4: Center Distance'
+        'Pos4: Center Distance',
+        'Pos1: NCI',
+        'Pos2: NCI',
+        'Pos3: NCI',
+        'Pos4: NCI'
     ]
 
     # Create figure
-    plt.figure(figsize=(12, 8))
+    plt.figure(figsize=(12, 10))
 
     # Create bar plot
     y_pos = np.arange(len(feature_names))
 
     # Color scheme: Blue for global, then different shades for each local feature type
     colors = (
-        ['#1f77b4'] * 3 +      # Blue for global features
+        ['#1f77b4'] * 2 +      # Blue for global features (2, not 3)
         ['#ff7f0e'] * 4 +      # Orange for fuel density
         ['#2ca02c'] * 4 +      # Green for edge distance
-        ['#d62728'] * 4        # Red for center distance
+        ['#d62728'] * 4 +      # Red for center distance
+        ['#9467bd'] * 4        # Purple for NCI
     )
 
     bars = plt.barh(y_pos, reordered_importances, color=colors, alpha=0.8)
@@ -206,14 +213,16 @@ def create_full_feature_plot(importances, model_type, target, output_dir):
         Patch(facecolor='#1f77b4', label='Global Features'),
         Patch(facecolor='#ff7f0e', label='Local: Fuel Density'),
         Patch(facecolor='#2ca02c', label='Local: Edge Distance'),
-        Patch(facecolor='#d62728', label='Local: Center Distance')
+        Patch(facecolor='#d62728', label='Local: Center Distance'),
+        Patch(facecolor='#9467bd', label='Neutron Competition Index (NCI)')
     ]
     plt.legend(handles=legend_elements, loc='lower right')
 
     # Add vertical separators between feature groups
-    plt.axhline(y=2.5, color='gray', linestyle='--', alpha=0.5)
-    plt.axhline(y=6.5, color='gray', linestyle='--', alpha=0.5)
-    plt.axhline(y=10.5, color='gray', linestyle='--', alpha=0.5)
+    plt.axhline(y=1.5, color='gray', linestyle='--', alpha=0.5)  # After global
+    plt.axhline(y=5.5, color='gray', linestyle='--', alpha=0.5)  # After fuel density
+    plt.axhline(y=9.5, color='gray', linestyle='--', alpha=0.5)  # After edge distance
+    plt.axhline(y=13.5, color='gray', linestyle='--', alpha=0.5) # After center distance
 
     plt.tight_layout()
 
@@ -227,27 +236,30 @@ def create_full_feature_plot(importances, model_type, target, output_dir):
 def create_aggregated_feature_plot(importances, model_type, target, output_dir):
     """Create a plot showing global features and averaged local features"""
 
-    # Extract global features
-    global_importances = importances[:3]
+    # Extract global features (no clustering in encoding)
+    global_importances = [importances[0], importances[1]]  # Avg distance, symmetry
 
     # Calculate averaged local features
-    local_fuel_density = np.mean([importances[3], importances[6], importances[9], importances[12]])
-    local_edge_distance = np.mean([importances[4], importances[7], importances[10], importances[13]])
-    local_center_distance = np.mean([importances[5], importances[8], importances[11], importances[14]])
+    local_fuel_density = np.mean([importances[2], importances[5], importances[8], importances[11]])
+    local_edge_distance = np.mean([importances[3], importances[6], importances[9], importances[12]])
+    local_center_distance = np.mean([importances[4], importances[7], importances[10], importances[13]])
+
+    # Calculate averaged NCI features
+    local_nci = np.mean([importances[14], importances[15], importances[16], importances[17]])
 
     # Combine for plotting
     aggregated_importances = np.concatenate([
         global_importances,
-        [local_fuel_density, local_edge_distance, local_center_distance]
+        [local_fuel_density, local_edge_distance, local_center_distance, local_nci]
     ])
 
     feature_names = [
         'Global: Avg Distance',
         'Global: Symmetry',
-        'Global: Clustering',
         'Local: Fuel Density (avg)',
         'Local: Edge Distance (avg)',
-        'Local: Center Distance (avg)'
+        'Local: Center Distance (avg)',
+        'Local: NCI (avg)'
     ]
 
     # Create figure
@@ -255,7 +267,7 @@ def create_aggregated_feature_plot(importances, model_type, target, output_dir):
 
     # Create bar plot
     y_pos = np.arange(len(feature_names))
-    colors = ['#1f77b4'] * 3 + ['#ff7f0e'] * 3  # Blue for global, orange for local
+    colors = ['#1f77b4'] * 2 + ['#ff7f0e'] * 3 + ['#9467bd'] * 1  # Blue for global, orange for local, purple for NCI
 
     bars = plt.barh(y_pos, aggregated_importances, color=colors, alpha=0.8)
 
@@ -275,12 +287,13 @@ def create_aggregated_feature_plot(importances, model_type, target, output_dir):
     from matplotlib.patches import Patch
     legend_elements = [
         Patch(facecolor='#1f77b4', label='Global Features'),
-        Patch(facecolor='#ff7f0e', label='Local Features (averaged)')
+        Patch(facecolor='#ff7f0e', label='Local Features (averaged)'),
+        Patch(facecolor='#9467bd', label='NCI (averaged)')
     ]
     plt.legend(handles=legend_elements, loc='lower right')
 
     # Add note about averaging
-    plt.figtext(0.5, 0.02, 'Note: Local features are averaged across all 4 positions',
+    plt.figtext(0.5, 0.02, 'Note: Local and NCI features are averaged across all 4 positions',
                 ha='center', fontsize=9, style='italic')
 
     plt.tight_layout()
