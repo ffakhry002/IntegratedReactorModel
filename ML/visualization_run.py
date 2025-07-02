@@ -102,14 +102,24 @@ def find_optuna_studies():
             for f in files:
                 full_path = os.path.join(dir_path, f)
                 # Keep the full key for better matching
-                # Expected formats:
-                # svm_flux_total_study.pkl
-                # svm_flux_thermal_only_study.pkl
-                # svm_flux_energy_study.pkl
-                # svm_keff_study.pkl
+                # Expected formats (old and new):
+                # OLD: svm_flux_total_study.pkl, svm_keff_study.pkl
+                # NEW: svm_flux_total_categorical_study.pkl, svm_keff_physics_study.pkl
 
                 key = f.replace('_study.pkl', '')
-                study_files[key] = full_path
+
+                # For backward compatibility, create a simplified key for lookup
+                # Remove encoding from filename if present
+                parts = key.split('_')
+                if len(parts) >= 4 and parts[0] in ['svm', 'xgboost', 'random'] and parts[1] in ['flux', 'keff']:
+                    # New format with encoding: model_target_mode_encoding
+                    # Create simplified key without encoding: model_target_mode
+                    simple_key = '_'.join(parts[:3])
+                else:
+                    # Old format or unrecognized: keep as is
+                    simple_key = key
+
+                study_files[simple_key] = full_path
 
             if files:
                 break  # Found studies, no need to check other directories
@@ -530,6 +540,7 @@ def main():
             os.makedirs(os.path.join(keff_dir, 'performance_heatmaps'), exist_ok=True)
             os.makedirs(os.path.join(keff_dir, 'config_error_plots'), exist_ok=True)
             os.makedirs(os.path.join(keff_dir, 'rel_error_trackers'), exist_ok=True)
+            os.makedirs(os.path.join(keff_dir, 'feature_importance'), exist_ok=True)
 
         try:
             # Process total flux visualizations
@@ -570,7 +581,8 @@ def main():
                     create_feature_importance_plots(
                         test_results_df,
                         os.path.join(flux_output_dir, 'feature_importance'),
-                        models
+                        models,
+                        target_type='flux'
                     )
                 except Exception as e:
                     print(f"  ERROR in feature importance plots: {e}")
@@ -620,7 +632,18 @@ def main():
                 except Exception as e:
                     print(f"  ERROR in k-eff performance heatmaps: {e}")
 
-                print("\n2. Creating k-eff configuration error plots...")
+                print("\n2. Creating k-eff feature importance plots...")
+                try:
+                    create_feature_importance_plots(
+                        test_results_df,
+                        os.path.join(keff_output_dir, 'feature_importance'),
+                        models,
+                        target_type='keff'
+                    )
+                except Exception as e:
+                    print(f"  ERROR in k-eff feature importance plots: {e}")
+
+                print("\n3. Creating k-eff configuration error plots...")
                 try:
                     create_config_error_plots(
                         test_results_df,
@@ -630,7 +653,7 @@ def main():
                 except Exception as e:
                     print(f"  ERROR in k-eff config error plots: {e}")
 
-                print("\n3. Creating k-eff relative error tracker plots...")
+                print("\n4. Creating k-eff relative error tracker plots...")
                 try:
                     create_rel_error_tracker_plots(
                         test_results_df,
@@ -784,10 +807,6 @@ def main():
             for key, path in relevant_studies.items():
                 print(f"  - {key}: {os.path.basename(path)}")
 
-            # Create optuna_analysis directory
-            optuna_output_dir = os.path.join(output_base_dir, 'optuna_analysis')
-            os.makedirs(optuna_output_dir, exist_ok=True)
-
             print(f"\nGenerating Optuna visualizations...")
 
             for key, study_path in relevant_studies.items():
@@ -797,7 +816,7 @@ def main():
                     # Load the study
                     study = joblib.load(study_path)
 
-                    # Use the key to determine proper target naming
+                    # Use the key to determine proper target naming and directory
                     # Keys are like: svm_flux_total, svm_flux_thermal_only, svm_keff, random_forest_flux_thermal_only
 
                     # Parse model name and target using the same logic as filtering
@@ -815,26 +834,47 @@ def main():
                         print(f"  Warning: Could not parse study key for visualization: {key}")
                         continue
 
-                    # Parse target from remainder
+                    # Parse target from remainder and determine the correct base directory
                     parts = target_remainder.split('_')
                     if parts[0] == 'keff':
                         target = 'keff'
+                        # Put optuna analysis in keff directory
+                        target_base_dir = os.path.join(output_base_dir, 'keff')
                     elif parts[0] == 'flux':
                         if len(parts) == 2:
                             # flux_total, flux_energy, flux_bin
-                            target = f"flux_{parts[1]}"
+                            flux_mode = parts[1]
+                            target = f"flux_{flux_mode}"
+
+                            # Determine target directory based on flux mode
+                            if flux_mode == 'total':
+                                target_base_dir = os.path.join(output_base_dir, 'total_flux')
+                            elif flux_mode in ['thermal', 'epithermal', 'fast']:
+                                target_base_dir = os.path.join(output_base_dir, flux_mode)
+                            elif flux_mode in ['energy', 'bin']:
+                                # These are handled differently - put in main optuna_analysis for now
+                                target_base_dir = os.path.join(output_base_dir, 'optuna_analysis')
+                            else:
+                                target_base_dir = os.path.join(output_base_dir, 'total_flux')
                         elif len(parts) == 3 and parts[2] == 'only':
                             # flux_thermal_only -> flux_thermal
-                            target = f"flux_{parts[1]}"
+                            energy_name = parts[1]
+                            target = f"flux_{energy_name}"
+                            target_base_dir = os.path.join(output_base_dir, energy_name)
                         else:
                             target = 'flux'
+                            target_base_dir = os.path.join(output_base_dir, 'total_flux')
                     else:
                         target = 'unknown'
+                        target_base_dir = os.path.join(output_base_dir, 'optuna_analysis')
 
-                    # Generate visualizations
+                    # Ensure the target directory exists
+                    os.makedirs(target_base_dir, exist_ok=True)
+
+                    # Generate visualizations with target-specific base directory
                     generate_all_optuna_visualizations(
                         study=study,
-                        save_base_dir=optuna_output_dir,
+                        save_base_dir=target_base_dir,
                         model_name=model_name,
                         target=target,
                         include_all=True

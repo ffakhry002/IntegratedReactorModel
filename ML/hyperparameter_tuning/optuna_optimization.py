@@ -79,12 +79,13 @@ def mape_scorer_flux(y_true, y_pred, use_log_flux=True):
 
     return mape
 
-def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=250, n_jobs=10, use_log_flux=True, groups=None, flux_mode='total'):
+def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=250, n_jobs=10, use_log_flux=True, groups=None, flux_mode='total', encoding='categorical'):
     """Optimize hyperparameters for flux prediction only - NOW USING MAPE or MSE based on mode"""
 
     print(f"\n{'='*60}")
     print(f"Starting {model_type.upper()} optimization for FLUX")
     print(f"Flux mode: {flux_mode}")
+    print(f"Encoding: {encoding}")
     if flux_mode == 'bin':
         print(f"Optimization metric: MSE (for energy bins)")
     elif flux_mode in ['thermal_only', 'epithermal_only', 'fast_only']:
@@ -338,7 +339,7 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
             # Save to outputs folder instead of local folder
             outputs_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'outputs', 'optuna_studies')
             os.makedirs(outputs_dir, exist_ok=True)
-            study_filename = f"{model_type}_flux_{flux_mode}_study.pkl"
+            study_filename = f"{model_type}_flux_{flux_mode}_{encoding}_study.pkl"
             study_path = os.path.join(outputs_dir, study_filename)
             joblib.dump(study, study_path)
             print(f"\nStudy saved to: {study_path}")
@@ -354,11 +355,12 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
         print(f"{'='*60}\n")
         return {}, study
 
-def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=250, n_jobs=10, groups=None):
+def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=250, n_jobs=10, groups=None, encoding='categorical'):
     """Optimize hyperparameters for k-eff prediction only"""
 
     print(f"\n{'='*60}")
     print(f"Starting {model_type.upper()} optimization for K-EFF")
+    print(f"Encoding: {encoding}")
     print(f"Total trials: {n_trials}, Timeout per trial: {TRIAL_TIMEOUT}s")
     print(f"Total timeout: {TOTAL_TIMEOUT}s")
 
@@ -607,7 +609,7 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
             # Save to outputs folder instead of local folder
             outputs_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'outputs', 'optuna_studies')
             os.makedirs(outputs_dir, exist_ok=True)
-            study_filename = f"{model_type}_keff_study.pkl"
+            study_filename = f"{model_type}_keff_{encoding}_study.pkl"
             study_path = os.path.join(outputs_dir, study_filename)
             joblib.dump(study, study_path)
             print(f"\nStudy saved to: {study_path}")

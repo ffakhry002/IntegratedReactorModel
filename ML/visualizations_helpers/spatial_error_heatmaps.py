@@ -1,4 +1,5 @@
 # spatial_error_heatmaps.py - FIXED with 8x8 grid and energy group support
+# Modified to create separate mean and max error heatmaps
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -65,11 +66,18 @@ def create_spatial_error_heatmaps(df, output_dir, models, encodings, optimizatio
             print("  Warning: Could not load test configurations. Using default position mapping.")
             position_maps = create_default_position_maps(df)
 
-    # Create heatmaps for the specified energy group (or total if None)
+    # Create both mean and max heatmaps for each optimization
     for optimization in optimizations:
+        # Create mean error heatmap
         create_cell_position_heatmap_with_positions(
             df, output_dir, models, encodings, optimization, position_maps,
-            energy_group=energy_group
+            energy_group=energy_group, aggregation='mean'
+        )
+
+        # Create max error heatmap with config numbers
+        create_cell_position_heatmap_with_positions(
+            df, output_dir, models, encodings, optimization, position_maps,
+            energy_group=energy_group, aggregation='max'
         )
 
 
@@ -102,8 +110,12 @@ def create_default_position_maps(df):
 
 
 def create_cell_position_heatmap_with_positions(df, output_dir, models, encodings,
-                                               optimization, position_maps, energy_group=None):
-    """Create heatmap showing mean error at actual cell positions"""
+                                               optimization, position_maps, energy_group=None, aggregation='mean'):
+    """Create heatmap showing mean or max error at actual cell positions
+
+    Args:
+        aggregation: 'mean' or 'max' - how to aggregate errors across test configurations
+    """
 
     # Filter data for this optimization
     opt_df = df[df['optimization_method'] == optimization]
@@ -123,12 +135,13 @@ def create_cell_position_heatmap_with_positions(df, output_dir, models, encoding
     elif n_encodings == 1:
         axes = axes.reshape(-1, 1)
 
-    # Title based on energy group
+    # Title based on energy group and aggregation method
+    agg_title = aggregation.capitalize()
     if energy_group:
-        fig.suptitle(f'Spatial Error Heatmaps - Mean {energy_group.capitalize()} Flux Error by Cell Position\nOptimization: {optimization}',
+        fig.suptitle(f'Spatial Error Heatmaps - {agg_title} {energy_group.capitalize()} Flux Error by Cell Position\nOptimization: {optimization}',
                      fontsize=16, fontweight='bold')
     else:
-        fig.suptitle(f'Spatial Error Heatmaps - Mean Error by Cell Position\nOptimization: {optimization}',
+        fig.suptitle(f'Spatial Error Heatmaps - {agg_title} Error by Cell Position\nOptimization: {optimization}',
                      fontsize=16, fontweight='bold')
 
     # Process each model-encoding combination
@@ -149,11 +162,13 @@ def create_cell_position_heatmap_with_positions(df, output_dir, models, encoding
 
             # Calculate errors for each cell position
             position_errors = {}
+            position_max_configs = {}  # Track which config has max error
 
             # Initialize 8x8 grids
             for row in range(8):
                 for col in range(8):
                     position_errors[(row, col)] = []
+                    position_max_configs[(row, col)] = -1
 
             # Collect errors by actual position
             for _, test_row in subset.iterrows():
@@ -184,25 +199,32 @@ def create_cell_position_heatmap_with_positions(df, output_dir, models, encoding
                             pred_col = f'I_{irr_num}_predicted'
 
                         # Try to get error from pre-calculated column first
+                        error_value = None
                         if error_col in test_row and pd.notna(test_row[error_col]):
                             error_value = test_row[error_col]
-                            if isinstance(error_value, (int, float)):
-                                position_errors[(row, col)].append(error_value)
                         # Otherwise calculate it
                         elif real_col in test_row and pred_col in test_row:
                             real = test_row[real_col]
                             pred = test_row[pred_col]
                             if pd.notna(real) and pd.notna(pred) and real != 0 and str(real) != 'N/A':
-                                error = abs((pred - real) / real) * 100
-                                position_errors[(row, col)].append(error)
+                                error_value = abs((pred - real) / real) * 100
 
-            # Calculate mean error for each position
+                        if error_value is not None and isinstance(error_value, (int, float)):
+                            position_errors[(row, col)].append((error_value, config_id))
+
+            # Calculate aggregated error for each position
             error_grid = np.zeros((8, 8))
             for row in range(8):
                 for col in range(8):
-                    errors = position_errors[(row, col)]
-                    if errors:
-                        error_grid[row, col] = np.mean(errors)
+                    errors_and_configs = position_errors[(row, col)]
+                    if errors_and_configs:
+                        errors = [e[0] for e in errors_and_configs]
+                        if aggregation == 'mean':
+                            error_grid[row, col] = np.mean(errors)
+                        else:  # max
+                            max_idx = np.argmax(errors)
+                            error_grid[row, col] = errors[max_idx]
+                            position_max_configs[(row, col)] = errors_and_configs[max_idx][1]
                     else:
                         error_grid[row, col] = np.nan
 
@@ -210,14 +232,24 @@ def create_cell_position_heatmap_with_positions(df, output_dir, models, encoding
             im = ax.imshow(error_grid, cmap='RdYlGn_r', vmin=0, vmax=15,
                           interpolation='nearest', aspect='equal')
 
-            # Add text annotations for non-NaN values
+            # Add text annotations
             for row in range(8):
                 for col in range(8):
                     if not np.isnan(error_grid[row, col]) and error_grid[row, col] > 0:
+                        # Main error value in center
                         text = ax.text(col, row, f'{error_grid[row, col]:.1f}',
                                      ha='center', va='center',
                                      color='white' if error_grid[row, col] > 7.5 else 'black',
                                      fontsize=8)
+
+                        # For max aggregation, add config number in bottom right
+                        if aggregation == 'max' and position_max_configs[(row, col)] >= 0:
+                            config_text = f'#{position_max_configs[(row, col)]}'
+                            ax.text(col + 0.4, row + 0.47, config_text,
+                                   ha='right', va='bottom',
+                                   color='black',
+                                   fontsize=5,
+                                   fontweight='normal')
 
             # Styling
             if i == 0:
@@ -238,15 +270,15 @@ def create_cell_position_heatmap_with_positions(df, output_dir, models, encoding
                                norm=plt.Normalize(vmin=0, vmax=15))
     sm.set_array([])
     cbar = fig.colorbar(sm, cax=cbar_ax)
-    cbar.set_label('Mean Relative Error (%)', fontsize=12)
+    cbar.set_label(f'{agg_title} Relative Error (%)', fontsize=12)
 
     plt.tight_layout()
 
-    # Save figure
+    # Save figure with aggregation type in filename
     if energy_group:
-        output_file = os.path.join(output_dir, f'spatial_cell_errors_{optimization}_{energy_group}.png')
+        output_file = os.path.join(output_dir, f'spatial_cell_errors_{optimization}_{energy_group}_{aggregation}.png')
     else:
-        output_file = os.path.join(output_dir, f'spatial_cell_errors_{optimization}.png')
+        output_file = os.path.join(output_dir, f'spatial_cell_errors_{optimization}_{aggregation}.png')
 
     plt.savefig(output_file, dpi=300, bbox_inches='tight')
     plt.close()
@@ -254,8 +286,12 @@ def create_cell_position_heatmap_with_positions(df, output_dir, models, encoding
     print(f"  Saved: {output_file}")
 
 
-def create_averaged_spatial_error_heatmap(df, output_dir, models, encodings, optimizations, energy_group=None):
-    """Create a single 8x8 heatmap averaged across all models/encodings/optimizations"""
+def create_averaged_spatial_error_heatmap(df, output_dir, models, encodings, optimizations, energy_group=None, aggregation='mean'):
+    """Create a single 8x8 heatmap averaged across all models/encodings/optimizations
+
+    Args:
+        aggregation: 'mean' or 'max' - how to aggregate errors
+    """
 
     # Try to get position maps (same logic as above)
     try:
@@ -267,9 +303,11 @@ def create_averaged_spatial_error_heatmap(df, output_dir, models, encodings, opt
 
     # Initialize error accumulator
     position_errors = {}
+    position_max_configs = {}  # Track which config has max error for each position
     for row in range(8):
         for col in range(8):
             position_errors[(row, col)] = []
+            position_max_configs[(row, col)] = -1
 
     # Collect all errors
     for _, test_row in df.iterrows():
@@ -292,15 +330,21 @@ def create_averaged_spatial_error_heatmap(df, output_dir, models, encodings, opt
                 if error_col in test_row and pd.notna(test_row[error_col]):
                     error_value = test_row[error_col]
                     if isinstance(error_value, (int, float)):
-                        position_errors[(row, col)].append(error_value)
+                        position_errors[(row, col)].append((error_value, config_id))
 
-    # Calculate mean error for each position
+    # Calculate aggregated error for each position
     error_grid = np.zeros((8, 8))
     for row in range(8):
         for col in range(8):
-            errors = position_errors[(row, col)]
-            if errors:
-                error_grid[row, col] = np.mean(errors)
+            errors_and_configs = position_errors[(row, col)]
+            if errors_and_configs:
+                errors = [e[0] for e in errors_and_configs]
+                if aggregation == 'mean':
+                    error_grid[row, col] = np.mean(errors)
+                else:  # max
+                    max_idx = np.argmax(errors)
+                    error_grid[row, col] = errors[max_idx]
+                    position_max_configs[(row, col)] = errors_and_configs[max_idx][1]
             else:
                 error_grid[row, col] = np.nan
 
@@ -320,11 +364,21 @@ def create_averaged_spatial_error_heatmap(df, output_dir, models, encodings, opt
                              color='white' if error_grid[row, col] > 7.5 else 'black',
                              fontsize=10)
 
+                # For max aggregation, add config number in bottom right
+                if aggregation == 'max' and position_max_configs[(row, col)] >= 0:
+                    config_text = f'#{position_max_configs[(row, col)]}'
+                    ax.text(col + 0.4, row + 0.47, config_text,
+                           ha='right', va='bottom',
+                           color='black',
+                           fontsize=6,
+                           fontweight='normal')
+
     # Styling
+    agg_title = aggregation.capitalize()
     if energy_group:
-        title = f'Average {energy_group.capitalize()} Flux Spatial Error Pattern\n(Mean Relative Error %)'
+        title = f'Average {energy_group.capitalize()} Flux Spatial Error Pattern\n({agg_title} Relative Error %)'
     else:
-        title = 'Average Spatial Error Pattern Across All Models\n(Mean Relative Error %)'
+        title = f'Average Spatial Error Pattern Across All Models\n({agg_title} Relative Error %)'
 
     ax.set_title(title, fontsize=14, fontweight='bold')
     ax.set_xlabel('Column', fontsize=12)
@@ -336,15 +390,15 @@ def create_averaged_spatial_error_heatmap(df, output_dir, models, encodings, opt
 
     # Add colorbar
     cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-    cbar.set_label('Mean Relative Error (%)', fontsize=12)
+    cbar.set_label(f'{agg_title} Relative Error (%)', fontsize=12)
 
     plt.tight_layout()
 
     # Save figure
     if energy_group:
-        output_file = os.path.join(output_dir, f'spatial_cell_errors_average_{energy_group}.png')
+        output_file = os.path.join(output_dir, f'spatial_cell_errors_average_{energy_group}_{aggregation}.png')
     else:
-        output_file = os.path.join(output_dir, 'spatial_cell_errors_average.png')
+        output_file = os.path.join(output_dir, f'spatial_cell_errors_average_{aggregation}.png')
 
     plt.savefig(output_file, dpi=300, bbox_inches='tight')
     plt.close()

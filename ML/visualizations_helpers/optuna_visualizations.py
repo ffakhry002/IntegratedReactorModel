@@ -45,8 +45,9 @@ def create_optuna_visualization_directory(base_path: str, model_name: str, targe
     Returns:
         Path to the created directory
     """
-    # Don't add 'optuna_analysis' here as it's already in base_path
-    optuna_dir = os.path.join(base_path, f'{model_name}_{target}')
+    # Organize by target first, then model
+    # base_path should already point to the target directory (e.g., total_flux, keff)
+    optuna_dir = os.path.join(base_path, 'optuna_analysis', model_name)
     os.makedirs(optuna_dir, exist_ok=True)
     return optuna_dir
 
