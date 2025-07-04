@@ -150,14 +150,51 @@ def create_encoding_error_plot(df, output_dir, encoding, error_type, subfolder, 
                 model_data = opt_data[opt_data['model'] == model]
 
                 if not model_data.empty:
-                    ax.plot(model_data['config_id'], model_data['error'],
+                    # Sort by config_id to ensure proper line connection
+                    model_data = model_data.sort_values('config_id')
+
+                    # Determine markers for each point based on prediction direction
+                    config_ids = []
+                    errors = []
+                    markers = []
+
+                    for idx, row in model_data.iterrows():
+                        signed_errors = row['signed_errors']
+                        # Determine if configuration has more overpredictions or underpredictions
+                        positive_count = sum(1 for e in signed_errors if e >= 0)
+                        negative_count = sum(1 for e in signed_errors if e < 0)
+
+                        if positive_count > negative_count:
+                            marker = 'o'  # Circle for overprediction
+                        elif negative_count > positive_count:
+                            marker = 's'  # Square for underprediction
+                        else:
+                            # Tie: use mean to determine
+                            mean_signed = np.mean(signed_errors)
+                            if mean_signed >= 0:
+                                marker = 'o'  # Circle for overprediction
+                            else:
+                                marker = 's'  # Square for underprediction
+
+                        config_ids.append(row['config_id'])
+                        errors.append(row['error'])  # error is already absolute
+                        markers.append(marker)
+
+                    # Plot ONE SINGLE LINE connecting all points
+                    ax.plot(config_ids, errors,
                            color=model_colors.get(model, 'black'),
-                           marker='o',
                            linestyle='-',
-                           markersize=6,
                            linewidth=2,
                            alpha=0.8,
-                           label=model)
+                           label=f'{model}')
+
+                    # Plot markers individually with different shapes for over/under prediction
+                    for i, (config_id, error, marker) in enumerate(zip(config_ids, errors, markers)):
+                        ax.plot(config_id, error,
+                               color=model_colors.get(model, 'black'),
+                               marker=marker,
+                               markersize=6,
+                               alpha=0.8)
 
         # Customize subplot
         ax.set_xlabel('Configuration ID', fontsize=11)
@@ -196,14 +233,34 @@ def create_encoding_error_plot(df, output_dir, encoding, error_type, subfolder, 
                 (plot_data['optimization'] == optimization)
             ]
             if len(subset) > 0:
-                error_data = subset['error']
+                error_data = subset['error']  # These are already absolute values
+
+                # Calculate over/under prediction percentages using signed_errors
+                overpred_count = 0
+                underpred_count = 0
+                total_count = 0
+
+                for _, row in subset.iterrows():
+                    signed_errors = row['signed_errors']
+                    for signed_error in signed_errors:
+                        total_count += 1
+                        if signed_error >= 0:
+                            overpred_count += 1
+                        else:
+                            underpred_count += 1
+
+                overpred_percent = (overpred_count / total_count * 100) if total_count > 0 else 0
+                underpred_percent = (underpred_count / total_count * 100) if total_count > 0 else 0
+
                 stats_data.append([
                     model,
                     optimization,
-                    f'{error_data.mean():.3f}%',
-                    f'{error_data.max():.3f}%',
-                    f'{error_data.min():.3f}%',
-                    f'{error_data.std():.3f}%'
+                    f'{error_data.mean():.3f}%',  # Already absolute values
+                    f'{error_data.max():.3f}%',   # Already absolute values
+                    f'{error_data.min():.3f}%',   # Already absolute values
+                    f'{error_data.std():.3f}%',   # Already absolute values
+                    f'{overpred_percent:.1f}%',
+                    f'{underpred_percent:.1f}%'
                 ])
                 has_data_for_model = True
 
@@ -214,10 +271,10 @@ def create_encoding_error_plot(df, output_dir, encoding, error_type, subfolder, 
     # Create table
     if stats_data:
         table = table_ax.table(cellText=stats_data,
-                             colLabels=['Model', 'Optimization', 'Mean', 'Max', 'Min', 'Std Dev'],
+                             colLabels=['Model', 'Optimization', 'Mean', 'Max', 'Min', 'Std Dev', '% Over', '% Under'],
                              cellLoc='center',
                              loc='center',
-                             bbox=[0.1, 0.1, 0.8, 0.8])
+                             bbox=[0.05, 0.1, 0.9, 0.8])  # Wider table for additional columns
 
         # Style the table
         table.auto_set_font_size(False)
@@ -225,7 +282,7 @@ def create_encoding_error_plot(df, output_dir, encoding, error_type, subfolder, 
         table.scale(1.2, 2.0)
 
         # Header styling
-        for i in range(6):
+        for i in range(8):  # Updated to include new columns
             cell = table[(0, i)]
             cell.set_facecolor('#4472C4')
             cell.set_text_props(weight='bold', color='white')
@@ -252,7 +309,7 @@ def create_encoding_error_plot(df, output_dir, encoding, error_type, subfolder, 
                 model_cell.get_text().set_text('')
 
             # Style other cells
-            for j in range(1, 6):
+            for j in range(1, 8):  # Updated to include new columns
                 if i % 2 == 0:
                     table[(i, j)].set_facecolor('#E9EDF5')
                 else:
@@ -289,14 +346,19 @@ def prepare_max_flux_data(df, energy_group=None):
             if error_col in row:
                 error = row[error_col]
                 if pd.notna(error) and error != 'N/A':
-                    errors.append(abs(error))
+                    errors.append(error)  # Keep signed values for marker differentiation
 
         if errors:
+            # Store both signed errors (for marker determination) and max absolute error (for table stats)
+            signed_errors = errors
+            max_abs_error = max([abs(e) for e in errors])
+
             plot_data.append({
                 'config_id': row['config_id'],
                 'model': row['model_class'],
                 'optimization': row['optimization_method'],
-                'error': max(errors)
+                'error': max_abs_error,  # Table uses absolute max
+                'signed_errors': signed_errors  # Store for marker determination
             })
 
     return pd.DataFrame(plot_data)
@@ -318,14 +380,19 @@ def prepare_mean_flux_data(df, energy_group=None):
             if error_col in row:
                 error = row[error_col]
                 if pd.notna(error) and error != 'N/A':
-                    errors.append(abs(error))
+                    errors.append(error)  # Keep signed values for marker differentiation
 
         if errors:
+            # Store both signed errors (for marker determination) and mean absolute error (for table stats)
+            signed_errors = errors
+            mean_abs_error = np.mean([abs(e) for e in errors])
+
             plot_data.append({
                 'config_id': row['config_id'],
                 'model': row['model_class'],
                 'optimization': row['optimization_method'],
-                'error': np.mean(errors)
+                'error': mean_abs_error,  # Table uses absolute mean
+                'signed_errors': signed_errors  # Store for marker determination
             })
 
     return pd.DataFrame(plot_data)
@@ -338,11 +405,13 @@ def prepare_keff_data(df):
         if 'keff_rel_error' in row:
             error = row['keff_rel_error']
             if pd.notna(error) and error != 'N/A':
+                # For k-eff: store both signed error (for markers) and absolute error (for table stats)
                 plot_data.append({
                     'config_id': row['config_id'],
                     'model': row['model_class'],
                     'optimization': row['optimization_method'],
-                    'error': abs(error)
+                    'error': abs(error),  # Table uses absolute error
+                    'signed_errors': [error]  # Store signed error for marker determination
                 })
 
     return pd.DataFrame(plot_data)

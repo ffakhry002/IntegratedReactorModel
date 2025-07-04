@@ -57,7 +57,8 @@ class ModelTrainer:
                     n_trials=config.n_trials,
                     n_jobs=config.n_jobs,
                     groups=groups_train,  # NEW: Pass groups
-                    flux_mode=flux_mode   # NEW: Pass flux mode
+                    flux_mode=flux_mode,   # NEW: Pass flux mode
+                    encoding=encoding  # NEW: Pass encoding
                 )
             else:  # keff
                 best_params, study = optimize_keff_model(
@@ -65,7 +66,8 @@ class ModelTrainer:
                     model_type=model_type,
                     n_trials=config.n_trials,
                     n_jobs=config.n_jobs,
-                    groups=groups_train  # NEW: Pass groups
+                    groups=groups_train,  # NEW: Pass groups
+                    encoding=encoding  # NEW: Pass encoding
                 )
 
             # Check if optimization completed or timed out

@@ -233,6 +233,62 @@
             border-radius: 2px;
             pointer-events: none;
         }
+
+        /* Styles for physics visualizations */
+        .physics-viz-card {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .physics-viz-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+        .viz-canvas {
+            background: white;
+            padding: 10px;
+        }
+        .feature-equation {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 12px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+        .equation-part {
+            color: #3498db;
+            font-weight: bold;
+        }
+        .value-highlight {
+            color: #2ecc71;
+            background: rgba(46, 204, 113, 0.2);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .local-feature-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 30px);
+            grid-template-rows: repeat(3, 30px);
+            gap: 2px;
+            background: #ddd;
+            padding: 5px;
+            margin: 10px 0;
+        }
+        .local-feature-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            border: 1px solid #999;
+        }
     </style>
 </head>
 <body>
@@ -378,28 +434,39 @@
                 <div class="lattice-grid" id="grid3"></div>
             </div>
             <div class="feature-display">
-                <div class="feature-box">
-                    <div class="feature-title">Global Features - Interactive Visualization:</div>
+                <!-- Global Features Card -->
+                <div class="physics-viz-card">
+                    <div class="physics-viz-title">
+                        Global Configuration Features
+                    </div>
                     <div id="global-physics-viz">
-                        <canvas id="physics-global-canvas" width="400" height="300"></canvas>
-                        <div id="global-feature-controls" style="margin-top: 10px;">
-                            <button onclick="showGlobalFeature('distance')" style="margin-right: 5px;">Average Distance</button>
-                            <button onclick="showGlobalFeature('symmetry')">Symmetry Balance</button>
+                        <div class="viz-canvas">
+                            <canvas id="physics-global-canvas" width="400" height="300"></canvas>
                         </div>
-                        <div id="global-feature-detail" style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 5px; font-size: 12px;"></div>
+                        <div id="global-feature-controls" style="margin-top: 15px; text-align: center;">
+                            <button onclick="showGlobalFeature('distance')" style="margin-right: 10px; padding: 8px 20px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer;">Average Distance</button>
+                            <button onclick="showGlobalFeature('symmetry')" style="padding: 8px 20px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer;">Symmetry Balance</button>
+                        </div>
+                        <div id="global-feature-metrics" style="margin-top: 15px;"></div>
                     </div>
                 </div>
-                <div class="feature-box">
-                    <div class="feature-title">Local Features - Interactive per I-position:</div>
+
+                <!-- Local Features Card -->
+                <div class="physics-viz-card">
+                    <div class="physics-viz-title">
+                        Local Features per I-position
+                    </div>
                     <div id="local-physics-viz">
-                        <div style="margin-bottom: 10px;">
-                            <label>Select I-position: </label>
-                            <select id="i-position-selector" onchange="updateLocalFeatures()">
+                        <div style="margin-bottom: 15px;">
+                            <label style="font-weight: 600; color: #34495e;">Select I-position: </label>
+                            <select id="i-position-selector" onchange="updateLocalFeatures()" style="padding: 6px 12px; border-radius: 5px; border: 1px solid #bdc3c7;">
                             </select>
-                            <button onclick="refreshLocalFeatures()" style="margin-left: 10px; padding: 5px 10px; background: #3498db; color: white; border: none; border-radius: 3px; cursor: pointer;">Refresh</button>
+                            <button onclick="refreshLocalFeatures()" style="margin-left: 10px; padding: 6px 15px; background: #2ecc71; color: white; border: none; border-radius: 5px; cursor: pointer;">Refresh</button>
                         </div>
-                        <canvas id="physics-local-canvas" width="450" height="580"></canvas>
-                        <div id="local-feature-detail" style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 5px; font-size: 12px;"></div>
+                        <div class="viz-canvas">
+                            <canvas id="physics-local-canvas" width="650" height="280"></canvas>
+                        </div>
+                        <div id="local-feature-metrics" style="margin-top: 15px;"></div>
                     </div>
                 </div>
             </div>
@@ -453,9 +520,6 @@
             </div>
         </div>
     </div>
-
-    <!-- Method 6: Raw 2D grid - REMOVED -->
-
 
     <script>
         // Sample reactor lattice - I3 moved to edge
@@ -565,6 +629,8 @@
         // Create improved radial distance visualization for Method 2
         function createRadialViz() {
             const viz = document.getElementById('radial-viz');
+            viz.innerHTML = ''; // Clear previous content
+
             const canvas = document.createElement('canvas');
             canvas.width = 320;
             canvas.height = 320;
@@ -648,7 +714,7 @@
                 const option = document.createElement('option');
                 option.value = `${pos.row},${pos.col}`;
                 option.textContent = `${pos.label} at (${pos.row},${pos.col})`;
-                if (index === 0) option.selected = true; // Auto-select first option
+                if (index === 0) option.selected = true;
                 selector.appendChild(option);
             });
         }
@@ -663,8 +729,12 @@
             const offsetX = 50;
             const offsetY = 40;
 
-            // Draw grid
-            ctx.strokeStyle = '#ddd';
+            // Draw grid background
+            ctx.fillStyle = '#f8f9fa';
+            ctx.fillRect(offsetX, offsetY, 8 * scale, 8 * scale);
+
+            // Draw grid lines
+            ctx.strokeStyle = '#e0e0e0';
             ctx.lineWidth = 1;
             for (let i = 0; i <= 8; i++) {
                 ctx.beginPath();
@@ -677,21 +747,31 @@
                 ctx.stroke();
             }
 
-            // Draw cells
+            // Draw cells with better styling
             for (let i = 0; i < 8; i++) {
                 for (let j = 0; j < 8; j++) {
                     const cellType = lattice[i][j];
+                    const x = offsetX + j * scale;
+                    const y = offsetY + i * scale;
+
+                    ctx.save();
+                    ctx.shadowColor = 'rgba(0,0,0,0.1)';
+                    ctx.shadowBlur = 3;
+                    ctx.shadowOffsetX = 1;
+                    ctx.shadowOffsetY = 1;
+
                     if (cellType === 'F') {
-                        ctx.fillStyle = '#ffcccc';
-                        ctx.fillRect(offsetX + j * scale + 1, offsetY + i * scale + 1, scale - 2, scale - 2);
+                        ctx.fillStyle = '#ff9999';
+                        ctx.fillRect(x + 3, y + 3, scale - 6, scale - 6);
                     } else if (cellType === 'C') {
-                        ctx.fillStyle = '#ccccff';
-                        ctx.fillRect(offsetX + j * scale + 1, offsetY + i * scale + 1, scale - 2, scale - 2);
+                        ctx.fillStyle = '#9999ff';
+                        ctx.fillRect(x + 3, y + 3, scale - 6, scale - 6);
                     }
+                    ctx.restore();
                 }
             }
 
-            // I-positions with continuous coordinates (cell centers) - dynamically from lattice
+            // Get I-positions
             const iPositions = [];
             for (let i = 0; i < 8; i++) {
                 for (let j = 0; j < 8; j++) {
@@ -707,29 +787,42 @@
                 }
             }
 
-            // Draw I-positions
+            // Draw I-positions with better styling
             iPositions.forEach((pos, idx) => {
+                const x = offsetX + pos.col * scale;
+                const y = offsetY + pos.row * scale;
+
+                ctx.save();
+                ctx.shadowColor = 'rgba(0,0,0,0.2)';
+                ctx.shadowBlur = 4;
+                ctx.shadowOffsetX = 2;
+                ctx.shadowOffsetY = 2;
+
                 ctx.fillStyle = '#99ff99';
-                ctx.fillRect(offsetX + pos.col * scale + 1, offsetY + pos.row * scale + 1, scale - 2, scale - 2);
+                ctx.fillRect(x + 3, y + 3, scale - 6, scale - 6);
+                ctx.restore();
+
                 ctx.fillStyle = '#333';
                 ctx.font = 'bold 14px Arial';
                 ctx.textAlign = 'center';
-                ctx.fillText(`I${idx + 1}`, offsetX + pos.col * scale + scale/2, offsetY + pos.row * scale + scale/2 + 5);
+                ctx.fillText(`I${idx + 1}`, x + scale/2, y + scale/2 + 5);
             });
 
             // True geometric center
             const centerX = offsetX + 4.0 * scale;
             const centerY = offsetY + 4.0 * scale;
 
-            const detail = document.getElementById('global-feature-detail');
+            const metricsDiv = document.getElementById('global-feature-metrics');
 
             if (feature === 'distance') {
-                // Draw lines from each I to center
+                // Draw lines from each I to center with better styling
                 ctx.strokeStyle = '#3498db';
                 ctx.lineWidth = 2;
-                ctx.setLineDash([5, 3]);
+                ctx.setLineDash([8, 4]);
+                ctx.lineCap = 'round';
 
                 let totalDist = 0;
+                const distances = [];
                 iPositions.forEach((pos, idx) => {
                     const posX = offsetX + pos.x * scale;
                     const posY = offsetY + pos.y * scale;
@@ -739,38 +832,49 @@
                     ctx.lineTo(centerX, centerY);
                     ctx.stroke();
 
-                    // Calculate and show distance
                     const dist = Math.sqrt(Math.pow(pos.x - 4, 2) + Math.pow(pos.y - 4, 2));
+                    distances.push(dist);
                     totalDist += dist;
 
-                    // Draw distance label
-                    ctx.fillStyle = '#3498db';
-                    ctx.font = '11px Arial';
+                    // Draw distance label with background
                     const midX = (posX + centerX) / 2;
                     const midY = (posY + centerY) / 2;
-                    ctx.fillText(dist.toFixed(2), midX + 10, midY);
+
+                    ctx.save();
+                    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+                    ctx.fillRect(midX - 15, midY - 10, 30, 16);
+                    ctx.fillStyle = '#3498db';
+                    ctx.font = 'bold 11px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(dist.toFixed(2), midX, midY + 3);
+                    ctx.restore();
                 });
                 ctx.setLineDash([]);
 
-                // Draw center
-                ctx.fillStyle = 'red';
+                // Draw center with better styling
+                ctx.save();
+                ctx.shadowColor = 'rgba(0,0,0,0.3)';
+                ctx.shadowBlur = 4;
+                ctx.fillStyle = '#e74c3c';
                 ctx.beginPath();
-                ctx.arc(centerX, centerY, 5, 0, 2 * Math.PI);
+                ctx.arc(centerX, centerY, 6, 0, 2 * Math.PI);
                 ctx.fill();
+                ctx.restore();
+
                 ctx.fillStyle = '#333';
                 ctx.font = '10px Arial';
-                ctx.fillText('Center', centerX - 20, centerY + 20);
+                ctx.fillText('Center (4,4)', centerX - 30, centerY + 20);
 
                 const avgDist = iPositions.length > 0 ? totalDist / iPositions.length : 0;
                 const maxDist = Math.sqrt(2) * 4.0;
                 const normalized = avgDist / maxDist;
 
-                detail.innerHTML = `
-                    <strong>Average Distance to Core Center:</strong><br>
-                    • Center is at (4.0, 4.0) - the geometric center<br>
-                    • Distances: ${iPositions.map((pos, idx) => `${pos.label}=${Math.sqrt(Math.pow(pos.x - 4, 2) + Math.pow(pos.y - 4, 2)).toFixed(2)}`).join(', ')}<br>
-                    • Average = ${avgDist.toFixed(2)} (${totalDist.toFixed(2)}/${iPositions.length})<br>
-                    • Normalized = ${avgDist.toFixed(2)} / ${maxDist.toFixed(2)} = <strong>${normalized.toFixed(3)}</strong>
+                metricsDiv.innerHTML = `
+                    <div class="feature-equation">
+                        <div style="margin-bottom: 10px;">Average Distance to Core Center:</div>
+                        <div>d̄ = (${distances.map(d => d.toFixed(2)).join(' + ')}) / ${iPositions.length} = <span class="value-highlight">${avgDist.toFixed(3)}</span></div>
+                        <div style="margin-top: 5px;">Normalized: ${avgDist.toFixed(3)} / ${maxDist.toFixed(3)} = <span class="value-highlight">${normalized.toFixed(3)}</span></div>
+                    </div>
                 `;
 
             } else if (feature === 'symmetry') {
@@ -785,10 +889,10 @@
                 const comPixelX = offsetX + comX * scale;
                 const comPixelY = offsetY + comY * scale;
 
-                // Draw lines from each I to show center of mass calculation
-                ctx.strokeStyle = '#27ae60';
-                ctx.lineWidth = 1;
-                ctx.setLineDash([3, 3]);
+                // Draw lines from each I to CoM with better styling
+                ctx.strokeStyle = 'rgba(46, 204, 113, 0.6)';
+                ctx.lineWidth = 3;
+                ctx.setLineDash([6, 4]);
                 iPositions.forEach(pos => {
                     const posX = offsetX + pos.x * scale;
                     const posY = offsetY + pos.y * scale;
@@ -799,41 +903,79 @@
                 });
                 ctx.setLineDash([]);
 
-                // Draw center of mass
+                // Draw center of mass with better styling
+                ctx.save();
+                ctx.shadowColor = 'rgba(0,0,0,0.3)';
+                ctx.shadowBlur = 4;
                 ctx.fillStyle = '#27ae60';
                 ctx.beginPath();
-                ctx.arc(comPixelX, comPixelY, 6, 0, 2 * Math.PI);
+                ctx.arc(comPixelX, comPixelY, 8, 0, 2 * Math.PI);
                 ctx.fill();
                 ctx.fillStyle = '#fff';
                 ctx.font = 'bold 10px Arial';
                 ctx.textAlign = 'center';
                 ctx.fillText('CoM', comPixelX, comPixelY + 3);
+                ctx.restore();
 
                 // Draw reactor center
-                ctx.fillStyle = 'red';
+                ctx.save();
+                ctx.shadowColor = 'rgba(0,0,0,0.3)';
+                ctx.shadowBlur = 4;
+                ctx.fillStyle = '#e74c3c';
                 ctx.beginPath();
-                ctx.arc(centerX, centerY, 5, 0, 2 * Math.PI);
+                ctx.arc(centerX, centerY, 6, 0, 2 * Math.PI);
                 ctx.fill();
+                ctx.restore();
 
-                // Draw distance between CoM and center
+                // Draw distance between CoM and center with better styling
                 ctx.strokeStyle = '#e74c3c';
                 ctx.lineWidth = 3;
+                ctx.setLineDash([10, 5]);
+                ctx.lineCap = 'round';
                 ctx.beginPath();
                 ctx.moveTo(comPixelX, comPixelY);
                 ctx.lineTo(centerX, centerY);
                 ctx.stroke();
+                ctx.setLineDash([]);
 
                 const symmetryDist = Math.sqrt(Math.pow(comX - 4.0, 2) + Math.pow(comY - 4.0, 2));
                 const maxDist = Math.sqrt(2) * 4.0;
                 const normalized = symmetryDist / maxDist;
 
-                detail.innerHTML = `
-                    <strong>Symmetry Balance (Center of Mass):</strong><br>
-                    • I-positions: ${iPositions.map(pos => `(${pos.x.toFixed(1)},${pos.y.toFixed(1)})`).join(', ')}<br>
-                    • Center of Mass = ((${sumX.toFixed(1)})/${iPositions.length}, (${sumY.toFixed(1)})/${iPositions.length}) = (${comX.toFixed(2)}, ${comY.toFixed(2)})<br>
-                    • Distance from CoM to reactor center = ${symmetryDist.toFixed(3)}<br>
-                    • Normalized = ${symmetryDist.toFixed(3)} / ${maxDist.toFixed(2)} = <strong>${normalized.toFixed(3)}</strong><br>
-                    • <em>Lower values = better symmetry</em>
+                // Draw symmetry distance label - offset to the side
+                const midX = (comPixelX + centerX) / 2;
+                const midY = (comPixelY + centerY) / 2;
+
+                // Calculate perpendicular offset
+                const dx = centerX - comPixelX;
+                const dy = centerY - comPixelY;
+                const len = Math.sqrt(dx * dx + dy * dy);
+                let labelOffsetX = 0;
+                let labelOffsetY = -25; // Default above
+
+                if (len > 0.1) {
+                    // Calculate perpendicular direction
+                    labelOffsetX = -dy / len * 30;
+                    labelOffsetY = dx / len * 30;
+                }
+
+                ctx.save();
+                ctx.fillStyle = 'rgba(255,255,255,0.95)';
+                ctx.fillRect(midX + labelOffsetX - 20, midY + labelOffsetY - 8, 40, 16);
+                ctx.fillStyle = '#e74c3c';
+                ctx.font = 'bold 11px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(symmetryDist.toFixed(3), midX + labelOffsetX, midY + labelOffsetY + 5);
+                ctx.restore();
+
+                metricsDiv.innerHTML = `
+                    <div class="feature-equation">
+                        <div style="margin-bottom: 10px;">Symmetry Balance (Center of Mass):</div>
+                        <div>CoM = ((${sumX.toFixed(1)})/${iPositions.length}, (${sumY.toFixed(1)})/${iPositions.length}) = <span class="value-highlight">(${comX.toFixed(2)}, ${comY.toFixed(2)})</span></div>
+                        <div style="margin-top: 5px;">Distance from CoM to center = <span class="value-highlight">${symmetryDist.toFixed(3)}</span></div>
+                        <div style="margin-top: 5px;">Normalized: ${symmetryDist.toFixed(3)} / ${maxDist.toFixed(3)} = <span class="value-highlight">${normalized.toFixed(3)}</span></div>
+                        <div style="margin-top: 10px; font-style: italic;">Lower values indicate better symmetry</div>
+                    </div>
                 `;
             }
         }
@@ -841,8 +983,8 @@
         function updateLocalFeatures() {
             const selector = document.getElementById('i-position-selector');
             if (!selector.value || selector.value === '') {
-                const detail = document.getElementById('local-feature-detail');
-                detail.innerHTML = '<em>No irradiation positions available. Add some I positions in the designer above.</em>';
+                const metricsDiv = document.getElementById('local-feature-metrics');
+                metricsDiv.innerHTML = '<div style="font-style: italic; color: #666;">No irradiation positions available. Add some I positions in the designer above.</div>';
                 return;
             }
 
@@ -853,10 +995,13 @@
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            const detail = document.getElementById('local-feature-detail');
+            const metricsDiv = document.getElementById('local-feature-metrics');
+
+            // Calculate all local features according to the Python code
+            const features = computeLocalFeaturesFromPython(row, col);
 
             // Feature 1: Local Fuel Density (3x3 neighborhood)
-            const nScale = 40;
+            const nScale = 35;
             const nOffsetX = 20;
             const nOffsetY = 20;
 
@@ -881,19 +1026,18 @@
                             ctx.fillStyle = '#9999ff';
                         } else if (cellType.startsWith('I')) {
                             ctx.fillStyle = '#99ff99';
-                            if (di !== 0 || dj !== 0) fuelCount++; // I counts as fuel for neighbors
                         }
                         ctx.fillRect(x, y, nScale - 2, nScale - 2);
 
                         ctx.fillStyle = '#333';
-                        ctx.font = '16px Arial';
+                        ctx.font = '14px Arial';
                         ctx.textAlign = 'center';
                         ctx.fillText(cellType[0], x + nScale/2, y + nScale/2 + 5);
                     } else {
                         ctx.fillStyle = '#ddd';
                         ctx.fillRect(x, y, nScale - 2, nScale - 2);
                         ctx.fillStyle = '#999';
-                        ctx.font = '16px Arial';
+                        ctx.font = '14px Arial';
                         ctx.textAlign = 'center';
                         ctx.fillText('×', x + nScale/2, y + nScale/2 + 5);
                     }
@@ -907,203 +1051,88 @@
                 }
             }
 
-            // Feature 2: Distance to Edge (Coolant or Grid Boundary)
-            const edgeOffsetX = 200;
-            const edgeOffsetY = 20;
-            const edgeScale = 20;
+            // Display fuel density value
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(`Density: ${features.fuelDensity.toFixed(3)}`, nOffsetX + nScale * 1.5, nOffsetY + nScale * 3 + 20);
+
+            // Feature 2: Coolant Contact (3x3 neighborhood showing coolant)
+            const coolantOffsetX = 170;
+            const coolantOffsetY = 20;
 
             ctx.fillStyle = '#333';
             ctx.font = 'bold 14px Arial';
             ctx.textAlign = 'left';
-            ctx.fillText('2. Distance to Edge (Coolant/Boundary)', edgeOffsetX, edgeOffsetY - 5);
+            ctx.fillText('2. Coolant Contact', coolantOffsetX, coolantOffsetY - 5);
 
-                                    // Function to calculate distance to nearest coolant (including virtual coolant outside grid)
-            function calculateEdgeDistance(targetRow, targetCol) {
-                let minDist = Infinity;
+            // Draw 3x3 grid showing coolant cells
+            for (let di = -1; di <= 1; di++) {
+                for (let dj = -1; dj <= 1; dj++) {
+                    const ni = row + di;
+                    const nj = col + dj;
+                    const x = coolantOffsetX + (dj + 1) * nScale;
+                    const y = coolantOffsetY + (di + 1) * nScale;
 
-                // First check if directly adjacent to coolant (distance = 0)
-                // Check all 4 adjacent cells
-                const adjacentOffsets = [[-1, 0], [1, 0], [0, -1], [0, 1]];
-                for (let [di, dj] of adjacentOffsets) {
-                    const checkRow = targetRow + di;
-                    const checkCol = targetCol + dj;
+                    // Highlight adjacent cells (not diagonal)
+                    const isAdjacent = (Math.abs(di) + Math.abs(dj)) === 1;
 
-                    // Check if adjacent to virtual coolant (outside grid)
-                    if (checkRow < 0 || checkRow > 7 || checkCol < 0 || checkCol > 7) {
-                        return 0; // Touching virtual coolant at edge
-                    }
-
-                    // Check if adjacent to coolant cell
-                    if (lattice[checkRow][checkCol] === 'C') {
-                        return 0; // Touching coolant cell
-                    }
-                }
-
-                // Check diagonal cells (distance = sqrt(2)/2 if touching diagonally)
-                const diagonalOffsets = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
-                for (let [di, dj] of diagonalOffsets) {
-                    const checkRow = targetRow + di;
-                    const checkCol = targetCol + dj;
-
-                    // Check if diagonal to virtual coolant
-                    if (checkRow < 0 || checkRow > 7 || checkCol < 0 || checkCol > 7) {
-                        minDist = Math.min(minDist, Math.sqrt(2) / 2);
-                    }
-                    // Check if diagonal to coolant cell
-                    else if (lattice[checkRow][checkCol] === 'C') {
-                        minDist = Math.min(minDist, Math.sqrt(2) / 2);
-                    }
-                }
-
-                // If not adjacent or diagonal to any coolant, calculate actual distances
-                if (minDist === Infinity) {
-                    // Center of the target cell
-                    const targetCenterX = targetCol + 0.5;
-                    const targetCenterY = targetRow + 0.5;
-
-                    // Check all coolant cells in the grid
-                    for (let i = 0; i < 8; i++) {
-                        for (let j = 0; j < 8; j++) {
-                            if (lattice[i][j] === 'C') {
-                                // Calculate distance from target center to nearest edge/corner of coolant cell
-                                const coolantLeft = j;
-                                const coolantRight = j + 1;
-                                const coolantTop = i;
-                                const coolantBottom = i + 1;
-
-                                // Find closest point on coolant cell to target center
-                                const closestX = Math.max(coolantLeft, Math.min(targetCenterX, coolantRight));
-                                const closestY = Math.max(coolantTop, Math.min(targetCenterY, coolantBottom));
-
-                                // Distance from target center to closest point on coolant
-                                const dist = Math.sqrt(
-                                    Math.pow(targetCenterX - closestX, 2) +
-                                    Math.pow(targetCenterY - closestY, 2)
-                                );
-                                minDist = Math.min(minDist, dist);
-                            }
+                    if (ni < 0 || ni >= 8 || nj < 0 || nj >= 8) {
+                        // Outside grid - virtual coolant
+                        ctx.fillStyle = isAdjacent ? '#6666ff' : '#ddd';
+                        ctx.fillRect(x, y, nScale - 2, nScale - 2);
+                        if (isAdjacent) {
+                            ctx.fillStyle = 'white';
+                            ctx.font = '14px Arial';
+                            ctx.textAlign = 'center';
+                            ctx.fillText('C', x + nScale/2, y + nScale/2 + 5);
                         }
-                    }
-
-                    // Check distance to boundaries (virtual coolant)
-                    const distToLeft = targetCenterX;
-                    const distToRight = 8 - targetCenterX;
-                    const distToTop = targetCenterY;
-                    const distToBottom = 8 - targetCenterY;
-
-                    minDist = Math.min(minDist, distToLeft, distToRight, distToTop, distToBottom);
-                }
-
-                return minDist;
-            }
-
-            const edgeDist = calculateEdgeDistance(row, col);
-
-                        for (let i = 0; i < 8; i++) {
-                for (let j = 0; j < 8; j++) {
-                    const dist = calculateEdgeDistance(i, j);
-
-                    // Color scheme: darker blue for smaller distances, lighter for larger
-                    const maxDist = 4.0; // Maximum possible distance is about 4 (from center to corner)
-                    const normalizedDist = Math.min(dist / maxDist, 1.0);
-                    const intensity = Math.floor(normalizedDist * 200) + 55;
-                    ctx.fillStyle = `rgb(${255 - intensity}, ${255 - intensity}, 255)`;
-
-                    ctx.fillRect(edgeOffsetX + j * edgeScale, edgeOffsetY + i * edgeScale, edgeScale - 1, edgeScale - 1);
-
-                    if (i === row && j === col) {
-                        ctx.strokeStyle = '#ff6b6b';
-                        ctx.lineWidth = 2;
-                        ctx.strokeRect(edgeOffsetX + j * edgeScale, edgeOffsetY + i * edgeScale, edgeScale - 1, edgeScale - 1);
-
-                        // Use white text for dark backgrounds, black for light
-                        const normalizedDist = Math.min(dist / 4.0, 1.0);
-                        ctx.fillStyle = normalizedDist < 0.5 ? '#fff' : '#000';
-                        ctx.font = 'bold 9px Arial';
-                        ctx.textAlign = 'center';
-                        ctx.fillText(dist.toFixed(1), edgeOffsetX + j * edgeScale + edgeScale/2, edgeOffsetY + i * edgeScale + edgeScale/2 + 3);
-                    }
-                }
-            }
-
-            // Feature 3: Distance to Core Center
-            const coreOffsetY = 220;
-
-            ctx.fillStyle = '#333';
-            ctx.font = 'bold 14px Arial';
-            ctx.textAlign = 'left';
-            ctx.fillText('3. Distance to Core Center', nOffsetX, coreOffsetY - 5);
-
-            // Draw mini grid
-            for (let i = 0; i < 8; i++) {
-                for (let j = 0; j < 8; j++) {
-                    const cellType = lattice[i][j];
-                    if (cellType === 'F') {
-                        ctx.fillStyle = '#ffcccc';
-                    } else if (cellType === 'C') {
-                        ctx.fillStyle = '#ccccff';
-                    } else if (cellType.startsWith('I')) {
-                        ctx.fillStyle = '#ccffcc';
                     } else {
-                        ctx.fillStyle = '#f0f0f0';
+                        const cellType = lattice[ni][nj];
+                        if (cellType === 'C' && isAdjacent) {
+                            ctx.fillStyle = '#6666ff';
+                        } else if (cellType === 'C') {
+                            ctx.fillStyle = '#9999ff';
+                        } else if (cellType === 'F') {
+                            ctx.fillStyle = '#ffcccc';
+                        } else if (cellType.startsWith('I')) {
+                            ctx.fillStyle = '#ccffcc';
+                        } else {
+                            ctx.fillStyle = '#f0f0f0';
+                        }
+                        ctx.fillRect(x, y, nScale - 2, nScale - 2);
+
+                        ctx.fillStyle = cellType === 'C' && isAdjacent ? 'white' : '#333';
+                        ctx.font = '14px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(cellType[0], x + nScale/2, y + nScale/2 + 5);
                     }
-                    ctx.fillRect(nOffsetX + j * edgeScale, coreOffsetY + i * edgeScale, edgeScale - 1, edgeScale - 1);
+
+                    // Highlight center
+                    if (di === 0 && dj === 0) {
+                        ctx.strokeStyle = '#3498db';
+                        ctx.lineWidth = 3;
+                        ctx.strokeRect(x, y, nScale - 2, nScale - 2);
+                    }
                 }
             }
 
-            // Highlight current position
-            ctx.fillStyle = '#99ff99';
-            ctx.fillRect(nOffsetX + col * edgeScale, coreOffsetY + row * edgeScale, edgeScale - 1, edgeScale - 1);
-
-            // Draw line to center
-            const posX = nOffsetX + col * edgeScale + edgeScale/2;
-            const posY = coreOffsetY + row * edgeScale + edgeScale/2;
-            const centerX = nOffsetX + 4.0 * edgeScale;
-            const centerY = coreOffsetY + 4.0 * edgeScale;
-
-            ctx.strokeStyle = '#3498db';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([3, 3]);
-            ctx.beginPath();
-            ctx.moveTo(posX, posY);
-            ctx.lineTo(centerX, centerY);
-            ctx.stroke();
-            ctx.setLineDash([]);
-
-            // Draw center
-            ctx.fillStyle = 'red';
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, 3, 0, 2 * Math.PI);
-            ctx.fill();
-
-            // Label the center
+            // Display coolant contact value
             ctx.fillStyle = '#333';
-            ctx.font = '10px Arial';
+            ctx.font = 'bold 16px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText('Center', centerX, centerY + 15);
-            ctx.fillText('(4,4)', centerX, centerY + 25);
+            ctx.fillText(`Contact: ${features.coolantContact.toFixed(3)}`, coolantOffsetX + nScale * 1.5, coolantOffsetY + nScale * 3 + 20);
 
-            const coreDist = Math.sqrt(Math.pow(row + 0.5 - 4, 2) + Math.pow(col + 0.5 - 4, 2));
-            const maxDist = Math.sqrt(2) * 4;
-
-            // Add distance label on the blue arrow
-            const midX = (posX + centerX) / 2;
-            const midY = (posY + centerY) / 2;
-            ctx.fillStyle = '#3498db';
-            ctx.font = 'bold 11px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText(coreDist.toFixed(2), midX + 5, midY - 5);
-
-                                    // Feature 4: NCI (Neutron Competition Index)
-            const nciOffsetX = 230;  // Move to the right
-            const nciOffsetY = 200;
+            // Feature 3: NCI (Neutron Competition Index) - moved to the right
+            const nciOffsetX = 320;
+            const nciOffsetY = 20;
 
             ctx.fillStyle = '#333';
             ctx.font = 'bold 14px Arial';
             ctx.textAlign = 'left';
-            ctx.fillText('4. NCI (Neutron Competition Index)', nciOffsetX, nciOffsetY - 5);
+            ctx.fillText('3. NCI', nciOffsetX, nciOffsetY - 5);
 
-            // I-positions with their coordinates - dynamically from lattice
+            // Get all I-positions
             const iPositions = [];
             for (let i = 0; i < 8; i++) {
                 for (let j = 0; j < 8; j++) {
@@ -1119,10 +1148,14 @@
                 }
             }
 
-                        // Draw mini grid showing all I positions
+            // Draw mini grid showing all I positions - make it bigger
+            const nciScale = 30;
             for (let i = 0; i < 8; i++) {
                 for (let j = 0; j < 8; j++) {
                     const cellType = lattice[i][j];
+                    const x = nciOffsetX + j * nciScale;
+                    const y = nciOffsetY + i * nciScale;
+
                     if (cellType === 'F') {
                         ctx.fillStyle = '#ffcccc';
                     } else if (cellType === 'C') {
@@ -1132,30 +1165,20 @@
                     } else {
                         ctx.fillStyle = '#f0f0f0';
                     }
-                    ctx.fillRect(nciOffsetX + j * edgeScale, nciOffsetY + i * edgeScale, edgeScale - 1, edgeScale - 1);
+                    ctx.fillRect(x, y, nciScale - 1, nciScale - 1);
                 }
             }
 
             // Calculate NCI for current position
             const currentPos = {x: col + 0.5, y: row + 0.5};
             let nci = 0;
-            const lambda = 1.5; // decay parameter from actual implementation
-            const threshold_low = Math.sqrt(4.9);   // ~2.21
-            const threshold_high = Math.sqrt(5.1);  // ~2.26
+            const lambda = 1.5;
+            const threshold_low = Math.sqrt(4.9);
+            const threshold_high = Math.sqrt(5.1);
 
             // Highlight current position
             ctx.fillStyle = '#99ff99';
-            ctx.fillRect(nciOffsetX + col * edgeScale, nciOffsetY + row * edgeScale, edgeScale - 1, edgeScale - 1);
-
-            // Add explanation text
-            ctx.fillStyle = '#333';
-            ctx.font = '11px Arial';
-            ctx.textAlign = 'left';
-            ctx.fillText('NCI Formula with distance thresholds:', nciOffsetX, nciOffsetY + 175);
-            ctx.fillText(`• d < ${threshold_low.toFixed(2)}: exp(-d/λ) where λ=${lambda}`, nciOffsetX, nciOffsetY + 190);
-            ctx.fillText(`• ${threshold_low.toFixed(2)} ≤ d ≤ ${threshold_high.toFixed(2)}: 0.1 (constant)`, nciOffsetX, nciOffsetY + 205);
-            ctx.fillText(`• d > ${threshold_high.toFixed(2)}: 0 (no contribution)`, nciOffsetX, nciOffsetY + 220);
-            ctx.fillText('Higher NCI = more neutron competition', nciOffsetX, nciOffsetY + 235);
+            ctx.fillRect(nciOffsetX + col * nciScale, nciOffsetY + row * nciScale, nciScale - 1, nciScale - 1);
 
             // Draw connections to other I positions and calculate NCI
             ctx.strokeStyle = '#9b59b6';
@@ -1163,129 +1186,208 @@
             ctx.setLineDash([3, 3]);
 
             let nciComponents = [];
-            let placedBoxes = []; // Track actual box positions and dimensions
-
             for (let otherPos of iPositions) {
-                if (otherPos.row === row && otherPos.col === col) continue; // Skip self
+                if (otherPos.row === row && otherPos.col === col) continue;
 
                 const distance = Math.sqrt(Math.pow(currentPos.x - otherPos.x, 2) + Math.pow(currentPos.y - otherPos.y, 2));
                 let contribution = 0;
 
-                // Apply distance thresholds
                 if (distance < threshold_low) {
                     contribution = Math.exp(-distance / lambda);
                 } else if (distance <= threshold_high) {
                     contribution = 0.1;
-                } // else contribution remains 0
+                }
 
                 nci += contribution;
                 nciComponents.push({pos: otherPos, dist: distance, contrib: contribution});
 
                 // Draw line to other I position
-                const fromX = nciOffsetX + col * edgeScale + edgeScale/2;
-                const fromY = nciOffsetY + row * edgeScale + edgeScale/2;
-                const toX = nciOffsetX + otherPos.col * edgeScale + edgeScale/2;
-                const toY = nciOffsetY + otherPos.row * edgeScale + edgeScale/2;
+                const fromX = nciOffsetX + col * nciScale + nciScale/2;
+                const fromY = nciOffsetY + row * nciScale + nciScale/2;
+                const toX = nciOffsetX + otherPos.col * nciScale + nciScale/2;
+                const toY = nciOffsetY + otherPos.row * nciScale + nciScale/2;
 
                 ctx.beginPath();
                 ctx.moveTo(fromX, fromY);
                 ctx.lineTo(toX, toY);
                 ctx.stroke();
 
-                // Calculate ideal box position
-                let boxX = (fromX + toX) / 2 - 20;
-                let boxY = (fromY + toY) / 2 - 15;
-                const boxWidth = 45;
-                const boxHeight = 28;
+                // Draw distance and contribution label
+                const midX = (fromX + toX) / 2;
+                const midY = (fromY + toY) / 2;
 
-                // Function to check if two boxes overlap
-                function boxesOverlap(box1, box2) {
-                    return !(box1.x + box1.width < box2.x ||
-                            box2.x + box2.width < box1.x ||
-                            box1.y + box1.height < box2.y ||
-                            box2.y + box2.height < box1.y);
-                }
-
-                // Find a non-overlapping position
-                let attempts = 0;
-                let currentBox = {x: boxX, y: boxY, width: boxWidth, height: boxHeight};
-
-                while (attempts < 20) {
-                    let hasOverlap = false;
-                    for (let existingBox of placedBoxes) {
-                        if (boxesOverlap(currentBox, existingBox)) {
-                            hasOverlap = true;
-                            break;
-                        }
-                    }
-
-                    if (!hasOverlap) break;
-
-                    // Try different positions: down, right, up, left, diagonal
-                    switch (attempts % 8) {
-                        case 0: currentBox.y += 35; break;
-                        case 1: currentBox.x += 50; break;
-                        case 2: currentBox.y -= 35; break;
-                        case 3: currentBox.x -= 50; break;
-                        case 4: currentBox.x += 25; currentBox.y += 35; break;
-                        case 5: currentBox.x -= 25; currentBox.y += 35; break;
-                        case 6: currentBox.x += 25; currentBox.y -= 35; break;
-                        case 7: currentBox.x -= 25; currentBox.y -= 35; break;
-                    }
-                    attempts++;
-                }
-
-                // Constrain box to canvas bounds
-                currentBox.x = Math.max(nciOffsetX, Math.min(currentBox.x, nciOffsetX + 160 - boxWidth));
-                currentBox.y = Math.max(nciOffsetY, Math.min(currentBox.y, nciOffsetY + 300 - boxHeight));
-
-                // Store the final position
-                placedBoxes.push(currentBox);
-                boxX = currentBox.x;
-                boxY = currentBox.y;
-
-                // Draw distance and contribution in a box with better visibility
-                ctx.fillStyle = 'rgba(255,255,255,0.95)';
-                ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-
-                ctx.strokeStyle = '#9b59b6';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+                ctx.fillStyle = 'rgba(255,255,255,0.9)';
+                ctx.fillRect(midX - 25, midY - 12, 50, 20);
 
                 ctx.fillStyle = '#9b59b6';
-                ctx.font = 'bold 9px Arial';
+                ctx.font = '10px Arial';
                 ctx.textAlign = 'center';
-                ctx.fillText(`d=${distance.toFixed(1)}`, boxX + boxWidth/2, boxY + 12);
-                ctx.fillText(`${contribution.toFixed(3)}`, boxX + boxWidth/2, boxY + 22);
+                ctx.fillText(`d=${distance.toFixed(1)}`, midX, midY - 2);
+                ctx.fillText(`${contribution.toFixed(3)}`, midX, midY + 8);
             }
             ctx.setLineDash([]);
 
-            detail.innerHTML = `
-                <strong>Local Features for I at (${row}, ${col}):</strong><br><br>
-                1. <strong>Fuel Density:</strong> ${fuelCount}/8 neighbors are fuel = ${(fuelCount/8).toFixed(2)}<br>
-                2. <strong>Edge Distance:</strong> Distance to nearest coolant or boundary = ${edgeDist.toFixed(2)}<br>
-                   &nbsp;&nbsp;&nbsp;Normalized: ${edgeDist.toFixed(2)}/4.0 = ${(edgeDist/4.0).toFixed(3)}<br>
-                3. <strong>Core Distance:</strong> √((${row}.5-4)² + (${col}.5-4)²) = ${coreDist.toFixed(2)}<br>
-                   &nbsp;&nbsp;&nbsp;Normalized: ${coreDist.toFixed(2)}/${maxDist.toFixed(2)} = ${(coreDist/maxDist).toFixed(2)}<br>
-                4. <strong>NCI:</strong> Σ exp(-d_ij/λ) where λ=1.5<br>
-                   &nbsp;&nbsp;&nbsp;${nciComponents.map(c => `d(${c.pos.label})=${c.dist.toFixed(1)} → ${c.contrib.toFixed(3)}`).join('<br>&nbsp;&nbsp;&nbsp;')}<br>
-                   &nbsp;&nbsp;&nbsp;Total NCI = ${nci.toFixed(3)}<br><br>
-                <strong>Feature vector for this position:</strong> [${(fuelCount/8).toFixed(2)}, ${(edgeDist/4.0).toFixed(3)}, ${(coreDist/maxDist).toFixed(2)}, ${nci.toFixed(3)}]
+            // Display NCI value
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(`NCI: ${nci.toFixed(3)}`, nciOffsetX + nciScale * 4, nciOffsetY + nciScale * 8 + 15);
+
+            // Draw feature equations and values - bring it much closer
+            metricsDiv.innerHTML = `
+                <div class="feature-equation" style="margin-top: 5px;">
+                    <strong>Local Features for I at (${row}, ${col}):</strong><br><br>
+
+                    1. <strong>Fuel Density:</strong> ${features.fuelCount}/8 neighbors are fuel<br>
+                    &nbsp;&nbsp;&nbsp;Value = ${features.fuelCount}/8 = <span class="value-highlight">${features.fuelDensity.toFixed(3)}</span><br><br>
+
+                    2. <strong>Coolant Contact:</strong> ${features.coolantCount} adjacent coolant cells (normalized by 2)<br>
+                    &nbsp;&nbsp;&nbsp;Value = ${features.coolantCount}/2 = <span class="value-highlight">${features.coolantContact.toFixed(3)}</span><br><br>
+
+                    3. <strong>Edge Distance:</strong> min(${row}, ${col}, ${7-row}, ${7-col}) = ${features.edgeDist}<br>
+                    &nbsp;&nbsp;&nbsp;Normalized = ${features.edgeDist}/3.5 = <span class="value-highlight">${features.edgeDistNorm.toFixed(3)}</span><br><br>
+
+                    4. <strong>Core Distance:</strong> √((${row}.5-4)² + (${col}.5-4)²) = ${features.centerDist.toFixed(3)}<br>
+                    &nbsp;&nbsp;&nbsp;Normalized = ${features.centerDist.toFixed(3)}/${features.maxDist.toFixed(3)} = <span class="value-highlight">${features.centerDistNorm.toFixed(3)}</span><br><br>
+
+                    5. <strong>NCI:</strong> Σ contribution from other I-positions<br>
+                    ${nciComponents.map(c => `&nbsp;&nbsp;&nbsp;d(${c.pos.label})=${c.dist.toFixed(1)} → ${c.contrib < 0.001 ? '0' : c.contrib.toFixed(3)}`).join('<br>')}<br>
+                    &nbsp;&nbsp;&nbsp;Total NCI = <span class="value-highlight">${nci.toFixed(3)}</span><br><br>
+
+                    <strong>Complete feature vector:</strong><br>
+                    [${features.fuelDensity.toFixed(3)}, ${features.coolantContact.toFixed(3)}, ${features.edgeDistNorm.toFixed(3)}, ${features.centerDistNorm.toFixed(3)}, ${nci.toFixed(3)}]
+                </div>
             `;
+        }
+
+        // Compute local features exactly as in Python code
+        function computeLocalFeaturesFromPython(row, col) {
+            // Position center for distance calculations
+            const posCenter = [row + 0.5, col + 0.5];
+            const reactorCenter = [4.0, 4.0];
+
+            // 1. Local fuel density (8 neighbors including diagonals)
+            let fuelCount = 0;
+            const neighbors = [[-1,-1], [-1,0], [-1,1], [0,-1], [0,1], [1,-1], [1,0], [1,1]];
+            for (let [di, dj] of neighbors) {
+                const ni = row + di;
+                const nj = col + dj;
+                if (ni >= 0 && ni < 8 && nj >= 0 && nj < 8) {
+                    if (lattice[ni][nj] === 'F') {  // Only count F, not I
+                        fuelCount++;
+                    }
+                }
+            }
+            const localFuelDensity = fuelCount / 8;
+
+            // 2. Coolant contact count (4 adjacent cells)
+            const specialPositions = [[1,2], [2,1], [5,1], [6,2], [6,5], [5,6], [2,6], [1,5]];
+            let coolantContactNorm;
+
+            // Check if current position is in special positions
+            const isSpecial = specialPositions.some(([r, c]) => r === row && c === col);
+
+            if (isSpecial) {
+                coolantContactNorm = 0.0;
+            } else {
+                let coolantCount = 0;
+                const adjacentOffsets = [[-1, 0], [1, 0], [0, -1], [0, 1]];  // up, down, left, right
+
+                for (let [di, dj] of adjacentOffsets) {
+                    const ni = row + di;
+                    const nj = col + dj;
+
+                    if (ni < 0 || ni > 7 || nj < 0 || nj > 7) {
+                        // Outside grid boundary counts as coolant
+                        coolantCount++;
+                    } else if (lattice[ni][nj] === 'C') {
+                        coolantCount++;
+                    }
+                }
+                coolantContactNorm = coolantCount / 2.0;
+            }
+
+            // 3. Edge distance
+            const edgeDist = Math.min(row, col, 7 - row, 7 - col);
+            const edgeDistNorm = edgeDist / 3.5;
+
+            // 4. Distance to core center
+            const centerDist = Math.sqrt(
+                Math.pow(posCenter[0] - reactorCenter[0], 2) +
+                Math.pow(posCenter[1] - reactorCenter[1], 2)
+            );
+            const maxDist = Math.sqrt(2) * 4;
+            const centerDistNorm = centerDist / maxDist;
+
+            return {
+                fuelCount,
+                fuelDensity: localFuelDensity,
+                coolantCount: coolantContactNorm * 2,  // For display
+                coolantContact: coolantContactNorm,
+                edgeDist,
+                edgeDistNorm,
+                centerDist,
+                maxDist,
+                centerDistNorm
+            };
+        }
+
+        // Compute NCI exactly as in Python code
+        function computeNCIForPosition(row, col) {
+            // Get all I-positions
+            const iPositions = [];
+            for (let i = 0; i < 8; i++) {
+                for (let j = 0; j < 8; j++) {
+                    if (lattice[i][j].startsWith('I')) {
+                        iPositions.push({
+                            row: i,
+                            col: j,
+                            x: j + 0.5,
+                            y: i + 0.5
+                        });
+                    }
+                }
+            }
+
+            // Current position in continuous coordinates
+            const currentPos = {x: col + 0.5, y: row + 0.5};
+
+            // NCI calculation with thresholds from Python code
+            const lambda = 1.5;
+            const thresholdLow = Math.sqrt(4.9);   // ~2.21
+            const thresholdHigh = Math.sqrt(5.1);  // ~2.26
+
+            let nci = 0.0;
+            for (let otherPos of iPositions) {
+                if (otherPos.row === row && otherPos.col === col) continue;  // Skip self
+
+                const dist = Math.sqrt(
+                    Math.pow(currentPos.x - otherPos.x, 2) +
+                    Math.pow(currentPos.y - otherPos.y, 2)
+                );
+
+                if (dist < thresholdLow) {
+                    nci += Math.exp(-dist / lambda);
+                } else if (dist <= thresholdHigh) {
+                    nci += 0.1;
+                }
+                // else: dist > thresholdHigh, contributes 0
+            }
+
+            return nci;
         }
 
         createPhysicsVisualizations();
 
-        // Function to refresh local features (force update to current grid)
+        // Function to refresh local features
         function refreshLocalFeatures() {
             updateIPositionSelector();
             const selector = document.getElementById('i-position-selector');
             if (selector.value && selector.value !== '') {
                 updateLocalFeatures();
             } else {
-                document.getElementById('local-feature-detail').innerHTML = '<em>No irradiation positions available. Add some I positions in the designer above.</em>';
+                document.getElementById('local-feature-metrics').innerHTML = '<div class="interactive-hint">No irradiation positions available. Add some I positions in the designer above.</div>';
             }
-            // Also refresh global features
             showGlobalFeature(currentGlobalFeature);
         }
 
@@ -1573,69 +1675,7 @@
             </div>
         `;
 
-        // Create CNN channel visualizations for Method 6
-        function createCNNChannels() {
-            // Control channel
-            const gridC = document.getElementById('grid6-c');
-            gridC.innerHTML = '';
-            for (let i = 0; i < 8; i++) {
-                for (let j = 0; j < 8; j++) {
-                    const cell = document.createElement('div');
-                    cell.className = 'cell';
-                    if (lattice[i][j] === 'C') {
-                        cell.style.background = '#000';
-                        cell.textContent = '1';
-                        cell.style.color = 'white';
-                    } else {
-                        cell.style.background = '#fff';
-                        cell.textContent = '0';
-                        cell.style.color = '#ccc';
-                    }
-                    gridC.appendChild(cell);
-                }
-            }
-
-            // Fuel channel
-            const gridF = document.getElementById('grid6-f');
-            gridF.innerHTML = '';
-            for (let i = 0; i < 8; i++) {
-                for (let j = 0; j < 8; j++) {
-                    const cell = document.createElement('div');
-                    cell.className = 'cell';
-                    if (lattice[i][j] === 'F') {
-                        cell.style.background = '#000';
-                        cell.textContent = '1';
-                        cell.style.color = 'white';
-                    } else {
-                        cell.style.background = '#fff';
-                        cell.textContent = '0';
-                        cell.style.color = '#ccc';
-                    }
-                    gridF.appendChild(cell);
-                }
-            }
-
-            // Irradiation channel
-            const gridI = document.getElementById('grid6-i');
-            gridI.innerHTML = '';
-            for (let i = 0; i < 8; i++) {
-                for (let j = 0; j < 8; j++) {
-                    const cell = document.createElement('div');
-                    cell.className = 'cell';
-                    if (lattice[i][j].startsWith('I')) {
-                        cell.style.background = '#000';
-                        cell.textContent = '1';
-                        cell.style.color = 'white';
-                    } else {
-                        cell.style.background = '#fff';
-                        cell.textContent = '0';
-                        cell.style.color = '#ccc';
-                    }
-                    gridI.appendChild(cell);
-                }
-            }
-        }
-        createCNNChannels();
+        // Note: Method 6 (Raw 2D grid/CNN) removed from visualization as per original request
 
         // ========================================
         // NEW FUNCTIONALITY
@@ -1747,7 +1787,7 @@
                     for (let j = 0; j < 8; j++) {
                         const cellType = lattice[i][j];
                         const catValue = cellType === 'C' ? 0 : cellType === 'F' ? 1 : 2;
-                        const dist = Math.sqrt(Math.pow(i - 4.0, 2) + Math.pow(j - 4.0, 2)) / (4.0 * Math.sqrt(2));
+                        const dist = Math.sqrt(Math.pow(i - 3.5, 2) + Math.pow(j - 3.5, 2)) / (3.5 * Math.sqrt(2));
                         vector.push(catValue, dist.toFixed(3));
                     }
                 }
@@ -1782,129 +1822,23 @@
                 // Calculate local features for each I position
                 let localFeatures = [];
                 iPos.forEach(pos => {
-                    // Fuel density
-                    let fuelCount = 0;
-                    for (let di = -1; di <= 1; di++) {
-                        for (let dj = -1; dj <= 1; dj++) {
-                            if (di === 0 && dj === 0) continue;
-                            const ni = pos.row + di, nj = pos.col + dj;
-                            if (ni >= 0 && ni < 8 && nj >= 0 && nj < 8) {
-                                if (lattice[ni][nj] === 'F' || lattice[ni][nj].startsWith('I')) fuelCount++;
-                            }
-                        }
-                    }
-                    const fuelDensity = fuelCount / 8;
-
-                                                            // Edge distance (to nearest coolant including virtual coolant outside grid)
-                    let minEdgeDist = Infinity;
-
-                    // First check if directly adjacent to coolant (distance = 0)
-                    const adjacentOffsets = [[-1, 0], [1, 0], [0, -1], [0, 1]];
-                    let isAdjacent = false;
-                    for (let [di, dj] of adjacentOffsets) {
-                        const checkRow = pos.row + di;
-                        const checkCol = pos.col + dj;
-
-                        // Check if adjacent to virtual coolant (outside grid)
-                        if (checkRow < 0 || checkRow > 7 || checkCol < 0 || checkCol > 7) {
-                            minEdgeDist = 0;
-                            isAdjacent = true;
-                            break;
-                        }
-
-                        // Check if adjacent to coolant cell
-                        if (lattice[checkRow][checkCol] === 'C') {
-                            minEdgeDist = 0;
-                            isAdjacent = true;
-                            break;
-                        }
-                    }
-
-                    if (!isAdjacent) {
-                        // Check diagonal cells (distance = sqrt(2)/2 if touching diagonally)
-                        const diagonalOffsets = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
-                        for (let [di, dj] of diagonalOffsets) {
-                            const checkRow = pos.row + di;
-                            const checkCol = pos.col + dj;
-
-                            // Check if diagonal to virtual coolant
-                            if (checkRow < 0 || checkRow > 7 || checkCol < 0 || checkCol > 7) {
-                                minEdgeDist = Math.min(minEdgeDist, Math.sqrt(2) / 2);
-                            }
-                            // Check if diagonal to coolant cell
-                            else if (lattice[checkRow][checkCol] === 'C') {
-                                minEdgeDist = Math.min(minEdgeDist, Math.sqrt(2) / 2);
-                            }
-                        }
-
-                        // If not adjacent or diagonal to any coolant, calculate actual distances
-                        if (minEdgeDist === Infinity) {
-                            // Center of the position
-                            const posCenterX = pos.col + 0.5;
-                            const posCenterY = pos.row + 0.5;
-
-                            // Check all coolant cells in the grid
-                            for (let i = 0; i < 8; i++) {
-                                for (let j = 0; j < 8; j++) {
-                                    if (lattice[i][j] === 'C') {
-                                        const coolantLeft = j;
-                                        const coolantRight = j + 1;
-                                        const coolantTop = i;
-                                        const coolantBottom = i + 1;
-
-                                        const closestX = Math.max(coolantLeft, Math.min(posCenterX, coolantRight));
-                                        const closestY = Math.max(coolantTop, Math.min(posCenterY, coolantBottom));
-
-                                        const dist = Math.sqrt(
-                                            Math.pow(posCenterX - closestX, 2) +
-                                            Math.pow(posCenterY - closestY, 2)
-                                        );
-                                        minEdgeDist = Math.min(minEdgeDist, dist);
-                                    }
-                                }
-                            }
-
-                            // Check distance to boundaries
-                            const distToLeft = posCenterX;
-                            const distToRight = 8 - posCenterX;
-                            const distToTop = posCenterY;
-                            const distToBottom = 8 - posCenterY;
-
-                            minEdgeDist = Math.min(minEdgeDist, distToLeft, distToRight, distToTop, distToBottom);
-                        }
-                    }
-
-                    const edgeDist = minEdgeDist / 4; // Normalize by max possible distance
-
-                    // Core distance
-                    const coreDist = Math.sqrt(Math.pow(pos.y - 4, 2) + Math.pow(pos.x - 4, 2)) / (Math.sqrt(2) * 4);
-
-                    // NCI with correct thresholds
-                    let nci = 0;
-                    const lambda = 1.5;
-                    const threshold_low = Math.sqrt(4.9);
-                    const threshold_high = Math.sqrt(5.1);
-
-                    iPos.forEach(otherPos => {
-                        if (otherPos !== pos) {
-                            const dist = Math.sqrt(Math.pow(pos.x - otherPos.x, 2) + Math.pow(pos.y - otherPos.y, 2));
-                            if (dist < threshold_low) {
-                                nci += Math.exp(-dist / lambda);
-                            } else if (dist <= threshold_high) {
-                                nci += 0.1;
-                            }
-                        }
-                    });
-
-                    localFeatures.push(fuelDensity.toFixed(3), edgeDist.toFixed(3), coreDist.toFixed(3), nci.toFixed(3));
+                    const features = computeLocalFeaturesFromPython(pos.row, pos.col);
+                    localFeatures.push(features.fuelDensity.toFixed(3), features.coolantContact.toFixed(3),
+                                     features.edgeDistNorm.toFixed(3), features.centerDistNorm.toFixed(3));
                 });
 
-                const physicsVector = [avgDist.toFixed(3), symmetryDist.toFixed(3), ...localFeatures];
+                // Add NCI for each position
+                let nciFeatures = [];
+                iPos.forEach(pos => {
+                    nciFeatures.push(computeNCIForPosition(pos.row, pos.col).toFixed(3));
+                });
+
+                const physicsVector = [avgDist.toFixed(3), symmetryDist.toFixed(3), ...localFeatures, ...nciFeatures];
 
                 display.innerHTML = `
                     <strong>Physics-Based Encoding (${physicsVector.length} features):</strong><br>
                     Global: [${avgDist.toFixed(3)}, ${symmetryDist.toFixed(3)}]<br>
-                    ${iPos.map((pos, idx) => `${pos.label}: [${localFeatures.slice(idx*4, (idx+1)*4).join(', ')}]`).join('<br>')}<br>
+                    ${iPos.map((pos, idx) => `${pos.label}: [${localFeatures.slice(idx*4, (idx+1)*4).join(', ')}] NCI: ${nciFeatures[idx]}`).join('<br>')}<br>
                     <div style="max-height: 100px; overflow-y: auto; font-family: monospace; margin-top: 5px;">
                         Full vector: [${physicsVector.join(', ')}]
                     </div>
@@ -2024,7 +1958,6 @@
             createGrid('grid3');
             createConvInteractive();
             createGraphViz();
-            createCNNChannels();
             createRadialViz();
             createPhysicsVisualizations();
             // Update I-position selector and refresh local features
@@ -2034,7 +1967,7 @@
                 updateLocalFeatures();
             } else {
                 // Clear local features display if no I-positions
-                document.getElementById('local-feature-detail').innerHTML = '<em>No irradiation positions available. Add some I positions in the designer above.</em>';
+                document.getElementById('local-feature-metrics').innerHTML = '<div class="interactive-hint">No irradiation positions available. Add some I positions in the designer above.</div>';
             }
         }
 

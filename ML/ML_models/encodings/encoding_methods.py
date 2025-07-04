@@ -94,9 +94,9 @@ class ReactorEncodings:
 
         Returns feature vector with:
         - 2 global features (avg distance, symmetry balance)
-        - 3 local features per irradiation position
+        - 4 local features per irradiation position (fuel density, coolant contact, edge distance, center distance)
         - 1 NCI value per irradiation position
-        Total: 2 + 4*(3+1) = 18 features for 4 positions
+        Total: 2 + 4*(4+1) = 22 features for 4 positions
         """
         irr_positions = []
 
@@ -166,17 +166,45 @@ class ReactorEncodings:
                     fuel_count += 1
         local_fuel_density = fuel_count / 8  # Max is 8
 
-        # 2. Distance to edge (minimum distance to outer rim)
+        # 2. Coolant contact count (number of adjacent coolant cells)
+        # Special positions that should have coolant_contact_norm = 0.5
+        special_positions = [(1, 2), (2, 1), (5, 1), (6, 2), (6, 5), (5, 6), (2, 6), (1, 5)]
+
+        if (i, j) in special_positions:
+            coolant_contact_norm = 0.0
+        else:
+            coolant_count = 0
+            # Check only the 4 directly adjacent cells (not diagonal)
+            adjacent_offsets = [(-1, 0), (1, 0), (0, -1), (0, 1)]  # up, down, left, right
+
+            for di, dj in adjacent_offsets:
+                ni, nj = i + di, j + dj
+                # Check if adjacent to actual coolant cell
+                if 0 <= ni < 8 and 0 <= nj < 8:
+                    if lattice[ni, nj] == 'C':
+                        coolant_count += 1
+                else:
+                    # Outside grid boundary counts as coolant (virtual coolant)
+                    coolant_count += 1
+
+            # Normalize by max possible (2 in circular reactor design)
+            coolant_contact_norm = coolant_count / 2.0
+
+        # 3. Edge distance with special handling for corner positions
+        # Check if in one of the four corner positions
+
         edge_dist = min(i, j, 7-i, 7-j)
+
         edge_dist_norm = edge_dist / 3.5  # Max is 3.5
 
-        # 3. Distance to core center
+        # 4. Distance to core center
         center_dist = np.sqrt((pos_center[0] - reactor_center[0])**2 +
                             (pos_center[1] - reactor_center[1])**2)
         max_dist = np.sqrt(2) * 4
         center_dist_norm = center_dist / max_dist
 
-        return [local_fuel_density, edge_dist_norm, center_dist_norm]
+        return [local_fuel_density, coolant_contact_norm, edge_dist_norm, center_dist_norm]
+
 
     @staticmethod
     def _compute_nci_for_positions(positions: List[Tuple], lambda_decay: float = 1.5) -> List[float]:

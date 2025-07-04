@@ -102,13 +102,13 @@ def find_optuna_studies():
             for f in files:
                 full_path = os.path.join(dir_path, f)
                 # Keep the full key for better matching
-                # Expected formats:
-                # svm_flux_total_study.pkl
-                # svm_flux_thermal_only_study.pkl
-                # svm_flux_energy_study.pkl
-                # svm_keff_study.pkl
+                # Expected formats (old and new):
+                # OLD: svm_flux_total_study.pkl, svm_keff_study.pkl
+                # NEW: svm_flux_total_categorical_study.pkl, svm_keff_physics_study.pkl
 
                 key = f.replace('_study.pkl', '')
+
+                # Keep the full key with encoding information
                 study_files[key] = full_path
 
             if files:
@@ -124,9 +124,8 @@ def ensure_directories(base_output_dir, has_energy_discretization=False, single_
         # For energy discretized mode, we'll create directories dynamically based on actual data
         # Just create the base directories here
         directories.extend([
-            os.path.join(base_output_dir, 'summary_statistics'),
-            os.path.join(base_output_dir, 'energy_breakdown'),
-            os.path.join(base_output_dir, 'optuna_analysis')
+            os.path.join(base_output_dir, 'energy_breakdown')
+            # Removed summary_statistics and optuna_analysis - they're now created within target folders
         ])
     elif single_energy_mode:
         # Single energy mode directory structure (fast_only, thermal_only, epithermal_only)
@@ -136,16 +135,14 @@ def ensure_directories(base_output_dir, has_energy_discretization=False, single_
             os.path.join(base_output_dir, f'{energy_name}_flux', 'performance_heatmaps'),
             os.path.join(base_output_dir, f'{energy_name}_flux', 'spatial_error_heatmaps'),
             os.path.join(base_output_dir, f'{energy_name}_flux', 'config_error_plots'),
-            os.path.join(base_output_dir, f'{energy_name}_flux', 'rel_error_trackers'),
-            os.path.join(base_output_dir, 'summary_statistics'),
-            os.path.join(base_output_dir, 'optuna_analysis')
+            os.path.join(base_output_dir, f'{energy_name}_flux', 'rel_error_trackers')
+            # Removed summary_statistics and optuna_analysis - they're now created within target folders
         ])
     else:
         # Standard directory structure - check what type of data we have
         # This will be determined later based on actual data, but set up base structure
         directories.extend([
-            os.path.join(base_output_dir, 'summary_statistics'),
-            os.path.join(base_output_dir, 'optuna_analysis')
+            # Removed summary_statistics and optuna_analysis - they're now created within target folders
         ])
 
         # We'll add specific directories later based on actual data content
@@ -174,7 +171,7 @@ def main():
         os.path.join(script_dir, '..', 'outputs', 'excel_reports'),
         'ML/outputs/excel_reports'
     ]
-
+    #TODO: add a check to see if the file is in the correct directory
     found_files = []
     seen_absolute_paths = set()  # Track absolute paths to avoid duplicates
 
@@ -336,6 +333,7 @@ def main():
             os.makedirs(os.path.join(energy_output_dir, 'spatial_error_heatmaps'), exist_ok=True)
             os.makedirs(os.path.join(energy_output_dir, 'config_error_plots'), exist_ok=True)
             os.makedirs(os.path.join(energy_output_dir, 'rel_error_trackers'), exist_ok=True)
+            os.makedirs(os.path.join(energy_output_dir, 'summary_statistics'), exist_ok=True)
 
             try:
                 # Performance heatmaps for this energy group
@@ -372,20 +370,45 @@ def main():
                     energy_group=energy_group
                 )
 
-                # Error distribution comparison for this energy group
-                print(f"\n5. Creating {energy_group} error distribution comparison...")
-                create_error_distribution_for_energy(
-                    test_results_df,
-                    energy_output_dir,  # Save directly in energy folder
-                    energy_group
-                )
+                # 5. Summary Statistics (within energy group folder)
+                print(f"\n5. Creating {energy_group} summary statistics...")
+                try:
+                    create_summary_statistics_plots(
+                        test_results_df,
+                        os.path.join(energy_output_dir, 'summary_statistics'),
+                        has_energy_discretization=True
+                    )
+                except Exception as e:
+                    print(f"  ERROR in {energy_group} summary statistics: {e}")
+                    print("  Continuing with other visualizations...")
+
+                # 6. Error distribution comparison (within summary statistics folder)
+                print(f"\n6. Creating {energy_group} error distribution comparison...")
+                try:
+                    create_error_distribution_for_energy(
+                        test_results_df,
+                        os.path.join(energy_output_dir, 'summary_statistics'),  # Put in summary_statistics folder
+                        energy_group
+                    )
+                except Exception as e:
+                    print(f"  ERROR in {energy_group} error distribution: {e}")
+                    print("  Continuing with other visualizations...")
 
             except Exception as e:
                 print(f"  ERROR processing {energy_group}: {e}")
                 print("  Continuing with other energy groups...")
 
-        # K-eff visualizations
-        if any('keff' in col for col in test_results_df.columns):
+        # K-eff visualizations - only if there's actual keff data
+        has_keff_data = False
+        keff_cols = [col for col in test_results_df.columns if 'keff' in col.lower()]
+        if keff_cols:
+            # Check if any keff columns have non-null, non-N/A values
+            for col in keff_cols:
+                if not test_results_df[col].isna().all() and (test_results_df[col] != 'N/A').any():
+                    has_keff_data = True
+                    break
+
+        if has_keff_data:
             print(f"\n{'='*50}")
             print(f"Processing K-EFF results")
             print(f"{'='*50}")
@@ -397,6 +420,7 @@ def main():
             os.makedirs(os.path.join(keff_output_dir, 'performance_heatmaps'), exist_ok=True)
             os.makedirs(os.path.join(keff_output_dir, 'config_error_plots'), exist_ok=True)
             os.makedirs(os.path.join(keff_output_dir, 'rel_error_trackers'), exist_ok=True)
+            os.makedirs(os.path.join(keff_output_dir, 'summary_statistics'), exist_ok=True)
 
             try:
                 # K-eff specific visualizations
@@ -421,6 +445,18 @@ def main():
                     encodings,
                     target_type='keff'
                 )
+
+                # 4. Summary Statistics (within k-eff folder)
+                print("\n4. Creating k-eff summary statistics...")
+                try:
+                    create_summary_statistics_plots(
+                        test_results_df,
+                        os.path.join(keff_output_dir, 'summary_statistics'),
+                        has_energy_discretization=True
+                    )
+                except Exception as e:
+                    print(f"  ERROR in k-eff summary statistics: {e}")
+                    print("  Continuing with other visualizations...")
             except Exception as e:
                 print(f"  ERROR processing k-eff: {e}")
 
@@ -508,28 +544,20 @@ def main():
                             not any(energy in col for energy in ['_thermal_', '_epithermal_', '_fast_'])
                             for col in test_results_df.columns)
 
-        # Check if we have k-eff data
-        has_keff = any('keff' in col.lower() for col in test_results_df.columns)
+        # Check if we have k-eff data with actual values (not just columns)
+        has_keff = False
+        keff_cols = [col for col in test_results_df.columns if 'keff' in col.lower()]
+        if keff_cols:
+            # Check if any keff columns have non-null, non-N/A values
+            for col in keff_cols:
+                if not test_results_df[col].isna().all() and (test_results_df[col] != 'N/A').any():
+                    has_keff = True
+                    break
 
         print(f"  Total flux data: {'Yes' if has_total_flux else 'No'}")
         print(f"  K-eff data: {'Yes' if has_keff else 'No'}")
 
-        # Create subdirectories based on data types
-        if has_total_flux:
-            total_flux_dir = os.path.join(output_base_dir, 'total_flux')
-            os.makedirs(total_flux_dir, exist_ok=True)
-            os.makedirs(os.path.join(total_flux_dir, 'performance_heatmaps'), exist_ok=True)
-            os.makedirs(os.path.join(total_flux_dir, 'spatial_error_heatmaps'), exist_ok=True)
-            os.makedirs(os.path.join(total_flux_dir, 'config_error_plots'), exist_ok=True)
-            os.makedirs(os.path.join(total_flux_dir, 'rel_error_trackers'), exist_ok=True)
-            os.makedirs(os.path.join(total_flux_dir, 'feature_importance'), exist_ok=True)
-
-        if has_keff:
-            keff_dir = os.path.join(output_base_dir, 'keff')
-            os.makedirs(keff_dir, exist_ok=True)
-            os.makedirs(os.path.join(keff_dir, 'performance_heatmaps'), exist_ok=True)
-            os.makedirs(os.path.join(keff_dir, 'config_error_plots'), exist_ok=True)
-            os.makedirs(os.path.join(keff_dir, 'rel_error_trackers'), exist_ok=True)
+        # Create subdirectories based on data types - only create what's needed
 
         try:
             # Process total flux visualizations
@@ -539,6 +567,14 @@ def main():
                 print(f"{'='*50}")
 
                 flux_output_dir = os.path.join(output_base_dir, 'total_flux')
+                # Create directories as needed
+                os.makedirs(flux_output_dir, exist_ok=True)
+                os.makedirs(os.path.join(flux_output_dir, 'performance_heatmaps'), exist_ok=True)
+                os.makedirs(os.path.join(flux_output_dir, 'spatial_error_heatmaps'), exist_ok=True)
+                os.makedirs(os.path.join(flux_output_dir, 'config_error_plots'), exist_ok=True)
+                os.makedirs(os.path.join(flux_output_dir, 'rel_error_trackers'), exist_ok=True)
+                os.makedirs(os.path.join(flux_output_dir, 'feature_importance'), exist_ok=True)
+                os.makedirs(os.path.join(flux_output_dir, 'summary_statistics'), exist_ok=True)
 
                 # 1. Performance Heatmaps (R²)
                 print("\n1. Creating total flux performance heatmaps...")
@@ -570,7 +606,8 @@ def main():
                     create_feature_importance_plots(
                         test_results_df,
                         os.path.join(flux_output_dir, 'feature_importance'),
-                        models
+                        models,
+                        target_type='flux'
                     )
                 except Exception as e:
                     print(f"  ERROR in feature importance plots: {e}")
@@ -601,6 +638,28 @@ def main():
                     print(f"  ERROR in relative error tracker plots: {e}")
                     print("  Continuing with other visualizations...")
 
+                # 6. Summary Statistics (within total flux folder)
+                print("\n6. Creating total flux summary statistics...")
+                try:
+                    create_summary_statistics_plots(
+                        test_results_df,
+                        os.path.join(flux_output_dir, 'summary_statistics')
+                    )
+                except Exception as e:
+                    print(f"  ERROR in flux summary statistics: {e}")
+                    print("  Continuing with other visualizations...")
+
+                # 7. Error Distribution (within summary statistics folder)
+                print("\n7. Creating total flux error distribution...")
+                try:
+                    create_error_distribution_for_total(
+                        test_results_df,
+                        os.path.join(flux_output_dir, 'summary_statistics')  # Put in summary_statistics folder
+                    )
+                except Exception as e:
+                    print(f"  ERROR in flux error distribution: {e}")
+                    print("  Continuing with other visualizations...")
+
             # Process k-eff visualizations
             if has_keff:
                 print(f"\n{'='*50}")
@@ -608,6 +667,13 @@ def main():
                 print(f"{'='*50}")
 
                 keff_output_dir = os.path.join(output_base_dir, 'keff')
+                # Create directories as needed
+                os.makedirs(keff_output_dir, exist_ok=True)
+                os.makedirs(os.path.join(keff_output_dir, 'performance_heatmaps'), exist_ok=True)
+                os.makedirs(os.path.join(keff_output_dir, 'config_error_plots'), exist_ok=True)
+                os.makedirs(os.path.join(keff_output_dir, 'rel_error_trackers'), exist_ok=True)
+                os.makedirs(os.path.join(keff_output_dir, 'feature_importance'), exist_ok=True)
+                os.makedirs(os.path.join(keff_output_dir, 'summary_statistics'), exist_ok=True)
 
                 # K-eff specific visualizations
                 print("\n1. Creating k-eff performance heatmaps...")
@@ -620,7 +686,18 @@ def main():
                 except Exception as e:
                     print(f"  ERROR in k-eff performance heatmaps: {e}")
 
-                print("\n2. Creating k-eff configuration error plots...")
+                print("\n2. Creating k-eff feature importance plots...")
+                try:
+                    create_feature_importance_plots(
+                        test_results_df,
+                        os.path.join(keff_output_dir, 'feature_importance'),
+                        models,
+                        target_type='keff'
+                    )
+                except Exception as e:
+                    print(f"  ERROR in k-eff feature importance plots: {e}")
+
+                print("\n3. Creating k-eff configuration error plots...")
                 try:
                     create_config_error_plots(
                         test_results_df,
@@ -630,7 +707,7 @@ def main():
                 except Exception as e:
                     print(f"  ERROR in k-eff config error plots: {e}")
 
-                print("\n3. Creating k-eff relative error tracker plots...")
+                print("\n4. Creating k-eff relative error tracker plots...")
                 try:
                     create_rel_error_tracker_plots(
                         test_results_df,
@@ -641,28 +718,18 @@ def main():
                 except Exception as e:
                     print(f"  ERROR in k-eff relative error trackers: {e}")
 
-            # Summary Statistics (in main directory for both)
-            print("\n6. Creating summary statistics visualizations...")
-            try:
-                create_summary_statistics_plots(
-                    test_results_df,
-                    os.path.join(output_base_dir, 'summary_statistics')
-                )
-            except Exception as e:
-                print(f"  ERROR in summary statistics: {e}")
-                print("  Continuing with other visualizations...")
-
-            # 7. Error Distribution Comparison (for total flux)
-            if has_total_flux:
-                print("\n7. Creating error distribution comparison...")
+                # 5. Summary Statistics (within k-eff folder)
+                print("\n5. Creating k-eff summary statistics...")
                 try:
-                    create_error_distribution_for_total(
+                    create_summary_statistics_plots(
                         test_results_df,
-                        os.path.join(output_base_dir, 'total_flux')  # Save in total_flux directory
+                        os.path.join(keff_output_dir, 'summary_statistics')
                     )
                 except Exception as e:
-                    print(f"  ERROR in error distribution comparison: {e}")
+                    print(f"  ERROR in k-eff summary statistics: {e}")
                     print("  Continuing with other visualizations...")
+
+            # Summary statistics and error distributions are now created within their respective target folders
 
         except Exception as e:
             print(f"\nCRITICAL ERROR during visualization generation: {e}")
@@ -719,8 +786,14 @@ def main():
                 flux_modes_in_excel = {'total'}
 
         # Check if k-eff is present - need to check for actual k-eff data, not just column names
-        has_keff_data = any('keff' in col.lower() and ('actual' in col.lower() or 'predicted' in col.lower())
-                           for col in test_results_df.columns)
+        has_keff_data = False
+        keff_cols = [col for col in test_results_df.columns if 'keff' in col.lower()]
+        if keff_cols:
+            # Check if any keff columns have non-null, non-N/A values
+            for col in keff_cols:
+                if not test_results_df[col].isna().all() and (test_results_df[col] != 'N/A').any():
+                    has_keff_data = True
+                    break
 
         print(f"\nModels in Excel: {models_in_excel}")
         print(f"Flux modes in Excel: {flux_modes_in_excel}")
@@ -730,7 +803,7 @@ def main():
         relevant_studies = {}
         for key, path in study_files.items():
             # Parse the full key to check relevance
-            # Keys are like: svm_flux_total, svm_flux_thermal_only, svm_keff, random_forest_flux_thermal_only
+            # Keys are like: svm_flux_total_categorical, svm_keff_physics, random_forest_flux_thermal_only_physics
 
             # Handle model names that contain underscores (like random_forest)
             known_models = ['svm', 'xgboost', 'random_forest']
@@ -766,11 +839,21 @@ def main():
                 remainder = key[len(model_name) + 1:]  # Remove model name and underscore
                 parts = remainder.split('_')
 
-                if len(parts) == 2:
-                    # flux_total, flux_energy, flux_bin
+                if len(parts) >= 3 and parts[-1] in ['categorical', 'physics', 'one_hot', 'spatial', 'graph']:
+                    # Has encoding at the end: flux_total_categorical, flux_thermal_only_physics
+                    if len(parts) == 3:
+                        # flux_total_encoding
+                        flux_mode = parts[1]
+                    elif len(parts) == 4 and parts[2] == 'only':
+                        # flux_thermal_only_encoding
+                        flux_mode = f"{parts[1]}_only"
+                    else:
+                        flux_mode = 'total'  # Default
+                elif len(parts) == 2:
+                    # Old format: flux_total, flux_energy, flux_bin
                     flux_mode = parts[1]
                 elif len(parts) == 3 and parts[2] == 'only':
-                    # flux_thermal_only
+                    # Old format: flux_thermal_only
                     flux_mode = f"{parts[1]}_only"
                 else:
                     flux_mode = 'total'  # Default
@@ -784,10 +867,6 @@ def main():
             for key, path in relevant_studies.items():
                 print(f"  - {key}: {os.path.basename(path)}")
 
-            # Create optuna_analysis directory
-            optuna_output_dir = os.path.join(output_base_dir, 'optuna_analysis')
-            os.makedirs(optuna_output_dir, exist_ok=True)
-
             print(f"\nGenerating Optuna visualizations...")
 
             for key, study_path in relevant_studies.items():
@@ -797,7 +876,7 @@ def main():
                     # Load the study
                     study = joblib.load(study_path)
 
-                    # Use the key to determine proper target naming
+                    # Use the key to determine proper target naming and directory
                     # Keys are like: svm_flux_total, svm_flux_thermal_only, svm_keff, random_forest_flux_thermal_only
 
                     # Parse model name and target using the same logic as filtering
@@ -815,28 +894,76 @@ def main():
                         print(f"  Warning: Could not parse study key for visualization: {key}")
                         continue
 
-                    # Parse target from remainder
+                    # Parse target from remainder and determine encoding
                     parts = target_remainder.split('_')
+                    encoding = None
+
                     if parts[0] == 'keff':
                         target = 'keff'
+                        # For keff: keff_encoding
+                        if len(parts) >= 2:
+                            encoding = parts[1]
+                        # Put optuna analysis in keff directory
+                        target_base_dir = os.path.join(output_base_dir, 'keff')
                     elif parts[0] == 'flux':
-                        if len(parts) == 2:
-                            # flux_total, flux_energy, flux_bin
-                            target = f"flux_{parts[1]}"
+                        if len(parts) == 3:
+                            # flux_total_encoding, flux_energy_encoding, flux_bin_encoding
+                            flux_mode = parts[1]
+                            encoding = parts[2]
+                            target = f"flux_{flux_mode}"
+
+                            # Determine target directory based on flux mode
+                            if flux_mode == 'total':
+                                target_base_dir = os.path.join(output_base_dir, 'total_flux')
+                            elif flux_mode in ['thermal', 'epithermal', 'fast']:
+                                target_base_dir = os.path.join(output_base_dir, flux_mode)
+                            elif flux_mode in ['energy', 'bin']:
+                                # For energy/bin modes, put in total_flux directory
+                                target_base_dir = os.path.join(output_base_dir, 'total_flux')
+                            else:
+                                target_base_dir = os.path.join(output_base_dir, 'total_flux')
+                        elif len(parts) == 4 and parts[2] == 'only':
+                            # flux_thermal_only_encoding -> flux_thermal
+                            energy_name = parts[1]
+                            encoding = parts[3]
+                            target = f"flux_{energy_name}"
+                            target_base_dir = os.path.join(output_base_dir, energy_name)
+                        elif len(parts) == 2:
+                            # flux_total, flux_energy, flux_bin (no encoding)
+                            flux_mode = parts[1]
+                            target = f"flux_{flux_mode}"
+
+                            # Determine target directory based on flux mode
+                            if flux_mode == 'total':
+                                target_base_dir = os.path.join(output_base_dir, 'total_flux')
+                            elif flux_mode in ['thermal', 'epithermal', 'fast']:
+                                target_base_dir = os.path.join(output_base_dir, flux_mode)
+                            elif flux_mode in ['energy', 'bin']:
+                                target_base_dir = os.path.join(output_base_dir, 'total_flux')
+                            else:
+                                target_base_dir = os.path.join(output_base_dir, 'total_flux')
                         elif len(parts) == 3 and parts[2] == 'only':
-                            # flux_thermal_only -> flux_thermal
-                            target = f"flux_{parts[1]}"
+                            # flux_thermal_only -> flux_thermal (no encoding)
+                            energy_name = parts[1]
+                            target = f"flux_{energy_name}"
+                            target_base_dir = os.path.join(output_base_dir, energy_name)
                         else:
                             target = 'flux'
+                            target_base_dir = os.path.join(output_base_dir, 'total_flux')
                     else:
                         target = 'unknown'
+                        target_base_dir = os.path.join(output_base_dir, 'total_flux')
 
-                    # Generate visualizations
+                    # Ensure the target directory exists
+                    os.makedirs(target_base_dir, exist_ok=True)
+
+                    # Generate visualizations with target-specific base directory
                     generate_all_optuna_visualizations(
                         study=study,
-                        save_base_dir=optuna_output_dir,
+                        save_base_dir=target_base_dir,
                         model_name=model_name,
                         target=target,
+                        encoding=encoding,
                         include_all=True
                     )
 
@@ -855,105 +982,8 @@ def main():
         print("To generate Optuna visualizations, ensure your optimization studies are saved")
         print("in ML/outputs/optuna_studies/")
 
-    # Create summary report
-    summary_file = os.path.join(output_base_dir, 'visualization_summary.txt')
-    with open(summary_file, 'w') as f:
-        f.write("NUCLEAR REACTOR ML VISUALIZATION SUMMARY\n")
-        f.write("="*60 + "\n")
-        f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-        f.write(f"Source data: {excel_file}\n")
-        f.write(f"Output directory: {output_base_dir}\n")
-        f.write(f"Energy-discretized: {'Yes' if has_energy_discretization else 'No'}\n")
-
-        if has_energy_discretization:
-            f.write("\nEnergy Group Visualizations:\n")
-            # Write only the folders that were actually created
-            if os.path.exists(os.path.join(output_base_dir, 'thermal')):
-                f.write("  - thermal/    : Thermal neutron flux visualizations\n")
-            if os.path.exists(os.path.join(output_base_dir, 'epithermal')):
-                f.write("  - epithermal/ : Epithermal neutron flux visualizations\n")
-            if os.path.exists(os.path.join(output_base_dir, 'fast')):
-                f.write("  - fast/       : Fast neutron flux visualizations\n")
-            if os.path.exists(os.path.join(output_base_dir, 'total')):
-                f.write("  - total/      : Total flux visualizations\n")
-            if os.path.exists(os.path.join(output_base_dir, 'keff')):
-                f.write("  - keff/       : K-effective visualizations\n")
-            f.write("\nSummary Visualizations (main directory):\n")
-            f.write("  - summary_statistics/ : Best model combinations across all energy groups\n")
-            f.write("  - energy_breakdown/   : Stacked bar charts showing energy distribution\n")
-        else:
-            f.write("\nVisualization Categories:\n")
-            f.write("1. Performance Heatmaps - R² scores for all model combinations\n")
-            f.write("2. Spatial Error Heatmaps - MAPE by reactor position\n")
-            f.write("3. Feature Importance - Physics-based encoding analysis\n")
-            f.write("4. Config Error Plots - Error trends across configurations\n")
-            f.write("5. Relative Error Trackers - Detailed error analysis by encoding\n")
-            f.write("6. Summary Statistics - Best model combinations\n")
-
-        # Add core configuration section
-        f.write("\nCore Configuration Visualizations:\n")
-        f.write("  - core_images/train_cores.png : Training set core configurations\n")
-        f.write("  - core_images/test_cores.png  : Test set core configurations\n")
-        f.write("  - core_images/train_irradiation_heatmap.png : Training irradiation frequency heatmap\n")
-        f.write("  - core_images/test_irradiation_heatmap.png  : Test irradiation frequency heatmap\n")
-
-        # Add Optuna section if studies were found
-        if relevant_studies:
-            f.write(f"\nOptuna Hyperparameter Optimization Studies:\n")
-            f.write(f"Generated visualizations for {len(relevant_studies)} relevant studies\n")
-            f.write("Visualizations generated in optuna_analysis/:\n")
-            for key in relevant_studies.keys():
-                f.write(f"  - {key}/\n")
-            f.write("\nOptuna visualization types:\n")
-            f.write("  • Optimization history\n")
-            f.write("  • Parameter importance (fANOVA)\n")
-            f.write("  • Parameter relationships (contour plots)\n")
-            f.write("  • Parameter slice plots\n")
-            f.write("  • Parallel coordinate plots\n")
-            f.write("  • Hyperparameter convergence\n")
-            f.write("  • Optimization statistics\n")
-
-    print("\n" + "="*80)
-    print("VISUALIZATION PIPELINE COMPLETE!")
     print("="*80)
     print(f"All visualizations saved to: {output_base_dir}")
-    print(f"Summary report: {summary_file}")
-
-    if has_energy_discretization:
-        print("\nEnergy-specific visualizations generated in:")
-        # Only print the folders that were actually created
-        if os.path.exists(os.path.join(output_base_dir, 'thermal')):
-            print("  ✓ thermal/    - Thermal neutron flux analysis")
-        if os.path.exists(os.path.join(output_base_dir, 'epithermal')):
-            print("  ✓ epithermal/ - Epithermal neutron flux analysis")
-        if os.path.exists(os.path.join(output_base_dir, 'fast')):
-            print("  ✓ fast/       - Fast neutron flux analysis")
-        if os.path.exists(os.path.join(output_base_dir, 'total')):
-            print("  ✓ total/      - Total flux analysis")
-        if os.path.exists(os.path.join(output_base_dir, 'keff')):
-            print("  ✓ keff/       - K-effective analysis")
-        print("\nSummary visualizations in main directory:")
-        print("  ✓ summary_statistics/ - Overall performance comparison")
-        if os.path.exists(os.path.join(output_base_dir, 'energy_breakdown')):
-            print("  ✓ energy_breakdown/   - Energy distribution analysis")
-    elif single_energy_mode:
-        energy_name = single_energy_mode.replace('_only', '')
-        print(f"\n{energy_name.title()} flux visualizations generated in:")
-        print(f"  ✓ {energy_name}_flux/ - {energy_name.title()} flux analysis")
-        print("\nSummary visualizations in main directory:")
-        print("  ✓ summary_statistics/ - Overall performance comparison")
-    else:
-        print("\nVisualization categories generated:")
-        if os.path.exists(os.path.join(output_base_dir, 'total_flux')):
-            print("  ✓ total_flux/ - Total flux analysis (includes all visualization types)")
-        if os.path.exists(os.path.join(output_base_dir, 'keff')):
-            print("  ✓ keff/ - K-effective analysis")
-        print("  ✓ summary_statistics/ - Overall performance comparison")
-
-    if study_files:
-        print("\nOptuna hyperparameter optimization analysis:")
-        print(f"  ✓ optuna_analysis/ - {len(study_files)} optimization studies analyzed")
-        print("    Including: optimization history, parameter importance, convergence plots")
 
 if __name__ == "__main__":
     main()
