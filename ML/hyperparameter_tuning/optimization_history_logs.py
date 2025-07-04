@@ -18,7 +18,7 @@ import numpy as np
 class OptimizationHistoryTracker:
     def __init__(self):
         self.log_dir = "ML/outputs/logs"
-        self.excel_file = "ML/hyperparameter_tuning/optimisation_history.xlsx"
+        self.excel_file = "ML/hyperparameter_tuning/optimisation_history_logs.xlsx"
 
         # Define grouped parameters by model type
         # Note: Some parameters appear in multiple models (e.g., n_estimators, max_depth, gamma)

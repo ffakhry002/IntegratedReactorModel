@@ -18,6 +18,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 # Import visualization modules
 from visualizations_helpers.performance_heatmaps import create_performance_heatmaps
 from visualizations_helpers.spatial_error_heatmaps import create_spatial_error_heatmaps
+from visualizations_helpers.test_error_heatmaps import create_test_error_heatmaps
 from visualizations_helpers.feature_importance import create_feature_importance_plots
 from visualizations_helpers.config_error_plots import create_config_error_plots
 from visualizations_helpers.rel_error_trackers import create_rel_error_tracker_plots
@@ -353,8 +354,21 @@ def main():
                     energy_group=energy_group
                 )
 
+                # Test error heatmaps
+                print(f"\n3. Creating {energy_group} test error heatmaps...")
+                try:
+                    create_test_error_heatmaps(
+                        test_results_df,
+                        energy_output_dir,
+                        models, encodings, optimizations,
+                        energy_group=energy_group
+                    )
+                except Exception as e:
+                    print(f"  ERROR in test error heatmaps: {e}")
+                    print("  Continuing with other visualizations...")
+
                 # Config error plots
-                print(f"\n3. Creating {energy_group} configuration error plots...")
+                print(f"\n4. Creating {energy_group} configuration error plots...")
                 create_config_error_plots(
                     test_results_df,
                     os.path.join(energy_output_dir, 'config_error_plots'),
@@ -362,7 +376,7 @@ def main():
                 )
 
                 # Relative error trackers
-                print(f"\n4. Creating {energy_group} relative error tracker plots...")
+                print(f"\n5. Creating {energy_group} relative error tracker plots...")
                 create_rel_error_tracker_plots(
                     test_results_df,
                     os.path.join(energy_output_dir, 'rel_error_trackers'),
@@ -370,8 +384,8 @@ def main():
                     energy_group=energy_group
                 )
 
-                # 5. Summary Statistics (within energy group folder)
-                print(f"\n5. Creating {energy_group} summary statistics...")
+                # 6. Summary Statistics (within energy group folder)
+                print(f"\n6. Creating {energy_group} summary statistics...")
                 try:
                     create_summary_statistics_plots(
                         test_results_df,
@@ -506,8 +520,21 @@ def main():
                 energy_group=energy_name
             )
 
+            # Test error heatmaps
+            print(f"\n3. Creating {energy_name} flux test error heatmaps...")
+            try:
+                create_test_error_heatmaps(
+                    test_results_df,
+                    energy_output_dir,
+                    models, encodings, optimizations,
+                    energy_group=energy_name
+                )
+            except Exception as e:
+                print(f"  ERROR in test error heatmaps: {e}")
+                print("  Continuing with other visualizations...")
+
             # Config error plots
-            print(f"\n3. Creating {energy_name} flux configuration error plots...")
+            print(f"\n4. Creating {energy_name} flux configuration error plots...")
             create_config_error_plots(
                 test_results_df,
                 os.path.join(energy_output_dir, 'config_error_plots'),
@@ -515,7 +542,7 @@ def main():
             )
 
             # Relative error trackers
-            print(f"\n4. Creating {energy_name} flux relative error tracker plots...")
+            print(f"\n5. Creating {energy_name} flux relative error tracker plots...")
             create_rel_error_tracker_plots(
                 test_results_df,
                 os.path.join(energy_output_dir, 'rel_error_trackers'),
@@ -524,7 +551,7 @@ def main():
             )
 
             # Summary statistics (in main directory)
-            print(f"\n5. Creating {energy_name} flux summary statistics...")
+            print(f"\n6. Creating {energy_name} flux summary statistics...")
             create_summary_statistics_plots(
                 test_results_df,
                 os.path.join(output_base_dir, 'summary_statistics'),
@@ -600,8 +627,20 @@ def main():
                     print(f"  ERROR in spatial error heatmaps: {e}")
                     print("  Continuing with other visualizations...")
 
-                # 3. Feature Importance Plots
-                print("\n3. Creating total flux feature importance plots...")
+                # 3. Test Error Heatmaps
+                print("\n3. Creating total flux test error heatmaps...")
+                try:
+                    create_test_error_heatmaps(
+                        test_results_df,
+                        flux_output_dir,
+                        models, encodings, optimizations
+                    )
+                except Exception as e:
+                    print(f"  ERROR in test error heatmaps: {e}")
+                    print("  Continuing with other visualizations...")
+
+                # 4. Feature Importance Plots
+                print("\n4. Creating total flux feature importance plots...")
                 try:
                     create_feature_importance_plots(
                         test_results_df,
@@ -613,8 +652,8 @@ def main():
                     print(f"  ERROR in feature importance plots: {e}")
                     print("  Continuing with other visualizations...")
 
-                # 4. Config Error Plots
-                print("\n4. Creating total flux configuration error plots...")
+                # 5. Config Error Plots
+                print("\n5. Creating total flux configuration error plots...")
                 try:
                     create_config_error_plots(
                         test_results_df,
@@ -625,8 +664,8 @@ def main():
                     print(f"  ERROR in config error plots: {e}")
                     print("  Continuing with other visualizations...")
 
-                # 5. Relative Error Tracker Plots
-                print("\n5. Creating total flux relative error tracker plots...")
+                # 6. Relative Error Tracker Plots
+                print("\n6. Creating total flux relative error tracker plots...")
                 try:
                     create_rel_error_tracker_plots(
                         test_results_df,
@@ -638,8 +677,8 @@ def main():
                     print(f"  ERROR in relative error tracker plots: {e}")
                     print("  Continuing with other visualizations...")
 
-                # 6. Summary Statistics (within total flux folder)
-                print("\n6. Creating total flux summary statistics...")
+                # 7. Summary Statistics (within total flux folder)
+                print("\n7. Creating total flux summary statistics...")
                 try:
                     create_summary_statistics_plots(
                         test_results_df,
@@ -649,8 +688,8 @@ def main():
                     print(f"  ERROR in flux summary statistics: {e}")
                     print("  Continuing with other visualizations...")
 
-                # 7. Error Distribution (within summary statistics folder)
-                print("\n7. Creating total flux error distribution...")
+                # 8. Error Distribution (within summary statistics folder)
+                print("\n8. Creating total flux error distribution...")
                 try:
                     create_error_distribution_for_total(
                         test_results_df,
