@@ -367,7 +367,7 @@ def create_averaged_spatial_error_heatmap(df, output_dir, models, encodings, opt
                 # For max aggregation, add config number in bottom right
                 if aggregation == 'max' and position_max_configs[(row, col)] >= 0:
                     config_text = f'#{position_max_configs[(row, col)]}'
-                    ax.text(col + 0.4, row + 0.47, config_text,
+                    ax.text(col - 0.4, row - 0.45, config_text,
                            ha='right', va='bottom',
                            color='black',
                            fontsize=6,
