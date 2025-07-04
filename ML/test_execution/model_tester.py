@@ -464,7 +464,8 @@ class ReactorModelTester:
 
                                 result[f'I_{label_num}_real'] = actual_val
                                 result[f'I_{label_num}_predicted'] = pred_val
-                                result[f'I_{label_num}_rel_error'] = abs((pred_val - actual_val) / actual_val * 100) if actual_val != 0 else 0
+                                # SIGNED MAPE: positive = overprediction, negative = underprediction
+                                result[f'I_{label_num}_rel_error'] = ((pred_val - actual_val) / actual_val * 100) if actual_val != 0 else 0
 
                                 flux_pred_list.append(pred_val)
                                 flux_actual_list.append(actual_val)
@@ -476,8 +477,9 @@ class ReactorModelTester:
 
                             result['avg_flux_real'] = avg_actual
                             result['avg_flux_predicted'] = avg_pred
-                            result['avg_flux_rel_error'] = abs((avg_pred - avg_actual) / avg_actual * 100) if avg_actual != 0 else 0
-                            result['mape_flux'] = np.mean([abs((p - a) / a) * 100 for p, a in zip(flux_pred_list, flux_actual_list) if a != 0])
+                            # SIGNED MAPE: positive = overprediction, negative = underprediction
+                            result['avg_flux_rel_error'] = ((avg_pred - avg_actual) / avg_actual * 100) if avg_actual != 0 else 0
+                            result['mape_flux'] = np.mean([((p - a) / a) * 100 for p, a in zip(flux_pred_list, flux_actual_list) if a != 0])
 
                     elif flux_mode in ['energy', 'bin']:
                         # Handle energy and bin modes (12 outputs)
@@ -527,7 +529,8 @@ class ReactorModelTester:
 
                                             result[f'{label}_{energy}_real'] = actual_val
                                             result[f'{label}_{energy}_predicted'] = pred_val
-                                            result[f'{label}_{energy}_rel_error'] = abs((pred_val - actual_val) / actual_val * 100) if actual_val != 0 else 0
+                                            # SIGNED MAPE: positive = overprediction, negative = underprediction
+                                            result[f'{label}_{energy}_rel_error'] = ((pred_val - actual_val) / actual_val * 100) if actual_val != 0 else 0
 
                                         # Calculate total flux
                                         total_pred = sum(position_energy_pred[(i, j)].values())
@@ -535,7 +538,8 @@ class ReactorModelTester:
 
                                         result[f'{label}_total_real'] = total_real
                                         result[f'{label}_total_predicted'] = total_pred
-                                        result[f'{label}_total_rel_error'] = abs((total_pred - total_real) / total_real * 100) if total_real != 0 else 0
+                                        # SIGNED MAPE: positive = overprediction, negative = underprediction
+                                        result[f'{label}_total_rel_error'] = ((total_pred - total_real) / total_real * 100) if total_real != 0 else 0
 
                                     elif flux_mode == 'bin':
                                         # For bin mode, need to multiply by total flux
@@ -561,12 +565,14 @@ class ReactorModelTester:
 
                                                 result[f'{label}_{energy}_real'] = actual_val
                                                 result[f'{label}_{energy}_predicted'] = pred_val
-                                                result[f'{label}_{energy}_rel_error'] = abs((pred_val - actual_val) / actual_val * 100) if actual_val != 0 else 0
+                                                # SIGNED MAPE: positive = overprediction, negative = underprediction
+                                                result[f'{label}_{energy}_rel_error'] = ((pred_val - actual_val) / actual_val * 100) if actual_val != 0 else 0
 
                                             # For bin mode, total flux comes from the linked file
                                             result[f'{label}_total_real'] = total_flux_real
                                             result[f'{label}_total_predicted'] = total_flux_pred
-                                            result[f'{label}_total_rel_error'] = abs((total_flux_pred - total_flux_real) / total_flux_real * 100) if total_flux_real != 0 else 0
+                                            # SIGNED MAPE: positive = overprediction, negative = underprediction
+                                            result[f'{label}_total_rel_error'] = ((total_flux_pred - total_flux_real) / total_flux_real * 100) if total_flux_real != 0 else 0
                                         else:
                                             # No total flux data available for this configuration
                                             print(f"\nWarning: No total flux data for config {config_id}, {model_info['model_class']}, {model_info['encoding']}, {model_info['optimization_method']}")
@@ -655,7 +661,8 @@ class ReactorModelTester:
 
                                 result[f'I_{label_num}_{energy_group}_real'] = actual_val
                                 result[f'I_{label_num}_{energy_group}_predicted'] = pred_val
-                                result[f'I_{label_num}_{energy_group}_rel_error'] = abs((pred_val - actual_val) / actual_val * 100) if actual_val != 0 else 0
+                                # SIGNED MAPE: positive = overprediction, negative = underprediction
+                                result[f'I_{label_num}_{energy_group}_rel_error'] = ((pred_val - actual_val) / actual_val * 100) if actual_val != 0 else 0
 
                                 flux_pred_list.append(pred_val)
                                 flux_actual_list.append(actual_val)
@@ -667,8 +674,9 @@ class ReactorModelTester:
 
                             result[f'avg_{energy_group}_flux_real'] = avg_actual
                             result[f'avg_{energy_group}_flux_predicted'] = avg_pred
-                            result[f'avg_{energy_group}_flux_rel_error'] = abs((avg_pred - avg_actual) / avg_actual * 100) if avg_actual != 0 else 0
-                            result[f'mape_{energy_group}_flux'] = np.mean([abs((p - a) / a) * 100 for p, a in zip(flux_pred_list, flux_actual_list) if a != 0])
+                            # SIGNED MAPE: positive = overprediction, negative = underprediction
+                            result[f'avg_{energy_group}_flux_rel_error'] = ((avg_pred - avg_actual) / avg_actual * 100) if avg_actual != 0 else 0
+                            result[f'mape_{energy_group}_flux'] = np.mean([((p - a) / a) * 100 for p, a in zip(flux_pred_list, flux_actual_list) if a != 0])
 
                             # Also add a general MAPE for compatibility with Excel reporter
                             result['mape_flux'] = result[f'mape_{energy_group}_flux']
@@ -690,7 +698,8 @@ class ReactorModelTester:
 
                     result['keff_real'] = keff_actual
                     result['keff_predicted'] = keff_pred
-                    result['keff_rel_error'] = abs((keff_pred - keff_actual) / keff_actual * 100) if keff_actual != 0 else 0
+                    # SIGNED MAPE: positive = overprediction, negative = underprediction
+                    result['keff_rel_error'] = ((keff_pred - keff_actual) / keff_actual * 100) if keff_actual != 0 else 0
 
                     # Store MAPE for internal use
                     result['mape_keff'] = result['keff_rel_error']

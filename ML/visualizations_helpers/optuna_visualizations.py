@@ -33,7 +33,7 @@ from optuna.visualization import (
 import optuna.visualization.matplotlib as optuna_plt
 
 
-def create_optuna_visualization_directory(base_path: str, model_name: str, target: str) -> str:
+def create_optuna_visualization_directory(base_path: str, model_name: str, target: str, encoding: str = None) -> str:
     """
     Create directory structure for Optuna visualizations.
 
@@ -41,13 +41,26 @@ def create_optuna_visualization_directory(base_path: str, model_name: str, targe
         base_path: Base directory for visualizations
         model_name: Name of the ML model (e.g., 'xgboost', 'random_forest')
         target: Target variable (e.g., 'flux', 'keff')
+        encoding: Encoding method (e.g., 'categorical', 'physics')
 
     Returns:
         Path to the created directory
     """
-    # Organize by target first, then model
-    # base_path should already point to the target directory (e.g., total_flux, keff)
-    optuna_dir = os.path.join(base_path, 'optuna_analysis', model_name)
+    # Create folder name that includes target type for clarity
+    # Examples: svm_physics_total_flux, svm_physics_keff, etc.
+    if encoding:
+        # Clean up target name for folder
+        if target.startswith('flux_'):
+            # flux_total -> total_flux
+            target_clean = target.replace('flux_', '') + '_flux'
+        else:
+            # keff -> keff
+            target_clean = target
+        model_folder_name = f"{model_name}_{encoding}_{target_clean}"
+    else:
+        model_folder_name = f"{model_name}_{target}"
+
+    optuna_dir = os.path.join(base_path, 'optuna_analysis', model_folder_name)
     os.makedirs(optuna_dir, exist_ok=True)
     return optuna_dir
 
@@ -539,6 +552,7 @@ def generate_all_optuna_visualizations(
     save_base_dir: str,
     model_name: str,
     target: str,
+    encoding: str = None,
     include_all: bool = True
 ) -> None:
     """
@@ -549,12 +563,19 @@ def generate_all_optuna_visualizations(
         save_base_dir: Base directory for saving visualizations
         model_name: Name of the ML model
         target: Target variable name
+        encoding: Encoding method name
         include_all: Whether to include all visualization types
     """
-    print(f"\nGenerating Optuna visualizations for {model_name} - {target}...")
+    if encoding:
+        print(f"\nGenerating Optuna visualizations for {model_name}_{encoding} - {target}...")
+    else:
+        print(f"\nGenerating Optuna visualizations for {model_name} - {target}...")
 
     # Create directory
-    save_dir = create_optuna_visualization_directory(save_base_dir, model_name, target)
+    save_dir = create_optuna_visualization_directory(save_base_dir, model_name, target, encoding)
+
+    # Use original study directly
+    filtered_study = study
 
     # List of visualization functions with their names for error reporting
     core_visualizations = [
@@ -574,20 +595,20 @@ def generate_all_optuna_visualizations(
         (save_objective_distribution, "objective distribution")
     ]
 
-    # Generate core visualizations with error handling
+    # Generate core visualizations with error handling using filtered study
     for viz_func, viz_name in core_visualizations:
         try:
-            viz_func(study, save_dir)
+            viz_func(filtered_study, save_dir)
         except Exception as e:
             print(f"  ⚠ ERROR generating {viz_name}: {str(e)}")
             import traceback
             traceback.print_exc()
 
     if include_all:
-        # Generate additional visualizations with error handling
+        # Generate additional visualizations with error handling using filtered study
         for viz_func, viz_name in additional_visualizations:
             try:
-                viz_func(study, save_dir)
+                viz_func(filtered_study, save_dir)
             except Exception as e:
                 print(f"  ⚠ ERROR generating {viz_name}: {str(e)}")
 

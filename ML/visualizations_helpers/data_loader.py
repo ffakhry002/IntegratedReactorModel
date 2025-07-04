@@ -176,9 +176,11 @@ def get_model_aggregated_metrics(df, energy_group=None):
             # Energy-specific metrics
             mape_col = f'mape_{energy_group}_flux'
             if mape_col in group.columns:
-                result['mean_mape_flux'] = group[mape_col].mean()
-                result['max_mape_flux'] = group[mape_col].max()
-                result['std_mape_flux'] = group[mape_col].std()
+                # Use absolute values for summary statistics
+                abs_mape_values = abs(group[mape_col])
+                result['mean_mape_flux'] = abs_mape_values.mean()
+                result['max_mape_flux'] = abs_mape_values.max()
+                result['std_mape_flux'] = abs_mape_values.std()
 
             # Calculate overall R² for this energy group
             all_actual = []
@@ -200,9 +202,11 @@ def get_model_aggregated_metrics(df, energy_group=None):
             # Standard metrics
             # For flux models
             if 'mape_flux' in group.columns:
-                result['mean_mape_flux'] = group['mape_flux'].mean()
-                result['max_mape_flux'] = group['mape_flux'].max()
-                result['std_mape_flux'] = group['mape_flux'].std()
+                # Use absolute values for summary statistics
+                abs_mape_values = abs(group['mape_flux'])
+                result['mean_mape_flux'] = abs_mape_values.mean()
+                result['max_mape_flux'] = abs_mape_values.max()
+                result['std_mape_flux'] = abs_mape_values.std()
 
                 # Calculate overall R² for flux
                 all_actual = []

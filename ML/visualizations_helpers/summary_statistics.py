@@ -29,7 +29,7 @@ def create_summary_statistics_plots(df, output_dir, has_energy_discretization=Fa
     else:
         # Create standard summary plots
         create_best_models_summary(df, output_dir)
-        create_optimization_comparison(df, output_dir)
+        # Removed optimization comparison as requested
 
 def create_energy_summary_comparison(df, output_dir):
     """Create comparison of model performance across energy groups"""
@@ -348,9 +348,22 @@ def create_best_models_by_energy_group(df, output_dir):
 
     print(f"  Saved: {output_file}")
 
-# Keep the original functions for non-energy-discretized data
-def create_best_models_summary(df, output_dir, has_energy_discretization=False):
-    """Create summary showing best performing model combinations"""
+def create_best_models_summary(df, output_dir, has_energy_discretization=False, target_context='auto'):
+    """Create summary showing best performing model combinations - TWO PANELS ONLY"""
+
+    # Auto-detect context from output directory if not specified
+    if target_context == 'auto':
+        output_path = output_dir.lower()
+        if 'keff' in output_path:
+            target_context = 'keff'
+        elif 'thermal' in output_path:
+            target_context = 'thermal'
+        elif 'epithermal' in output_path:
+            target_context = 'epithermal'
+        elif 'fast' in output_path:
+            target_context = 'fast'
+        else:
+            target_context = 'flux'  # Default to flux
 
     # Calculate mean errors for each model/encoding/optimization combination
     summary_data = []
@@ -361,80 +374,85 @@ def create_best_models_summary(df, output_dir, has_energy_discretization=False):
     for name, group in grouped:
         model_class, encoding, optimization = name
 
-        # Calculate metrics based on model type
-        if has_energy_discretization:
-            # For energy-discretized data, calculate mean across all energy groups
-            flux_errors = []
-            for energy_group in ['thermal', 'epithermal', 'fast', 'total']:
+        # Calculate metrics based on context
+        mean_error = None
+        max_error = None
+
+        if target_context == 'keff':
+            # K-eff metrics
+            if 'keff_real' in group.columns and 'keff_predicted' in group.columns:
+                keff_errors = []
                 for _, row in group.iterrows():
-                    for i in range(1, 5):
-                        error_col = f'I_{i}_{energy_group}_rel_error'
-                        if error_col in row:
-                            error = row[error_col]
-                            if pd.notna(error) and error != 'N/A':
-                                flux_errors.append(abs(error))
+                    if pd.notna(row['keff_real']) and pd.notna(row['keff_predicted']) and row['keff_real'] != 0:
+                        error = abs((row['keff_predicted'] - row['keff_real']) / row['keff_real']) * 100
+                        keff_errors.append(error)
+
+                if keff_errors:
+                    mean_error = np.mean(keff_errors)
+                    max_error = max(keff_errors)
+
+        elif target_context in ['thermal', 'epithermal', 'fast']:
+            # Specific energy group flux metrics
+            flux_errors = []
+            for _, row in group.iterrows():
+                for i in range(1, 5):
+                    error_col = f'I_{i}_{target_context}_rel_error'
+                    if error_col in row:
+                        error = row[error_col]
+                        if pd.notna(error) and error != 'N/A':
+                            flux_errors.append(abs(error))
 
             if flux_errors:
-                flux_mape = np.mean(flux_errors)
-                max_flux_error = max(flux_errors)
-                model_type = 'flux'
-            else:
-                flux_mape = None
-                max_flux_error = None
-                model_type = 'keff'
+                mean_error = np.mean(flux_errors)
+                max_error = max(flux_errors)
+
         else:
-            # Original logic for non-energy data
-            if 'mape_flux' in group.columns and group['mape_flux'].notna().any():
-                # This is a flux model
-                flux_mape = group['mape_flux'].mean()
-                max_flux_error = group['mape_flux'].max()
+            # Total flux metrics (default)
+            flux_errors = []
 
-                # Skip k-eff predictions for flux models
-                keff_mape = None
-                model_type = 'flux'
-
-            else:
-                # This might be a k-eff only model or have no flux data
-                flux_mape = None
-                max_flux_error = None
-                model_type = 'keff'
-
-        # K-eff metrics (for both flux and k-eff models)
-        if 'keff_real' in group.columns and 'keff_predicted' in group.columns:
-            # Calculate k-eff MAPE
-            keff_errors = []
+            # Try to find flux error columns in the data
             for _, row in group.iterrows():
-                if pd.notna(row['keff_real']) and pd.notna(row['keff_predicted']) and row['keff_real'] != 0:
-                    error = abs((row['keff_predicted'] - row['keff_real']) / row['keff_real']) * 100
-                    keff_errors.append(error)
+                # Look for individual position flux errors (I_1_rel_error, I_2_rel_error, etc.)
+                position_errors = []
+                for i in range(1, 5):
+                    error_col = f'I_{i}_rel_error'
+                    if error_col in row and pd.notna(row[error_col]) and row[error_col] != 'N/A':
+                        position_errors.append(abs(row[error_col]))
 
-            if keff_errors:
-                keff_mape = np.mean(keff_errors)
-            else:
-                keff_mape = None
-        else:
-            keff_mape = None
+                # If we found position errors, add their mean and max to our list
+                if position_errors:
+                    flux_errors.extend(position_errors)
 
-        # Determine final model type
-        if flux_mape is not None and keff_mape is not None:
-            model_type = 'both'
-        elif flux_mape is not None:
-            model_type = 'flux'
-        elif keff_mape is not None:
-            model_type = 'keff'
-        else:
-            continue  # Skip if no valid metrics
+            # If no position errors found, try looking for flux-related columns more broadly
+            if not flux_errors:
+                for _, row in group.iterrows():
+                    # Look for any flux-related error columns
+                    for col in row.index:
+                        if any(term in col.lower() for term in ['flux', 'mape']) and 'rel_error' in col.lower():
+                            if pd.notna(row[col]) and row[col] != 'N/A':
+                                flux_errors.append(abs(row[col]))
 
-        summary_data.append({
-            'model': model_class,
-            'encoding': encoding,
-            'optimization': optimization,
-            'flux_mape': flux_mape,
-            'keff_mape': keff_mape,
-            'max_flux_error': max_flux_error,
-            'model_type': model_type,
-            'n_configs': len(group)
-        })
+            # If still no flux errors, try the MAPE column directly
+            if not flux_errors:
+                if 'MAPE' in group.columns and group['MAPE'].notna().any():
+                    flux_errors = abs(group['MAPE']).tolist()
+                elif 'mape' in group.columns and group['mape'].notna().any():
+                    flux_errors = abs(group['mape']).tolist()
+
+            if flux_errors:
+                mean_error = np.mean(flux_errors)
+                max_error = max(flux_errors)
+
+        # Only add if we have valid metrics
+        if mean_error is not None and max_error is not None:
+            summary_data.append({
+                'model': model_class,
+                'encoding': encoding,
+                'optimization': optimization,
+                'mean_error': mean_error,
+                'max_error': max_error,
+                'n_configs': len(group)
+            })
 
     summary_df = pd.DataFrame(summary_data)
 
@@ -442,12 +460,20 @@ def create_best_models_summary(df, output_dir, has_energy_discretization=False):
         print("  Warning: No summary data available")
         return
 
-    # Create figure with subplots
-    fig = plt.figure(figsize=(18, 12))
+    # Create figure with TWO PANELS ONLY
+    fig = plt.figure(figsize=(16, 8))
 
-    # Main title
-    title = 'Model Performance Summary - Best Configurations'
-    if has_energy_discretization:
+    # Main title based on context
+    title_map = {
+        'keff': 'K-eff Model Performance Summary - Best Configurations',
+        'thermal': 'Thermal Flux Model Performance Summary - Best Configurations',
+        'epithermal': 'Epithermal Flux Model Performance Summary - Best Configurations',
+        'fast': 'Fast Flux Model Performance Summary - Best Configurations',
+        'flux': 'Total Flux Model Performance Summary - Best Configurations'
+    }
+
+    title = title_map.get(target_context, 'Model Performance Summary - Best Configurations')
+    if has_energy_discretization and target_context == 'flux':
         title += '\n(Averaged Across All Energy Groups)'
     fig.suptitle(title, fontsize=16, fontweight='bold')
 
@@ -459,339 +485,92 @@ def create_best_models_summary(df, output_dir, has_energy_discretization=False):
         'neural_net': '#d62728'
     }
 
-    # 1. Top flux models (top-left) - FIXED to exclude k-eff only models
-    ax1 = plt.subplot(2, 2, 1)
-    flux_models = summary_df[summary_df['model_type'].isin(['flux', 'both'])].copy()
+    # LEFT PANEL: Mean MAPE
+    ax1 = plt.subplot(1, 2, 1)
 
-    if not flux_models.empty:
-        flux_models = flux_models.sort_values('flux_mape').head(10)
+    # Sort by mean error and take top 10
+    top_models_mean = summary_df.sort_values('mean_error').head(10)
 
-        y_pos = np.arange(len(flux_models))
-        bars = ax1.barh(y_pos, flux_models['flux_mape'])
+    if not top_models_mean.empty:
+        y_pos = np.arange(len(top_models_mean))
+        bars = ax1.barh(y_pos, top_models_mean['mean_error'])
 
         # Color bars by model type
-        for i, (idx, row) in enumerate(flux_models.iterrows()):
+        for i, (idx, row) in enumerate(top_models_mean.iterrows()):
             bars[i].set_color(model_colors.get(row['model'], 'gray'))
 
         # Labels
         labels = [f"{row['model']}-{row['encoding']}-{row['optimization']}"
-                 for _, row in flux_models.iterrows()]
+                 for _, row in top_models_mean.iterrows()]
         ax1.set_yticks(y_pos)
         ax1.set_yticklabels(labels, fontsize=9)
         ax1.set_xlabel('Mean MAPE (%)', fontsize=10)
-        ax1.set_title('Top 10 Flux Prediction Models', fontsize=12, fontweight='bold')
+
+        ylabel_map = {
+            'keff': 'Top 10 K-eff Models',
+            'thermal': 'Top 10 Thermal Flux Models',
+            'epithermal': 'Top 10 Epithermal Flux Models',
+            'fast': 'Top 10 Fast Flux Models',
+            'flux': 'Top 10 Flux Models'
+        }
+        ax1.set_title(ylabel_map.get(target_context, 'Top 10 Models'), fontsize=12, fontweight='bold')
         ax1.grid(True, axis='x', alpha=0.3)
         ax1.invert_yaxis()
 
         # Add value labels
-        for i, (idx, row) in enumerate(flux_models.iterrows()):
-            ax1.text(row['flux_mape'] + 0.05, i, f"{row['flux_mape']:.2f}%",
-                    va='center', fontsize=8)
+        for i, (idx, row) in enumerate(top_models_mean.iterrows()):
+            precision = 3 if target_context == 'keff' else 2
+            ax1.text(row['mean_error'] + max(top_models_mean['mean_error']) * 0.02, i,
+                    f"{row['mean_error']:.{precision}f}%", va='center', fontsize=8)
     else:
-        ax1.text(0.5, 0.5, 'No Flux Models Found', ha='center', va='center',
+        ax1.text(0.5, 0.5, 'No Models Found', ha='center', va='center',
                 transform=ax1.transAxes, fontsize=12, alpha=0.5)
 
-    # 2. Top k-eff models (top-right)
-    ax2 = plt.subplot(2, 2, 2)
-    keff_models = summary_df[summary_df['keff_mape'].notna()].copy()
+    # RIGHT PANEL: Max MAPE
+    ax2 = plt.subplot(1, 2, 2)
 
-    if not keff_models.empty:
-        keff_models = keff_models.sort_values('keff_mape').head(10)
+    # Sort by max error and take top 10
+    top_models_max = summary_df.sort_values('max_error').head(10)
 
-        y_pos = np.arange(len(keff_models))
-        bars = ax2.barh(y_pos, keff_models['keff_mape'])
+    if not top_models_max.empty:
+        y_pos = np.arange(len(top_models_max))
+        bars = ax2.barh(y_pos, top_models_max['max_error'])
 
         # Color bars by model type
-        for i, (idx, row) in enumerate(keff_models.iterrows()):
+        for i, (idx, row) in enumerate(top_models_max.iterrows()):
             bars[i].set_color(model_colors.get(row['model'], 'gray'))
 
         # Labels
         labels = [f"{row['model']}-{row['encoding']}-{row['optimization']}"
-                 for _, row in keff_models.iterrows()]
+                 for _, row in top_models_max.iterrows()]
         ax2.set_yticks(y_pos)
         ax2.set_yticklabels(labels, fontsize=9)
-        ax2.set_xlabel('Mean MAPE (%)', fontsize=10)
-        ax2.set_title('Top 10 K-eff Prediction Models', fontsize=12, fontweight='bold')
+        ax2.set_xlabel('Max MAPE (%)', fontsize=10)
+
+        ylabel_map_max = {
+            'keff': 'Top 10 K-eff Models (Max Error)',
+            'thermal': 'Top 10 Thermal Flux Models (Max Error)',
+            'epithermal': 'Top 10 Epithermal Flux Models (Max Error)',
+            'fast': 'Top 10 Fast Flux Models (Max Error)',
+            'flux': 'Top 10 Flux Models (Max Error)'
+        }
+        ax2.set_title(ylabel_map_max.get(target_context, 'Top 10 Models (Max Error)'), fontsize=12, fontweight='bold')
         ax2.grid(True, axis='x', alpha=0.3)
         ax2.invert_yaxis()
 
         # Add value labels
-        for i, (idx, row) in enumerate(keff_models.iterrows()):
-            ax2.text(row['keff_mape'] + 0.0005, i, f"{row['keff_mape']:.3f}%",
-                    va='center', fontsize=8)
+        for i, (idx, row) in enumerate(top_models_max.iterrows()):
+            precision = 3 if target_context == 'keff' else 2
+            ax2.text(row['max_error'] + max(top_models_max['max_error']) * 0.02, i,
+                    f"{row['max_error']:.{precision}f}%", va='center', fontsize=8)
     else:
-        ax2.text(0.5, 0.5, 'No K-eff Models Found', ha='center', va='center',
+        ax2.text(0.5, 0.5, 'No Models Found', ha='center', va='center',
                 transform=ax2.transAxes, fontsize=12, alpha=0.5)
-
-    # 3. Encoding comparison (bottom-left)
-    ax3 = plt.subplot(2, 2, 3)
-    encoding_stats = []
-
-    for encoding in summary_df['encoding'].unique():
-        enc_data = summary_df[summary_df['encoding'] == encoding]
-
-        # Only include flux models for flux statistics
-        flux_enc_data = enc_data[enc_data['model_type'].isin(['flux', 'both'])]
-
-        if not flux_enc_data.empty:
-            encoding_stats.append({
-                'encoding': encoding,
-                'mean_flux_mape': flux_enc_data['flux_mape'].mean() if not flux_enc_data['flux_mape'].isna().all() else None,
-                'mean_keff_mape': enc_data['keff_mape'].mean() if 'keff_mape' in enc_data and not enc_data['keff_mape'].isna().all() else None,
-                'count': len(enc_data)
-            })
-
-    if encoding_stats:
-        enc_df = pd.DataFrame(encoding_stats)
-        enc_df = enc_df.sort_values('mean_flux_mape', na_position='last')
-
-        x = np.arange(len(enc_df))
-        width = 0.35
-
-        # Plot bars - handle NaN values
-        flux_values = enc_df['mean_flux_mape'].fillna(0).values
-        keff_values = enc_df['mean_keff_mape'].fillna(0).values
-
-        bars1 = ax3.bar(x - width/2, flux_values, width, label='Flux MAPE', color='skyblue')
-        bars2 = ax3.bar(x + width/2, keff_values, width, label='K-eff MAPE', color='lightcoral')
-
-        ax3.set_xlabel('Encoding Method', fontsize=10)
-        ax3.set_ylabel('Mean MAPE (%)', fontsize=10)
-        ax3.set_title('Average Performance by Encoding', fontsize=12, fontweight='bold')
-        ax3.set_xticks(x)
-        ax3.set_xticklabels(enc_df['encoding'], rotation=45, ha='right')
-        ax3.legend()
-        ax3.grid(True, axis='y', alpha=0.3)
-
-    # 4. Optimization comparison (bottom-right)
-    ax4 = plt.subplot(2, 2, 4)
-    opt_stats = []
-
-    # Check if optimization_method column exists
-    if 'optimization_method' in summary_df.columns:
-        for optimization in summary_df['optimization_method'].unique():
-            opt_data = summary_df[summary_df['optimization_method'] == optimization]
-
-            # Only include flux models for flux statistics
-            flux_opt_data = opt_data[opt_data['model_type'].isin(['flux', 'both'])]
-
-            if not flux_opt_data.empty:
-                opt_stats.append({
-                    'optimization': optimization,
-                    'mean_flux_mape': flux_opt_data['flux_mape'].mean() if not flux_opt_data['flux_mape'].isna().all() else None,
-                    'mean_keff_mape': opt_data['keff_mape'].mean() if 'keff_mape' in opt_data and not opt_data['keff_mape'].isna().all() else None,
-                    'count': len(opt_data)
-                })
-
-        if opt_stats:
-            opt_df = pd.DataFrame(opt_stats)
-            opt_df = opt_df.sort_values('mean_flux_mape', na_position='last')
-
-            x = np.arange(len(opt_df))
-            width = 0.35
-
-            # Plot bars - handle NaN values
-            flux_values = opt_df['mean_flux_mape'].fillna(0).values
-            keff_values = opt_df['mean_keff_mape'].fillna(0).values
-
-            bars1 = ax4.bar(x - width/2, flux_values, width, label='Flux MAPE', color='skyblue')
-            bars2 = ax4.bar(x + width/2, keff_values, width, label='K-eff MAPE', color='lightcoral')
-
-            ax4.set_xlabel('Optimization Method', fontsize=10)
-            ax4.set_ylabel('Mean MAPE (%)', fontsize=10)
-            ax4.set_title('Average Performance by Optimization', fontsize=12, fontweight='bold')
-            ax4.set_xticks(x)
-            ax4.set_xticklabels(opt_df['optimization'], rotation=45, ha='right')
-            ax4.legend()
-            ax4.grid(True, axis='y', alpha=0.3)
-    else:
-        # No optimization_method column - show a message
-        ax4.text(0.5, 0.5, 'No optimization data available',
-                ha='center', va='center', transform=ax4.transAxes,
-                fontsize=12, alpha=0.5)
-        ax4.set_xticks([])
-        ax4.set_yticks([])
 
     plt.tight_layout()
 
     # Save figure
     output_file = os.path.join(output_dir, 'best_models_summary.png')
-    plt.savefig(output_file, dpi=300, bbox_inches='tight')
-    plt.close()
-
-    print(f"  Saved: {output_file}")
-
-    # Create detailed statistics table
-    create_detailed_stats_table(summary_df, output_dir)
-
-def create_optimization_comparison(df, output_dir):
-    """Create comparison of optimization methods"""
-
-    # Check if optimization_method column exists
-    if 'optimization_method' not in df.columns:
-        print("  Skipping optimization comparison (optimization_method column not found)")
-        return
-
-    # Get optimization methods
-    optimizations = df['optimization_method'].unique()
-
-    # Skip if only one optimization method
-    if len(optimizations) <= 1:
-        print("  Skipping optimization comparison (only one method found)")
-        return
-
-    # Create figure
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
-
-    # Flux comparison
-    flux_data = []
-    for opt in optimizations:
-        opt_df = df[df['optimization_method'] == opt]
-        if 'mape_flux' in opt_df.columns:
-            errors = opt_df['mape_flux'].dropna()
-            if len(errors) > 0:
-                flux_data.append(errors.values)
-            else:
-                flux_data.append([])
-        else:
-            flux_data.append([])
-
-    # Create box plot for flux
-    if any(len(d) > 0 for d in flux_data):
-        bp1 = ax1.boxplot(flux_data, labels=optimizations, patch_artist=True,
-                         showmeans=True, meanline=True)
-
-        # Color boxes
-        colors = ['#FF6B6B', '#4ECDC4', '#45B7D1']
-        for patch, color in zip(bp1['boxes'], colors[:len(bp1['boxes'])]):
-            patch.set_facecolor(color)
-            patch.set_alpha(0.7)
-
-        ax1.set_xlabel('Optimization Method', fontsize=12)
-        ax1.set_ylabel('Flux MAPE (%)', fontsize=12)
-        ax1.set_title('Flux Prediction Error by Optimization Method', fontsize=14, fontweight='bold')
-        ax1.grid(True, axis='y', alpha=0.3)
-    else:
-        ax1.text(0.5, 0.5, 'No Flux Data Available', ha='center', va='center',
-                transform=ax1.transAxes, fontsize=12, alpha=0.5)
-
-    # K-eff comparison
-    keff_data = []
-    for opt in optimizations:
-        opt_df = df[df['optimization_method'] == opt]
-        if 'keff_real' in opt_df.columns and 'keff_predicted' in opt_df.columns:
-            # Calculate k-eff errors
-            errors = []
-            for _, row in opt_df.iterrows():
-                if pd.notna(row['keff_real']) and pd.notna(row['keff_predicted']) and row['keff_real'] != 0:
-                    error = abs((row['keff_predicted'] - row['keff_real']) / row['keff_real']) * 100
-                    errors.append(error)
-            keff_data.append(errors)
-        else:
-            keff_data.append([])
-
-    # Create box plot for k-eff
-    if any(len(d) > 0 for d in keff_data):
-        bp2 = ax2.boxplot(keff_data, labels=optimizations, patch_artist=True,
-                         showmeans=True, meanline=True)
-
-        # Color boxes
-        for patch, color in zip(bp2['boxes'], colors[:len(bp2['boxes'])]):
-            patch.set_facecolor(color)
-            patch.set_alpha(0.7)
-
-        ax2.set_xlabel('Optimization Method', fontsize=12)
-        ax2.set_ylabel('K-eff MAPE (%)', fontsize=12)
-        ax2.set_title('K-eff Prediction Error by Optimization Method', fontsize=14, fontweight='bold')
-        ax2.grid(True, axis='y', alpha=0.3)
-    else:
-        ax2.text(0.5, 0.5, 'No K-eff Data Available', ha='center', va='center',
-                transform=ax2.transAxes, fontsize=12, alpha=0.5)
-
-    plt.suptitle('Optimization Method Comparison', fontsize=16, fontweight='bold')
-    plt.tight_layout()
-
-    # Save figure
-    output_file = os.path.join(output_dir, 'optimization_comparison.png')
-    plt.savefig(output_file, dpi=300, bbox_inches='tight')
-    plt.close()
-
-    print(f"  Saved: {output_file}")
-
-def create_detailed_stats_table(summary_df, output_dir):
-    """Create a detailed statistics table as an image"""
-
-    # Sort by flux MAPE
-    flux_models = summary_df[summary_df['model_type'].isin(['flux', 'both'])].copy()
-
-    if flux_models.empty:
-        return
-
-    flux_models = flux_models.sort_values('flux_mape').head(20)
-
-    # Create figure
-    fig, ax = plt.subplots(figsize=(14, len(flux_models) * 0.4 + 2))
-    ax.axis('off')
-
-    # Prepare table data
-    table_data = []
-    for _, row in flux_models.iterrows():
-        flux_str = f"{row['flux_mape']:.3f}%" if pd.notna(row['flux_mape']) else "N/A"
-        keff_str = f"{row['keff_mape']:.3f}%" if pd.notna(row['keff_mape']) else "N/A"
-        max_flux_str = f"{row['max_flux_error']:.3f}%" if pd.notna(row['max_flux_error']) else "N/A"
-
-        table_data.append([
-            row['model'].upper(),
-            row['encoding'],
-            row['optimization'],
-            flux_str,
-            keff_str,
-            max_flux_str,
-            str(row['n_configs'])
-        ])
-
-    # Create table
-    col_labels = ['Model', 'Encoding', 'Optimization', 'Flux MAPE', 'K-eff MAPE', 'Max Flux Error', 'N Configs']
-
-    table = ax.table(cellText=table_data,
-                    colLabels=col_labels,
-                    cellLoc='center',
-                    loc='center',
-                    bbox=[0, 0, 1, 1])
-
-    # Style the table
-    table.auto_set_font_size(False)
-    table.set_fontsize(9)
-    table.scale(1.2, 1.8)
-
-    # Header styling
-    for i in range(len(col_labels)):
-        cell = table[(0, i)]
-        cell.set_facecolor('#4472C4')
-        cell.set_text_props(weight='bold', color='white')
-
-    # Row coloring
-    model_colors = {
-        'XGBOOST': '#E6F3FF',
-        'RANDOM_FOREST': '#FFF0E6',
-        'SVM': '#E6FFE6',
-        'NEURAL_NET': '#FFE6E6'
-    }
-
-    for i in range(1, len(table_data) + 1):
-        model_name = table_data[i-1][0]
-        color = model_colors.get(model_name, '#FFFFFF')
-
-        for j in range(len(col_labels)):
-            table[(i, j)].set_facecolor(color)
-
-    plt.title('Top 20 Model Configurations - Detailed Statistics',
-             fontsize=14, fontweight='bold', pad=20)
-
-    plt.tight_layout()
-
-    # Save table
-    output_file = os.path.join(output_dir, 'detailed_stats_table.png')
     plt.savefig(output_file, dpi=300, bbox_inches='tight')
     plt.close()
 

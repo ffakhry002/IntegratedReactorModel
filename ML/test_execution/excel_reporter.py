@@ -36,18 +36,14 @@ class ExcelReporter:
 
         # Create Excel writer
         with pd.ExcelWriter(output_filename, engine='openpyxl') as writer:
-            # Create different sheets based on model type
+            # Create only the main results sheet
             self._create_results_sheet(writer, df, has_keff, has_flux, flux_mode)
-            self._create_summary_sheet(writer, df, has_keff, has_flux, flux_mode)
-            self._create_best_models_sheet(writer, df, has_keff, has_flux, flux_mode)
 
         print(f"\nExcel report saved to: {output_filename}")
-        print(f"Sheets created:")
+        print(f"Sheet created:")
         print(f"  - Test Results: Detailed results for all configurations")
         if flux_mode != 'total':
             print(f"    (Flux mode: {flux_mode} - showing energy-discretized results)")
-        print(f"  - Summary: Statistics grouped by model, encoding, and optimization")
-        print(f"  - Best Models by Encoding: Best performing model for each encoding method")
 
         return output_filename
 
@@ -256,19 +252,23 @@ class ExcelReporter:
                     if 'mape_flux' in group:
                         mape_values = group['mape_flux'].replace('N/A', np.nan).dropna()
                         if len(mape_values) > 0:
+                            # Use absolute values for summary statistics
+                            abs_mape_values = abs(mape_values)
                             energy_name = flux_mode.replace('_only', '').title()
-                            summary_row[f'Avg {energy_name} MAPE (%)'] = mape_values.mean()
-                            summary_row[f'Max {energy_name} MAPE (%)'] = mape_values.max()
-                            summary_row[f'Min {energy_name} MAPE (%)'] = mape_values.min()
-                            summary_row[f'Std {energy_name} MAPE (%)'] = mape_values.std()
+                            summary_row[f'Avg {energy_name} MAPE (%)'] = abs_mape_values.mean()
+                            summary_row[f'Max {energy_name} MAPE (%)'] = abs_mape_values.max()
+                            summary_row[f'Min {energy_name} MAPE (%)'] = abs_mape_values.min()
+                            summary_row[f'Std {energy_name} MAPE (%)'] = abs_mape_values.std()
                 elif flux_mode in ['energy', 'bin'] and 'mape_flux' in group:
                     # For energy/bin modes, use MAPE
                     mape_values = group['mape_flux'].replace('N/A', np.nan).dropna()
                     if len(mape_values) > 0:
-                        summary_row['Avg MAPE (%)'] = mape_values.mean()
-                        summary_row['Max MAPE (%)'] = mape_values.max()
-                        summary_row['Min MAPE (%)'] = mape_values.min()
-                        summary_row['Std MAPE (%)'] = mape_values.std()
+                        # Use absolute values for summary statistics
+                        abs_mape_values = abs(mape_values)
+                        summary_row['Avg MAPE (%)'] = abs_mape_values.mean()
+                        summary_row['Max MAPE (%)'] = abs_mape_values.max()
+                        summary_row['Min MAPE (%)'] = abs_mape_values.min()
+                        summary_row['Std MAPE (%)'] = abs_mape_values.std()
 
             summary_data.append(summary_row)
 
@@ -291,8 +291,11 @@ class ExcelReporter:
             if has_keff and len(encoding_subset[encoding_subset['model_type'] == 'keff']) > 0:
                 keff_subset = encoding_subset[encoding_subset['model_type'] == 'keff']
                 if 'mape_keff' in keff_subset:
-                    # Group by model and optimization, then find minimum
-                    grouped = keff_subset.groupby(['model_class', 'optimization_method'])['mape_keff'].mean()
+                    # Group by model and optimization, then find minimum using absolute values
+                    abs_keff_values = abs(keff_subset['mape_keff'])
+                    keff_subset_abs = keff_subset.copy()
+                    keff_subset_abs['mape_keff'] = abs_keff_values
+                    grouped = keff_subset_abs.groupby(['model_class', 'optimization_method'])['mape_keff'].mean()
                     if len(grouped) > 0:
                         best_idx = grouped.idxmin()
                         best_models_data.append({
@@ -316,6 +319,9 @@ class ExcelReporter:
                             mode_subset_clean = mode_subset.copy()
                             mode_subset_clean['mape_flux'] = mode_subset_clean['mape_flux'].replace('N/A', np.nan)
 
+                            # Use absolute values for best model selection
+                            mode_subset_clean['mape_flux'] = abs(mode_subset_clean['mape_flux'])
+
                             grouped = mode_subset_clean.groupby(['model_class', 'optimization_method'])['mape_flux'].mean()
                             grouped = grouped.dropna()
 
@@ -337,7 +343,10 @@ class ExcelReporter:
                 else:
                     # Original logic for total flux
                     if 'mape_flux' in flux_subset:
-                        grouped = flux_subset.groupby(['model_class', 'optimization_method'])['mape_flux'].mean()
+                        # Use absolute values for best model selection
+                        flux_subset_abs = flux_subset.copy()
+                        flux_subset_abs['mape_flux'] = abs(flux_subset['mape_flux'])
+                        grouped = flux_subset_abs.groupby(['model_class', 'optimization_method'])['mape_flux'].mean()
                         if len(grouped) > 0:
                             best_idx = grouped.idxmin()
                             best_models_data.append({

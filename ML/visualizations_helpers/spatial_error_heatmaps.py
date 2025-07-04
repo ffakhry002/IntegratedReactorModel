@@ -201,7 +201,7 @@ def create_cell_position_heatmap_with_positions(df, output_dir, models, encoding
                         # Try to get error from pre-calculated column first
                         error_value = None
                         if error_col in test_row and pd.notna(test_row[error_col]):
-                            error_value = test_row[error_col]
+                            error_value = abs(test_row[error_col])  # ALWAYS use absolute value for spatial heatmaps
                         # Otherwise calculate it
                         elif real_col in test_row and pred_col in test_row:
                             real = test_row[real_col]
@@ -328,7 +328,7 @@ def create_averaged_spatial_error_heatmap(df, output_dir, models, encodings, opt
                     error_col = f'I_{irr_num}_rel_error'
 
                 if error_col in test_row and pd.notna(test_row[error_col]):
-                    error_value = test_row[error_col]
+                    error_value = abs(test_row[error_col])  # ALWAYS use absolute value for spatial heatmaps
                     if isinstance(error_value, (int, float)):
                         position_errors[(row, col)].append((error_value, config_id))
 
