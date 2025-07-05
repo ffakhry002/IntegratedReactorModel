@@ -3,7 +3,7 @@ base_inputs = {
     ###########################################
     # Parametric Study Configuration
     ###########################################
-    "parametric_study": True,        # Toggle for parametric study mode
+    "parametric_study": False,        # Toggle for parametric study mode
 
     ###########################################
     # Core Configuration
@@ -11,11 +11,11 @@ base_inputs = {
     # Core Layout
     "core_lattice": [  # C: coolant, F: fuel assembly, E: enriched fuel assembly, I: irradiation position
         ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
-        ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
-        ['F', 'F', 'I_1', 'F', 'F', 'I_4', 'F', 'F'],
+        ['C', 'F', 'F', 'F', 'F', 'F', 'I_4', 'C'],
+        ['F', 'F', 'I_1', 'F', 'F', 'F', 'F', 'F'],
         ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
         ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-        ['F', 'F', 'I_2', 'F', 'F', 'I_3', 'F', 'F'],
+        ['F', 'F', 'I_2', 'F', 'F', 'F', 'I_3', 'F'],
         ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
         ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
     ],
@@ -99,9 +99,9 @@ base_inputs = {
     # OpenMC Transport Parameters
     ###########################################
     # Standard Transport Settings
-    "batches": int(150),                   # Number of active batches
+    "batches": int(230),                   # Number of active batches
     "inactive": int(20),                   # Number of inactive batches
-    "particles": int(100000),            # Particles per batch
+    "particles": int(250000),            # Particles per batch
     "energy_structure": 'log1001',    # Energy group structure
 
     # Energy Group Boundaries
@@ -116,26 +116,26 @@ base_inputs = {
 
     # Additional Tallies
     "Core_Three_Group_Energy_Bins": True, # True: use three energy bins for core tallies, False: don't tally energy groups
-    "tally_power": False,                  # True: calculate power tallies and TH, False: skip power calculations
-    "element_level_power_tallies": False, # True: tally power for individual fuel elements, False: tally power for assemblies
+    "tally_power": True,                  # True: calculate power tallies and TH, False: skip power calculations
+    "element_level_power_tallies": True, # True: tally power for individual fuel elements, False: tally power for assemblies
 
     ###########################################
     # Depletion Calculation Parameters
     ###########################################
     # Depletion Scenario Selection (only one should be True)
-    "deplete_core": False,                    # Full core depletion
-    "deplete_assembly": False,               # Single assembly with reflective BC
+    "deplete_core": True,                    # Full core depletion
+    "deplete_assembly": True,               # Single assembly with reflective BC
     "deplete_assembly_enhanced": False,      # Single enhanced assembly with reflective BC
     "deplete_element": False,                # Single fuel element with reflective BC
     "deplete_element_enhanced": False,       # Single enhanced fuel element with reflective BC
 
     # Time Steps Configuration
     "depletion_timestep_units": "MWd/kgHM",  # Units for timesteps: 'MWd/kgHM' or 'days'
-    "depletion_timesteps": [{'steps': 5, 'size': 1}, {'steps': 5, 'size': 0.5}, {'steps': 5, 'size': 2.5}, {'steps': 5, 'size': 5}, {'steps': 5, 'size': 10}],
+    "depletion_timesteps": [{'steps': 10, 'size': 0.01},{'steps': 10, 'size': 0.1}, {'steps': 10, 'size': 0.5}, {'steps': 5, 'size': 2.5}, {'steps': 5, 'size': 5.0}, {'steps': 5, 'size': 10.0}],
 
     # Transport Settings for Depletion
-    "depletion_particles": int(5000),       # Particles per batch for depletion
-    "depletion_batches": int(120),         # Active batches for depletion
+    "depletion_particles": int(20000),       # Particles per batch for depletion
+    "depletion_batches": int(130),         # Active batches for depletion
     "depletion_inactive": int(20),         # Inactive batches for depletion
 
     # Depletion Options
@@ -151,7 +151,7 @@ base_inputs = {
     # Miscellaneous Settings
     ###########################################
     "outputs_folder": "local_outputs",  # Base output directory
-    "pixels": (100, 100),            # Plot resolution
+    "pixels": (8000, 8000),            # Plot resolution
 }
 
 
