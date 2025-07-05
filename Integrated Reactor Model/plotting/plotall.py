@@ -14,6 +14,7 @@ from inputs import inputs
 from plotting.functions.flux_traps import plot_flux_trap_distributions
 from plotting.functions.flux_maps import plot_flux_maps
 from plotting.functions.normalized_flux_profiles import plot_normalized_flux_profiles
+from plotting.functions.axial_flux_energy import plot_axial_flux_energy_breakdown
 from plotting.functions.entropy import plot_entropy
 from plotting.functions.depletion import plot_depletion_results, plot_nuclide_evolution
 from plotting.functions.power import plot_power_distributions, plot_2d_power_map
@@ -121,6 +122,16 @@ def plot_all(plot_dir=None, depletion_plot_dir=None, power_plot_dir=None, inputs
         plot_normalized_flux_profiles(sp, flux_plot_dir, inputs_dict)
     except Exception as e:
         print(f"Error generating normalized flux profiles: {str(e)}")
+
+    # Check if there are any irradiation positions for axial energy breakdown
+    if has_irradiation:
+        try:
+            print("\nGenerating axial flux energy breakdown plots...")
+            plot_axial_flux_energy_breakdown(sp, flux_plot_dir, inputs_dict)
+        except Exception as e:
+            print(f"Error generating axial flux energy breakdown plots: {str(e)}")
+    else:
+        print("\nSkipping axial flux energy breakdown plots (no irradiation positions in core)")
 
     # Only generate power plots if power tallies are enabled
     if power_plot_dir is not None:
