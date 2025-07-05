@@ -84,10 +84,10 @@ def create_multi_optimization_plot(plot_data, optimizations, output_dir, filenam
 
     # Define colors and get unique values
     model_colors = {
-        'xgboost': '#1f77b4',
-        'random_forest': '#ff7f0e',
-        'svm': '#2ca02c',
-        'neural_net': '#d62728'
+        'xgboost': '#1f77b4',    # Blue
+        'random_forest': '#ff7f0e',  # Orange
+        'svm': '#2ca02c',           # Green
+        'neural_net': '#d62728'      # Red
     }
 
     encoding_order = ['one_hot', 'categorical', 'physics', 'spatial', 'graph']
@@ -277,44 +277,31 @@ def create_error_table_image(plot_data, optimizations, model_order, encoding_ord
         cell.set_facecolor('#4472C4')
         cell.set_text_props(weight='bold', color='white')
 
-    # Row coloring and span handling
+        # Row coloring and span handling
     current_row = 1
     model_colors = {
-        'xgboost': '#E6F3FF',
-        'random_forest': '#FFF0E6',
-        'svm': '#E6FFE6',
-        'neural_net': '#FFE6E6'
+        'xgboost': '#E6F3FF',        # Light Blue
+        'random_forest': '#FFF0E6',  # Light Orange
+        'svm': '#E6FFE6',           # Light Green
+        'neural_net': '#FFE6E6'      # Light Red
     }
 
-    i = 0
-    while i < len(stats_data):
+    current_model = None  # Track the current model we're processing
+
+    for i in range(len(stats_data)):
         row_data = stats_data[i]
 
-        # Apply model-specific coloring
-        model_name = None
-        for model in model_order:
-            if row_data['Model'] == model or (i > 0 and stats_data[i-1]['Model'] == model):
-                model_name = model
-                break
+        # If this row has a model name, update current_model
+        if row_data['Model'] != '':
+            current_model = row_data['Model']
 
-        # Merge cells for model name if span > 1
-        if row_data['Model_span'] > 1:
-            # Apply color to all cells in this model's rows
-            for j in range(row_data['Model_span']):
-                for col in range(len(col_labels)):
-                    if current_row + j <= len(table_data):
-                        cell = table[(current_row + j, col)]
-                        if model_name in model_colors:
-                            cell.set_facecolor(model_colors[model_name])
-        else:
-            # Single row coloring
+        # Apply the color of the current model to this row
+        if current_model and current_model in model_colors:
             for col in range(len(col_labels)):
                 cell = table[(current_row, col)]
-                if model_name in model_colors:
-                    cell.set_facecolor(model_colors[model_name])
+                cell.set_facecolor(model_colors[current_model])
 
         current_row += 1
-        i += 1
 
     # Title
     if error_type == 'max':
@@ -406,10 +393,10 @@ def create_simplified_error_plot(plot_data, title):
 
     # Define model colors
     model_colors = {
-        'xgboost': '#1f77b4',
-        'random_forest': '#ff7f0e',
-        'svm': '#2ca02c',
-        'neural_net': '#d62728'
+        'xgboost': '#1f77b4',       # Blue
+        'random_forest': '#ff7f0e', # Orange
+        'svm': '#2ca02c',          # Green
+        'neural_net': '#d62728'     # Red
     }
 
     # Create figure with space for table
