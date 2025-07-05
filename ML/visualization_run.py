@@ -334,7 +334,8 @@ def main():
             os.makedirs(os.path.join(energy_output_dir, 'spatial_error_heatmaps'), exist_ok=True)
             os.makedirs(os.path.join(energy_output_dir, 'config_error_plots'), exist_ok=True)
             os.makedirs(os.path.join(energy_output_dir, 'rel_error_trackers'), exist_ok=True)
-            os.makedirs(os.path.join(energy_output_dir, 'feature_importance'), exist_ok=True)
+            if energy_group != 'total':  # Don't create feature_importance for total
+                os.makedirs(os.path.join(energy_output_dir, 'feature_importance'), exist_ok=True)
             os.makedirs(os.path.join(energy_output_dir, 'summary_statistics'), exist_ok=True)
 
             try:
@@ -385,18 +386,20 @@ def main():
                     energy_group=energy_group
                 )
 
-                # 6. Feature importance plots for this energy group
-                print(f"\n6. Creating {energy_group} feature importance plots...")
-                try:
-                    create_feature_importance_plots(
-                        test_results_df,
-                        os.path.join(energy_output_dir, 'feature_importance'),
-                        models,
-                        target_type='flux'  # Since we're dealing with energy groups, it's flux
-                    )
-                except Exception as e:
-                    print(f"  ERROR in {energy_group} feature importance: {e}")
-                    print("  Continuing with other visualizations...")
+                # 6. Feature importance plots for this energy group (skip for 'total' as it's just a sum)
+                if energy_group != 'total':
+                    print(f"\n6. Creating {energy_group} feature importance plots...")
+                    try:
+                        create_feature_importance_plots(
+                            test_results_df,
+                            os.path.join(energy_output_dir, 'feature_importance'),
+                            models,
+                            target_type='flux',  # Since we're dealing with energy groups, it's flux
+                            energy_group=energy_group
+                        )
+                    except Exception as e:
+                        print(f"  ERROR in {energy_group} feature importance: {e}")
+                        print("  Continuing with other visualizations...")
 
                 # 7. Summary Statistics - Only best models summary and error distribution for individual energy groups
                 print(f"\n7. Creating {energy_group} summary statistics...")

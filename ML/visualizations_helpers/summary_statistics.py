@@ -378,8 +378,8 @@ def create_best_models_summary(df, output_dir, has_energy_discretization=False, 
                     mean_of_max_error = np.mean(config_max_errors)
                     max_error = max(keff_errors)
 
-        elif target_context in ['thermal', 'epithermal', 'fast']:
-            # Specific energy group flux metrics
+        elif target_context in ['thermal', 'epithermal', 'fast', 'total']:
+            # Specific energy group flux metrics (including 'total' which is also an energy group in multi-energy mode)
             flux_errors = []
             config_max_errors = []
             for _, row in group.iterrows():

@@ -10,7 +10,7 @@ import os
 import joblib
 from sklearn.inspection import permutation_importance
 
-def create_feature_importance_plots(df, output_dir, models, target_type='flux'):
+def create_feature_importance_plots(df, output_dir, models, target_type='flux', energy_group=None):
     """Create feature importance plots for each model type for a specific target
 
     Args:
@@ -18,6 +18,7 @@ def create_feature_importance_plots(df, output_dir, models, target_type='flux'):
         output_dir: Output directory (should already be target-specific, e.g., total_flux/feature_importance)
         models: List of model types to process
         target_type: Either 'flux' or 'keff'
+        energy_group: Optional energy group ('thermal', 'epithermal', 'fast') for energy-specific models
     """
 
     # Get unique model-encoding-optimization combinations
@@ -33,13 +34,13 @@ def create_feature_importance_plots(df, output_dir, models, target_type='flux'):
 
         if not model_df.empty:
             # Create plots for the specified target only
-            create_model_feature_importance(model_df, model_type, target_type, output_dir)
+            create_model_feature_importance(model_df, model_type, target_type, output_dir, energy_group)
 
-def create_model_feature_importance(model_df, model_type, target, output_dir):
+def create_model_feature_importance(model_df, model_type, target, output_dir, energy_group=None):
     """Create feature importance plots for a specific model and target"""
 
     # Try to load a saved model to get feature importances
-    model_path = find_model_file(model_type, target)
+    model_path = find_model_file(model_type, target, energy_group)
 
     if model_path and os.path.exists(model_path):
         try:
@@ -61,7 +62,7 @@ def create_model_feature_importance(model_df, model_type, target, output_dir):
     else:
         print(f"  No model file found for {model_type} {target}")
 
-def find_model_file(model_type, target):
+def find_model_file(model_type, target, energy_group=None):
     """Find the saved model file for a given model type and target"""
 
     # Get the directory containing this script
@@ -74,11 +75,19 @@ def find_model_file(model_type, target):
     # This handles both old naming (physics_*) and new naming (*_physics_*)
     import glob
 
+    # Adjust target for energy-specific models
+    if energy_group and target == 'flux':
+        # For energy groups, look for models trained on that specific energy
+        # e.g., flux_thermal_only, flux_epithermal_only, flux_fast_only
+        search_target = f"flux_{energy_group}_only"
+    else:
+        search_target = target
+
     # Try multiple patterns to be backward compatible
     patterns = [
-        os.path.join(model_dir, f"{model_type}_{target}_*physics*.pkl"),
-        os.path.join(model_dir, f"{model_type}_{target}_physics_*.pkl"),
-        os.path.join(model_dir, f"{model_type}_{target}_physics*.pkl")
+        os.path.join(model_dir, f"{model_type}_{search_target}_*physics*.pkl"),
+        os.path.join(model_dir, f"{model_type}_{search_target}_physics_*.pkl"),
+        os.path.join(model_dir, f"{model_type}_{search_target}_physics*.pkl")
     ]
 
     matches = []
