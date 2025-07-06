@@ -1,7 +1,7 @@
 Integrated Reactor Model
 ======================
-Total Python files: 140+ (including ML components)
-Total lines of code: 25000+
+Total Python files: 206
+Total lines of code: ~50,000
 
 
 Project Structure:
@@ -180,12 +180,15 @@ Project Structure:
 │   │   ├── xgboost_train.py   # XGBoost implementation
 │   │   └── encodings/         # Feature encoding utilities
 │   │       ├── __init__.py
-│   │       └── encoding_methods.py # Various encoding methods for categorical features
+│   │       ├── encoding_methods.py # Various encoding methods for categorical features
+│   │       └── test_edge_distance.py # Testing utilities for edge distance encoding
 │   │
 │   ├── hyperparameter_tuning/ # Hyperparameter optimization
 │   │   ├── __init__.py
 │   │   ├── optuna_optimization.py # Optuna-based hyperparameter optimization
-│   │   └── three_stage_optimization.py # Three-stage optimization strategy
+│   │   ├── three_stage_optimization.py # Three-stage optimization strategy
+│   │   ├── optimization_history_logs.py # Optimization history tracking from log files
+│   │   └── optimization_history_pkl.py # Optimization history tracking from model files
 │   │
 │   ├── test_execution/        # ML model testing framework
 │   │   ├── __init__.py
