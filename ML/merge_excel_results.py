@@ -123,7 +123,7 @@ def save_merged_excel(df, output_path):
     from openpyxl.styles import Font, PatternFill, Alignment
     from openpyxl.utils import get_column_letter
 
-    print(f"💾 Saving merged results to Excel...")
+    print(f"Saving merged results to Excel...")
 
     # Create Excel writer
     with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
@@ -197,11 +197,11 @@ def save_merged_excel(df, output_path):
             adjusted_width = min(max_length + 2, 25)
             ws.column_dimensions[column_letter].width = adjusted_width
 
-    print(f"✅ Excel file saved with proper formatting for merged data")
+    print(f"Excel file saved with proper formatting for merged data")
 
 def merge_all_energy(thermal_df, epithermal_df, fast_df):
     """Merge thermal, epithermal, and fast results into multi-energy format"""
-    print("\n🔄 Performing all-energy merge...")
+    print("\nPerforming all-energy merge...")
 
     # Add merge keys
     thermal_df['merge_key'] = thermal_df.apply(create_merge_key, axis=1)
@@ -298,7 +298,7 @@ def merge_all_energy(thermal_df, epithermal_df, fast_df):
 
 def merge_total_keff(total_df, keff_df):
     """Merge total flux and k-eff results"""
-    print("\n🔄 Performing total + k-eff merge...")
+    print("\nPerforming total + k-eff merge...")
 
     # Add merge keys
     total_df['merge_key'] = total_df.apply(create_merge_key, axis=1)
@@ -362,14 +362,14 @@ def main():
 
         if choice == '1':
             # All Energy Merge
-            print("\n📁 Please select the three energy Excel files:")
-            thermal_file = select_excel_file("📁 Select thermal flux Excel file:")
+            print("\nPlease select the three energy Excel files:")
+            thermal_file = select_excel_file("Select thermal flux Excel file:")
             if not thermal_file:
                 continue
-            epithermal_file = select_excel_file("📁 Select epithermal flux Excel file:")
+            epithermal_file = select_excel_file("Select epithermal flux Excel file:")
             if not epithermal_file:
                 continue
-            fast_file = select_excel_file("📁 Select fast flux Excel file:")
+            fast_file = select_excel_file("Select fast flux Excel file:")
             if not fast_file:
                 continue
 
@@ -399,15 +399,15 @@ def main():
                 # Save using simple Excel export (custom function for merged data)
                 save_merged_excel(merged_df, output_path)
 
-                print(f"\n✅ Saved merged results to: {output_path}")
+                print(f"\nSaved merged results to: {output_path}")
 
         elif choice == '2':
             # Total + K-eff Merge
-            print("\n📁 Please select the two Excel files:")
-            total_file = select_excel_file("📁 Select total flux Excel file:")
+            print("\nPlease select the two Excel files:")
+            total_file = select_excel_file("Select total flux Excel file:")
             if not total_file:
                 continue
-            keff_file = select_excel_file("📁 Select K-eff Excel file:")
+            keff_file = select_excel_file("Select K-eff Excel file:")
             if not keff_file:
                 continue
 
@@ -433,15 +433,15 @@ def main():
 
                 save_merged_excel(merged_df, output_path)
 
-                print(f"\n✅ Saved merged results to: {output_path}")
+                print(f"\nSaved merged results to: {output_path}")
 
         elif choice == '3':
             # K-eff + Multi-energy Merge
-            print("\n📁 Please select the two Excel files:")
-            multi_file = select_excel_file("📁 Select multi-energy Excel file:")
+            print("\nPlease select the two Excel files:")
+            multi_file = select_excel_file("Select multi-energy Excel file:")
             if not multi_file:
                 continue
-            keff_file = select_excel_file("📁 Select K-eff Excel file:")
+            keff_file = select_excel_file("Select K-eff Excel file:")
             if not keff_file:
                 continue
 
@@ -467,21 +467,21 @@ def main():
 
                 save_merged_excel(merged_df, output_path)
 
-                print(f"\n✅ Saved merged results to: {output_path}")
+                print(f"\nSaved merged results to: {output_path}")
 
         elif choice == '4':
             # K-eff + Energy Merge (all four)
-            print("\n📁 Please select all four Excel files:")
-            thermal_file = select_excel_file("📁 Select thermal flux Excel file:")
+            print("\nPlease select all four Excel files:")
+            thermal_file = select_excel_file("Select thermal flux Excel file:")
             if not thermal_file:
                 continue
-            epithermal_file = select_excel_file("📁 Select epithermal flux Excel file:")
+            epithermal_file = select_excel_file("Select epithermal flux Excel file:")
             if not epithermal_file:
                 continue
-            fast_file = select_excel_file("📁 Select fast flux Excel file:")
+            fast_file = select_excel_file("Select fast flux Excel file:")
             if not fast_file:
                 continue
-            keff_file = select_excel_file("📁 Select K-eff Excel file:")
+            keff_file = select_excel_file("Select K-eff Excel file:")
             if not keff_file:
                 continue
 
@@ -507,14 +507,14 @@ def main():
 
                 save_merged_excel(final_merged, output_path)
 
-                print(f"\n✅ Saved merged results to: {output_path}")
+                print(f"\nSaved merged results to: {output_path}")
 
         elif choice == '5':
             print("\nExiting...")
             break
 
         else:
-            print("\n❌ Invalid choice. Please select 1-5.")
+            print("\nInvalid choice. Please select 1-5.")
 
 if __name__ == "__main__":
     main()

@@ -550,14 +550,14 @@ class OptimizationHistoryTracker:
                     update_details.append(update_info)
 
                     if pd.isna(existing_mape):
-                        print(f"✅ Updated {identifier_str}: MAPE N/A → {new_mape:.2f}%")
+                        print(f"Updated {identifier_str}: MAPE N/A → {new_mape:.2f}%")
                     else:
-                        print(f"✅ Updated {identifier_str}: MAPE {existing_mape:.2f}% → {new_mape:.2f}%")
+                        print(f"Updated {identifier_str}: MAPE {existing_mape:.2f}% → {new_mape:.2f}%")
                 else:
                     if pd.notna(new_mape) and pd.notna(existing_mape):
-                        print(f"⏭️  Skipped {identifier_str}: New MAPE ({new_mape:.2f}%) not better than existing ({existing_mape:.2f}%)")
+                        print(f"Skipped {identifier_str}: New MAPE ({new_mape:.2f}%) not better than existing ({existing_mape:.2f}%)")
                     else:
-                        print(f"⏭️  Skipped {identifier_str}: Invalid MAPE comparison")
+                        print(f"Skipped {identifier_str}: Invalid MAPE comparison")
             else:
                 # New combination, add it
                 # Start with all existing columns filled with NaN
@@ -585,7 +585,7 @@ class OptimizationHistoryTracker:
                 mape_str = f"{result.get('Test MAPE', 'N/A'):.2f}%" if pd.notna(result.get('Test MAPE', np.nan)) else "N/A"
                 print(f"➕ Added new: {identifier_str} (MAPE: {mape_str})")
 
-        print(f"\n📊 Summary: {updates_made} records updated, {additions_made} records added")
+        print(f"\nSummary: {updates_made} records updated, {additions_made} records added")
         return updated_df, update_details
 
     def save_history(self, df: pd.DataFrame, update_details: List[Dict]):
@@ -630,13 +630,13 @@ class OptimizationHistoryTracker:
                     self._format_sheet(writer.sheets['Keff Results'], keff_df)
                     sheets_created.append(f"Keff Results: {len(keff_df)} records")
 
-            print(f"\n💾 Optimization history saved to: {self.excel_file}")
+            print(f"\nOptimization history saved to: {self.excel_file}")
             for sheet_info in sheets_created:
-                print(f"  📄 {sheet_info}")
+                print(f"  {sheet_info}")
 
             # Print which specific rows were updated
             if update_details:
-                print("\n📝 Update details:")
+                print("\nUpdate details:")
                 for detail in update_details:
                     if detail['action'] == 'updated':
                         if pd.isna(detail['old_mape']):
@@ -778,21 +778,21 @@ class OptimizationHistoryTracker:
             return
 
         # Parse log file
-        print(f"\n📖 Parsing log file: {log_file}")
+        print(f"\nParsing log file: {log_file}")
         results = self.parse_log_file(log_file)
 
         if not results:
-            print("❌ No optimization results found in log file.")
+            print("No optimization results found in log file.")
             return
 
-        print(f"✅ Found {len(results)} optimization results")
+        print(f"Found {len(results)} optimization results")
 
         # Load existing history
-        print(f"\n📂 Loading existing history from: {self.excel_file}")
+        print(f"\nLoading existing history from: {self.excel_file}")
         existing_df = self.load_existing_history()
 
         # Update history
-        print(f"\n🔄 Updating history...")
+        print(f"\nUpdating history...")
         updated_df, update_details = self.update_history(existing_df, results)
 
         # Save updated history

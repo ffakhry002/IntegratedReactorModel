@@ -12,7 +12,20 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).parent.absolute()
 
 def run_command(command, description):
-    """Run a command and handle errors with real-time output."""
+    """Run a command and handle errors with real-time output.
+
+    Parameters
+    ----------
+    command : str
+        The shell command to execute
+    description : str
+        Description of what the command does for user display
+
+    Returns
+    -------
+    bool
+        True if command executed successfully, False otherwise
+    """
     print(f"\n{'='*60}")
     print(f"{description}")
     print(f"{'='*60}")
@@ -30,7 +43,18 @@ def run_command(command, description):
         return False
 
 def check_required_files(suffix):
-    """Check if required data files exist."""
+    """Check if required data files exist.
+
+    Parameters
+    ----------
+    suffix : str
+        File suffix to append to data file names (e.g., "_6x6")
+
+    Returns
+    -------
+    tuple
+        (missing_files, missing_optional) where each is a list of missing file paths
+    """
     required_files = [
         SCRIPT_DIR / f'output/data/core_configurations_optimized{suffix}.pkl',
         SCRIPT_DIR / f'output/data/physics_parameters{suffix}.pkl'
@@ -55,7 +79,13 @@ def check_required_files(suffix):
     return missing_files, missing_optional
 
 def get_method_selection():
-    """Get user selection of which methods to run."""
+    """Get user selection of which methods to run.
+
+    Returns
+    -------
+    list
+        List of method names (strings) selected by the user
+    """
     print("\n" + "="*60)
     print("METHOD SELECTION")
     print("="*60)
@@ -151,7 +181,14 @@ def get_method_selection():
             sys.exit(0)
 
 def main():
-    """Main workflow execution."""
+    """Main workflow execution.
+
+    Runs the complete core configuration sampling workflow including:
+    - Data generation and validation
+    - Method selection and configuration
+    - Parallel/sequential execution
+    - Results visualization
+    """
 
     print("REACTOR CORE CONFIGURATION SAMPLING WORKFLOW")
     print("="*80)

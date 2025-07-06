@@ -56,13 +56,13 @@ def with_timeout(timeout_seconds):
                     signal.alarm(0)
                 return result
             else:
-                print(f"   ⚠️  Windows detected - using time-based timeout monitoring")
+                print(f"   Windows detected - using time-based timeout monitoring")
                 start_time = time.time()
                 try:
                     result = func(*args, **kwargs)
                     elapsed = time.time() - start_time
                     if elapsed > timeout_seconds:
-                        print(f"   ⚠️  Function completed but took {elapsed:.1f}s (> {timeout_seconds}s timeout)")
+                        print(f"   Function completed but took {elapsed:.1f}s (> {timeout_seconds}s timeout)")
                     return result
                 except Exception as e:
                     elapsed = time.time() - start_time
@@ -161,7 +161,7 @@ class BoundsCalculator:
         upper = int(upper)
 
         if min_val is not None and max_val is not None and min_val == max_val:
-            print(f"   ⚠️  WARNING: Only one integer value allowed ({min_val}), consider using Categorical")
+            print(f"   WARNING: Only one integer value allowed ({min_val}), consider using Categorical")
             return min_val, min_val
 
         # Apply absolute bounds
@@ -281,7 +281,7 @@ class BoundsCalculator:
 
         # Final safety check - ensure valid bounds
         if lower_ideal >= upper_ideal:
-            print(f"   ⚠️  WARNING: Invalid bounds calculated for {param_type} parameter {param_name or 'unknown'}")
+            print(f"   WARNING: Invalid bounds calculated for {param_type} parameter {param_name or 'unknown'}")
             print(f"      Original value: {value}, min_val: {min_val}, max_val: {max_val}")
             print(f"      Calculated bounds: [{lower_ideal}, {upper_ideal}]")
 
@@ -550,14 +550,14 @@ class MLParameterConstraints:
         """Validate and adjust a parameter value according to ML constraints"""
         if param_name in cls.CANNOT_BE_ZERO and value <= 0:
             safe_min = cls.get_safe_min_value(param_name)
-            print(f"   ⚠️  WARNING: {param_name}={value} invalid, using {safe_min}")
+            print(f"   WARNING: {param_name}={value} invalid, using {safe_min}")
             return safe_min
         elif param_name in cls.POSITIVE_INTEGERS and value < 1:
-            print(f"   ⚠️  WARNING: {param_name}={value} invalid, using 1")
+            print(f"   WARNING: {param_name}={value} invalid, using 1")
             return 1
         elif param_name in cls.UNIT_INTERVAL and (value <= 0 or value > 1):
             clamped = max(0.1, min(1.0, value))
-            print(f"   ⚠️  WARNING: {param_name}={value} invalid, using {clamped}")
+            print(f"   WARNING: {param_name}={value} invalid, using {clamped}")
             return clamped
         return value
 
@@ -872,7 +872,7 @@ class SVMParameterHandler(ModelParameterHandler):
 
                 # Critical validation: ensure lower < upper before creating Real object
                 if lower >= upper:
-                    print(f"   ⚠️  WARNING: Invalid bounds for {param_name}: [{lower}, {upper}]")
+                    print(f"   WARNING: Invalid bounds for {param_name}: [{lower}, {upper}]")
                     print(f"      Value: {value}, min_val: {min_val}, max_val: {max_val}")
 
                     # Emergency fallback: use conservative range around min_val
@@ -893,16 +893,16 @@ class SVMParameterHandler(ModelParameterHandler):
 
                 # Additional constraint validation for ML parameters
                 if param_name in ['gamma', 'epsilon'] and lower <= 0:
-                    print(f"   ⚠️  WARNING: {param_name} cannot be <= 0, adjusting lower bound")
+                    print(f"   WARNING: {param_name} cannot be <= 0, adjusting lower bound")
                     lower = min_val
                     if upper <= lower:
                         upper = lower * 2.0
 
                 search_spaces[f'{prefix}{param_name}'] = Real(lower, upper, prior='log-uniform')
-                print(f"   ✅ {param_name}: Real({lower:.6f}, {upper:.6f})")
+                print(f"   {param_name}: Real({lower:.6f}, {upper:.6f})")
 
             except Exception as e:
-                print(f"   ❌ ERROR creating bounds for {param_name}: {str(e)}")
+                print(f"   ERROR creating bounds for {param_name}: {str(e)}")
                 print(f"      Using safe default bounds")
 
                 # Ultimate fallback to safe defaults
@@ -1155,7 +1155,7 @@ def setup_cross_validation(X_train: np.ndarray, y_train: np.ndarray,
         print(f"   - Preventing augmentation leakage in CV")
 
         # Expected split sizes
-        print(f"\n🎯 Expected CV Split Sizes:")
+        print(f"\nExpected CV Split Sizes:")
         configs_per_test_fold = n_unique_groups // n_splits
         configs_per_train_fold = n_unique_groups - configs_per_test_fold
         expected_test_samples = configs_per_test_fold * samples_per_config
@@ -1164,7 +1164,7 @@ def setup_cross_validation(X_train: np.ndarray, y_train: np.ndarray,
         print(f"   - Train fold: ~{configs_per_train_fold} configs × {samples_per_config:.1f} samples = ~{expected_train_samples:.0f} train samples")
 
         # Verify first fold
-        print(f"\n🔬 Actual CV Split Verification (Fold 1):")
+        print(f"\nActual CV Split Verification (Fold 1):")
         for i, (train_idx, test_idx) in enumerate(cv.split(X_train, y_train, groups)):
             train_configs = len(np.unique(groups[train_idx]))
             test_configs = len(np.unique(groups[test_idx]))
@@ -1200,7 +1200,7 @@ class OptimizationStage:
     def safe_fit_with_progress(self, search_cv, X, y, groups=None, n_splits=10):
         """Safely fit search with timeout and progress tracking"""
         try:
-            print(f"\n⏱️  Starting {self.stage_name} at {datetime.now().strftime('%H:%M:%S')}...")
+            print(f"\nStarting {self.stage_name} at {datetime.now().strftime('%H:%M:%S')}...")
 
             stage_start_time = time.time()
 
@@ -1237,7 +1237,7 @@ class OptimizationStage:
                     elif 'mlp' in model_type:
                         search_cv.estimator.set_params(verbose=True)
                 except Exception as e:
-                    print(f"   ⚠️  Could not set verbose mode: {str(e)[:50]}")
+                    print(f"   Could not set verbose mode: {str(e)[:50]}")
 
             # Fit with timeout
             with warnings.catch_warnings():
@@ -1246,7 +1246,7 @@ class OptimizationStage:
                     signal.signal(signal.SIGALRM, timeout_handler)
                     signal.alarm(config.stage_timeout)
                 else:
-                    print(f"   ⚠️  Windows: No hard timeout - monitoring execution time manually")
+                    print(f"   Windows: No hard timeout - monitoring execution time manually")
 
                 try:
                     if groups is not None:
@@ -1257,9 +1257,9 @@ class OptimizationStage:
                     elapsed = time.time() - stage_start_time
 
                     if platform.system() == 'Windows' and elapsed > config.stage_timeout:
-                        print(f"\n⚠️  {self.stage_name} completed but took {elapsed:.1f}s (>{config.stage_timeout}s)")
+                        print(f"\n{self.stage_name} completed but took {elapsed:.1f}s (>{config.stage_timeout}s)")
                     else:
-                        print(f"\n✅ {self.stage_name} completed successfully in {elapsed:.1f}s!")
+                        print(f"\n{self.stage_name} completed successfully in {elapsed:.1f}s!")
 
                     # Extract target type from scorer
                     if hasattr(search_cv, 'scoring') and callable(search_cv.scoring):
@@ -1274,7 +1274,7 @@ class OptimizationStage:
                         signal.alarm(0)
 
         except TimeoutException:
-            print(f"\n⏱️  {self.stage_name} timed out after {config.stage_timeout}s")
+            print(f"\n{self.stage_name} timed out after {config.stage_timeout}s")
             if hasattr(search_cv, 'cv_results_'):
                 scores = search_cv.cv_results_['mean_test_score']
                 if len(scores) > 0:
@@ -1287,7 +1287,7 @@ class OptimizationStage:
             return False, {}, float('-inf'), None
 
         except Exception as e:
-            print(f"\n❌ {self.stage_name} failed with error: {str(e)[:100]}")
+            print(f"\n{self.stage_name} failed with error: {str(e)[:100]}")
             return False, {}, float('-inf'), None
 
 class RandomSearchStage(OptimizationStage):
@@ -1306,7 +1306,7 @@ class RandomSearchStage(OptimizationStage):
 
         stage_start = time.time()
 
-        print(f"\n📊 Random Search Parameters:")
+        print(f"\nRandom Search Parameters:")
         print(f"   - Candidates to test: {n_iter}")
         print(f"   - Cross-validation folds: {n_splits}")
         print(f"   - Total fits: {n_iter * n_splits}")
@@ -1409,7 +1409,7 @@ class GridSearchStage(OptimizationStage):
         else:
             total_combinations = np.prod([len(v) for v in param_grid.values()])
 
-        print(f"\n🔍 Grid Search Parameters:")
+        print(f"\nGrid Search Parameters:")
         print(f"   - Parameter combinations: {total_combinations}")
         print(f"   - Cross-validation folds: {n_splits}")
         print(f"   - Total fits: {total_combinations * n_splits}")
@@ -1522,7 +1522,7 @@ class BayesianSearchStage(OptimizationStage):
         handler = ParameterHandlerFactory.create_handler(model_type)
         search_spaces = handler.create_bayesian_spaces(best_params_so_far, needs_wrapper)
 
-        print(f"\n🎯 Bayesian Search Parameters:")
+        print(f"\nBayesian Search Parameters:")
         print(f"   - Iterations: {n_iter}")
         print(f"   - Cross-validation folds: {n_splits}")
         print(f"   - Total fits: up to {n_iter * n_splits}")
@@ -1644,7 +1644,7 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
     if fast_mode:
         actual_random_iter = config.fast_random_iter
         actual_bayesian_iter = config.fast_bayesian_iter
-        print(f"   🚀 FAST MODE: Using reduced iteration counts for quick testing")
+        print(f"   FAST MODE: Using reduced iteration counts for quick testing")
     else:
         actual_random_iter = n_random_iter if n_random_iter is not None else config.default_random_iter
         actual_bayesian_iter = n_bayesian_iter if n_bayesian_iter is not None else config.default_bayesian_iter
@@ -1671,7 +1671,7 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
 
     if model_type in expected_names:
         if not any(name in model_class_name for name in expected_names[model_type]):
-            print(f"⚠️  WARNING: Model class '{model_class.__name__}' may not match model_type '{model_type}'")
+            print(f"WARNING: Model class '{model_class.__name__}' may not match model_type '{model_type}'")
             print(f"   Expected one of: {expected_names[model_type]}")
 
     optimization_start_time = time.time()
@@ -1715,7 +1715,7 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
     else:
         needs_wrapper = False
 
-    print(f"\n📊 Data Info:")
+    print(f"\nData Info:")
     print(f"   - Training samples: {X_train.shape[0]}")
     print(f"   - Features: {X_train.shape[1]}")
     print(f"   - Output type: {'Multi-output' if has_multi_output_data else 'Single output'}")
@@ -1739,7 +1739,7 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
 
     # Extract fixed parameters that should not be optimized
     fixed_params = handler.get_fixed_params()
-    print(f"\n🔒 Fixed Parameters (not optimized):")
+    print(f"\nFixed Parameters (not optimized):")
     for param, value in fixed_params.items():
         print(f"   - {param}: {value}")
 
@@ -1758,14 +1758,14 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
         best_params_so_far = best_random_params
         best_score_so_far = best_random_score
     else:
-        print(f"\n❌ Stage 1 failed to find any parameters. Returning default parameters.")
+        print(f"\nStage 1 failed to find any parameters. Returning default parameters.")
         default_params = handler.get_default_params()
         # Always return clean parameters (no prefixes) for final model training
         return default_params, None
 
     # Check total timeout
     if time.time() - optimization_start_time > config.total_timeout:
-        print(f"\n⏱️  Total timeout reached. Returning best parameters found so far.")
+        print(f"\nTotal timeout reached. Returning best parameters found so far.")
         return clean_optimization_parameters(best_params_so_far), None
 
     # ========================================================================
@@ -1782,13 +1782,13 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
         if best_grid_score > best_score_so_far:
             best_params_so_far = best_grid_params
             best_score_so_far = best_grid_score
-            print(f"\n✅ Grid search improved performance!")
+            print(f"\nGrid search improved performance!")
         else:
             print(f"\n Grid search did not improve performance.")
 
     # Check total timeout
     if time.time() - optimization_start_time > config.total_timeout:
-        print(f"\n⏱️  Total timeout reached. Returning best parameters found so far.")
+        print(f"\nTotal timeout reached. Returning best parameters found so far.")
         return clean_optimization_parameters(best_params_so_far), None
 
     # ========================================================================
@@ -1806,7 +1806,7 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
         if best_bayes_score > best_score_so_far:
             best_params_so_far = best_bayes_params
             best_score_so_far = best_bayes_score
-            print(f"\n✅ Bayesian search improved performance!")
+            print(f"\nBayesian search improved performance!")
         else:
             print(f"\n Bayesian search did not improve performance.")
 

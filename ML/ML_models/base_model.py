@@ -5,7 +5,11 @@ import joblib
 from datetime import datetime
 
 class ReactorModelBase(ABC):
-    """Base class for all reactor ML models to ensure consistency"""
+    """Base class for all reactor ML models to ensure consistency.
+
+    Provides common interface and functionality for flux and k-effective prediction
+    models, including model saving/loading, flux mode handling, and validation.
+    """
 
     def __init__(self):
         self.flux_model = None
@@ -16,7 +20,14 @@ class ReactorModelBase(ABC):
         self.params = {}  # Initialize params dict
 
     def set_flux_mode(self, flux_mode):
-        """Set the flux mode and update expected outputs"""
+        """Set the flux mode and update expected outputs.
+
+        Parameters
+        ----------
+        flux_mode : str
+            Flux prediction mode ('total', 'energy', 'bin', 'thermal_only',
+            'epithermal_only', 'fast_only')
+        """
         self.flux_mode = flux_mode
         if flux_mode == 'total':
             self._n_flux_outputs = 4
@@ -26,7 +37,13 @@ class ReactorModelBase(ABC):
             self._n_flux_outputs = 12
 
     def get_flux_mode(self):
-        """Get the current flux mode"""
+        """Get the current flux mode.
+
+        Returns
+        -------
+        str
+            Current flux prediction mode
+        """
         return self.flux_mode
 
     @abstractmethod
@@ -50,7 +67,18 @@ class ReactorModelBase(ABC):
         pass
 
     def validate_flux_output(self, y_flux):
-        """Validate and reshape flux training data if needed"""
+        """Validate and reshape flux training data if needed.
+
+        Parameters
+        ----------
+        y_flux : numpy.ndarray
+            Flux training data
+
+        Returns
+        -------
+        numpy.ndarray
+            Validated and properly shaped flux data
+        """
         if len(y_flux.shape) == 1:
             # Attempt to reshape
             if y_flux.shape[0] % self._n_flux_outputs == 0:
@@ -67,7 +95,22 @@ class ReactorModelBase(ABC):
         return y_flux
 
     def validate_prediction_shape(self, predictions, n_samples, target_type='flux'):
-        """Ensure predictions have correct shape"""
+        """Ensure predictions have correct shape.
+
+        Parameters
+        ----------
+        predictions : numpy.ndarray
+            Model predictions
+        n_samples : int
+            Number of samples
+        target_type : str, optional
+            Type of prediction ('flux' or 'keff')
+
+        Returns
+        -------
+        numpy.ndarray
+            Predictions with validated shape
+        """
         if target_type == 'flux':
             expected_shape = (n_samples, self._n_flux_outputs)
 
@@ -91,7 +134,32 @@ class ReactorModelBase(ABC):
 
     def save_model(self, filepath, model_type, encoding, optimization_method,
                    flux_scale=1e14, use_log_flux=False, flux_mode='total', **extra_metadata):
-        """Save trained model with comprehensive metadata"""
+        """Save trained model with comprehensive metadata.
+
+        Parameters
+        ----------
+        filepath : str
+            Path where to save the model
+        model_type : str
+            Type of model ('flux' or 'keff')
+        encoding : str
+            Encoding method used
+        optimization_method : str
+            Optimization method used
+        flux_scale : float, optional
+            Flux scaling factor (default: 1e14)
+        use_log_flux : bool, optional
+            Whether logarithmic flux scaling was used (default: False)
+        flux_mode : str, optional
+            Flux prediction mode (default: 'total')
+        **extra_metadata
+            Additional metadata to save
+
+        Returns
+        -------
+        str
+            Path to saved model file
+        """
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
         # Construct filename with all identifiers
@@ -159,7 +227,19 @@ class ReactorModelBase(ABC):
 
     @classmethod
     def load_model(cls, filepath):
-        """Load model with all metadata"""
+        """Load model with all metadata.
+
+        Parameters
+        ----------
+        filepath : str
+            Path to saved model file
+
+        Returns
+        -------
+        tuple
+            (model_instance, metadata_dict) where model_instance is the loaded
+            model and metadata_dict contains saved metadata
+        """
         data = joblib.load(filepath)
 
         # Create a temporary instance to get the model_class_name

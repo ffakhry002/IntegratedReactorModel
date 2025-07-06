@@ -265,7 +265,7 @@ def main():
         print(f"  Optimizations: {', '.join(optimizations)}")
 
         # Check data availability
-        print(f"\n📊 Data availability check:")
+        print(f"\nData availability check:")
 
         # Check for flux data
         if has_energy_discretization:
@@ -823,7 +823,7 @@ def main():
                     flux_modes_in_excel.add('epithermal_only')
                 if any('_fast_' in col for col in test_results_df.columns):
                     flux_modes_in_excel.add('fast_only')
-                print(f"  🔧 Multi-energy data detected - added individual energy modes to search")
+                print(f"  Multi-energy data detected - added individual energy modes to search")
         else:
             # Infer from columns
             if has_energy_discretization:
@@ -929,7 +929,7 @@ def main():
 
             for key, study_path in relevant_studies.items():
                 try:
-                    print(f"\n📊 Processing {key}...")
+                    print(f"\nProcessing {key}...")
 
                     # Load the study
                     study = joblib.load(study_path)

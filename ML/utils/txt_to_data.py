@@ -7,9 +7,22 @@ from datetime import datetime
 import os
 
 def parse_reactor_data(filename: str) -> Tuple[List[np.ndarray], List[Dict], List[float], List[str], List[Dict]]:
-    """
-    Parse reactor configuration data from text file with validation.
-    Returns: (lattices, flux_data, k_effectives, descriptions, energy_groups)
+    """Parse reactor configuration data from text file with validation.
+
+    Parameters
+    ----------
+    filename : str
+        Path to the text file containing reactor configuration data
+
+    Returns
+    -------
+    tuple
+        (lattices, flux_data, k_effectives, descriptions, energy_groups) where:
+        - lattices: List of 8x8 numpy arrays representing core configurations
+        - flux_data: List of dictionaries with flux values per irradiation position
+        - k_effectives: List of k-effective values
+        - descriptions: List of configuration descriptions
+        - energy_groups: List of dictionaries with energy group percentages
     """
     lattices = []
     flux_data = []
@@ -110,18 +123,24 @@ def parse_reactor_data(filename: str) -> Tuple[List[np.ndarray], List[Dict], Lis
     return lattices, flux_data, k_effectives, descriptions, energy_groups
 
 def create_reactor_data_excel(data_file_path: str, output_prefix: str = "parsed_data_", output_dir: str = None):
-    """
-    Create an Excel file with parsed reactor data.
+    """Create an Excel file with parsed reactor data.
+
     If 'test' is in output_prefix, only original configurations are included.
-    Otherwise, all rotational symmetries are applied.
+    Otherwise, all rotational symmetries are applied for data augmentation.
 
-    Args:
-        data_file_path: Path to the input data file
-        output_prefix: Prefix for the output Excel filename (default: "parsed_data_")
-        output_dir: Directory where the Excel file should be saved (default: current directory)
+    Parameters
+    ----------
+    data_file_path : str
+        Path to the input data file
+    output_prefix : str, optional
+        Prefix for the output Excel filename (default: "parsed_data_")
+    output_dir : str, optional
+        Directory where the Excel file should be saved (default: current directory)
 
-    Returns:
-        str: Path to the created Excel file
+    Returns
+    -------
+    str
+        Path to the created Excel file
     """
     # Parse the data
     lattices, flux_data, k_effectives, descriptions, energy_groups = parse_reactor_data(data_file_path)
@@ -356,10 +375,26 @@ def create_reactor_data_excel(data_file_path: str, output_prefix: str = "parsed_
     return excel_filepath
 
 def apply_rotational_symmetry(lattice, flux_dict, k_eff, energy_dict=None):
-    """
-    Apply 8-fold rotational symmetry augmentation to reactor configuration
-    FIXED: Properly tracks flux values during rotation
-    NOW: Also handles energy group data
+    """Apply 8-fold rotational symmetry augmentation to reactor configuration.
+
+    Properly tracks flux values during rotation and handles energy group data.
+
+    Parameters
+    ----------
+    lattice : numpy.ndarray
+        8x8 reactor configuration array
+    flux_dict : dict
+        Dictionary mapping irradiation positions to flux values
+    k_eff : float
+        K-effective value for the configuration
+    energy_dict : dict, optional
+        Dictionary mapping positions to energy group data
+
+    Returns
+    -------
+    list
+        List of augmented configurations, each as tuple of
+        (lattice, flux_dict, k_eff, energy_dict)
     """
     augmented_data = []
 
@@ -442,10 +477,28 @@ def apply_rotational_symmetry(lattice, flux_dict, k_eff, energy_dict=None):
     return augmented_data
 
 def rotate_flux_values(original_lattice, rotated_lattice, flux_dict, irr_positions, k):
-    """
-    Correctly map flux values after rotation
-    k: number of 90-degree counter-clockwise rotations (1, 2, or 3)
+    """Correctly map flux values after rotation.
 
+    Parameters
+    ----------
+    original_lattice : numpy.ndarray
+        Original 8x8 lattice before rotation
+    rotated_lattice : numpy.ndarray
+        Lattice after rotation
+    flux_dict : dict
+        Original flux dictionary
+    irr_positions : dict
+        Dictionary mapping labels to original positions
+    k : int
+        Number of 90-degree counter-clockwise rotations (1, 2, or 3)
+
+    Returns
+    -------
+    dict
+        New flux dictionary with correctly mapped values after rotation
+
+    Notes
+    -----
     numpy.rot90 rotates counter-clockwise:
     k=1: 90° CCW  -> (i,j) becomes (n-1-j, i)
     k=2: 180° CCW -> (i,j) becomes (n-1-i, n-1-j)
@@ -485,9 +538,25 @@ def rotate_flux_values(original_lattice, rotated_lattice, flux_dict, irr_positio
 
 
 def flip_flux_values(original_lattice, flipped_lattice, flux_dict, irr_positions, axis):
-    """
-    Correctly map flux values after flipping
-    axis: 'horizontal' or 'vertical'
+    """Correctly map flux values after flipping.
+
+    Parameters
+    ----------
+    original_lattice : numpy.ndarray
+        Original 8x8 lattice before flipping
+    flipped_lattice : numpy.ndarray
+        Lattice after flipping
+    flux_dict : dict
+        Original flux dictionary
+    irr_positions : dict
+        Dictionary mapping labels to original positions
+    axis : str
+        Flip axis: 'horizontal' or 'vertical'
+
+    Returns
+    -------
+    dict
+        New flux dictionary with correctly mapped values after flipping
     """
     new_flux = {}
     n = original_lattice.shape[0]
@@ -515,8 +584,23 @@ def flip_flux_values(original_lattice, flipped_lattice, flux_dict, irr_positions
 
 
 def transpose_flux_values(original_lattice, transposed_lattice, flux_dict, irr_positions):
-    """
-    Correctly map flux values after transpose
+    """Correctly map flux values after transpose.
+
+    Parameters
+    ----------
+    original_lattice : numpy.ndarray
+        Original 8x8 lattice before transpose
+    transposed_lattice : numpy.ndarray
+        Lattice after transpose
+    flux_dict : dict
+        Original flux dictionary
+    irr_positions : dict
+        Dictionary mapping labels to original positions
+
+    Returns
+    -------
+    dict
+        New flux dictionary with correctly mapped values after transpose
     """
     new_flux = {}
 
@@ -539,8 +623,25 @@ def transpose_flux_values(original_lattice, transposed_lattice, flux_dict, irr_p
 
 
 def anti_diagonal_flux_values(original_lattice, anti_diag_lattice, flux_dict, irr_positions):
-    """
-    Correctly map flux values after anti-diagonal flip (transpose + horizontal flip)
+    """Correctly map flux values after anti-diagonal flip.
+
+    Anti-diagonal flip is equivalent to transpose followed by horizontal flip.
+
+    Parameters
+    ----------
+    original_lattice : numpy.ndarray
+        Original 8x8 lattice before transformation
+    anti_diag_lattice : numpy.ndarray
+        Lattice after anti-diagonal flip
+    flux_dict : dict
+        Original flux dictionary
+    irr_positions : dict
+        Dictionary mapping labels to original positions
+
+    Returns
+    -------
+    dict
+        New flux dictionary with correctly mapped values after anti-diagonal flip
     """
     new_flux = {}
     n = original_lattice.shape[0]
@@ -563,9 +664,18 @@ def anti_diagonal_flux_values(original_lattice, anti_diag_lattice, flux_dict, ir
     return new_flux
 
 def encode_lattice_for_prediction(lattice: np.ndarray) -> Tuple[np.ndarray, List[Tuple]]:
-    """
-    Encode a single lattice for prediction.
-    Returns: (feature_vector, irradiation_positions)
+    """Encode a single lattice for prediction.
+
+    Parameters
+    ----------
+    lattice : numpy.ndarray
+        8x8 reactor configuration array
+
+    Returns
+    -------
+    tuple
+        (feature_vector, irradiation_positions) where feature_vector is numpy array
+        of encoded features and irradiation_positions is list of (row, col) tuples
     """
     feature_vec = []
     irr_positions = []
@@ -594,15 +704,20 @@ def encode_lattice_for_prediction(lattice: np.ndarray) -> Tuple[np.ndarray, List
 # Add this utility function to both txt_to_data.py and model_tester.py
 
 def get_sorted_flux_values(lattice, flux_dict, irr_positions):
-    """
-    Get flux values in consistent order (sorted by label: I_1, I_2, I_3, I_4)
+    """Get flux values in consistent order (sorted by label: I_1, I_2, I_3, I_4).
 
-    Args:
-        lattice: The reactor lattice
-        flux_dict: Dictionary of flux values (can have various key formats)
-        irr_positions: List of (row, col) tuples for irradiation positions
+    Parameters
+    ----------
+    lattice : numpy.ndarray
+        The reactor lattice
+    flux_dict : dict
+        Dictionary of flux values (can have various key formats)
+    irr_positions : list
+        List of (row, col) tuples for irradiation positions
 
-    Returns:
+    Returns
+    -------
+    list
         List of flux values in consistent order [I_1_flux, I_2_flux, I_3_flux, I_4_flux]
     """
     # Create mapping of labels to flux values
@@ -636,9 +751,27 @@ def get_sorted_flux_values(lattice, flux_dict, irr_positions):
 # UPDATED prepare_ml_data function for txt_to_data.py:
 
 def prepare_ml_data(lattices: List[np.ndarray], flux_data: List[Dict], k_effectives: List[float], energy_groups: List[Dict] = None):
-    """
-    Prepare data for ML training with rotational augmentation.
-    Returns: (X_features, y_flux_values, y_k_eff, irr_positions_list)
+    """Prepare data for ML training with rotational augmentation.
+
+    Parameters
+    ----------
+    lattices : List[numpy.ndarray]
+        List of 8x8 reactor configuration arrays
+    flux_data : List[Dict]
+        List of dictionaries with flux values per irradiation position
+    k_effectives : List[float]
+        List of k-effective values
+    energy_groups : List[Dict], optional
+        List of dictionaries with energy group data
+
+    Returns
+    -------
+    tuple
+        (X_features, y_flux_values, y_k_eff, irr_positions_list) where:
+        - X_features: Feature matrix for ML input
+        - y_flux_values: Target flux values
+        - y_k_eff: Target k-effective values
+        - irr_positions_list: List of irradiation position tuples
     """
     X_features = []
     y_flux_values = []
@@ -698,12 +831,21 @@ def prepare_ml_data(lattices: List[np.ndarray], flux_data: List[Dict], k_effecti
             np.array(y_k_eff), irr_positions_list)
 
 def validate_irradiation_positions(lattice: np.ndarray, flux_dict: Dict) -> Tuple[Dict, List[str]]:
-    """
-    Validate and normalize irradiation positions.
+    """Validate and normalize irradiation positions.
 
-    Returns:
-        normalized_flux: Dict with consistent I_1 through I_n labels
-        warnings: List of any issues found
+    Parameters
+    ----------
+    lattice : numpy.ndarray
+        8x8 reactor configuration array
+    flux_dict : Dict
+        Dictionary mapping irradiation positions to flux values
+
+    Returns
+    -------
+    tuple
+        (normalized_flux, warnings) where:
+        - normalized_flux: Dict with consistent I_1 through I_n labels
+        - warnings: List of any issues found during validation
     """
     warnings = []
 

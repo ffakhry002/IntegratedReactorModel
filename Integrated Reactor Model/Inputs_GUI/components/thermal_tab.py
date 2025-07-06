@@ -163,7 +163,7 @@ class ThermalTab:
         # Next button
         self.next_button = ttk.Button(
             nav_frame,
-            text="Next ▶",
+                            text="Next >",
             command=self.next_image,
             state=tk.DISABLED
         )

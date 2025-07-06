@@ -71,7 +71,7 @@ class OptimizationHistoryTracker:
             print(f"No model files found in {self.models_dir}")
             return []
 
-        print(f"\n📂 Found {len(model_files)} model files in {self.models_dir}")
+        print(f"\nFound {len(model_files)} model files in {self.models_dir}")
         return [str(f) for f in sorted(model_files)]
 
     def parse_model_filename(self, filename: str) -> Optional[Dict]:
@@ -335,12 +335,12 @@ class OptimizationHistoryTracker:
                     update_details.append(update_info)
 
                     if pd.isna(existing_mape):
-                        print(f"✅ Updated {identifier_str}: MAPE N/A → {new_mape:.4f}%")
+                        print(f"Updated {identifier_str}: MAPE N/A → {new_mape:.4f}%")
                     else:
-                        print(f"✅ Updated {identifier_str}: MAPE {existing_mape:.4f}% → {new_mape:.4f}%")
+                        print(f"Updated {identifier_str}: MAPE {existing_mape:.4f}% → {new_mape:.4f}%")
                 else:
                     if pd.notna(new_mape) and pd.notna(existing_mape):
-                        print(f"⏭️  Skipped {identifier_str}: New MAPE ({new_mape:.4f}%) not better than existing ({existing_mape:.4f}%)")
+                        print(f"Skipped {identifier_str}: New MAPE ({new_mape:.4f}%) not better than existing ({existing_mape:.4f}%)")
             else:
                 # New combination, add it
                 new_row = {col: np.nan for col in updated_df.columns}
@@ -363,7 +363,7 @@ class OptimizationHistoryTracker:
                 mape_str = f"{result.get('Test MAPE', 'N/A'):.4f}%" if pd.notna(result.get('Test MAPE', np.nan)) else "N/A"
                 print(f"➕ Added new: {identifier_str} (MAPE: {mape_str})")
 
-        print(f"\n📊 Summary: {updates_made} records updated, {additions_made} records added")
+        print(f"\nSummary: {updates_made} records updated, {additions_made} records added")
         return updated_df, update_details
 
     def save_history(self, df: pd.DataFrame, update_details: List[Dict]):
@@ -408,13 +408,13 @@ class OptimizationHistoryTracker:
                     self._format_sheet(writer.sheets['Keff Results'], keff_df)
                     sheets_created.append(f"Keff Results: {len(keff_df)} records")
 
-            print(f"\n💾 Optimization history saved to: {self.excel_file}")
+            print(f"\nOptimization history saved to: {self.excel_file}")
             for sheet_info in sheets_created:
-                print(f"  📄 {sheet_info}")
+                print(f"  {sheet_info}")
 
             # Print which specific rows were updated
             if update_details:
-                print("\n📝 Update details:")
+                print("\nUpdate details:")
                 for detail in update_details:
                     if detail['action'] == 'updated':
                         if pd.isna(detail['old_mape']):
@@ -556,7 +556,7 @@ class OptimizationHistoryTracker:
             return
 
         # Extract data from each model file
-        print(f"\n📖 Extracting data from model files...")
+        print(f"\nExtracting data from model files...")
         results = []
 
         for i, model_path in enumerate(model_files, 1):
@@ -566,18 +566,18 @@ class OptimizationHistoryTracker:
             if model_data:
                 results.append(model_data)
 
-        print(f"\n✅ Successfully extracted data from {len(results)} model files")
+        print(f"\nSuccessfully extracted data from {len(results)} model files")
 
         if not results:
-            print("❌ No valid model data found.")
+            print("No valid model data found.")
             return
 
         # Load existing history
-        print(f"\n📂 Loading existing history from: {self.excel_file}")
+        print(f"\nLoading existing history from: {self.excel_file}")
         existing_df = self.load_existing_history()
 
         # Update history
-        print(f"\n🔄 Updating history...")
+        print(f"\nUpdating history...")
         updated_df, update_details = self.update_history(existing_df, results)
 
         # Save updated history

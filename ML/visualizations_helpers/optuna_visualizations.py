@@ -71,7 +71,7 @@ def save_optimization_history(study: optuna.Study, save_dir: str) -> None:
     complete_trials = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE and t.value is not None]
 
     if not complete_trials:
-        print("  ⚠ No completed trials to plot")
+        print("  No completed trials to plot")
         return
 
     # Extract trial numbers and values
@@ -132,7 +132,7 @@ def save_param_importances(study: optuna.Study, save_dir: str) -> None:
         plt.close()
         print(f"  ✓ Saved parameter importances")
     except Exception as e:
-        print(f"  ⚠ Could not generate parameter importance plot: {str(e)}")
+        print(f"  Could not generate parameter importance plot: {str(e)}")
 
 
 def save_param_relationships(study: optuna.Study, save_dir: str, n_params: Optional[int] = None) -> None:
@@ -169,7 +169,7 @@ def save_param_relationships(study: optuna.Study, save_dir: str, n_params: Optio
                 plt.close()
 
     except Exception as e:
-        print(f"  ⚠ Could not generate contour plots: {str(e)}")
+        print(f"  Could not generate contour plots: {str(e)}")
 
 
 def save_slice_plots(study: optuna.Study, save_dir: str) -> None:
@@ -182,7 +182,7 @@ def save_slice_plots(study: optuna.Study, save_dir: str) -> None:
         plt.close()
         print(f"  ✓ Saved parameter slice plots")
     except Exception as e:
-        print(f"  ⚠ Could not generate slice plots: {str(e)}")
+        print(f"  Could not generate slice plots: {str(e)}")
 
 
 def save_parallel_coordinate_plot(study: optuna.Study, save_dir: str, top_n: int = 20) -> None:
@@ -198,7 +198,7 @@ def save_parallel_coordinate_plot(study: optuna.Study, save_dir: str, top_n: int
         plt.close()
         print(f"  ✓ Saved parallel coordinate plot")
     except Exception as e:
-        print(f"  ⚠ Could not generate parallel coordinate plot: {str(e)}")
+        print(f"  Could not generate parallel coordinate plot: {str(e)}")
 
 
 def save_edf_plot(study: optuna.Study, save_dir: str) -> None:
@@ -211,7 +211,7 @@ def save_edf_plot(study: optuna.Study, save_dir: str) -> None:
         plt.close()
         print(f"  ✓ Saved EDF plot")
     except Exception as e:
-        print(f"  ⚠ Could not generate EDF plot: {str(e)}")
+        print(f"  Could not generate EDF plot: {str(e)}")
 
 
 def save_timeline_plot(study: optuna.Study, save_dir: str) -> None:
@@ -224,7 +224,7 @@ def save_timeline_plot(study: optuna.Study, save_dir: str) -> None:
         plt.close()
         print(f"  ✓ Saved timeline plot")
     except Exception as e:
-        print(f"  ⚠ Could not generate timeline plot: {str(e)}")
+        print(f"  Could not generate timeline plot: {str(e)}")
 
 
 def save_hyperparameter_history(study: optuna.Study, save_dir: str) -> None:
@@ -234,7 +234,7 @@ def save_hyperparameter_history(study: optuna.Study, save_dir: str) -> None:
     n_params = len(params)
 
     if n_params == 0:
-        print("  ⚠ No parameters to plot")
+        print("  No parameters to plot")
         return
 
     # Create subplots
@@ -504,12 +504,12 @@ def save_parameter_correlation_matrix(study: optuna.Study, save_dir: str) -> Non
                 plt.close()
                 print(f"  ✓ Saved parameter correlation matrix")
             else:
-                print(f"  ⚠ Not enough numeric parameters for correlation matrix (found {len(numeric_param_columns)})")
+                print(f"  Not enough numeric parameters for correlation matrix (found {len(numeric_param_columns)})")
         else:
-            print(f"  ⚠ Not enough parameters for correlation matrix (found {len(param_columns)})")
+            print(f"  Not enough parameters for correlation matrix (found {len(param_columns)})")
 
     except Exception as e:
-        print(f"  ⚠ Could not generate correlation matrix: {str(e)}")
+        print(f"  Could not generate correlation matrix: {str(e)}")
 
 
 def save_objective_distribution(study: optuna.Study, save_dir: str) -> None:
@@ -544,7 +544,7 @@ def save_objective_distribution(study: optuna.Study, save_dir: str) -> None:
             print(f"  ✓ Saved objective distribution plots")
 
     except Exception as e:
-        print(f"  ⚠ Could not generate distribution plots: {str(e)}")
+        print(f"  Could not generate distribution plots: {str(e)}")
 
 
 def generate_all_optuna_visualizations(
@@ -600,7 +600,7 @@ def generate_all_optuna_visualizations(
         try:
             viz_func(filtered_study, save_dir)
         except Exception as e:
-            print(f"  ⚠ ERROR generating {viz_name}: {str(e)}")
+            print(f"  ERROR generating {viz_name}: {str(e)}")
             import traceback
             traceback.print_exc()
 
@@ -610,7 +610,7 @@ def generate_all_optuna_visualizations(
             try:
                 viz_func(filtered_study, save_dir)
             except Exception as e:
-                print(f"  ⚠ ERROR generating {viz_name}: {str(e)}")
+                print(f"  ERROR generating {viz_name}: {str(e)}")
 
     # Save study for later analysis
     try:
@@ -618,7 +618,7 @@ def generate_all_optuna_visualizations(
         joblib.dump(study, study_file)
         print(f"  ✓ Saved study object to {study_file}")
     except Exception as e:
-        print(f"  ⚠ ERROR saving study object: {str(e)}")
+        print(f"  ERROR saving study object: {str(e)}")
 
     print(f"\nOptuna visualizations saved to: {save_dir}")
 
@@ -656,4 +656,4 @@ def plot_learning_curves_by_param(study: optuna.Study, param_name: str, save_dir
             plt.close()
 
     except Exception as e:
-        print(f"  ⚠ Could not plot learning curve for {param_name}: {str(e)}")
+        print(f"  Could not plot learning curve for {param_name}: {str(e)}")

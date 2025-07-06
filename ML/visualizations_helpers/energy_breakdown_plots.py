@@ -185,7 +185,7 @@ def create_energy_breakdown_plots(df, output_dir):
                 print(f"  ✓ Created energy breakdown plot: {model}/{filename}")
 
     # Create relative error vs configuration plots (6 panels: 4 positions + mean + max)
-    print("\n📈 Creating relative error vs configuration plots...")
+    print("\nCreating relative error vs configuration plots...")
     create_flux_vs_config_plots(df, output_dir)
 
 def create_flux_vs_config_plots(df, output_dir):

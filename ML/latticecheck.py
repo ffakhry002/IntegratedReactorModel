@@ -382,14 +382,14 @@ class PhysicsLearningTester:
         print(f"\nModels with correct physics learning: {good_models}/{len(results)}")
 
         if good_models == 0:
-            print("\n⚠️  WARNING: No models are learning position-based physics!")
+            print("\nWARNING: No models are learning position-based physics!")
             print("   This suggests the encoding fix has not been applied.")
             print("   Please ensure you're using the updated encoding_methods.py")
         elif good_models == len(results):
-            print("\n✅ SUCCESS: All models are learning position-based physics!")
+            print("\nSUCCESS: All models are learning position-based physics!")
             print("   The encoding fix is working correctly.")
         else:
-            print("\n⚠️  PARTIAL SUCCESS: Some models are learning physics correctly.")
+            print("\nPARTIAL SUCCESS: Some models are learning physics correctly.")
             print("   Check which models were trained with the old encoding.")
 
 

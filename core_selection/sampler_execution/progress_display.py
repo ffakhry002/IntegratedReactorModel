@@ -81,7 +81,7 @@ def create_method_progress_table(methods_status):
         if status == 'WAITING':
             status_cell = Text("⏳ Waiting", style="dim")
         elif status == 'RUNNING':
-            status_cell = Text("🔄 Running", style="bold yellow")
+            status_cell = Text("Running", style="bold yellow")
         elif status == 'COMPLETED':
             status_cell = Text("✓ Completed", style="bold green")
             completed_methods += 1

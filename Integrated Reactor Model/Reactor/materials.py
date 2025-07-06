@@ -13,15 +13,21 @@ from ThermalHydraulics.code_architecture.helper_codes.material_properties.coolan
 def make_materials(th_system=None, mat_list=None, inputs_dict=None):
     """Create materials for the reactor model.
 
-    Args:
-        th_system (THSystem, optional): THSystem object containing thermal data. If None, creates new one from inputs.
-        mat_list (list, optional): List of specific materials to create. If None, creates all materials.
-        inputs_dict (dict, optional): Custom inputs dictionary. If None, uses the global inputs.
+    Parameters
+    ----------
+    th_system : THSystem, optional
+        THSystem object containing thermal data. If None, creates new one from inputs.
+    mat_list : list, optional
+        List of specific materials to create. If None, creates all materials.
+    inputs_dict : dict, optional
+        Custom inputs dictionary. If None, uses the global inputs.
 
-    Returns:
-        tuple: (material dictionary, materials collection)
-            - Dictionary mapping material names to Material objects
-            - OpenMC Materials collection containing all created materials
+    Returns
+    -------
+    tuple
+        (material_dictionary, materials_collection) where:
+        - material_dictionary: Dictionary mapping material names to Material objects
+        - materials_collection: OpenMC Materials collection containing all created materials
     """
     # Use provided inputs or default to global inputs
     if inputs_dict is None:

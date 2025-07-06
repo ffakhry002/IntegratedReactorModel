@@ -332,7 +332,7 @@ def generate_core_config_visualizations(output_dir: str) -> None:
     Args:
         output_dir: Directory to save visualizations
     """
-    print("\n📊 Generating Core Configuration Visualizations...")
+    print("\nGenerating Core Configuration Visualizations...")
 
     # Create core_images subdirectory
     core_images_dir = os.path.join(output_dir, 'core_images')
@@ -454,7 +454,7 @@ def generate_core_config_visualizations(output_dir: str) -> None:
     if configs_found:
         print(f"\n  ✓ Core configuration visualizations saved to: {core_images_dir}")
     else:
-        print("\n  ⚠ No configuration files found to visualize")
+        print("\n  No configuration files found to visualize")
         print("    Expected files: ML/data/train.txt and ML/data/test.txt")
 
 

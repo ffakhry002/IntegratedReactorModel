@@ -24,7 +24,22 @@ from interactive_parameter_selection import get_parameter_selection
 
 
 def validate_arguments(args):
-    """Validate command line arguments."""
+    """Validate command line arguments.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed command line arguments
+
+    Returns
+    -------
+    tuple
+        (is_valid, selected_methods, n_workers, methods_list) where:
+        - is_valid: Boolean indicating if arguments are valid
+        - selected_methods: List of validated method names
+        - n_workers: Number of worker processes
+        - methods_list: Copy of selected methods list
+    """
     # Validate parallel options
     if args.parallel and args.hybrid_parallel:
         print("ERROR: Cannot use both --parallel and --hybrid-parallel modes")
@@ -66,7 +81,17 @@ def validate_arguments(args):
 
 
 def print_header(args, selected_methods, n_workers):
-    """Print execution header."""
+    """Print execution header.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed command line arguments
+    selected_methods : list
+        List of selected sampling method names
+    n_workers : int or None
+        Number of worker processes for parallel execution
+    """
     if args.parallel:
         print("PARALLEL CORE CONFIGURATION SAMPLING (Method Parallel)")
     elif args.hybrid_parallel:
@@ -85,7 +110,18 @@ def print_header(args, selected_methods, n_workers):
 
 
 def check_required_data(restrict_6x6=False):
-    """Check if required data files exist."""
+    """Check if required data files exist.
+
+    Parameters
+    ----------
+    restrict_6x6 : bool, optional
+        Whether to check for 6x6 restricted files (default: False)
+
+    Returns
+    -------
+    bool
+        True if all required files exist, exits if files are missing
+    """
     suffix = "_6x6" if restrict_6x6 else ""
 
     config_file = SCRIPT_DIR / f'output/data/core_configurations_optimized{suffix}.pkl'
@@ -107,7 +143,21 @@ def check_required_data(restrict_6x6=False):
 
 
 def print_final_summary(args, selected_methods, results_dict, total_time, n_workers):
-    """Print final execution summary."""
+    """Print final execution summary.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed command line arguments
+    selected_methods : list
+        List of selected sampling method names
+    results_dict : dict
+        Dictionary containing results from all sampling methods
+    total_time : float
+        Total execution time in seconds
+    n_workers : int or None
+        Number of worker processes used
+    """
     print("\n" + "="*80)
     if args.parallel:
         print("METHOD-PARALLEL SAMPLING COMPLETE!")
@@ -157,7 +207,13 @@ def print_final_summary(args, selected_methods, results_dict, total_time, n_work
 
 
 def _print_serial_summary(results_dict):
-    """Print summary for serial execution."""
+    """Print summary for serial execution.
+
+    Parameters
+    ----------
+    results_dict : dict
+        Dictionary containing results from all sampling methods
+    """
     # Show lattice methods if any were run
     lattice_methods = ['lhs_lattice', 'sobol_lattice', 'halton_lattice',
                       'jaccard_lattice', 'euclidean_lattice', 'manhattan_lattice', 'random_lattice',
@@ -189,6 +245,11 @@ def _print_serial_summary(results_dict):
 
 
 def main():
+    """Main function to run sampling methods for core configuration selection.
+
+    Parses command line arguments, validates inputs, loads required data,
+    and executes the selected sampling methods in serial or parallel mode.
+    """
     parser = argparse.ArgumentParser(
         description='Run sampling methods for core configuration selection'
     )

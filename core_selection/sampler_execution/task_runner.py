@@ -67,7 +67,7 @@ def save_sampling_results(method_name, results):
             f.write("Note: For lattice methods, this is inertia in MDS embedding space\n")
 
         if 'diversity_score' in results:
-            f.write(f"Diversity score (min pairwise distance): {results['diversity_score']:.4f}\n")
+            f.write(f"Diversity score (mean pairwise distance): {results['diversity_score']:.4f}\n")
 
         if 'best_run' in results:
             f.write(f"Best run: #{results['best_run']} of {results['total_runs']}\n")

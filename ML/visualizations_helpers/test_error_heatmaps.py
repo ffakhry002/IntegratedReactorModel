@@ -29,7 +29,7 @@ def create_test_error_heatmaps(df, output_dir, models, encodings, optimizations,
     heatmap_dir = os.path.join(output_dir, 'test_error_heatmap')
     os.makedirs(heatmap_dir, exist_ok=True)
 
-    print(f"\n📊 Creating test error heat maps...")
+    print(f"\nCreating test error heat maps...")
 
     # Try to load test configurations to get actual positions
     position_maps = _load_test_position_maps(df)
