@@ -85,7 +85,7 @@ def create_energy_summary_comparison(df, output_dir):
     if summary_df.empty:
         return
 
-    # Create figure with subplots - 3 horizontal bar charts like in the images
+    # Create figure with subplots - 3 horizontal bar charts for Mean MAPE, Mean of Max MAPE, and Max MAPE
     fig = plt.figure(figsize=(20, 8))
 
     # Define colors for models
@@ -96,7 +96,7 @@ def create_energy_summary_comparison(df, output_dir):
         'neural_net': '#d62728'
     }
 
-    # Plot 1: Top 10 Models by Mean Flux Error
+    # Plot 1: Top 10 Models by Mean MAPE
     ax1 = plt.subplot(1, 3, 1)
 
     # Get top 10 models by mean flux error (average across all energy groups)
@@ -126,32 +126,32 @@ def create_energy_summary_comparison(df, output_dir):
 
     ax1.set_yticks(y_pos)
     ax1.set_yticklabels(labels, fontsize=9)
-    ax1.set_xlabel('Mean Flux Error (%)', fontsize=11)
-    ax1.set_title('Top 10 Models by Mean Flux Error', fontsize=12, fontweight='bold')
+    ax1.set_xlabel('Mean MAPE (%)', fontsize=11)
+    ax1.set_title('Top 10 Models by Mean MAPE', fontsize=12, fontweight='bold')
     ax1.grid(True, axis='x', alpha=0.3)
     ax1.invert_yaxis()
 
-    # Plot 2: Top 10 Models by Mean Maximum Flux Error
+    # Plot 2: Top 10 Models by Mean of Max MAPE
     ax2 = plt.subplot(1, 3, 2)
 
-    # Get top 10 models by mean max error
-    model_max_errors = []
+    # Get top 10 models by mean of max error
+    model_mean_of_max_errors = []
     for name, group in grouped:
         model, encoding, optimization = name
-        mean_max_error = group['mean_max_error'].mean()
-        if not np.isnan(mean_max_error):
-            model_max_errors.append({
+        mean_of_max_error = group['mean_max_error'].mean()
+        if not np.isnan(mean_of_max_error):
+            model_mean_of_max_errors.append({
                 'label': f'{model}-{encoding}-{optimization}',
                 'model': model,
-                'error': mean_max_error
+                'error': mean_of_max_error
             })
 
-    top_max_models = sorted(model_max_errors, key=lambda x: x['error'])[:10]
+    top_mean_of_max_models = sorted(model_mean_of_max_errors, key=lambda x: x['error'])[:10]
 
-    y_pos = np.arange(len(top_max_models))
-    errors = [m['error'] for m in top_max_models]
-    colors = [model_colors.get(m['model'], 'gray') for m in top_max_models]
-    labels = [m['label'] for m in top_max_models]
+    y_pos = np.arange(len(top_mean_of_max_models))
+    errors = [m['error'] for m in top_mean_of_max_models]
+    colors = [model_colors.get(m['model'], 'gray') for m in top_mean_of_max_models]
+    labels = [m['label'] for m in top_mean_of_max_models]
 
     bars = ax2.barh(y_pos, errors, color=colors, alpha=0.8)
 
@@ -161,62 +161,45 @@ def create_energy_summary_comparison(df, output_dir):
 
     ax2.set_yticks(y_pos)
     ax2.set_yticklabels(labels, fontsize=9)
-    ax2.set_xlabel('Mean of Maximum Flux Errors (%)', fontsize=11)
-    ax2.set_title('Top 10 Models by Mean Maximum Flux Error', fontsize=12, fontweight='bold')
+    ax2.set_xlabel('Mean of Max MAPE (%)', fontsize=11)
+    ax2.set_title('Top 10 Models by Mean of Max MAPE', fontsize=12, fontweight='bold')
     ax2.grid(True, axis='x', alpha=0.3)
     ax2.invert_yaxis()
 
-    # Plot 3: Top 10 Models by Mean K-eff Error
+    # Plot 3: Top 10 Models by Max MAPE
     ax3 = plt.subplot(1, 3, 3)
 
-    # Calculate k-eff errors
-    keff_errors = []
-    grouped_orig = df.groupby(['model_class', 'encoding', 'optimization_method'])
-
-    for name, group in grouped_orig:
+    # Get top 10 models by max flux error (highest single error across all energy groups)
+    model_max_errors = []
+    for name, group in grouped:
         model, encoding, optimization = name
-
-        keff_rel_errors = []
-        for _, row in group.iterrows():
-            if 'keff_real' in row and 'keff_predicted' in row:
-                real = row['keff_real']
-                pred = row['keff_predicted']
-                if pd.notna(real) and pd.notna(pred) and real != 0:
-                    rel_error = abs((pred - real) / real) * 100
-                    keff_rel_errors.append(rel_error)
-
-        if keff_rel_errors:
-            keff_errors.append({
+        max_error = group['max_error'].max()  # Get the highest max error
+        if not np.isnan(max_error):
+            model_max_errors.append({
                 'label': f'{model}-{encoding}-{optimization}',
                 'model': model,
-                'error': np.mean(keff_rel_errors)
+                'error': max_error
             })
 
-    if keff_errors:
-        top_keff_models = sorted(keff_errors, key=lambda x: x['error'])[:10]
+    top_max_models = sorted(model_max_errors, key=lambda x: x['error'])[:10]
 
-        y_pos = np.arange(len(top_keff_models))
-        errors = [m['error'] for m in top_keff_models]
-        colors = [model_colors.get(m['model'], 'gray') for m in top_keff_models]
-        labels = [m['label'] for m in top_keff_models]
+    y_pos = np.arange(len(top_max_models))
+    errors = [m['error'] for m in top_max_models]
+    colors = [model_colors.get(m['model'], 'gray') for m in top_max_models]
+    labels = [m['label'] for m in top_max_models]
 
-        bars = ax3.barh(y_pos, errors, color=colors, alpha=0.8)
+    bars = ax3.barh(y_pos, errors, color=colors, alpha=0.8)
 
-        # Add value labels
-        for i, (bar, error) in enumerate(zip(bars, errors)):
-            ax3.text(error + 0.0001, i, f'{error:.3f}%', va='center', fontsize=9)
+    # Add value labels
+    for i, (bar, error) in enumerate(zip(bars, errors)):
+        ax3.text(error + 0.02, i, f'{error:.3f}%', va='center', fontsize=9)
 
-        ax3.set_yticks(y_pos)
-        ax3.set_yticklabels(labels, fontsize=9)
-        ax3.set_xlabel('Mean K-eff Error (%)', fontsize=11)
-        ax3.set_title('Top 10 Models by Mean K-eff Error', fontsize=12, fontweight='bold')
-        ax3.grid(True, axis='x', alpha=0.3)
-        ax3.invert_yaxis()
-    else:
-        ax3.text(0.5, 0.5, 'No K-eff Data Available', ha='center', va='center',
-                transform=ax3.transAxes, fontsize=14, alpha=0.5)
-        ax3.set_xticks([])
-        ax3.set_yticks([])
+    ax3.set_yticks(y_pos)
+    ax3.set_yticklabels(labels, fontsize=9)
+    ax3.set_xlabel('Max MAPE (%)', fontsize=11)
+    ax3.set_title('Top 10 Models by Max MAPE', fontsize=12, fontweight='bold')
+    ax3.grid(True, axis='x', alpha=0.3)
+    ax3.invert_yaxis()
 
     plt.suptitle('Model Performance Summary - Best Combinations', fontsize=16, fontweight='bold')
     plt.tight_layout()
@@ -349,7 +332,7 @@ def create_best_models_by_energy_group(df, output_dir):
     print(f"  Saved: {output_file}")
 
 def create_best_models_summary(df, output_dir, has_energy_discretization=False, target_context='auto'):
-    """Create summary showing best performing model combinations - TWO PANELS ONLY"""
+    """Create summary showing best performing model combinations - THREE PANELS (Mean MAPE, Mean of Max MAPE, Max MAPE)"""
 
     # Auto-detect context from output directory if not specified
     if target_context == 'auto':
@@ -376,39 +359,51 @@ def create_best_models_summary(df, output_dir, has_energy_discretization=False, 
 
         # Calculate metrics based on context
         mean_error = None
+        mean_of_max_error = None
         max_error = None
 
         if target_context == 'keff':
             # K-eff metrics
             if 'keff_real' in group.columns and 'keff_predicted' in group.columns:
                 keff_errors = []
+                config_max_errors = []
                 for _, row in group.iterrows():
                     if pd.notna(row['keff_real']) and pd.notna(row['keff_predicted']) and row['keff_real'] != 0:
                         error = abs((row['keff_predicted'] - row['keff_real']) / row['keff_real']) * 100
                         keff_errors.append(error)
+                        config_max_errors.append(error)  # For k-eff, each config has only one error
 
                 if keff_errors:
                     mean_error = np.mean(keff_errors)
+                    mean_of_max_error = np.mean(config_max_errors)
                     max_error = max(keff_errors)
 
-        elif target_context in ['thermal', 'epithermal', 'fast']:
-            # Specific energy group flux metrics
+        elif target_context in ['thermal', 'epithermal', 'fast', 'total']:
+            # Specific energy group flux metrics (including 'total' which is also an energy group in multi-energy mode)
             flux_errors = []
+            config_max_errors = []
             for _, row in group.iterrows():
+                position_errors = []
                 for i in range(1, 5):
                     error_col = f'I_{i}_{target_context}_rel_error'
                     if error_col in row:
                         error = row[error_col]
                         if pd.notna(error) and error != 'N/A':
-                            flux_errors.append(abs(error))
+                            position_errors.append(abs(error))
+
+                if position_errors:
+                    flux_errors.extend(position_errors)
+                    config_max_errors.append(max(position_errors))
 
             if flux_errors:
                 mean_error = np.mean(flux_errors)
+                mean_of_max_error = np.mean(config_max_errors) if config_max_errors else None
                 max_error = max(flux_errors)
 
         else:
             # Total flux metrics (default)
             flux_errors = []
+            config_max_errors = []
 
             # Try to find flux error columns in the data
             for _, row in group.iterrows():
@@ -422,6 +417,7 @@ def create_best_models_summary(df, output_dir, has_energy_discretization=False, 
                 # If we found position errors, add their mean and max to our list
                 if position_errors:
                     flux_errors.extend(position_errors)
+                    config_max_errors.append(max(position_errors))
 
             # If no position errors found, try looking for flux-related columns more broadly
             if not flux_errors:
@@ -441,6 +437,7 @@ def create_best_models_summary(df, output_dir, has_energy_discretization=False, 
 
             if flux_errors:
                 mean_error = np.mean(flux_errors)
+                mean_of_max_error = np.mean(config_max_errors) if config_max_errors else mean_error
                 max_error = max(flux_errors)
 
         # Only add if we have valid metrics
@@ -450,6 +447,7 @@ def create_best_models_summary(df, output_dir, has_energy_discretization=False, 
                 'encoding': encoding,
                 'optimization': optimization,
                 'mean_error': mean_error,
+                'mean_of_max_error': mean_of_max_error if mean_of_max_error is not None else mean_error,
                 'max_error': max_error,
                 'n_configs': len(group)
             })
@@ -460,8 +458,9 @@ def create_best_models_summary(df, output_dir, has_energy_discretization=False, 
         print("  Warning: No summary data available")
         return
 
-    # Create figure with TWO PANELS ONLY
-    fig = plt.figure(figsize=(16, 8))
+    # Create figure with THREE PANELS for flux, TWO PANELS for k-eff
+    n_panels = 2 if target_context == 'keff' else 3
+    fig = plt.figure(figsize=(24 if n_panels == 3 else 16, 8))
 
     # Main title based on context
     title_map = {
@@ -485,8 +484,8 @@ def create_best_models_summary(df, output_dir, has_energy_discretization=False, 
         'neural_net': '#d62728'
     }
 
-    # LEFT PANEL: Mean MAPE
-    ax1 = plt.subplot(1, 2, 1)
+    # PANEL 1: Mean MAPE
+    ax1 = plt.subplot(1, n_panels, 1)
 
     # Sort by mean error and take top 10
     top_models_mean = summary_df.sort_values('mean_error').head(10)
@@ -526,15 +525,55 @@ def create_best_models_summary(df, output_dir, has_energy_discretization=False, 
         ax1.text(0.5, 0.5, 'No Models Found', ha='center', va='center',
                 transform=ax1.transAxes, fontsize=12, alpha=0.5)
 
-    # RIGHT PANEL: Max MAPE
-    ax2 = plt.subplot(1, 2, 2)
+    # PANEL 2: Mean of Max MAPE (only for flux, not k-eff)
+    if target_context != 'keff':
+        ax2 = plt.subplot(1, n_panels, 2)
+
+        # Sort by mean of max error and take top 10
+        top_models_mean_of_max = summary_df.sort_values('mean_of_max_error').head(10)
+
+        if not top_models_mean_of_max.empty:
+            y_pos = np.arange(len(top_models_mean_of_max))
+            bars = ax2.barh(y_pos, top_models_mean_of_max['mean_of_max_error'])
+
+            # Color bars by model type
+            for i, (idx, row) in enumerate(top_models_mean_of_max.iterrows()):
+                bars[i].set_color(model_colors.get(row['model'], 'gray'))
+
+            # Labels
+            labels = [f"{row['model']}-{row['encoding']}-{row['optimization']}"
+                     for _, row in top_models_mean_of_max.iterrows()]
+            ax2.set_yticks(y_pos)
+            ax2.set_yticklabels(labels, fontsize=9)
+            ax2.set_xlabel('Mean of Max MAPE (%)', fontsize=10)
+
+            ylabel_map_mean_of_max = {
+                'thermal': 'Top 10 Thermal Flux Models (Mean of Max Error)',
+                'epithermal': 'Top 10 Epithermal Flux Models (Mean of Max Error)',
+                'fast': 'Top 10 Fast Flux Models (Mean of Max Error)',
+                'flux': 'Top 10 Flux Models (Mean of Max Error)'
+            }
+            ax2.set_title(ylabel_map_mean_of_max.get(target_context, 'Top 10 Models (Mean of Max Error)'), fontsize=12, fontweight='bold')
+            ax2.grid(True, axis='x', alpha=0.3)
+            ax2.invert_yaxis()
+
+            # Add value labels
+            for i, (idx, row) in enumerate(top_models_mean_of_max.iterrows()):
+                ax2.text(row['mean_of_max_error'] + max(top_models_mean_of_max['mean_of_max_error']) * 0.02, i,
+                        f"{row['mean_of_max_error']:.2f}%", va='center', fontsize=8)
+        else:
+            ax2.text(0.5, 0.5, 'No Models Found', ha='center', va='center',
+                    transform=ax2.transAxes, fontsize=12, alpha=0.5)
+
+    # PANEL 3 (or 2 for k-eff): Max MAPE
+    ax3 = plt.subplot(1, n_panels, n_panels)
 
     # Sort by max error and take top 10
     top_models_max = summary_df.sort_values('max_error').head(10)
 
     if not top_models_max.empty:
         y_pos = np.arange(len(top_models_max))
-        bars = ax2.barh(y_pos, top_models_max['max_error'])
+        bars = ax3.barh(y_pos, top_models_max['max_error'])
 
         # Color bars by model type
         for i, (idx, row) in enumerate(top_models_max.iterrows()):
@@ -543,9 +582,9 @@ def create_best_models_summary(df, output_dir, has_energy_discretization=False, 
         # Labels
         labels = [f"{row['model']}-{row['encoding']}-{row['optimization']}"
                  for _, row in top_models_max.iterrows()]
-        ax2.set_yticks(y_pos)
-        ax2.set_yticklabels(labels, fontsize=9)
-        ax2.set_xlabel('Max MAPE (%)', fontsize=10)
+        ax3.set_yticks(y_pos)
+        ax3.set_yticklabels(labels, fontsize=9)
+        ax3.set_xlabel('Max MAPE (%)', fontsize=10)
 
         ylabel_map_max = {
             'keff': 'Top 10 K-eff Models (Max Error)',
@@ -554,18 +593,18 @@ def create_best_models_summary(df, output_dir, has_energy_discretization=False, 
             'fast': 'Top 10 Fast Flux Models (Max Error)',
             'flux': 'Top 10 Flux Models (Max Error)'
         }
-        ax2.set_title(ylabel_map_max.get(target_context, 'Top 10 Models (Max Error)'), fontsize=12, fontweight='bold')
-        ax2.grid(True, axis='x', alpha=0.3)
-        ax2.invert_yaxis()
+        ax3.set_title(ylabel_map_max.get(target_context, 'Top 10 Models (Max Error)'), fontsize=12, fontweight='bold')
+        ax3.grid(True, axis='x', alpha=0.3)
+        ax3.invert_yaxis()
 
         # Add value labels
         for i, (idx, row) in enumerate(top_models_max.iterrows()):
             precision = 3 if target_context == 'keff' else 2
-            ax2.text(row['max_error'] + max(top_models_max['max_error']) * 0.02, i,
+            ax3.text(row['max_error'] + max(top_models_max['max_error']) * 0.02, i,
                     f"{row['max_error']:.{precision}f}%", va='center', fontsize=8)
     else:
-        ax2.text(0.5, 0.5, 'No Models Found', ha='center', va='center',
-                transform=ax2.transAxes, fontsize=12, alpha=0.5)
+        ax3.text(0.5, 0.5, 'No Models Found', ha='center', va='center',
+                transform=ax3.transAxes, fontsize=12, alpha=0.5)
 
     plt.tight_layout()
 

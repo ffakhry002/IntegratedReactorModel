@@ -42,6 +42,10 @@ def create_energy_breakdown_plots(df, output_dir):
 
     # Create plots for each model/encoding/optimization combination
     for model in models:
+        # Create model-specific subdirectory
+        model_dir = os.path.join(output_dir, model)
+        os.makedirs(model_dir, exist_ok=True)
+
         for encoding in encodings:
             for optimization in optimizations:
                 # Filter data
@@ -174,11 +178,11 @@ def create_energy_breakdown_plots(df, output_dir):
 
                 # Save plot
                 filename = f'energy_breakdown_{model}_{encoding}_{optimization}.png'
-                filepath = os.path.join(output_dir, filename)
+                filepath = os.path.join(model_dir, filename)
                 plt.savefig(filepath, dpi=300, bbox_inches='tight')
                 plt.close()
 
-                print(f"  ✓ Created energy breakdown plot: {filename}")
+                print(f"  ✓ Created energy breakdown plot: {model}/{filename}")
 
     # Create relative error vs configuration plots (6 panels: 4 positions + mean + max)
     print("\n📈 Creating relative error vs configuration plots...")
@@ -215,6 +219,10 @@ def create_flux_vs_config_plots(df, output_dir):
     optimizations = df['optimization_method'].unique()
 
     for model in models:
+        # Create model-specific subdirectory
+        model_dir = os.path.join(output_dir, model)
+        os.makedirs(model_dir, exist_ok=True)
+
         for encoding in encodings:
             for optimization in optimizations:
                 # Filter data
@@ -358,8 +366,8 @@ def create_flux_vs_config_plots(df, output_dir):
 
                 # Save plot
                 filename = f'error_vs_config_{model}_{encoding}_{optimization}.png'
-                filepath = os.path.join(output_dir, filename)
+                filepath = os.path.join(model_dir, filename)
                 plt.savefig(filepath, dpi=300, bbox_inches='tight')
                 plt.close()
 
-                print(f"  ✓ Created error vs config plot: {filename}")
+                print(f"  ✓ Created error vs config plot: {model}/{filename}")

@@ -151,7 +151,7 @@ base_inputs = {
     # Miscellaneous Settings
     ###########################################
     "outputs_folder": "local_outputs",  # Base output directory
-    "pixels": (8000, 8000),            # Plot resolution
+    "pixels": (16000, 16000),            # Plot resolution
 }
 
 

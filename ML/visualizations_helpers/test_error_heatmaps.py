@@ -36,6 +36,10 @@ def create_test_error_heatmaps(df, output_dir, models, encodings, optimizations,
 
     # Process each model, encoding, and optimization combination
     for model in models:
+        # Create model-specific subdirectory
+        model_dir = os.path.join(heatmap_dir, model)
+        os.makedirs(model_dir, exist_ok=True)
+
         for encoding in encodings:
             for optimization in optimizations:
                 # Filter data for this combination
@@ -49,17 +53,17 @@ def create_test_error_heatmaps(df, output_dir, models, encodings, optimizations,
                 if subset.empty:
                     continue
 
-                # Create proper naming: model_encoding_flux_type
+                # Create proper naming: model_encoding_optimization_flux_type
                 if energy_group:
-                    combination_name = f"{model}_{encoding}_{energy_group}_flux"
+                    combination_name = f"{model}_{encoding}_{optimization}_{energy_group}_flux"
                 else:
-                    combination_name = f"{model}_{encoding}_total_flux"
+                    combination_name = f"{model}_{encoding}_{optimization}_total_flux"
 
                 print(f"  Processing {combination_name}...")
 
                 # Create grid of all test cores for this combination
                 _create_test_cores_grid(
-                    subset, heatmap_dir, combination_name,
+                    subset, model_dir, combination_name,
                     position_maps, energy_group
                 )
 

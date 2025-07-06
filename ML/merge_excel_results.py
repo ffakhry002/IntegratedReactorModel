@@ -283,7 +283,7 @@ def merge_all_energy(thermal_df, epithermal_df, fast_df):
             # Calculate relative error
             total_real = merged_df[f'I_{i}_total_real']
             total_pred = merged_df[f'I_{i}_total_predicted']
-            merged_df[f'I_{i}_total_rel_error'] = abs((total_pred - total_real) / total_real * 100).where(total_real != 0, 0)
+            merged_df[f'I_{i}_total_rel_error'] = ((total_pred - total_real) / total_real * 100).where(total_real != 0, 0)
 
     # Update flux_mode
     merged_df['flux_mode'] = 'energy'

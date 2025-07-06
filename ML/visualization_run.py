@@ -22,7 +22,7 @@ from visualizations_helpers.test_error_heatmaps import create_test_error_heatmap
 from visualizations_helpers.feature_importance import create_feature_importance_plots
 from visualizations_helpers.config_error_plots import create_config_error_plots
 from visualizations_helpers.rel_error_trackers import create_rel_error_tracker_plots
-from visualizations_helpers.summary_statistics import create_summary_statistics_plots, create_error_distribution_for_energy, create_error_distribution_for_total
+from visualizations_helpers.summary_statistics import create_summary_statistics_plots, create_error_distribution_for_energy, create_error_distribution_for_total, create_best_models_summary
 from visualizations_helpers.energy_breakdown_plots import create_energy_breakdown_plots
 from visualizations_helpers.data_loader import load_test_results
 from visualizations_helpers.optuna_visualizations import generate_all_optuna_visualizations
@@ -334,6 +334,8 @@ def main():
             os.makedirs(os.path.join(energy_output_dir, 'spatial_error_heatmaps'), exist_ok=True)
             os.makedirs(os.path.join(energy_output_dir, 'config_error_plots'), exist_ok=True)
             os.makedirs(os.path.join(energy_output_dir, 'rel_error_trackers'), exist_ok=True)
+            if energy_group != 'total':  # Don't create feature_importance for total
+                os.makedirs(os.path.join(energy_output_dir, 'feature_importance'), exist_ok=True)
             os.makedirs(os.path.join(energy_output_dir, 'summary_statistics'), exist_ok=True)
 
             try:
@@ -384,20 +386,37 @@ def main():
                     energy_group=energy_group
                 )
 
-                # 6. Summary Statistics (within energy group folder)
-                print(f"\n6. Creating {energy_group} summary statistics...")
+                # 6. Feature importance plots for this energy group (skip for 'total' as it's just a sum)
+                if energy_group != 'total':
+                    print(f"\n6. Creating {energy_group} feature importance plots...")
+                    try:
+                        create_feature_importance_plots(
+                            test_results_df,
+                            os.path.join(energy_output_dir, 'feature_importance'),
+                            models,
+                            target_type='flux',  # Since we're dealing with energy groups, it's flux
+                            energy_group=energy_group
+                        )
+                    except Exception as e:
+                        print(f"  ERROR in {energy_group} feature importance: {e}")
+                        print("  Continuing with other visualizations...")
+
+                # 7. Summary Statistics - Only best models summary and error distribution for individual energy groups
+                print(f"\n7. Creating {energy_group} summary statistics...")
                 try:
-                    create_summary_statistics_plots(
+                    # Only create the best models summary for this specific energy group
+                    create_best_models_summary(
                         test_results_df,
                         os.path.join(energy_output_dir, 'summary_statistics'),
-                        has_energy_discretization=True
+                        has_energy_discretization=True,
+                        target_context=energy_group
                     )
                 except Exception as e:
-                    print(f"  ERROR in {energy_group} summary statistics: {e}")
+                    print(f"  ERROR in {energy_group} best models summary: {e}")
                     print("  Continuing with other visualizations...")
 
-                # 6. Error distribution comparison (within summary statistics folder)
-                print(f"\n6. Creating {energy_group} error distribution comparison...")
+                # 8. Error distribution comparison (within summary statistics folder)
+                print(f"\n8. Creating {energy_group} error distribution...")
                 try:
                     create_error_distribution_for_energy(
                         test_results_df,
