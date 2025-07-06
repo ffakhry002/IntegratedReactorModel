@@ -15,7 +15,16 @@ from inputs import inputs
 from eigenvalue.parametric_study import run_parametric_study
 
 def cleanup_all_pycache():
-    """Remove all __pycache__ directories in the entire project structure."""
+    """Remove all __pycache__ directories in the entire project structure.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    None
+    """
     root_dir = os.path.dirname(os.path.abspath(__file__))
 
     # Walk through all directories in the project
@@ -31,11 +40,20 @@ def cleanup_all_pycache():
 def run_additional_th_calculations(root_dir, dirs, th_subdirs, inputs_dict=None):
     """Run additional thermal hydraulics calculations with different power profiles.
 
-    Args:
-        root_dir: Root directory of the project
-        dirs: Dictionary of subdirectories for output
-        th_subdirs: Dictionary of thermal hydraulics subdirectories
-        inputs_dict (dict, optional): Custom inputs dictionary. If None, uses the global inputs.
+    Parameters
+    ----------
+    root_dir : str
+        Root directory of the project
+    dirs : dict
+        Dictionary of subdirectories for output
+    th_subdirs : dict
+        Dictionary of thermal hydraulics subdirectories
+    inputs_dict : dict, optional
+        Custom inputs dictionary. If None, uses the global inputs.
+
+    Returns
+    -------
+    None
     """
     # Use provided inputs or default to global inputs
     if inputs_dict is None:
@@ -83,7 +101,16 @@ def run_additional_th_calculations(root_dir, dirs, th_subdirs, inputs_dict=None)
     print("\nCompleted all thermal hydraulics analyses.")
 
 def main():
-    """Run the complete reactor simulation workflow."""
+    """Run the complete reactor simulation workflow.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    None
+    """
     # Check if parametric study mode is enabled
     if inputs.get('parametric_study', False):
         print("Parametric study mode enabled. Running parametric study...")

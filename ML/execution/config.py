@@ -2,6 +2,16 @@ class TrainingConfig:
     """Configuration container for training settings"""
 
     def __init__(self):
+        """Initialize TrainingConfig with default values.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         self.targets = []
         self.models = []
         self.encoding = 'physics'

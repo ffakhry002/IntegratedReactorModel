@@ -34,7 +34,7 @@ def make_and_run_openmc_model(model, statepoint_name, folder='Output/'):
     statepoint_name : str
         Name for the statepoint file
     folder : str, optional
-        Output directory, defaults to 'Output/'
+        Output directory for simulation files (default: 'Output/')
     """
     # Create output directory if it doesn't exist
     os.makedirs(folder, exist_ok=True)
@@ -64,7 +64,8 @@ def run_eigenvalue(inputs_dict=None):
     Returns
     -------
     tuple
-        (k_effective, standard_deviation)
+        (k_effective, standard_deviation) where k_effective is the eigenvalue
+        and standard_deviation is the associated uncertainty
     """
     # Use provided inputs or default to global inputs
     if inputs_dict is None:

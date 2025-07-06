@@ -173,7 +173,20 @@ def plot_all(plot_dir=None, depletion_plot_dir=None, power_plot_dir=None, inputs
         print("\nSkipping depletion plots (no depletion results found)")
 
 def main():
-    """Run all plotting functions."""
+    """Run all plotting functions.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    Exits with status 1 if an error occurs during plotting.
+    """
     try:
         plot_all()
     except Exception as e:

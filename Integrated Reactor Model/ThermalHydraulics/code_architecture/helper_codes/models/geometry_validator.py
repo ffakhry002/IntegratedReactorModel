@@ -3,11 +3,19 @@
 def validate_pin_geometry(pin_geometry):
     """Validate pin geometry parameters.
 
-    Args:
-        pin_geometry: PinGeometry object containing pin dimensions
+    Parameters
+    ----------
+    pin_geometry : PinGeometry
+        PinGeometry object containing pin dimensions
 
-    Raises:
-        ValueError: If any geometry constraints are violated
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    ValueError
+        If any geometry constraints are violated
     """
     # Convert to cm for error messages (same as original code)
     r_fuel = pin_geometry.r_fuel * 100
@@ -36,11 +44,19 @@ def validate_pin_geometry(pin_geometry):
 def validate_plate_geometry(plate_geometry):
     """Validate plate geometry parameters.
 
-    Args:
-        plate_geometry: PlateGeometry object containing plate dimensions
+    Parameters
+    ----------
+    plate_geometry : PlateGeometry
+        PlateGeometry object containing plate dimensions
 
-    Raises:
-        ValueError: If any geometry constraints are violated
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    ValueError
+        If any geometry constraints are violated
     """
     # Convert to cm for error messages (same as original code)
     fuel_meat_width = plate_geometry.fuel_meat_width * 100
@@ -65,11 +81,19 @@ def validate_plate_geometry(plate_geometry):
 def validate_geometry(th_system):
     """Validate all geometry parameters for a thermal-hydraulic system.
 
-    Args:
-        th_system: THSystem object containing geometry information
+    Parameters
+    ----------
+    th_system : THSystem
+        THSystem object containing geometry information
 
-    Raises:
-        ValueError: If any geometry constraints are violated
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    ValueError
+        If any geometry constraints are violated
     """
     if th_system.thermal_hydraulics.assembly_type == 'Pin':
         validate_pin_geometry(th_system.pin_geometry)

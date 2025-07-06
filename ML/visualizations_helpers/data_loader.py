@@ -16,7 +16,7 @@ def load_test_results(excel_file_path):
         try:
             # Then try merged results sheet name
             df = pd.read_excel(excel_file_path, sheet_name='Merged Results')
-            print("📊 Loaded data from 'Merged Results' sheet (merged Excel file)")
+            print("Loaded data from 'Merged Results' sheet (merged Excel file)")
         except Exception as e:
             print(f"ERROR: Could not read Excel file from either 'Test Results' or 'Merged Results' sheets: {e}")
             raise

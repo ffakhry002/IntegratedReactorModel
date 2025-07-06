@@ -3,12 +3,17 @@ import numpy as np
 def calculate_k_clad(th_system, clad_temp):
     """Calculate cladding thermal conductivity based on type and temperature.
 
-    Args:
-        th_system: THSystem object containing material information
-        clad_temp (float): Temperature at which to calculate conductivity
+    Parameters
+    ----------
+    th_system : THSystem
+        THSystem object containing material information
+    clad_temp : float
+        Temperature at which to calculate conductivity
 
-    Returns:
-        float: Thermal conductivity in W/m-K
+    Returns
+    -------
+    float
+        Thermal conductivity in W/m-K
     """
     clad_type = th_system.material.clad_type
 
@@ -43,11 +48,16 @@ def calculate_k_clad(th_system, clad_temp):
 def calculate_k_clad_vector(th_system, T_clad_array):
     """Vectorized calculation of cladding thermal conductivity.
 
-    Args:
-        th_system: THSystem object containing material information
-        T_clad_array (np.array): Array of temperatures to calculate conductivity for
+    Parameters
+    ----------
+    th_system : THSystem
+        THSystem object containing material information
+    T_clad_array : numpy.ndarray
+        Array of temperatures to calculate conductivity for
 
-    Returns:
-        np.array: Array of thermal conductivities in W/m-K, corresponding to input temperatures
+    Returns
+    -------
+    numpy.ndarray
+        Array of thermal conductivities in W/m-K, corresponding to input temperatures
     """
     return np.vectorize(lambda T: calculate_k_clad(th_system, T))(T_clad_array)

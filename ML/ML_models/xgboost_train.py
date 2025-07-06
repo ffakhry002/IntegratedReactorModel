@@ -5,6 +5,19 @@ from .base_model import ReactorModelBase
 
 class XGBoostReactorModel(ReactorModelBase):
     def __init__(self, use_multioutput=True, **kwargs):
+        """Initialize XGBoost reactor model.
+
+        Parameters
+        ----------
+        use_multioutput : bool, optional
+            Whether to use MultiOutputRegressor for flux prediction, by default True
+        **kwargs : dict
+            Additional parameters for XGBRegressor
+
+        Returns
+        -------
+        None
+        """
         super().__init__()  # Initialize base class
         self.model_class_name = 'xgboost'
 
@@ -17,7 +30,20 @@ class XGBoostReactorModel(ReactorModelBase):
         self.use_multioutput = use_multioutput
 
     def fit_flux(self, X_train, y_flux):
-        """Train flux model only"""
+        """Train flux model only.
+
+        Parameters
+        ----------
+        X_train : numpy.ndarray
+            Training input features
+        y_flux : numpy.ndarray
+            Training flux target values
+
+        Returns
+        -------
+        XGBoostReactorModel
+            Self for method chaining
+        """
         # Use base class validation
         y_flux = self.validate_flux_output(y_flux)
 
@@ -33,13 +59,37 @@ class XGBoostReactorModel(ReactorModelBase):
         return self
 
     def fit_keff(self, X_train, y_keff):
-        """Train k-eff model only"""
+        """Train k-eff model only.
+
+        Parameters
+        ----------
+        X_train : numpy.ndarray
+            Training input features
+        y_keff : numpy.ndarray
+            Training k-effective target values
+
+        Returns
+        -------
+        XGBoostReactorModel
+            Self for method chaining
+        """
         self.keff_model = xgb.XGBRegressor(**self.params)
         self.keff_model.fit(X_train, y_keff.ravel())
         return self
 
     def predict_flux(self, X_test):
-        """Predict flux values"""
+        """Predict flux values.
+
+        Parameters
+        ----------
+        X_test : numpy.ndarray
+            Test input features
+
+        Returns
+        -------
+        numpy.ndarray
+            Predicted flux values
+        """
         if self.flux_model is None:
             raise ValueError("Flux model not trained")
 
@@ -53,7 +103,18 @@ class XGBoostReactorModel(ReactorModelBase):
         return predictions
 
     def predict_keff(self, X_test):
-        """Predict k-effective"""
+        """Predict k-effective.
+
+        Parameters
+        ----------
+        X_test : numpy.ndarray
+            Test input features
+
+        Returns
+        -------
+        numpy.ndarray
+            Predicted k-effective values
+        """
         if self.keff_model is None:
             raise ValueError("K-eff model not trained")
 
@@ -67,7 +128,18 @@ class XGBoostReactorModel(ReactorModelBase):
         return predictions
 
     def get_feature_importance(self, model_type='flux'):
-        """Get feature importances for interpretation"""
+        """Get feature importances for interpretation.
+
+        Parameters
+        ----------
+        model_type : str, optional
+            Type of model ('flux' or 'keff'), by default 'flux'
+
+        Returns
+        -------
+        numpy.ndarray or None
+            Feature importances if model exists, None otherwise
+        """
         if model_type == 'flux' and self.flux_model is not None:
             if self.use_multioutput:
                 # MultiOutputRegressor - average importances across outputs
@@ -83,11 +155,31 @@ class XGBoostReactorModel(ReactorModelBase):
             return None
 
     def _get_model_specific_metadata(self):
-        """Add XGBoost-specific metadata"""
+        """Add XGBoost-specific metadata.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        dict
+            Dictionary containing XGBoost-specific metadata
+        """
         return {
             'use_multioutput': self.use_multioutput
         }
 
     def _restore_model_specific_attributes(self, data):
-        """Restore XGBoost-specific attributes"""
+        """Restore XGBoost-specific attributes.
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary containing model data to restore
+
+        Returns
+        -------
+        None
+        """
         self.use_multioutput = data.get('use_multioutput', True)

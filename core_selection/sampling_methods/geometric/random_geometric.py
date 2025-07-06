@@ -17,15 +17,20 @@ class RandomGeometricSampler(BaseSampler):
                         selected_parameters=selected_parameters)
 
     def sample(self, n_samples: int, n_runs: int = 10, base_seed: int = 42) -> Dict:
-        """
-        Perform random geometric sampling multiple times and return the most diverse set.
+        """Perform random geometric sampling multiple times and return the most diverse set.
 
-        Args:
-            n_samples: Number of samples to generate
-            n_runs: Number of runs to find most diverse set
-            base_seed: Base random seed
+        Parameters
+        ----------
+        n_samples : int
+            Number of samples to generate
+        n_runs : int, optional
+            Number of runs to find most diverse set, by default 10
+        base_seed : int, optional
+            Base random seed, by default 42
 
-        Returns:
+        Returns
+        -------
+        Dict
             Dictionary with sampling results
         """
         print(f"\nRunning Random Geometric {n_runs} times to find most diverse set...")
@@ -79,9 +84,19 @@ class RandomGeometricSampler(BaseSampler):
         }
 
     def _single_random_run(self, n_samples: int) -> List[int]:
-        """
-        Perform a single random sampling run.
+        """Perform a single random sampling run.
+
         Simply selects n_samples configurations randomly without replacement.
+
+        Parameters
+        ----------
+        n_samples : int
+            Number of samples to select
+
+        Returns
+        -------
+        List[int]
+            List of selected configuration indices
         """
         n_configs = len(self.physics_parameters)
 

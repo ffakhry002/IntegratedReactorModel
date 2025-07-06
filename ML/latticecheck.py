@@ -21,16 +21,51 @@ from test_execution.model_tester import ReactorModelTester
 
 
 class PhysicsLearningTester:
-    """Test if models truly learn position->flux physics"""
+    """Test if models truly learn position->flux physics.
+
+    Parameters
+    ----------
+    models_dir : str, optional
+        Directory containing trained models, by default "ML/outputs/models"
+    outputs_dir : str, optional
+        Directory for output files, by default "ML/outputs"
+
+    Returns
+    -------
+    None
+    """
 
     def __init__(self, models_dir="ML/outputs/models", outputs_dir="ML/outputs"):
+        """Initialize PhysicsLearningTester.
+
+        Parameters
+        ----------
+        models_dir : str, optional
+            Directory containing trained models, by default "ML/outputs/models"
+        outputs_dir : str, optional
+            Directory for output files, by default "ML/outputs"
+
+        Returns
+        -------
+        None
+        """
         self.models_dir = models_dir
         self.outputs_dir = outputs_dir
         self.encodings = ReactorEncodings()
         self.results = []
 
     def load_available_models(self):
-        """Load all trained models"""
+        """Load all trained models.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        list
+            List of dictionaries containing model information and loaded models
+        """
         print("\nSearching for trained models...")
         model_files = glob.glob(os.path.join(self.models_dir, "*.pkl"))
 
@@ -61,7 +96,20 @@ class PhysicsLearningTester:
         return models
 
     def create_label_swapped_configs(self, lattices, flux_data):
-        """Create configurations with swapped labels to test label independence"""
+        """Create configurations with swapped labels to test label independence.
+
+        Parameters
+        ----------
+        lattices : list
+            List of lattice configurations
+        flux_data : list
+            List of flux data corresponding to lattices
+
+        Returns
+        -------
+        list
+            List of dictionaries containing original and swapped configurations
+        """
         swapped_configs = []
 
         for idx, (lattice, flux) in enumerate(zip(lattices, flux_data)):
@@ -97,7 +145,20 @@ class PhysicsLearningTester:
         return swapped_configs
 
     def test_position_vs_label_learning(self, model_info, test_configs):
-        """Test if model predictions depend on position or label"""
+        """Test if model predictions depend on position or label.
+
+        Parameters
+        ----------
+        model_info : dict
+            Dictionary containing model information and loaded model
+        test_configs : list
+            List of test configurations with swapped labels
+
+        Returns
+        -------
+        dict
+            Dictionary containing test results and scores
+        """
         print(f"\n  Testing {model_info['model_class']} ({model_info['encoding']})...")
 
         model = model_info['model']
@@ -182,7 +243,20 @@ class PhysicsLearningTester:
         }
 
     def test_edge_vs_center_learning(self, model_info, lattices):
-        """Test if model correctly learns edge=low flux, center=high flux"""
+        """Test if model correctly learns edge=low flux, center=high flux.
+
+        Parameters
+        ----------
+        model_info : dict
+            Dictionary containing model information and loaded model
+        lattices : list
+            List of lattice configurations to test
+
+        Returns
+        -------
+        dict or None
+            Dictionary containing test results, or None if insufficient data
+        """
         print(f"\n  Testing edge vs center learning...")
 
         model = model_info['model']
@@ -254,7 +328,18 @@ class PhysicsLearningTester:
             return None
 
     def generate_report(self, results):
-        """Generate comprehensive test report"""
+        """Generate comprehensive test report.
+
+        Parameters
+        ----------
+        results : list
+            List of test results for all models
+
+        Returns
+        -------
+        str
+            Path to the generated report file
+        """
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         report_path = os.path.join(self.outputs_dir, f"physics_learning_test_{timestamp}.txt")
 
@@ -319,7 +404,19 @@ class PhysicsLearningTester:
         return report_path
 
     def run_comprehensive_test(self, train_file="ML/data/train.txt", test_file="ML/data/test.txt"):
-        """Run all tests on available models"""
+        """Run all tests on available models.
+
+        Parameters
+        ----------
+        train_file : str, optional
+            Path to training data file, by default "ML/data/train.txt"
+        test_file : str, optional
+            Path to test data file, by default "ML/data/test.txt"
+
+        Returns
+        -------
+        None
+        """
         print("\n" + "="*80)
         print("COMPREHENSIVE PHYSICS LEARNING TEST")
         print("="*80)
@@ -382,19 +479,28 @@ class PhysicsLearningTester:
         print(f"\nModels with correct physics learning: {good_models}/{len(results)}")
 
         if good_models == 0:
-            print("\n⚠️  WARNING: No models are learning position-based physics!")
+            print("\nWARNING: No models are learning position-based physics!")
             print("   This suggests the encoding fix has not been applied.")
             print("   Please ensure you're using the updated encoding_methods.py")
         elif good_models == len(results):
-            print("\n✅ SUCCESS: All models are learning position-based physics!")
+            print("\nSUCCESS: All models are learning position-based physics!")
             print("   The encoding fix is working correctly.")
         else:
-            print("\n⚠️  PARTIAL SUCCESS: Some models are learning physics correctly.")
+            print("\nPARTIAL SUCCESS: Some models are learning physics correctly.")
             print("   Check which models were trained with the old encoding.")
 
 
 def main():
-    """Run the comprehensive test"""
+    """Run the comprehensive test.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    None
+    """
     # Determine paths
     if os.path.exists("ML/outputs/models"):
         models_dir = "ML/outputs/models"

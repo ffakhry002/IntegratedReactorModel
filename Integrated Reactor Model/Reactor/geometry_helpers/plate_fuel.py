@@ -12,7 +12,22 @@ from utils.base_inputs import inputs
 from .utils import generate_cell_id
 
 def build_plate_cell_fuel_uni(mat_dict, is_enhanced=False, inputs_dict=None):
-    """Build a single fuel plate universe with proper bounds"""
+    """Build a single fuel plate universe with proper bounds.
+
+    Parameters
+    ----------
+    mat_dict : dict
+        Dictionary of OpenMC materials
+    is_enhanced : bool, optional
+        Whether this is an enhanced fuel position (with higher enrichment), by default False
+    inputs_dict : dict, optional
+        Custom inputs dictionary. If None, uses the global inputs.
+
+    Returns
+    -------
+    openmc.Universe
+        Universe containing the fuel plate cell
+    """
     # Use provided inputs or default to global inputs
     if inputs_dict is None:
         from inputs import inputs
@@ -114,7 +129,24 @@ def build_plate_cell_fuel_uni(mat_dict, is_enhanced=False, inputs_dict=None):
     return fuel_plate_universe
 
 def build_fuel_assembly_uni(mat_dict, position=None, is_enhanced=False, inputs_dict=None):
-    """Build a fuel plate assembly universe with proper cell definitions"""
+    """Build a fuel plate assembly universe with proper cell definitions.
+
+    Parameters
+    ----------
+    mat_dict : dict
+        Dictionary of materials
+    position : tuple, optional
+        (i, j) position in core lattice. If provided, assigns unique ID.
+    is_enhanced : bool, optional
+        Whether to use enhanced enrichment fuel, by default False
+    inputs_dict : dict, optional
+        Custom inputs dictionary. If None, uses the global inputs.
+
+    Returns
+    -------
+    openmc.Universe
+        Complete fuel plate assembly universe
+    """
     # Use provided inputs or default to global inputs
     if inputs_dict is None:
         from inputs import inputs

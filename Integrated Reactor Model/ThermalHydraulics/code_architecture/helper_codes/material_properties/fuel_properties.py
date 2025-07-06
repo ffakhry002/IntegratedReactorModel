@@ -4,12 +4,17 @@ import math
 def calculate_k_fuel(th_system, fuel_temp):
     """Calculate fuel thermal conductivity based on type and temperature.
 
-    Args:
-        th_system: THSystem object containing material information
-        fuel_temp (float): Temperature at which to calculate conductivity
+    Parameters
+    ----------
+    th_system : THSystem
+        THSystem object containing material information
+    fuel_temp : float
+        Temperature at which to calculate conductivity
 
-    Returns:
-        float: Thermal conductivity in W/m-K
+    Returns
+    -------
+    float
+        Thermal conductivity in W/m-K
     """
     # Convert temperature to float to avoid integer math issues
     fuel_temp = float(fuel_temp)
@@ -31,12 +36,17 @@ def calculate_k_fuel(th_system, fuel_temp):
 def calculate_k_fuel_vector(th_system, T_fuel_array):
     """Vectorized calculation of fuel thermal conductivity.
 
-    Args:
-        th_system: THSystem object containing material information
-        T_fuel_array (np.array): Array of temperatures
+    Parameters
+    ----------
+    th_system : THSystem
+        THSystem object containing material information
+    T_fuel_array : numpy.ndarray
+        Array of temperatures
 
-    Returns:
-        np.array: Array of thermal conductivities in W/m-K
+    Returns
+    -------
+    numpy.ndarray
+        Array of thermal conductivities in W/m-K
     """
     # Convert input array to float type
     T_fuel_array = T_fuel_array.astype(np.float64)

@@ -11,7 +11,18 @@ class ExportUtils:
 
     @staticmethod
     def generate_run_dictionaries_content(run_config):
-        """Generate the content for run_dictionaries.py file"""
+        """Generate the content for run_dictionaries.py file.
+
+        Parameters
+        ----------
+        run_config : RunConfiguration
+            Run configuration object containing simple runs and loop sets
+
+        Returns
+        -------
+        str
+            Python code content for the run_dictionaries.py file
+        """
         lines = []
 
         # Header
@@ -121,7 +132,20 @@ class ExportUtils:
 
     @staticmethod
     def format_value(value, param_name=None):
-        """Format a value for Python output with appropriate type casting"""
+        """Format a value for Python output with appropriate type casting.
+
+        Parameters
+        ----------
+        value : Any
+            Value to format for Python output
+        param_name : str, optional
+            Name of the parameter for special formatting rules, by default None
+
+        Returns
+        -------
+        str
+            Formatted value as Python code string
+        """
         # Apply type casting for specific parameters
         if param_name in ['particles', 'batches', 'inactive', 'depletion_particles', 'depletion_batches', 'depletion_inactive']:
             if isinstance(value, str):
@@ -156,7 +180,18 @@ class ExportUtils:
 
     @staticmethod
     def parse_loop_values(values_str):
-        """Parse values string into a list of values"""
+        """Parse values string into a list of values.
+
+        Parameters
+        ----------
+        values_str : str
+            String containing comma-separated values or Python list
+
+        Returns
+        -------
+        list
+            List of parsed values
+        """
         if not values_str:
             return []
 
@@ -174,7 +209,18 @@ class ExportUtils:
 
     @staticmethod
     def parse_single_value(value_str):
-        """Parse a single value string"""
+        """Parse a single value string.
+
+        Parameters
+        ----------
+        value_str : str
+            String representation of a single value
+
+        Returns
+        -------
+        Any
+            Parsed value (int, float, bool, list, or str)
+        """
         value_str = value_str.strip()
 
         # Try to parse as number

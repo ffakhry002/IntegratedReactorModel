@@ -17,7 +17,8 @@ def process_depletion_results(time_seconds, k_eff, power_density):
     Returns
     -------
     dict
-        Dictionary containing processed results
+        Dictionary containing processed results including time_days, burnup, k_eff,
+        k_means, pcm_per_burnup, pcm_per_EFPD, and k=1 crossing information
     """
     # Convert time to days and calculate burnup
     time_days = time_seconds / (24 * 60 * 60)

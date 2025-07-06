@@ -18,7 +18,19 @@ SCRIPT_DIR = Path(__file__).parent.absolute()
 
 
 def load_configurations(filename='output/data/core_configurations_optimized.pkl'):
-    """Load configurations from pickle file."""
+    """Load configurations from pickle file.
+
+    Parameters
+    ----------
+    filename : str, optional
+        Path to pickle file containing configurations data
+
+    Returns
+    -------
+    tuple
+        (configurations, irradiation_sets) where configurations is list of 8x8 arrays
+        and irradiation_sets is list of position tuples
+    """
     # If filename is relative, make it relative to SCRIPT_DIR
     if not Path(filename).is_absolute():
         filename = SCRIPT_DIR / filename
@@ -29,10 +41,20 @@ def load_configurations(filename='output/data/core_configurations_optimized.pkl'
 
 
 def calculate_average_distance_from_core_center(positions: List[Tuple[int, int]]) -> float:
-    """
-    Calculate average distance from core center.
+    """Calculate average distance from core center.
+
     In an 8×8 grid, the geometric center is at coordinate (4, 4).
     Each grid square (i,j) has its center at (i+0.5, j+0.5).
+
+    Parameters
+    ----------
+    positions : List[Tuple[int, int]]
+        List of (row, col) position tuples
+
+    Returns
+    -------
+    float
+        Average Euclidean distance from core center to position centers
     """
     core_center = (4, 4)
 
@@ -49,9 +71,19 @@ def calculate_average_distance_from_core_center(positions: List[Tuple[int, int]]
 
 
 def calculate_minimum_inter_position_distance(positions: List[Tuple[int, int]]) -> float:
-    """
-    Calculate the smallest pairwise distance between any two of the four selected positions.
-    This affects neutron shadowing between positions.
+    """Calculate the smallest pairwise distance between any two selected positions.
+
+    This parameter affects neutron shadowing between positions.
+
+    Parameters
+    ----------
+    positions : List[Tuple[int, int]]
+        List of (row, col) position tuples
+
+    Returns
+    -------
+    float
+        Minimum Euclidean distance between any pair of position centers
     """
     min_distance = float('inf')
     n = len(positions)
@@ -72,9 +104,19 @@ def calculate_minimum_inter_position_distance(positions: List[Tuple[int, int]]) 
 
 
 def calculate_clustering_coefficient(positions: List[Tuple[int, int]]) -> float:
-    """
-    Calculate the radius of the smallest circle containing the centers of all four positions.
-    This distinguishes between tightly grouped and dispersed configurations.
+    """Calculate the radius of the smallest circle containing all position centers.
+
+    This parameter distinguishes between tightly grouped and dispersed configurations.
+
+    Parameters
+    ----------
+    positions : List[Tuple[int, int]]
+        List of (row, col) position tuples
+
+    Returns
+    -------
+    float
+        Approximate radius of minimum enclosing circle
     """
     # Convert positions to centers
     centers = [(i + 0.5, j + 0.5) for i, j in positions]
@@ -100,10 +142,20 @@ def calculate_clustering_coefficient(positions: List[Tuple[int, int]]) -> float:
 
 
 def calculate_symmetry_balance(positions: List[Tuple[int, int]]) -> float:
-    """
-    Calculate distance between the center of mass of the four position centers and the reactor center.
+    """Calculate distance between center of mass and reactor center.
+
     The center of mass is calculated as the average of the four position centers.
     This captures whether configurations are balanced or skewed to one side.
+
+    Parameters
+    ----------
+    positions : List[Tuple[int, int]]
+        List of (row, col) position tuples
+
+    Returns
+    -------
+    float
+        Distance from center of mass to reactor center
     """
     reactor_center = (4, 4)
 
@@ -121,10 +173,22 @@ def calculate_symmetry_balance(positions: List[Tuple[int, int]]) -> float:
 
 def calculate_local_fuel_density(positions: List[Tuple[int, int]],
                                 configuration: np.ndarray) -> float:
-    """
-    Calculate average number of fuel positions adjacent to each irradiation position.
+    """Calculate average number of fuel positions adjacent to each irradiation position.
+
     Adjacent means the 8 surrounding positions (including diagonals).
     Only counts actual fuel ('F'), not irradiation positions ('I') or coolant ('C').
+
+    Parameters
+    ----------
+    positions : List[Tuple[int, int]]
+        List of (row, col) irradiation position tuples
+    configuration : numpy.ndarray
+        8x8 configuration array with 'F', 'C', 'I' elements
+
+    Returns
+    -------
+    float
+        Average number of fuel positions adjacent to irradiation positions
     """
     fuel_counts = []
 
@@ -154,9 +218,19 @@ def calculate_local_fuel_density(positions: List[Tuple[int, int]],
 
 
 def calculate_average_distance_to_edge(positions: List[Tuple[int, int]]) -> float:
-    """
-    Calculate average distance to the nearest edge or corner of the reactor.
+    """Calculate average distance to the nearest edge or corner of the reactor.
+
     Distance is measured from the center of each grid square to the nearest edge.
+
+    Parameters
+    ----------
+    positions : List[Tuple[int, int]]
+        List of (row, col) position tuples
+
+    Returns
+    -------
+    float
+        Minimum distance to reactor edge/corner among all positions
     """
     distances = []
 
@@ -192,9 +266,21 @@ def calculate_average_distance_to_edge(positions: List[Tuple[int, int]]) -> floa
 
 def calculate_all_physics_parameters(configuration: np.ndarray,
                                    irradiation_positions: List[Tuple[int, int]]) -> Dict:
-    """
-    Calculate all physics-informed parameters for a configuration.
-    Now includes six parameters instead of five.
+    """Calculate all physics-informed parameters for a configuration.
+
+    Computes six geometric parameters that influence reactor physics behavior.
+
+    Parameters
+    ----------
+    configuration : numpy.ndarray
+        8x8 configuration array with 'F', 'C', 'I' elements
+    irradiation_positions : List[Tuple[int, int]]
+        List of (row, col) irradiation position tuples
+
+    Returns
+    -------
+    Dict
+        Dictionary containing all calculated physics parameters
     """
     params = {
         'irradiation_positions': irradiation_positions,
@@ -210,7 +296,12 @@ def calculate_all_physics_parameters(configuration: np.ndarray,
 
 
 def main():
-    """Main function to calculate physics parameters for all configurations."""
+    """Main function to calculate physics parameters for all configurations.
+
+    Processes configuration files and calculates geometric parameters.
+    Supports both symmetry-reduced and full configuration sets.
+    Can handle 6x6 restricted configurations.
+    """
     # Add command line argument parsing
     parser = argparse.ArgumentParser(description='Calculate geometric parameters for core configurations')
     parser.add_argument('--full', action='store_true',

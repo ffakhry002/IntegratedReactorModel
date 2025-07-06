@@ -29,7 +29,19 @@ from visualizations_helpers.optuna_visualizations import generate_all_optuna_vis
 from visualizations_helpers.core_config_visualizations import generate_core_config_visualizations
 
 def detect_energy_discretization(df):
-    """Detect if the Excel file contains energy-discretized results"""
+    """Detect if the Excel file contains energy-discretized results.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        DataFrame containing test results
+
+    Returns
+    -------
+    tuple
+        (has_energy_discretization, single_energy_mode) where single_energy_mode
+        will be 'thermal_only', 'epithermal_only', 'fast_only', or None
+    """
     # Returns (has_energy_discretization, single_energy_mode)
     # single_energy_mode will be 'thermal_only', 'epithermal_only', 'fast_only', or None
 
@@ -81,7 +93,17 @@ def detect_energy_discretization(df):
         return False, None
 
 def find_optuna_studies():
-    """Find saved Optuna study files"""
+    """Find saved Optuna study files.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    dict
+        Dictionary mapping study keys to file paths
+    """
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
     # Look for studies in the outputs folder
@@ -118,7 +140,21 @@ def find_optuna_studies():
     return study_files
 
 def ensure_directories(base_output_dir, has_energy_discretization=False, single_energy_mode=None):
-    """Create all necessary output directories"""
+    """Create all necessary output directories.
+
+    Parameters
+    ----------
+    base_output_dir : str
+        Base output directory path
+    has_energy_discretization : bool, optional
+        Whether results include energy discretization
+    single_energy_mode : str, optional
+        Single energy mode ('thermal_only', 'epithermal_only', 'fast_only')
+
+    Returns
+    -------
+    None
+    """
     directories = [base_output_dir]
 
     if has_energy_discretization:
@@ -153,7 +189,16 @@ def ensure_directories(base_output_dir, has_energy_discretization=False, single_
         print(f"Created/verified directory: {directory}")
 
 def main():
-    """Main visualization pipeline"""
+    """Main visualization pipeline.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    None
+    """
     print("\n" + "="*80)
     print("NUCLEAR REACTOR ML VISUALIZATION PIPELINE")
     print("="*80 + "\n")
@@ -265,7 +310,7 @@ def main():
         print(f"  Optimizations: {', '.join(optimizations)}")
 
         # Check data availability
-        print(f"\n📊 Data availability check:")
+        print(f"\nData availability check:")
 
         # Check for flux data
         if has_energy_discretization:
@@ -823,7 +868,7 @@ def main():
                     flux_modes_in_excel.add('epithermal_only')
                 if any('_fast_' in col for col in test_results_df.columns):
                     flux_modes_in_excel.add('fast_only')
-                print(f"  🔧 Multi-energy data detected - added individual energy modes to search")
+                print(f"  Multi-energy data detected - added individual energy modes to search")
         else:
             # Infer from columns
             if has_energy_discretization:
@@ -929,7 +974,7 @@ def main():
 
             for key, study_path in relevant_studies.items():
                 try:
-                    print(f"\n📊 Processing {key}...")
+                    print(f"\nProcessing {key}...")
 
                     # Load the study
                     study = joblib.load(study_path)

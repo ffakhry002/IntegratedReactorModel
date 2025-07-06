@@ -5,18 +5,27 @@ from ..material_properties.fuel_properties import calculate_k_fuel_vector
 def converge_fuel(th_system, tolerance=0.001, max_iterations=100, relaxation_factor=0.3):
     """Iteratively converge fuel temperatures and conductivities with relaxation.
 
-    Args:
-        th_system: THSystem object containing geometry and material information
-        tolerance: Maximum allowed conductivity difference between iterations
-        max_iterations: Maximum number of iterations to attempt
-        relaxation_factor: Factor to dampen changes between iterations (0 to 1)
+    Parameters
+    ----------
+    th_system : THSystem
+        THSystem object containing geometry and material information
+    tolerance : float, optional
+        Maximum allowed conductivity difference between iterations
+    max_iterations : int, optional
+        Maximum number of iterations to attempt
+    relaxation_factor : float, optional
+        Factor to dampen changes between iterations (0 to 1)
 
-    Returns:
-        tuple: Contains:
+    Returns
+    -------
+    tuple
+        Contains:
             - np.array: Average fuel temperatures along z-axis
             - np.array: 2D array of fuel temperatures (z, y)
             - np.array: Converged fuel thermal conductivities
 
+    Notes
+    -----
     Prints convergence information including iteration count, temperature statistics,
     conductivity values, and convergence status.
     """

@@ -28,7 +28,11 @@ class CoreConfigGenerator:
         self.create_directories()
 
     def create_directories(self):
-        """Create required directory structure."""
+        """Create required directory structure.
+
+        Creates all necessary output directories for core configuration data,
+        sampling results, and method scripts.
+        """
         dirs = [
             'output',
             'output/data',
@@ -45,7 +49,14 @@ class CoreConfigGenerator:
             print(f"✓ Created directory: {dir_path}")
 
     def create_base_lattice(self):
-        """Create the base 8x8 lattice with coolant in corners and adjacent positions."""
+        """Create the base 8x8 lattice with coolant in corners and adjacent positions.
+
+        Returns
+        -------
+        tuple
+            (lattice, coolant_positions) where lattice is 8x8 numpy array and
+            coolant_positions is list of (row, col) tuples
+        """
         lattice = np.array([['F' for _ in range(8)] for _ in range(8)])
 
         coolant_positions = [
@@ -62,7 +73,18 @@ class CoreConfigGenerator:
         return lattice, coolant_positions
 
     def get_fuel_positions(self, lattice):
-        """Get all fuel positions from the lattice."""
+        """Get all fuel positions from the lattice.
+
+        Parameters
+        ----------
+        lattice : numpy.ndarray
+            8x8 lattice array with 'F' for fuel, 'C' for coolant
+
+        Returns
+        -------
+        list
+            List of (row, col) tuples representing fuel positions
+        """
         fuel_positions = [(i, j) for i in range(8) for j in range(8) if lattice[i, j] == 'F']
 
         if self.use_6x6_restriction:
@@ -72,9 +94,17 @@ class CoreConfigGenerator:
         return fuel_positions
 
     def get_canonical_form(self, positions: List[Tuple[int, int]]) -> FrozenSet[Tuple[int, int]]:
-        """
-        Get the canonical form of a set of positions under D4 symmetry.
-        Returns the lexicographically smallest representation.
+        """Get the canonical form of a set of positions under D4 symmetry.
+
+        Parameters
+        ----------
+        positions : List[Tuple[int, int]]
+            List of (row, col) position tuples
+
+        Returns
+        -------
+        FrozenSet[Tuple[int, int]]
+            Lexicographically smallest representation under D4 symmetry transformations
         """
         transformations = []
         pos_array = np.array(positions)
@@ -100,7 +130,11 @@ class CoreConfigGenerator:
         return min(transformations, key=lambda x: sorted(x))
 
     def generate_configurations(self):
-        """Generate configurations with console progress output."""
+        """Generate configurations with console progress output.
+
+        Generates all possible 4-irradiation position combinations and applies
+        D4 symmetry reduction to eliminate duplicates. Shows real-time progress.
+        """
         start_time = time.time()
 
         # Create base lattice
@@ -173,7 +207,13 @@ class CoreConfigGenerator:
         print(f"Reduction factor: {len(self.all_configurations_before_symmetry)/len(self.configurations):.1f}x")
 
     def save_configurations(self):
-        """Save configurations to organized folders."""
+        """Save configurations to organized folders.
+
+        Saves configurations in multiple formats:
+        - Pickle files for programmatic access
+        - Text files for human review
+        - Summary files with statistics
+        """
         print("\nSaving configurations...")
 
         # Determine filename suffix based on restriction
@@ -292,7 +332,15 @@ class CoreConfigGenerator:
 
 
 def visualize_configuration(config, title="Core Configuration"):
-    """Create a simple text visualization of a core configuration."""
+    """Create a simple text visualization of a core configuration.
+
+    Parameters
+    ----------
+    config : numpy.ndarray
+        8x8 configuration array with 'C', 'F', 'I' elements
+    title : str, optional
+        Title for the visualization (default: "Core Configuration")
+    """
     print(f"\n{title}")
     print("-" * 33)
     for row in config:
@@ -302,6 +350,11 @@ def visualize_configuration(config, title="Core Configuration"):
 
 
 def main():
+    """Main function to generate core configurations with optional 6x6 restriction.
+
+    Parses command line arguments and runs the complete configuration generation
+    workflow including directory setup, generation, and saving.
+    """
     parser = argparse.ArgumentParser(description='Generate core configurations')
     parser.add_argument('--restrict-6x6', action='store_true',
                         help='Restrict configurations to central 6x6 square')

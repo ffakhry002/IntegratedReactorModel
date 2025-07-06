@@ -23,17 +23,21 @@ def create_flux_profile_plots(flux_mean, shape, plot_dir, filename, title_prefix
     filename : str
         Name of the output file
     title_prefix : str, optional
-        Prefix to add to plot titles
-    active_core_radius : float
+        Prefix to add to plot titles, by default ""
+    active_core_radius : float, optional
         Radius of active core region in cm
-    tank_radius : float
+    tank_radius : float, optional
         Radius of tank in cm
-    reflector_radius : float
+    reflector_radius : float, optional
         Radius of reflector in cm
-    half_height : float
+    half_height : float, optional
         Half height of the core in cm
     group_fluxes : dict, optional
         Dictionary containing energy group fluxes with keys 'thermal', 'epithermal', 'fast'
+
+    Returns
+    -------
+    None
     """
     # Create figure with subplots
     n_rows = 2 if group_fluxes else 1

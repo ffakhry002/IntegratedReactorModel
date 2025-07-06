@@ -30,6 +30,17 @@ from Inputs_GUI.components.geometry_tab import GeometryTab
 
 class ReactorGUI:
     def __init__(self, root):
+        """Initialize the reactor GUI application.
+
+        Parameters
+        ----------
+        root : tkinter.Tk
+            Root window for the application
+
+        Returns
+        -------
+        None
+        """
         self.root = root
         self.root.title("Interactive Reactor Design Studio")
         self.root.geometry("1800x1200")
@@ -65,7 +76,16 @@ class ReactorGUI:
         self.check_update_queue()
 
     def setup_gui(self):
-        """Setup the main GUI layout with tabs and menu"""
+        """Setup the main GUI layout with tabs and menu.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         # Create menu bar
         self.setup_menu_bar()
 
@@ -90,7 +110,16 @@ class ReactorGUI:
         self.notebook.add(self.geometry_frame, text="OpenMC Geometry")
 
     def setup_menu_bar(self):
-        """Setup the menu bar"""
+        """Setup the menu bar.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         menubar = tk.Menu(self.root)
         self.root.config(menu=menubar)
 
@@ -111,7 +140,16 @@ class ReactorGUI:
         help_menu.add_command(label="About", command=self.show_about)
 
     def launch_parametric_gui(self):
-        """Launch the separate parametric study GUI"""
+        """Launch the separate parametric study GUI.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         try:
             # Get the path to the parametric GUI
             current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -129,17 +167,44 @@ class ReactorGUI:
             messagebox.showerror("Error", f"Failed to launch Parametric GUI: {e}")
 
     def export_inputs(self):
-        """Export current inputs to a file"""
+        """Export current inputs to a file.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         # Placeholder for export functionality
         messagebox.showinfo("Export", "Export functionality coming soon!")
 
     def import_inputs(self):
-        """Import inputs from a file"""
+        """Import inputs from a file.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         # Placeholder for import functionality
         messagebox.showinfo("Import", "Import functionality coming soon!")
 
     def show_about(self):
-        """Show about dialog"""
+        """Show about dialog.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         about_text = """Interactive Reactor Design Studio
 
 A comprehensive tool for reactor design and analysis.
@@ -157,7 +222,16 @@ Version: 1.0.0
         messagebox.showinfo("About", about_text)
 
     def init_components(self):
-        """Initialize all tab components"""
+        """Initialize all tab components.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         # Create tab instances
         self.viz_tab = VisualizationTab(self.viz_frame, self)
         self.design_tab = DesignTab(self.design_frame, self)
@@ -173,12 +247,30 @@ Version: 1.0.0
         self.geometry_tab.setup()
 
     def schedule_update(self):
-        """Schedule a visualization update"""
+        """Schedule a visualization update.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         if not self.updating:
             self.update_queue.put("update")
 
     def check_update_queue(self):
-        """Check for queued updates"""
+        """Check for queued updates.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         try:
             while True:
                 self.update_queue.get_nowait()
@@ -193,7 +285,16 @@ Version: 1.0.0
         self.root.after(50, self.check_update_queue)
 
     def update_visualization(self):
-        """Update the visualization"""
+        """Update the visualization.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         try:
             self.viz_tab.update_visualization()
         finally:

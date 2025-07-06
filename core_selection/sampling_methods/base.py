@@ -21,7 +21,11 @@ from sklearn.preprocessing import KBinsDiscretizer
 SCRIPT_DIR = Path(__file__).parent.parent.absolute()
 
 class BaseSampler:
-    """Base class for all sampling methods with caching and optimization."""
+    """Base class for all sampling methods with caching and optimization.
+
+    Provides common functionality including data loading, distance caching,
+    feature matrix creation, and optimization structures for all sampling methods.
+    """
 
     def __init__(self, use_6x6_restriction=False, selected_parameters=None):
         # Only set default method_name if not already set by child class
@@ -71,7 +75,11 @@ class BaseSampler:
         self.load_data()
 
     def _precompute_optimization_data(self):
-        """Precompute data structures for optimization."""
+        """Precompute data structures for optimization.
+
+        Creates position sets, coordinate arrays, canonical forms,
+        and other data structures to speed up distance calculations.
+        """
         print("Precomputing optimization data...")
 
         # Precompute position sets for Jaccard calculations
@@ -95,7 +103,20 @@ class BaseSampler:
                                                                 for i, j in self.canonical_forms[idx]])
 
     def _get_cache_key(self, idx1: int, idx2: int) -> Tuple[int, int]:
-        """Generate symmetric cache key for two indices."""
+        """Generate symmetric cache key for two indices.
+
+        Parameters
+        ----------
+        idx1 : int
+            First configuration index
+        idx2 : int
+            Second configuration index
+
+        Returns
+        -------
+        tuple
+            Sorted tuple of the two indices for symmetric caching
+        """
         return tuple(sorted([idx1, idx2]))
 
     def get_cached_euclidean_distance(self, idx1: int, idx2: int) -> float:
@@ -229,7 +250,12 @@ class BaseSampler:
         return np.mean(distances) if distances else 0.0
 
     def load_data(self):
-        """Load configurations and physics parameters."""
+        """Load configurations and physics parameters.
+
+        Loads configuration data and physics parameters from pickle files.
+        Geometric methods use full configuration sets, lattice methods use
+        symmetry-reduced sets. Creates feature matrices and optimization data.
+        """
         # Determine which configuration file to load based on method type
         # Geometric methods should use full set, lattice methods use reduced set
 
@@ -372,7 +398,7 @@ class BaseSampler:
     def calculate_diversity_score_generic(self, selected_indices: List[int],
                                         distance_type: str = 'euclidean') -> float:
         """
-        Calculate minimum pairwise distance using specified metric.
+        Calculate mean pairwise distance using specified metric.
         This ensures consistency between selection and evaluation.
 
         Args:
@@ -380,12 +406,12 @@ class BaseSampler:
             distance_type: Type of distance metric ('euclidean', 'manhattan', 'jaccard')
 
         Returns:
-            Minimum pairwise distance among selected configurations
+            Mean pairwise distance among selected configurations
         """
         if len(selected_indices) < 2:
             return 0.0
 
-        min_distance = float('inf')
+        distances = []
         n = len(selected_indices)
 
         for i in range(n):
@@ -400,26 +426,26 @@ class BaseSampler:
                 else:
                     raise ValueError(f"Unknown distance type: {distance_type}")
 
-                min_distance = min(min_distance, dist)
+                distances.append(dist)
 
-        return min_distance
+        return sum(distances) / len(distances) if distances else 0.0
 
     def calculate_diversity_score_lattice_generic(self, selected_indices: List[int],
                                                 distance_type: str = 'euclidean') -> float:
         """
-        Calculate minimum pairwise distance in lattice space using specified metric.
+        Calculate mean pairwise distance in lattice space using specified metric.
 
         Args:
             selected_indices: List of selected configuration indices
             distance_type: Type of distance metric ('euclidean', 'manhattan', 'jaccard')
 
         Returns:
-            Minimum pairwise distance in lattice space
+            Mean pairwise distance in lattice space
         """
         if len(selected_indices) < 2:
             return 0.0
 
-        min_distance = float('inf')
+        distances = []
         n = len(selected_indices)
 
         for i in range(n):
@@ -435,9 +461,9 @@ class BaseSampler:
                 else:
                     raise ValueError(f"Unknown distance type: {distance_type}")
 
-                min_distance = min(min_distance, dist)
+                distances.append(dist)
 
-        return min_distance
+        return sum(distances) / len(distances) if distances else 0.0
 
     def find_closest_configuration(self, target_params: np.ndarray,
                                  used_indices: Set[int] = None) -> Tuple[int, float]:
@@ -614,7 +640,7 @@ class BaseSampler:
             f.write(f"Number of samples: {len(selected_indices)}\n")
 
             if 'diversity_score' in results:
-                f.write(f"Diversity score (min pairwise distance): {results['diversity_score']:.4f}\n")
+                f.write(f"Diversity score (mean pairwise distance): {results['diversity_score']:.4f}\n")
 
             if 'matching_distances' in results:
                 f.write(f"Average matching distance: {np.mean(results['matching_distances']):.4f}\n")

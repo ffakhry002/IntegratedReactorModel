@@ -43,14 +43,37 @@ class GeometricUnifiedSampler(BaseSampler):
             raise ValueError(f"Unknown distance: {distance}")
 
     def _discretize_features(self, features):
-        """
-        Use unified discretization method from base class.
+        """Use unified discretization method from base class.
+
         This ensures consistency with other sampling methods.
+
+        Parameters
+        ----------
+        features : np.ndarray
+            Features to discretize
+
+        Returns
+        -------
+        np.ndarray
+            Discretized features
         """
         return self._discretize_features_unified(features)
 
     def _run_single_sample(self, n_samples: int, seed: int) -> Tuple:
-        """Run a single sampling iteration (for parallel execution)."""
+        """Run a single sampling iteration (for parallel execution).
+
+        Parameters
+        ----------
+        n_samples : int
+            Number of samples to select
+        seed : int
+            Random seed for reproducibility
+
+        Returns
+        -------
+        Tuple
+            (selected_indices, quality_value) where quality_value is either inertia or diversity
+        """
         # Check if we have a progress callback to pass
         progress_callback = getattr(self, '_progress_callback', None)
 
@@ -77,7 +100,22 @@ class GeometricUnifiedSampler(BaseSampler):
         return indices, quality_value
 
     def sample(self, n_samples: int, n_runs: int = 10, base_seed: int = 42) -> Dict:
-        """Run sampling with configured algorithm and distance."""
+        """Run sampling with configured algorithm and distance.
+
+        Parameters
+        ----------
+        n_samples : int
+            Number of samples to select
+        n_runs : int, optional
+            Number of runs to execute, by default 10
+        base_seed : int, optional
+            Base random seed, by default 42
+
+        Returns
+        -------
+        Dict
+            Dictionary containing sampling results including selected indices, diversity score, and algorithm metrics
+        """
         print(f"\nRunning {self.method_name}")
         print(f"Algorithm: {self.algorithm.name}")
         print(f"Distance: {self.distance_calculator.name}")

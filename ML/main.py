@@ -17,7 +17,11 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from execution.interactive_menu import InteractiveTrainer
 
 def main():
-    """Main entry point"""
+    """Main entry point for the Nuclear Reactor ML Training System.
+
+    Sets up logging, creates directory structure, processes data files,
+    and launches the interactive training interface.
+    """
     # Get the directory where main.py is located
     script_dir = os.path.dirname(os.path.abspath(__file__))
 

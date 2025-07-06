@@ -25,7 +25,23 @@ cross_sections_path = os.path.join(root_dir, "cross_sections", "cross_sections.x
 
 
 def calculate_volumes(geometry, inputs_dict):
-    """Calculate volumes for all depletable materials considering full core geometry."""
+    """Calculate volumes for all depletable materials considering full core geometry.
+
+    Parameters
+    ----------
+    geometry : openmc.Geometry
+        OpenMC geometry object
+    inputs_dict : dict
+        Dictionary containing input parameters
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    Updates material volumes in place and writes debug information to file.
+    """
     debug_file = os.path.join(os.path.dirname(__file__), 'outputs', 'volume_debug.txt')
     os.makedirs(os.path.dirname(debug_file), exist_ok=True)
 

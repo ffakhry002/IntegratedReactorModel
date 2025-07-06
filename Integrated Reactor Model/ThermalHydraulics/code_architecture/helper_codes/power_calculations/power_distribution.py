@@ -7,11 +7,15 @@ from scipy.interpolate import interp1d
 def read_power_from_csv(th_system):
     """Read power distribution from CSV file.
 
-    Args:
-        th_system: THSystem object containing power source settings
+    Parameters
+    ----------
+    th_system : THSystem
+        THSystem object containing power source settings
 
-    Returns:
-        np.array: Power distribution array in W/m
+    Returns
+    -------
+    numpy.ndarray
+        Power distribution array in W/m
     """
     csv_path = th_system.reactor_power.csv_path
     if not csv_path or not os.path.exists(csv_path):
@@ -246,11 +250,15 @@ def read_power_from_csv(th_system):
 def calculate_cosine_power(th_system):
     """Calculate axial power distribution using cosine approximation.
 
-    Args:
-        th_system: THSystem object containing geometry, power, and material information
+    Parameters
+    ----------
+    th_system : THSystem
+        THSystem object containing geometry, power, and material information
 
-    Returns:
-        np.array: Array of heat generation rates along z-axis in W/m
+    Returns
+    -------
+    numpy.ndarray
+        Array of heat generation rates along z-axis in W/m
     """
     # Calculate assembly volumes
     if th_system.thermal_hydraulics.assembly_type == 'Plate':
@@ -311,11 +319,15 @@ def calculate_cosine_power(th_system):
 def calculate_Q_dot_z(th_system):
     """Calculate axial power distribution.
 
-    Args:
-        th_system: THSystem object containing geometry, power, and material information
+    Parameters
+    ----------
+    th_system : THSystem
+        THSystem object containing geometry, power, and material information
 
-    Returns:
-        np.array: Array of heat generation rates along z-axis
+    Returns
+    -------
+    numpy.ndarray
+        Array of heat generation rates along z-axis
     """
     # Check if we should use CSV power distribution
     if th_system.reactor_power.power_source != 'COSINE' and th_system.reactor_power.csv_path:

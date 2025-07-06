@@ -25,7 +25,17 @@ from plotting.plotall import plot_all
 from depletion.run_depletion import run_all_depletions
 
 def create_parametric_directory():
-    """Create the main parametric study directory with timestamp."""
+    """Create the main parametric study directory with timestamp.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    str
+        Path to the created parametric study directory
+    """
     current_date = datetime.now().strftime("%Y%m%d_%H%M%S")
     param_dir_name = f"parametric_simulation_{current_date}"
 
@@ -40,7 +50,20 @@ def create_parametric_directory():
     return param_dir
 
 def write_base_inputs_log(param_dir, base_inputs):
-    """Write the base inputs to a log file."""
+    """Write the base inputs to a log file.
+
+    Parameters
+    ----------
+    param_dir : str
+        Directory path for the parametric study
+    base_inputs : dict
+        Base input parameters dictionary
+
+    Returns
+    -------
+    str
+        Path to the created log file
+    """
     log_file = os.path.join(param_dir, "parametric_study_log.txt")
 
     # Get assembly type to determine which geometry parameters to show
@@ -223,7 +246,20 @@ def write_base_inputs_log(param_dir, base_inputs):
     return log_file
 
 def update_inputs_with_run_dict(base_inputs, run_dict):
-    """Create a new inputs dictionary with modifications from run_dict."""
+    """Create a new inputs dictionary with modifications from run_dict.
+
+    Parameters
+    ----------
+    base_inputs : dict
+        Base input parameters dictionary
+    run_dict : dict
+        Dictionary containing parameter modifications for this run
+
+    Returns
+    -------
+    dict
+        Modified inputs dictionary with updated derived values
+    """
     # Start with a deep copy of base inputs
     modified_inputs = copy.deepcopy(base_inputs)
 
@@ -244,7 +280,23 @@ def update_inputs_with_run_dict(base_inputs, run_dict):
     return modified_inputs
 
 def run_single_parametric_case(run_num, run_dict, param_dir, log_file):
-    """Run a single parametric case."""
+    """Run a single parametric case.
+
+    Parameters
+    ----------
+    run_num : int
+        Run number identifier
+    run_dict : dict
+        Dictionary containing parameter modifications for this run
+    param_dir : str
+        Main parametric study directory path
+    log_file : str
+        Path to the log file
+
+    Returns
+    -------
+    None
+    """
     print(f"\n{'='*60}")
     print(f"STARTING RUN {run_num}")
     print(f"{'='*60}")
@@ -343,7 +395,21 @@ def run_single_parametric_case(run_num, run_dict, param_dir, log_file):
         os.chdir(original_cwd)
 
 def run_additional_th_calculations(subdirs, th_subdirs, modified_inputs):
-    """Run additional thermal hydraulics calculations with different power profiles."""
+    """Run additional thermal hydraulics calculations with different power profiles.
+
+    Parameters
+    ----------
+    subdirs : dict
+        Dictionary of subdirectory paths
+    th_subdirs : dict
+        Dictionary of thermal hydraulics subdirectory paths
+    modified_inputs : dict
+        Modified input parameters for this run
+
+    Returns
+    -------
+    None
+    """
     # Get element type from inputs
     is_element_level = modified_inputs.get('element_level_power_tallies', False)
     if is_element_level:
@@ -380,7 +446,31 @@ def run_additional_th_calculations(subdirs, th_subdirs, modified_inputs):
     th_system_avg.write_results(th_subdirs['core_average'])
 
 def log_run_results(log_file, run_num, run_dict, modified_inputs, k_eff, k_std, success, error_msg=None):
-    """Log the results of a parametric run."""
+    """Log the results of a parametric run.
+
+    Parameters
+    ----------
+    log_file : str
+        Path to the log file
+    run_num : int
+        Run number identifier
+    run_dict : dict
+        Dictionary containing parameter modifications for this run
+    modified_inputs : dict
+        Modified input parameters for this run
+    k_eff : float, optional
+        k-effective value
+    k_std : float, optional
+        k-effective standard deviation
+    success : bool
+        Whether the run completed successfully
+    error_msg : str, optional
+        Error message if the run failed
+
+    Returns
+    -------
+    None
+    """
     with open(log_file, 'a') as f:
         f.write(f"RUN {run_num}:\n")
         f.write("-"*40 + "\n")
@@ -457,7 +547,21 @@ def log_run_results(log_file, run_num, run_dict, modified_inputs, k_eff, k_std, 
         f.write("\n" + "="*80 + "\n\n")
 
 def run_parametric_study():
-    """Main function to run the complete parametric study."""
+    """Main function to run the complete parametric study.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    Creates a timestamped directory and runs all parametric cases defined
+    in the all_runs list. Results and logs are saved to the study directory.
+    """
     print("="*80)
     print("STARTING PARAMETRIC STUDY")
     print("="*80)

@@ -11,13 +11,20 @@ import pandas as pd
 import os
 
 def create_summary_statistics_plots(df, output_dir, has_energy_discretization=False):
-    """
-    Create summary visualizations for model performance
+    """Create summary visualizations for model performance.
 
-    Args:
-        df: DataFrame with test results
-        output_dir: Directory to save plots
-        has_energy_discretization: Whether the data has energy groups
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        DataFrame with test results
+    output_dir : str
+        Directory to save plots
+    has_energy_discretization : bool, optional
+        Whether the data has energy groups, by default False
+
+    Returns
+    -------
+    None
     """
 
     if has_energy_discretization:
@@ -32,7 +39,19 @@ def create_summary_statistics_plots(df, output_dir, has_energy_discretization=Fa
         # Removed optimization comparison as requested
 
 def create_energy_summary_comparison(df, output_dir):
-    """Create comparison of model performance across energy groups"""
+    """Create comparison of model performance across energy groups.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        DataFrame with test results containing energy group columns
+    output_dir : str
+        Directory to save plots
+
+    Returns
+    -------
+    None
+    """
 
     # Set style to white background
     plt.style.use('seaborn-v0_8-whitegrid')
@@ -215,7 +234,19 @@ def create_energy_summary_comparison(df, output_dir):
     create_error_distribution_comparison(df, output_dir)
 
 def create_best_models_by_energy_group(df, output_dir):
-    """Create detailed best models table for each energy group"""
+    """Create detailed best models table for each energy group.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        DataFrame with test results containing energy group data
+    output_dir : str
+        Directory to save plots
+
+    Returns
+    -------
+    None
+    """
 
     energy_groups = ['thermal', 'epithermal', 'fast', 'total']
 
@@ -332,7 +363,23 @@ def create_best_models_by_energy_group(df, output_dir):
     print(f"  Saved: {output_file}")
 
 def create_best_models_summary(df, output_dir, has_energy_discretization=False, target_context='auto'):
-    """Create summary showing best performing model combinations - THREE PANELS (Mean MAPE, Mean of Max MAPE, Max MAPE)"""
+    """Create summary showing best performing model combinations - THREE PANELS (Mean MAPE, Mean of Max MAPE, Max MAPE).
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        DataFrame with test results
+    output_dir : str
+        Directory to save plots
+    has_energy_discretization : bool, optional
+        Whether the data has energy groups, by default False
+    target_context : str, optional
+        Target context for analysis ('auto', 'keff', 'thermal', 'epithermal', 'fast', 'flux'), by default 'auto'
+
+    Returns
+    -------
+    None
+    """
 
     # Auto-detect context from output directory if not specified
     if target_context == 'auto':
@@ -616,7 +663,19 @@ def create_best_models_summary(df, output_dir, has_energy_discretization=False, 
     print(f"  Saved: {output_file}")
 
 def create_error_distribution_comparison(df, output_dir):
-    """Create violin plots comparing error distributions organized by optimization and error type"""
+    """Create violin plots comparing error distributions organized by optimization and error type.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        DataFrame with test results
+    output_dir : str
+        Directory to save plots
+
+    Returns
+    -------
+    None
+    """
 
     # Set style to white background
     plt.style.use('seaborn-v0_8-whitegrid')
@@ -636,7 +695,21 @@ def create_error_distribution_comparison(df, output_dir):
         create_error_distribution_for_total(df, output_dir)
 
 def create_error_distribution_for_energy(df, output_dir, energy_group):
-    """Create error distribution plots for a specific energy group"""
+    """Create error distribution plots for a specific energy group.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        DataFrame with test results containing energy group data
+    output_dir : str
+        Directory to save plots
+    energy_group : str
+        Energy group name ('thermal', 'epithermal', 'fast', 'total')
+
+    Returns
+    -------
+    None
+    """
 
     # Calculate mean and max flux errors from individual positions
     mean_flux_errors = []
@@ -804,7 +877,19 @@ def create_error_distribution_for_energy(df, output_dir, energy_group):
     print(f"  Saved: {output_file}")
 
 def create_error_distribution_for_total(df, output_dir):
-    """Create error distribution plots for regular total flux models"""
+    """Create error distribution plots for regular total flux models.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        DataFrame with test results for total flux
+    output_dir : str
+        Directory to save plots
+
+    Returns
+    -------
+    None
+    """
 
     # Calculate mean and max flux errors from individual positions
     mean_flux_errors = []

@@ -14,7 +14,21 @@ from .plate_fuel import build_fuel_assembly_uni as build_plate_assembly
 from .irradiation_cell import build_irradiation_cell_uni
 
 def build_core_uni(mat_dict, inputs_dict=None):
-    """Build the full core universe with proper cell definitions"""
+    """Build the full core universe with proper cell definitions.
+
+    Parameters
+    ----------
+    mat_dict : dict
+        Dictionary mapping material names to Material objects
+    inputs_dict : dict, optional
+        Custom inputs dictionary. If None, uses the global inputs.
+
+    Returns
+    -------
+    tuple
+        (core_universe, first_irr_universe) where core_universe is the complete
+        OpenMC Universe and first_irr_universe is the first irradiation cell universe
+    """
     # Use provided inputs or default to global inputs
     if inputs_dict is None:
         inputs_dict = inputs

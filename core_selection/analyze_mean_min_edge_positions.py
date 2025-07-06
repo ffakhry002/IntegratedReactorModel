@@ -15,11 +15,25 @@ SCRIPT_DIR = Path(__file__).parent.absolute()
 
 
 def is_edge_position(i, j, configuration):
-    """
-    Check if a position is on the edge of the core.
+    """Check if a position is on the edge of the core.
+
     Edge means:
     1. On the outer edge of the 8x8 grid (i=0, i=7, j=0, or j=7)
     2. Adjacent to a coolant position 'C'
+
+    Parameters
+    ----------
+    i : int
+        Row position
+    j : int
+        Column position
+    configuration : np.ndarray
+        2D array representing the reactor core layout
+
+    Returns
+    -------
+    bool
+        True if position is on edge, False otherwise
     """
     # Check if on outer edge
     if i == 0 or i == 7 or j == 0 or j == 7:
@@ -42,9 +56,24 @@ def is_edge_position(i, j, configuration):
 
 
 def analyze_edge_positions(configurations, irradiation_sets):
-    """
-    Analyze edge positions across all configurations.
-    Returns statistics about edge positions.
+    """Analyze edge positions across all configurations.
+
+    Parameters
+    ----------
+    configurations : list
+        List of 2D arrays representing reactor core layouts
+    irradiation_sets : list
+        List of irradiation position sets for each configuration
+
+    Returns
+    -------
+    dict
+        Dictionary containing statistics about edge positions including:
+        - total_positions: Total number of irradiation positions
+        - edge_positions: Number of positions on edges
+        - cores_by_edge_count: Distribution of cores by edge count
+        - edge_details: Detailed classification of edge types
+        - core_edge_counts: List of edge counts for each core
     """
     total_positions = 0
     edge_positions = 0
@@ -106,8 +135,21 @@ def analyze_edge_positions(configurations, irradiation_sets):
 
 
 def analyze_folder_samples(folder_name, configurations, irradiation_sets):
-    """
-    Analyze edge positions in sampled cores from a specific folder.
+    """Analyze edge positions in sampled cores from a specific folder.
+
+    Parameters
+    ----------
+    folder_name : str
+        Name of the folder containing sampling results
+    configurations : list
+        List of 2D arrays representing reactor core layouts
+    irradiation_sets : list
+        List of irradiation position sets for each configuration
+
+    Returns
+    -------
+    dict or None
+        Dictionary containing analysis results for each method, or None if no results found
     """
     samples_dir = SCRIPT_DIR / f'output/{folder_name}/pkl'
     if not samples_dir.exists():
@@ -196,8 +238,18 @@ def analyze_folder_samples(folder_name, configurations, irradiation_sets):
 
 
 def compare_mean_min_results(mean_results, min_results):
-    """
-    Compare results between mean and min folders.
+    """Compare results between mean and min folders.
+
+    Parameters
+    ----------
+    mean_results : dict
+        Analysis results from mean folder
+    min_results : dict
+        Analysis results from min folder
+
+    Returns
+    -------
+    None
     """
     print(f"\n{'='*60}")
     print("COMPARISON BETWEEN MEAN AND MIN SAMPLES")
@@ -245,7 +297,16 @@ def compare_mean_min_results(mean_results, min_results):
 
 
 def main():
-    """Main function to run the diagnostic."""
+    """Main function to run the edge position diagnostic.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    None
+    """
     parser = argparse.ArgumentParser(description='Analyze edge positions in mean/min sample folders')
     parser.add_argument('--full', action='store_true',
                         help='Use full configuration set for comparison')

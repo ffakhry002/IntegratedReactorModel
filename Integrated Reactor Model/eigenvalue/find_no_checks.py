@@ -1,6 +1,23 @@
 import xml.etree.ElementTree as ET
 
 def extract_cells(xml_file, target_ids):
+    """Extract and print specific cell elements from an OpenMC geometry XML file.
+
+    Parameters
+    ----------
+    xml_file : str
+        Path to the OpenMC geometry XML file
+    target_ids : list
+        List of cell IDs to extract and analyze
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    Prints cells with matching IDs that have material attributes different from "25".
+    """
     # Convert target_ids to set for O(1) lookup
     target_ids = set(map(str, target_ids))
 

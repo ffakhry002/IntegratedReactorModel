@@ -17,7 +17,20 @@ class BaseQMCSampler(BaseSampler):
 
     def find_closest_configuration(self, target_params: np.ndarray,
                                  used_indices: set = None) -> Tuple[int, float]:
-        """Find the configuration whose parameters are closest to the target."""
+        """Find the configuration whose parameters are closest to the target.
+
+        Parameters
+        ----------
+        target_params : np.ndarray
+            Target parameter values to match
+        used_indices : set, optional
+            Set of indices to exclude from search, by default None
+
+        Returns
+        -------
+        Tuple[int, float]
+            Index of closest configuration and its distance to target
+        """
         if used_indices is None:
             used_indices = set()
 
@@ -35,7 +48,17 @@ class BaseQMCSampler(BaseSampler):
         return closest_idx, min_distance
 
     def _get_parameter_ranges(self):
-        """Get the parameter ranges for scaling."""
+        """Get the parameter ranges for scaling.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        list
+            List of (min, max) tuples for each parameter
+        """
         n_features = self.feature_matrix.shape[1]
         param_ranges = []
         for j in range(n_features):
@@ -46,7 +69,20 @@ class BaseQMCSampler(BaseSampler):
         return param_ranges
 
     def _scale_samples_to_ranges(self, samples_unit: np.ndarray, param_ranges: List[Tuple[float, float]]) -> np.ndarray:
-        """Scale unit cube samples to actual parameter ranges."""
+        """Scale unit cube samples to actual parameter ranges.
+
+        Parameters
+        ----------
+        samples_unit : np.ndarray
+            Samples from [0,1] unit cube
+        param_ranges : List[Tuple[float, float]]
+            List of (min, max) ranges for each parameter
+
+        Returns
+        -------
+        np.ndarray
+            Scaled samples in actual parameter ranges
+        """
         n_features = len(param_ranges)
         scaled_samples = np.zeros_like(samples_unit)
 
@@ -57,7 +93,20 @@ class BaseQMCSampler(BaseSampler):
         return scaled_samples
 
     def _find_closest_configurations(self, normalized_samples: np.ndarray, n_samples: int) -> Tuple[List[int], List[float]]:
-        """Find closest discrete configurations to continuous samples."""
+        """Find closest discrete configurations to continuous samples.
+
+        Parameters
+        ----------
+        normalized_samples : np.ndarray
+            Normalized continuous samples
+        n_samples : int
+            Number of samples to find
+
+        Returns
+        -------
+        Tuple[List[int], List[float]]
+            Tuple of (selected indices, matching distances)
+        """
         selected_indices = []
         distances = []
         used_indices = set()
@@ -73,7 +122,26 @@ class BaseQMCSampler(BaseSampler):
 
     def _run_multiple_times(self, n_samples: int, n_runs: int, base_seed: int,
                            sampler_name: str, single_run_func) -> Dict:
-        """Common logic for running QMC samplers multiple times."""
+        """Common logic for running QMC samplers multiple times.
+
+        Parameters
+        ----------
+        n_samples : int
+            Number of samples per run
+        n_runs : int
+            Number of independent runs
+        base_seed : int
+            Base random seed
+        sampler_name : str
+            Name of the sampler for logging
+        single_run_func : callable
+            Function that performs a single sampling run
+
+        Returns
+        -------
+        Dict
+            Dictionary containing best run results and statistics
+        """
         print(f"\nRunning {sampler_name} {n_runs} times to find most diverse set...")
 
         best_indices = None

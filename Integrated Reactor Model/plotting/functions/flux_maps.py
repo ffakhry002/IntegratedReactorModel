@@ -26,15 +26,19 @@ def create_flux_map_plots(flux_mean, flux_std, shape, plot_dir, filename, title_
     filename : str
         Name of the output file
     title_prefix : str, optional
-        Prefix to add to plot titles
-    active_core_radius : float
+        Prefix to add to plot titles, by default ""
+    active_core_radius : float, optional
         Radius of active core region in cm
-    tank_radius : float
+    tank_radius : float, optional
         Radius of tank in cm
-    reflector_radius : float
+    reflector_radius : float, optional
         Radius of reflector in cm
-    half_height : float
+    half_height : float, optional
         Half height of the core in cm
+
+    Returns
+    -------
+    None
     """
     # Calculate axially averaged flux
     flux_mean_axial_avg = np.mean(flux_mean, axis=0)  # Average along Z axis

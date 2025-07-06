@@ -4,16 +4,24 @@ from tabulate import tabulate
 def converge_coolant(th_system, tolerance=0.001, max_iterations=100):
     """Iteratively converge coolant temperatures until convergence criteria is met.
 
-    Args:
-        th_system: THSystem object containing geometry and material information
-        tolerance (float, optional): Maximum allowed temperature difference between iterations. Defaults to 0.001.
-        max_iterations (int, optional): Maximum number of iterations to attempt. Defaults to 100.
+    Parameters
+    ----------
+    th_system : THSystem
+        THSystem object containing geometry and material information
+    tolerance : float, optional
+        Maximum allowed temperature difference between iterations. Defaults to 0.001.
+    max_iterations : int, optional
+        Maximum number of iterations to attempt. Defaults to 100.
 
-    Returns:
-        tuple: Contains:
+    Returns
+    -------
+    tuple
+        Contains:
             - np.array: Converged coolant temperatures along z-axis
             - float: Average coolant temperature
 
+    Notes
+    -----
     Prints convergence information including iteration count, temperature statistics,
     and convergence status.
     """

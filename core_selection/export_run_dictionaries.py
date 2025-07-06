@@ -13,13 +13,35 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).parent.absolute()
 
 def read_sampling_results(pkl_file):
-    """Read sampling results from pickle file."""
+    """Read sampling results from pickle file.
+
+    Parameters
+    ----------
+    pkl_file : str or Path
+        Path to the pickle file containing sampling results
+
+    Returns
+    -------
+    dict
+        Dictionary containing sampling results data
+    """
     with open(pkl_file, 'rb') as f:
         data = pickle.load(f)
     return data
 
 def create_grid_from_positions(positions):
-    """Create an 8x8 grid with I_n notation from irradiation positions."""
+    """Create an 8x8 grid with I_n notation from irradiation positions.
+
+    Parameters
+    ----------
+    positions : list
+        List of (row, col) tuples for irradiation positions
+
+    Returns
+    -------
+    list
+        8x8 grid with irradiation positions marked as I_n
+    """
     # Initialize 8x8 grid with default fuel configuration
     grid = [['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
             ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
@@ -37,7 +59,20 @@ def create_grid_from_positions(positions):
     return grid
 
 def format_grid_for_output(grid, indent_level=2):
-    """Format a grid array with each row on a separate line."""
+    """Format a grid array with each row on a separate line.
+
+    Parameters
+    ----------
+    grid : list
+        2D list representing the reactor core grid
+    indent_level : int, optional
+        Indentation level (not currently used), by default 2
+
+    Returns
+    -------
+    list
+        List of formatted strings representing the grid
+    """
     indent = '        '  # 8 spaces for alignment with "core_lattice":
     row_indent = '            '  # 12 spaces for array rows
 
@@ -53,6 +88,16 @@ def format_grid_for_output(grid, indent_level=2):
     return lines
 
 def main():
+    """Main function to export all selected core configurations to run dictionaries format.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    None
+    """
     # Base directory - use SCRIPT_DIR
     base_dir = SCRIPT_DIR / 'output/samples_picked/pkl'
 

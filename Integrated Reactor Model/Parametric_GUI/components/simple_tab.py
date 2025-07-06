@@ -496,7 +496,7 @@ class SimpleTab:
         ttk.Label(current_frame, text=current_str, font=('Courier', 9)).pack(anchor=tk.W)
 
         # Single button that opens designer
-        designer_button = ttk.Button(designer_frame, text="📋 Open Timesteps Designer",
+        designer_button = ttk.Button(designer_frame, text="Open Timesteps Designer",
                                    command=lambda: self.open_timesteps_designer(param_name, current_value),
                                    style='Accent.TButton')
         designer_button.pack(pady=(5, 10))

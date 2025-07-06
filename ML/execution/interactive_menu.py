@@ -7,7 +7,11 @@ from .results_manager import ResultsManager
 from .config import TrainingConfig
 
 class InteractiveTrainer:
-    """Interactive menu system for model training"""
+    """Interactive menu system for model training.
+
+    Provides a user-friendly interface for configuring and running ML model
+    training with various encoding methods, optimization strategies, and targets.
+    """
 
     def __init__(self, outputs_dir=None):
         self.config = TrainingConfig()
@@ -27,7 +31,20 @@ class InteractiveTrainer:
         self.logs_dir = os.path.join(self.outputs_dir, "logs")
 
     def get_yes_no(self, prompt, default='n'):
-        """Get yes/no input from user"""
+        """Get yes/no input from user.
+
+        Parameters
+        ----------
+        prompt : str
+            Question to ask the user
+        default : str, optional
+            Default response if user presses enter (default: 'n')
+
+        Returns
+        -------
+        bool
+            True for yes, False for no
+        """
         while True:
             response = input(f"{prompt} (y/n, default: {default}): ").strip().lower()
             if response == '':
@@ -39,7 +56,22 @@ class InteractiveTrainer:
             print("Please enter 'y' or 'n'")
 
     def get_choice(self, prompt, options, default=None):
-        """Get choice from list of options"""
+        """Get choice from list of options.
+
+        Parameters
+        ----------
+        prompt : str
+            Question to ask the user
+        options : list
+            List of available options
+        default : int, optional
+            Default option number (1-indexed) if user presses enter
+
+        Returns
+        -------
+        str
+            Selected option from the list
+        """
         print(f"\n{prompt}")
         for i, option in enumerate(options, 1):
             print(f"  {i}. {option}")
@@ -61,7 +93,13 @@ class InteractiveTrainer:
             print(f"Please enter a number between 1 and {len(options)}")
 
     def select_target(self):
-        """Select prediction targets"""
+        """Select prediction targets.
+
+        Returns
+        -------
+        list
+            List of selected target types ('flux', 'keff')
+        """
         print("\n" + "-"*40)
         print("TARGET SELECTION")
         print("-"*40)
@@ -113,7 +151,13 @@ class InteractiveTrainer:
         return targets
 
     def select_models(self):
-        """Select which models to train"""
+        """Select which models to train.
+
+        Returns
+        -------
+        list
+            List of selected model types ('xgboost', 'random_forest', 'svm', 'neural_net')
+        """
         print("\n" + "-"*40)
         print("MODEL SELECTION")
         print("-"*40)
@@ -139,7 +183,13 @@ class InteractiveTrainer:
         return models
 
     def select_encodings(self):
-        """Select multiple encoding methods"""
+        """Select multiple encoding methods.
+
+        Returns
+        -------
+        list
+            List of selected encoding methods ('one_hot', 'categorical', 'physics', 'spatial', 'graph')
+        """
         print("\n" + "-"*40)
         print("ENCODING METHOD SELECTION")
         print("-"*40)
@@ -167,7 +217,13 @@ class InteractiveTrainer:
         return selected_encodings
 
     def select_optimizations(self):
-        """Select multiple hyperparameter optimization methods"""
+        """Select multiple hyperparameter optimization methods.
+
+        Returns
+        -------
+        list
+            List of selected optimization methods ('optuna', 'three_stage', 'none')
+        """
         print("\n" + "-"*40)
         print("HYPERPARAMETER OPTIMIZATION SELECTION")
         print("-"*40)
@@ -194,7 +250,13 @@ class InteractiveTrainer:
         return selected_optimizations
 
     def get_parallel_settings(self):
-        """Get parallel computing settings"""
+        """Get parallel computing settings.
+
+        Returns
+        -------
+        int
+            Number of CPU cores to use (-1 for all cores, 1 for single core)
+        """
         print("\n" + "-"*40)
         print("PARALLEL COMPUTING SETTINGS")
         print("-"*40)
@@ -223,7 +285,11 @@ class InteractiveTrainer:
             return 1
 
     def run(self):
-        """Run the interactive training process"""
+        """Run the interactive training process.
+
+        Guides user through target selection, model selection, encoding selection,
+        optimization selection, and executes the complete training workflow.
+        """
         # Create necessary directories (now under outputs)
         os.makedirs(self.models_dir, exist_ok=True)
         os.makedirs(self.results_dir, exist_ok=True)

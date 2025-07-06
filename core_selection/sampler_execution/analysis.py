@@ -164,7 +164,7 @@ def create_diversity_analysis(results_dict, parallel=False):
 
         f.write("\n\nINTERPRETATION:\n")
         f.write("-"*40 + "\n")
-        f.write("- Diversity Score: Minimum pairwise Euclidean distance in normalized parameter space\n")
+        f.write("- Diversity Score: Mean pairwise Euclidean distance in normalized parameter space\n")
         f.write("- Min Distance: Method-specific minimum distance between selected configs\n")
         f.write("  - Jaccard: Based on position sets (lattice) or discretized parameters (geometric)\n")
         f.write("  - Euclidean: L2 norm in 5D parameter space\n")

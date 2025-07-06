@@ -11,11 +11,15 @@ def single_iteration(th_system):
     This function updates the thermal state with new coolant properties, heat transfer
     coefficients, and calculates new temperature distributions based on the current state.
 
-    Args:
-        th_system: THSystem object containing geometry, material information, and current thermal state
+    Parameters
+    ----------
+    th_system : THSystem
+        THSystem object containing geometry, material information, and current thermal state
 
-    Returns:
-        tuple: Contains the following arrays:
+    Returns
+    -------
+    tuple
+        Contains the following arrays:
             - T_coolant_z: Coolant temperatures
             - T_clad_out_z: Outer cladding temperatures
             - T_clad_middle_z: Middle cladding temperatures

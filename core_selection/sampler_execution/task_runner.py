@@ -13,7 +13,19 @@ from .constants import SAMPLER_MAP, get_sampler_map
 
 
 def save_sampling_results(method_name, results):
-    """Save sampling results without needing to load all data."""
+    """Save sampling results without needing to load all data.
+
+    Parameters
+    ----------
+    method_name : str
+        Name of the sampling method
+    results : dict
+        Dictionary containing sampling results
+
+    Returns
+    -------
+    None
+    """
     # Create output directories if they don't exist
     os.makedirs('output/samples_picked/pkl', exist_ok=True)
     os.makedirs('output/samples_picked/txt', exist_ok=True)
@@ -67,7 +79,7 @@ def save_sampling_results(method_name, results):
             f.write("Note: For lattice methods, this is inertia in MDS embedding space\n")
 
         if 'diversity_score' in results:
-            f.write(f"Diversity score (min pairwise distance): {results['diversity_score']:.4f}\n")
+            f.write(f"Diversity score (mean pairwise distance): {results['diversity_score']:.4f}\n")
 
         if 'best_run' in results:
             f.write(f"Best run: #{results['best_run']} of {results['total_runs']}\n")
@@ -82,7 +94,18 @@ def save_sampling_results(method_name, results):
 
 
 def run_single_method(method_args):
-    """Run a single sampling method. Designed to be called by multiprocessing."""
+    """Run a single sampling method. Designed to be called by multiprocessing.
+
+    Parameters
+    ----------
+    method_args : tuple
+        Tuple containing (method_name, n_samples, n_runs, base_seed, use_6x6_restriction, selected_parameters)
+
+    Returns
+    -------
+    tuple
+        (method_name, results, elapsed_time) tuple containing method name, results dict, and execution time
+    """
     method_name, n_samples, n_runs, base_seed, use_6x6_restriction, selected_parameters = method_args
 
     print(f"\n[Process {os.getpid()}] Starting {method_name.upper()}")
@@ -123,7 +146,18 @@ def run_single_method(method_args):
 
 
 def run_single_stochastic_run(args):
-    """Run a single run of a stochastic method."""
+    """Run a single run of a stochastic method.
+
+    Parameters
+    ----------
+    args : tuple
+        Tuple containing (sampler, n_samples, run_idx, seed)
+
+    Returns
+    -------
+    dict
+        Dictionary containing results for this single run
+    """
     sampler, n_samples, run_idx, seed = args
 
     # Check if this is a k-medoids method
@@ -197,7 +231,18 @@ def run_single_stochastic_run(args):
     return result
 
 def run_single_task_with_progress(task_args):
-    """Run a single task and update progress."""
+    """Run a single task and update progress.
+
+    Parameters
+    ----------
+    task_args : tuple
+        Tuple containing (method_name, n_samples, run_idx, seed, total_runs, progress_dict, use_6x6_restriction, selected_parameters)
+
+    Returns
+    -------
+    dict
+        Dictionary containing task results
+    """
     # Extract args - now includes use_6x6_restriction and selected_parameters
     method_name, n_samples, run_idx, seed, total_runs, progress_dict, use_6x6_restriction, selected_parameters = task_args
 
@@ -387,7 +432,18 @@ def run_single_task_with_progress(task_args):
 
 
 def run_single_task(task_args):
-    """Fallback version for when Rich is not available."""
+    """Fallback version for when Rich is not available.
+
+    Parameters
+    ----------
+    task_args : tuple
+        Tuple containing (method_name, n_samples, run_idx, seed, total_runs, [unused], use_6x6_restriction, selected_parameters)
+
+    Returns
+    -------
+    dict
+        Dictionary containing task results
+    """
     # Extract only the needed args (without progress_dict)
     method_name, n_samples, run_idx, seed, total_runs = task_args[:5]
     use_6x6_restriction = task_args[6] if len(task_args) > 6 else False
