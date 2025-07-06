@@ -8,11 +8,32 @@ class ParameterModel:
     """Model for managing parameters and their metadata"""
 
     def __init__(self, current_inputs):
+        """Initialize the parameter model.
+
+        Parameters
+        ----------
+        current_inputs : dict
+            Current input parameters for the reactor
+
+        Returns
+        -------
+        None
+        """
         self.current_inputs = current_inputs
         self.available_params = self._get_available_parameters()
 
     def _get_available_parameters(self):
-        """Get list of available parameters from the current inputs with categorization"""
+        """Get list of available parameters from the current inputs with categorization.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        dict
+            Dictionary of available parameters with metadata including type, description, and category
+        """
         # Exclude certain parameters that shouldn't be varied parametrically
         excluded_params = {
             'guide_tube_positions',
@@ -107,7 +128,18 @@ class ParameterModel:
         return available
 
     def _get_parameter_description(self, param_name):
-        """Get description for a parameter"""
+        """Get description for a parameter.
+
+        Parameters
+        ----------
+        param_name : str
+            Name of the parameter
+
+        Returns
+        -------
+        str
+            Human-readable description of the parameter
+        """
         descriptions = {
             'core_power': 'Core power [MW]',
             'assembly_type': 'Assembly type: Pin or Plate',
@@ -148,7 +180,18 @@ class ParameterModel:
         return descriptions.get(param_name, f'{param_name}')
 
     def get_string_options(self, param_name):
-        """Get string options for a parameter"""
+        """Get string options for a parameter.
+
+        Parameters
+        ----------
+        param_name : str
+            Name of the parameter
+
+        Returns
+        -------
+        list
+            List of valid string options for the parameter, empty list if no options defined
+        """
         options_map = {
             'coolant_type': ['Light Water', 'Heavy Water'],
             'clad_type': ['Al6061', 'Zirc2', 'Zirc4'],

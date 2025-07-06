@@ -38,7 +38,16 @@ from ThermalHydraulics.code_architecture.helper_codes.models.thermal_state impor
 from ThermalHydraulics.code_architecture.helper_codes.models.geometry_validator import validate_geometry
 
 def cleanup_pycache():
-    """Remove all __pycache__ directories in the project."""
+    """Remove all __pycache__ directories in the project.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    None
+    """
     root_dir = os.path.dirname(os.path.abspath(__file__))
 
     # Walk through all directories
@@ -52,7 +61,16 @@ def cleanup_pycache():
                 print(f"Error removing {pycache_path}: {e}")
 
 def cleanup_local_outputs():
-    """Remove any local output directories in code_architecture folder."""
+    """Remove any local output directories in code_architecture folder.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    None
+    """
     code_arch_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'code_architecture')
 
     # List of output directory names to check for
@@ -135,34 +153,106 @@ class THSystem:
         self.thermal_state.Q_dot_z = calculate_Q_dot_z(self)
 
     def calculate_Q_dot_z(self):
-        """Calculate power distribution."""
+        """Calculate power distribution.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        numpy.ndarray
+            Power distribution array
+        """
         return calculate_Q_dot_z(self)
 
     def calculate_temperature_points_pins(self):
-        """Calculate temperature points for pin geometry."""
+        """Calculate temperature points for pin geometry.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        tuple
+            Temperature points for pin geometry calculation
+        """
         return calculate_temperature_points_pins(self)
 
     def calculate_temperature_points_plates(self):
-        """Calculate temperature points for plate geometry."""
+        """Calculate temperature points for plate geometry.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        tuple
+            Temperature points for plate geometry calculation
+        """
         return calculate_temperature_points_plates(self)
 
     def calculate_power_distribution(self):
-        """Calculate power distribution and store in thermal state."""
+        """Calculate power distribution and store in thermal state.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         self.thermal_state.Q_dot_z = calculate_Q_dot_z(self)
 
     def calculate_critical_heat_flux(self):
-        """Calculate critical heat flux and MDNBR."""
+        """Calculate critical heat flux and MDNBR.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        Updates thermal_state with q_dnb, heat_flux_z, and MDNBR values
+        """
         q_dnb, heat_flux_z, MDNBR = calculate_critical_heat_flux(self)
         self.thermal_state.q_dnb = q_dnb
         self.thermal_state.heat_flux_z = heat_flux_z
         self.thermal_state.MDNBR = MDNBR
 
     def single_iteration(self):
-        """Perform a single iteration of temperature calculations using current thermal state."""
+        """Perform a single iteration of temperature calculations using current thermal state.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        bool
+            True if iteration completed successfully
+        """
         return single_iteration(self)
 
     def calculate_temperature_distribution(self):
-        """Calculate temperature distribution with convergence."""
+        """Calculate temperature distribution with convergence.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        ThermalState
+            Converged thermal state object
+        """
         return converge_temperatures(self)
 
     def write_results(self, output_dir=None, plotting=True):
@@ -186,7 +276,17 @@ class THSystem:
             generate_plots(self, output_dir, inputs_dict=self.inputs_dict)
 
     def get_data(self):
-        """Get all thermal-hydraulic data as a dictionary."""
+        """Get all thermal-hydraulic data as a dictionary.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        dict
+            Dictionary containing all thermal-hydraulic data
+        """
         return get_TH_data(self)
 
 if __name__ == "__main__":

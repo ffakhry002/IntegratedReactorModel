@@ -176,12 +176,17 @@ base_inputs = {
 def calculate_derived_values(core_lattice, guide_tube_positions):
     """Calculate derived values from the core lattice and guide tube positions.
 
-    Args:
-        core_lattice (list): 2D list representing the core layout
-        guide_tube_positions (list): List of (x,y) tuples for guide tube positions
+    Parameters
+    ----------
+    core_lattice : list
+        2D list representing the core layout
+    guide_tube_positions : list
+        List of (x,y) tuples for guide tube positions
 
-    Returns:
-        tuple: (num_assemblies, n_guide_tubes)
+    Returns
+    -------
+    tuple
+        (num_assemblies, n_guide_tubes)
     """
     # Flatten the core lattice and count 'F's for number of assemblies
     flattened = [item for row in core_lattice for item in row]

@@ -11,7 +11,17 @@ import pandas as pd
 
 
 def run_testing(outputs_dir=None):
-    """Main function to run the testing pipeline"""
+    """Main function to run the testing pipeline.
+
+    Parameters
+    ----------
+    outputs_dir : str, optional
+        Directory for outputs. If None, uses default location.
+
+    Returns
+    -------
+    None
+    """
     print("\n" + "="*60)
     print("NUCLEAR REACTOR MODEL TESTING SYSTEM")
     print("="*60)

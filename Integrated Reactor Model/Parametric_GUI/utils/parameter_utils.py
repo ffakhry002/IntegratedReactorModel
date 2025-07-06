@@ -10,7 +10,29 @@ class ParameterUtils:
 
     @staticmethod
     def parse_numeric_range(start, end, steps, param_type='float'):
-        """Generate numeric range values"""
+        """Generate numeric range values.
+
+        Parameters
+        ----------
+        start : str or float or int
+            Start value of the range
+        end : str or float or int
+            End value of the range
+        steps : str or int
+            Number of steps in the range
+        param_type : str, optional
+            Type of parameter ('int' or 'float'), by default 'float'
+
+        Returns
+        -------
+        list
+            List of numeric values in the specified range
+
+        Raises
+        ------
+        ValueError
+            If range generation fails
+        """
         try:
             if param_type == 'int':
                 start = int(start)
@@ -34,7 +56,25 @@ class ParameterUtils:
 
     @staticmethod
     def parse_numeric_list(values_str, param_type='float'):
-        """Parse comma-separated numeric values"""
+        """Parse comma-separated numeric values.
+
+        Parameters
+        ----------
+        values_str : str
+            Comma-separated string of numeric values
+        param_type : str, optional
+            Type of parameter ('int' or 'float'), by default 'float'
+
+        Returns
+        -------
+        list
+            List of parsed numeric values
+
+        Raises
+        ------
+        ValueError
+            If parsing fails
+        """
         try:
             value_strings = [v.strip() for v in values_str.split(',') if v.strip()]
             values = []
@@ -51,7 +91,23 @@ class ParameterUtils:
 
     @staticmethod
     def parse_lattice_string(lattice_str):
-        """Parse a lattice string safely"""
+        """Parse a lattice string safely.
+
+        Parameters
+        ----------
+        lattice_str : str
+            String representation of a lattice configuration
+
+        Returns
+        -------
+        list
+            Parsed lattice configuration as nested list
+
+        Raises
+        ------
+        ValueError
+            If lattice parsing fails
+        """
         try:
             # Clean up the string
             lattice_str = lattice_str.strip()
@@ -76,7 +132,23 @@ class ParameterUtils:
 
     @staticmethod
     def parse_timesteps_string(timesteps_str):
-        """Parse timesteps string"""
+        """Parse timesteps string.
+
+        Parameters
+        ----------
+        timesteps_str : str
+            Comma-separated string of timestep values
+
+        Returns
+        -------
+        list
+            List of parsed timestep values (int or float)
+
+        Raises
+        ------
+        ValueError
+            If timesteps parsing fails
+        """
         try:
             timesteps_str = timesteps_str.strip()
 

@@ -9,9 +9,45 @@ import h5py
 from Reactor.materials import make_materials
 
 def calculate_burnup_from_time(time_days, total_power_w, heavy_metal_mass_kg):
+    """Calculate burnup from time and power parameters.
+
+    Parameters
+    ----------
+    time_days : float or numpy.ndarray
+        Time in days
+    total_power_w : float
+        Total power in watts
+    heavy_metal_mass_kg : float
+        Heavy metal mass in kilograms
+
+    Returns
+    -------
+    float or numpy.ndarray
+        Burnup in MWd/kgHM
+    """
     return time_days * (total_power_w/1e6) / heavy_metal_mass_kg
 
 def get_nice_tick_interval(data_min, data_max, target_ticks=10, min_ticks=8, max_ticks=15):
+    """Get nice tick interval for axis formatting.
+
+    Parameters
+    ----------
+    data_min : float
+        Minimum data value
+    data_max : float
+        Maximum data value
+    target_ticks : int, optional
+        Target number of ticks, by default 10
+    min_ticks : int, optional
+        Minimum number of ticks, by default 8
+    max_ticks : int, optional
+        Maximum number of ticks, by default 15
+
+    Returns
+    -------
+    float
+        Optimal tick interval
+    """
     data_range = data_max - data_min
     magnitude = 10 ** np.floor(np.log10(data_range/target_ticks))
 

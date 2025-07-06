@@ -5,12 +5,17 @@ from CoolProp.CoolProp import PropsSI
 def get_coolant_properties(th_system, temp_vector):
     """Get coolant properties based on type and temperature.
 
-    Args:
-        th_system: THSystem object containing coolant type and other properties
-        temp_vector (np.array): Array of temperatures to get properties for
+    Parameters
+    ----------
+    th_system : THSystem
+        THSystem object containing coolant type and other properties
+    temp_vector : numpy.ndarray
+        Array of temperatures to get properties for
 
-    Returns:
-        tuple: (coolant_density, specific_heat_capacity, thermal_conductivity, viscosity)
+    Returns
+    -------
+    tuple
+        (coolant_density, specific_heat_capacity, thermal_conductivity, viscosity)
     """
     # Determine coolant fluid name for CoolProp
     fluid = 'Water' if th_system.material.coolant_type == 'Light Water' else 'HeavyWater'
@@ -35,11 +40,15 @@ def get_coolant_properties(th_system, temp_vector):
 def calculate_heat_transfer_coeff_coolant(th_system):
     """Calculate coolant heat transfer coefficient using appropriate correlation.
 
-    Args:
-        th_system: THSystem object containing all necessary properties
+    Parameters
+    ----------
+    th_system : THSystem
+        THSystem object containing all necessary properties
 
-    Returns:
-        float: Heat transfer coefficient in W/m^2-K
+    Returns
+    -------
+    float
+        Heat transfer coefficient in W/m^2-K
     """
     # Get properties from thermal state
     coolant_density = th_system.thermal_state.coolant_density
@@ -59,11 +68,15 @@ def calculate_heat_transfer_coeff_coolant(th_system):
 def calculate_mass_flow_rate(th_system):
     """Calculate mass flow rate.
 
-    Args:
-        th_system: THSystem object containing all necessary properties
+    Parameters
+    ----------
+    th_system : THSystem
+        THSystem object containing all necessary properties
 
-    Returns:
-        float: Mass flow rate in kg/s
+    Returns
+    -------
+    float
+        Mass flow rate in kg/s
     """
     return (th_system.geometry.coolant_area *
             np.mean(th_system.thermal_state.coolant_density) *
@@ -72,11 +85,15 @@ def calculate_mass_flow_rate(th_system):
 def get_saturated_values(th_system):
     """Get saturated properties for the coolant.
 
-    Args:
-        th_system: THSystem object containing reactor pressure information
+    Parameters
+    ----------
+    th_system : THSystem
+        THSystem object containing reactor pressure information
 
-    Returns:
-        tuple: (T_sat, h_fg, mu_f, Cp_f)
+    Returns
+    -------
+    tuple
+        (T_sat, h_fg, mu_f, Cp_f)
         - T_sat: Saturation temperature (K)
         - h_fg: Latent heat of vaporization (J/kg)
         - mu_f: Dynamic viscosity (Pa-s)

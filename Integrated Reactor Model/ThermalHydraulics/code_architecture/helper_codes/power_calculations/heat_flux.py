@@ -4,12 +4,17 @@ from ..material_properties.coolant_properties import get_saturated_values
 def calculate_q_dnb_vector(th_system, T_coolant_z):
     """Calculate departure from nucleate boiling ratio.
 
-    Args:
-        th_system: THSystem object containing geometry and material information
-        T_coolant_z: Array of coolant temperatures
+    Parameters
+    ----------
+    th_system : THSystem
+        THSystem object containing geometry and material information
+    T_coolant_z : numpy.ndarray
+        Array of coolant temperatures
 
-    Returns:
-        np.array: Array of critical heat fluxes
+    Returns
+    -------
+    numpy.ndarray
+        Array of critical heat fluxes
     """
     # Get saturated properties
     T_sat, h_fg, mu_f, Cp_f = get_saturated_values(th_system)
@@ -34,11 +39,15 @@ def calculate_q_dnb_vector(th_system, T_coolant_z):
 def calculate_heat_flux_z(th_system):
     """Calculate heat flux along z-axis.
 
-    Args:
-        th_system: THSystem object containing geometry and thermal state
+    Parameters
+    ----------
+    th_system : THSystem
+        THSystem object containing geometry and thermal state
 
-    Returns:
-        np.array: Array of heat fluxes
+    Returns
+    -------
+    numpy.ndarray
+        Array of heat fluxes
     """
     if th_system.thermal_hydraulics.assembly_type == 'Pin':
         return th_system.thermal_state.Q_dot_z / (2 * np.pi * th_system.pin_geometry.r_clad_outer)
@@ -48,11 +57,15 @@ def calculate_heat_flux_z(th_system):
 def calculate_critical_heat_flux(th_system):
     """Calculate critical heat flux and MDNBR.
 
-    Args:
-        th_system: THSystem object containing geometry and thermal state
+    Parameters
+    ----------
+    th_system : THSystem
+        THSystem object containing geometry and thermal state
 
-    Returns:
-        tuple: Arrays of critical heat flux, heat flux, and MDNBR
+    Returns
+    -------
+    tuple
+        Arrays of critical heat flux, heat flux, and MDNBR
     """
     # Calculate DNB heat flux
     q_dnb = calculate_q_dnb_vector(th_system, th_system.thermal_state.T_coolant_z)

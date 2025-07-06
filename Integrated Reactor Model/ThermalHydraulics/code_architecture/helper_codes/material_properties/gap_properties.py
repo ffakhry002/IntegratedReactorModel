@@ -3,11 +3,15 @@ import numpy as np
 def calculate_h_gap_vector(th_system):
     """Calculate gap heat transfer coefficient vector based on power and gap width.
 
-    Args:
-        th_system: THSystem object containing power and geometry information
+    Parameters
+    ----------
+    th_system : THSystem
+        THSystem object containing power and geometry information
 
-    Returns:
-        np.array: Array of gap heat transfer coefficients in W/m^2-K
+    Returns
+    -------
+    numpy.ndarray
+        Array of gap heat transfer coefficients in W/m^2-K
     """
     power_W_cm = th_system.thermal_state.Q_dot_z / 100
     gap_width = th_system.geometry.gap_width
@@ -23,12 +27,17 @@ def calculate_h_gap_vector(th_system):
     def interpolate_single_point(power, gap):
         """Interpolate gap heat transfer coefficient for a single power and gap width point.
 
-        Args:
-            power (float): Linear power in W/cm
-            gap (float): Gap width in microns
+        Parameters
+        ----------
+        power : float
+            Linear power in W/cm
+        gap : float
+            Gap width in microns
 
-        Returns:
-            float: Interpolated gap heat transfer coefficient in W/m^2-K
+        Returns
+        -------
+        float
+            Interpolated gap heat transfer coefficient in W/m^2-K
         """
         gap_widths = sorted(data_points.keys())
         if gap <= gap_widths[0]:

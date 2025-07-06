@@ -29,5 +29,16 @@ MATERIAL_COLORS = {
 
 
 def get_material_color(material):
-    """Get color for a material"""
+    """Get color for a material.
+
+    Parameters
+    ----------
+    material : str
+        Name of the material
+
+    Returns
+    -------
+    str
+        Hex color code for the material, or gray default if not found
+    """
     return MATERIAL_COLORS.get(material, "#808080")  # Gray default

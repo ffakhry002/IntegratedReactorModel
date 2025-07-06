@@ -4,7 +4,22 @@ import numpy as np
 from .base_model import ReactorModelBase
 
 class NeuralNetReactorModel(ReactorModelBase):
+    """Neural network implementation of the reactor model."""
+
     def __init__(self, scale_features=True, **kwargs):
+        """Initialize the neural network reactor model.
+
+        Parameters
+        ----------
+        scale_features : bool, optional
+            Whether to apply feature scaling
+        **kwargs : dict
+            Additional parameters for MLPRegressor
+
+        Returns
+        -------
+        None
+        """
         super().__init__()  # Initialize base class
         self.model_class_name = 'neural_net'
 
@@ -24,7 +39,20 @@ class NeuralNetReactorModel(ReactorModelBase):
             self.keff_scaler = StandardScaler()
 
     def fit_flux(self, X_train, y_flux):
-        """Train flux model only"""
+        """Train flux model only.
+
+        Parameters
+        ----------
+        X_train : numpy.ndarray
+            Training feature data
+        y_flux : numpy.ndarray
+            Training flux target data
+
+        Returns
+        -------
+        self
+            Fitted model instance
+        """
         # Use base class validation
         y_flux = self.validate_flux_output(y_flux)
 
@@ -38,7 +66,20 @@ class NeuralNetReactorModel(ReactorModelBase):
         return self
 
     def fit_keff(self, X_train, y_keff):
-        """Train k-eff model only"""
+        """Train k-eff model only.
+
+        Parameters
+        ----------
+        X_train : numpy.ndarray
+            Training feature data
+        y_keff : numpy.ndarray
+            Training k-effective target data
+
+        Returns
+        -------
+        self
+            Fitted model instance
+        """
         if self.scale_features:
             X_scaled = self.keff_scaler.fit_transform(X_train)
         else:
@@ -49,7 +90,18 @@ class NeuralNetReactorModel(ReactorModelBase):
         return self
 
     def predict_flux(self, X_test):
-        """Predict flux values"""
+        """Predict flux values.
+
+        Parameters
+        ----------
+        X_test : numpy.ndarray
+            Test feature data
+
+        Returns
+        -------
+        numpy.ndarray
+            Predicted flux values
+        """
         if self.flux_model is None:
             raise ValueError("Flux model not trained")
 
@@ -68,7 +120,18 @@ class NeuralNetReactorModel(ReactorModelBase):
         return predictions
 
     def predict_keff(self, X_test):
-        """Predict k-effective"""
+        """Predict k-effective.
+
+        Parameters
+        ----------
+        X_test : numpy.ndarray
+            Test feature data
+
+        Returns
+        -------
+        numpy.ndarray
+            Predicted k-effective values
+        """
         if self.keff_model is None:
             raise ValueError("K-eff model not trained")
 
@@ -87,13 +150,33 @@ class NeuralNetReactorModel(ReactorModelBase):
         return predictions
 
     def _get_model_specific_metadata(self):
-        """Add Neural Net-specific metadata"""
+        """Add Neural Net-specific metadata.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        dict
+            Neural network specific metadata
+        """
         return {
             'scale_features': self.scale_features
         }
 
     def _restore_model_specific_attributes(self, data):
-        """Restore Neural Net-specific attributes"""
+        """Restore Neural Net-specific attributes.
+
+        Parameters
+        ----------
+        data : dict
+            Loaded model data dictionary
+
+        Returns
+        -------
+        None
+        """
         self.scale_features = data.get('scale_features', True)
         if 'scaler' in data:
             if data['model_type'] == 'flux':

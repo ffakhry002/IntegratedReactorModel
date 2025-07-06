@@ -145,7 +145,23 @@ def plot_axial_flux_energy_breakdown(sp, plot_dir, inputs_dict=None):
 
 
 def _create_multiline_plots(irradiation_data, inputs_dict, plot_dir, half_height):
-    """Create multi-line plots for each irradiation position."""
+    """Create multi-line plots for each irradiation position.
+
+    Parameters
+    ----------
+    irradiation_data : dict
+        Dictionary containing flux data for each irradiation position
+    inputs_dict : dict
+        Dictionary containing input parameters
+    plot_dir : str
+        Directory to save the plots
+    half_height : float
+        Half height of the fuel region in cm
+
+    Returns
+    -------
+    None
+    """
     # Sort the irradiation positions by their number (I_1, I_2, etc.)
     sorted_positions = sorted(irradiation_data.items(),
                             key=lambda x: int(x[0].split('_')[1]))
@@ -211,7 +227,23 @@ def _create_multiline_plots(irradiation_data, inputs_dict, plot_dir, half_height
 
 
 def _create_heatmap_plots(irradiation_data, inputs_dict, plot_dir, half_height):
-    """Create heatmap plots for each irradiation position."""
+    """Create heatmap plots for each irradiation position.
+
+    Parameters
+    ----------
+    irradiation_data : dict
+        Dictionary containing flux data for each irradiation position
+    inputs_dict : dict
+        Dictionary containing input parameters
+    plot_dir : str
+        Directory to save the plots
+    half_height : float
+        Half height of the fuel region in cm
+
+    Returns
+    -------
+    None
+    """
     # Sort the irradiation positions by their number (I_1, I_2, etc.)
     sorted_positions = sorted(irradiation_data.items(),
                             key=lambda x: int(x[0].split('_')[1]))
@@ -314,7 +346,16 @@ def _create_heatmap_plots(irradiation_data, inputs_dict, plot_dir, half_height):
 
 
 def main():
-    """Main function for testing the axial flux energy breakdown plots."""
+    """Main function for testing the axial flux energy breakdown plots.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    None
+    """
     # Set up paths
     sim_data_dir = os.path.join(root_dir, 'simulation_data')
     statepoint_path = os.path.join(sim_data_dir, 'transport_data', 'statepoint.eigenvalue.h5')

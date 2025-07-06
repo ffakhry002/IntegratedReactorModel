@@ -25,9 +25,21 @@ class BaseLatticeSampler(BaseSampler):
         }
 
     def _continuous_to_valid_position(self, x: float, y: float) -> Tuple[int, int]:
-        """
-        Map a continuous point (x,y) in [0,1] × [0,1] to the nearest valid fuel position.
+        """Map a continuous point (x,y) in [0,1] × [0,1] to the nearest valid fuel position.
+
         Avoids forbidden coolant positions.
+
+        Parameters
+        ----------
+        x : float
+            X coordinate in [0,1]
+        y : float
+            Y coordinate in [0,1]
+
+        Returns
+        -------
+        Tuple[int, int]
+            Nearest valid (row, col) position on 8x8 grid
         """
         # Convert to 8×8 grid coordinates
         grid_x = x * 8
@@ -75,7 +87,20 @@ class BaseLatticeSampler(BaseSampler):
 
     def _find_best_symmetry_match(self, continuous_positions: List[Tuple[int, int]],
                                  used_configs: set) -> int:
-        """Find the best matching configuration considering all 8 symmetries."""
+        """Find the best matching configuration considering all 8 symmetries.
+
+        Parameters
+        ----------
+        continuous_positions : List[Tuple[int, int]]
+            List of (row, col) position tuples from continuous sampling
+        used_configs : set
+            Set of configuration indices already selected
+
+        Returns
+        -------
+        int
+            Index of best matching configuration
+        """
         best_config_idx = None
         min_total_distance = float('inf')
 
@@ -105,7 +130,20 @@ class BaseLatticeSampler(BaseSampler):
         return best_config_idx
 
     def _calculate_total_distance(self, coords1: np.ndarray, coords2: np.ndarray) -> float:
-        """Calculate total distance between two sets of coordinates using greedy matching."""
+        """Calculate total distance between two sets of coordinates using greedy matching.
+
+        Parameters
+        ----------
+        coords1 : np.ndarray
+            First set of coordinates
+        coords2 : np.ndarray
+            Second set of coordinates
+
+        Returns
+        -------
+        float
+            Total distance using greedy matching, or float('inf') if no valid matching
+        """
         distances = []
         used_indices = set()
 

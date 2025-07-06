@@ -89,6 +89,14 @@ def process_results(sp, k_effective, inputs_dict=None):
         k-effective result from the simulation
     inputs_dict : dict, optional
         Custom inputs dictionary. If None, uses the global inputs.
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    Results are written to a results.txt file in the appropriate output directory.
     """
     # Use provided inputs or default to global inputs
     if inputs_dict is None:

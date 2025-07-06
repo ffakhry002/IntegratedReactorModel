@@ -14,13 +14,19 @@ from .utils import generate_cell_id, get_irradiation_cell_name
 def build_pin_cell_fuel_uni(mat_dict, is_enhanced=False, inputs_dict=None):
     """Build a fuel pin cell universe.
 
-    Args:
-        mat_dict: Dictionary of OpenMC materials
-        is_enhanced: Whether this is an enhanced fuel position (with higher enrichment)
-        inputs_dict: Custom inputs dictionary. If None, uses the global inputs.
+    Parameters
+    ----------
+    mat_dict : dict
+        Dictionary of OpenMC materials
+    is_enhanced : bool, optional
+        Whether this is an enhanced fuel position (with higher enrichment), by default False
+    inputs_dict : dict, optional
+        Custom inputs dictionary. If None, uses the global inputs.
 
-    Returns:
-        openmc.Universe: Universe containing the fuel pin cell
+    Returns
+    -------
+    openmc.Universe
+        Universe containing the fuel pin cell
     """
     # Use provided inputs or default to global inputs
     if inputs_dict is None:
@@ -58,12 +64,17 @@ def build_pin_cell_fuel_uni(mat_dict, is_enhanced=False, inputs_dict=None):
 def build_guide_tube_uni(mat_dict, inputs_dict=None):
     """Build a guide tube universe.
 
-    Args:
-        mat_dict: Dictionary of OpenMC materials
-        inputs_dict: Custom inputs dictionary. If None, uses the global inputs.
+    Parameters
+    ----------
+    mat_dict : dict
+        Dictionary of OpenMC materials
+    inputs_dict : dict, optional
+        Custom inputs dictionary. If None, uses the global inputs.
 
-    Returns:
-        openmc.Universe: Universe containing the guide tube
+    Returns
+    -------
+    openmc.Universe
+        Universe containing the guide tube
     """
     # Use provided inputs or default to global inputs
     if inputs_dict is None:
@@ -100,9 +111,14 @@ def build_fuel_assembly_uni(mat_dict, position=None, is_enhanced=False, inputs_d
     position : tuple, optional
         (i, j) position in core lattice. If provided, assigns unique ID.
     is_enhanced : bool, optional
-        Whether to use enhanced enrichment fuel
+        Whether to use enhanced enrichment fuel, by default False
     inputs_dict : dict, optional
         Custom inputs dictionary. If None, uses the global inputs.
+
+    Returns
+    -------
+    openmc.Universe
+        Complete fuel pin assembly universe
     """
     # Use provided inputs or default to global inputs
     if inputs_dict is None:

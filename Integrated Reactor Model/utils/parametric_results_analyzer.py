@@ -11,7 +11,18 @@ from pathlib import Path
 import glob
 
 def parse_results_file(filepath):
-    """Parse a single results.txt file and extract all relevant data"""
+    """Parse a single results.txt file and extract all relevant data.
+
+    Parameters
+    ----------
+    filepath : str
+        Path to the results.txt file to parse
+
+    Returns
+    -------
+    dict or None
+        Dictionary containing keff, keff_std, and positions data, or None if parsing fails
+    """
     data = {
         'keff': None,
         'keff_std': None,
@@ -57,13 +68,37 @@ def parse_results_file(filepath):
     return data
 
 def calculate_percent_uncertainty(value, std_dev):
-    """Calculate percentage uncertainty"""
+    """Calculate percentage uncertainty.
+
+    Parameters
+    ----------
+    value : float
+        The value for which to calculate uncertainty
+    std_dev : float
+        Standard deviation of the value
+
+    Returns
+    -------
+    float
+        Percentage uncertainty (std_dev/value * 100)
+    """
     if value == 0:
         return 0
     return (std_dev / value) * 100
 
 def analyze_parametric_results(base_dir):
-    """Analyze all results.txt files in the parametric simulation directory"""
+    """Analyze all results.txt files in the parametric simulation directory.
+
+    Parameters
+    ----------
+    base_dir : str
+        Base directory containing parametric simulation results
+
+    Returns
+    -------
+    str or None
+        Path to the output file containing analysis results, or None if no data found
+    """
 
     base_path = Path(base_dir)
     if not base_path.exists():
@@ -285,7 +320,17 @@ def analyze_parametric_results(base_dir):
     return output_file
 
 def find_parametric_folders():
-    """Find all parametric simulation folders in the Integrated Reactor Model directory"""
+    """Find all parametric simulation folders in the Integrated Reactor Model directory.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    list
+        Sorted list of paths to parametric simulation folders
+    """
     base_path = "Integrated Reactor Model"
     parametric_folders = []
 
@@ -298,7 +343,17 @@ def find_parametric_folders():
     return sorted(parametric_folders)
 
 def select_parametric_folder():
-    """Interactive selection of parametric simulation folder"""
+    """Interactive selection of parametric simulation folder.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    str or None
+        Path to selected parametric simulation folder, or None if cancelled
+    """
     parametric_folders = find_parametric_folders()
 
     if not parametric_folders:

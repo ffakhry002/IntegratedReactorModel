@@ -6,7 +6,16 @@ import shutil
 import sys
 
 def remove_pycache():
-    """Remove all __pycache__ directories in the current directory and subdirectories."""
+    """Remove all __pycache__ directories in the current directory and subdirectories.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    None
+    """
     # Get the starting directory (where the script is run from)
     start_dir = os.getcwd()
 

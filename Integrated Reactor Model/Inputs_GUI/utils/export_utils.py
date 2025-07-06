@@ -9,7 +9,20 @@ import os
 
 
 def calculate_derived_values(core_lattice, guide_tube_positions):
-    """Calculate derived values from the core lattice and guide tube positions."""
+    """Calculate derived values from the core lattice and guide tube positions.
+
+    Parameters
+    ----------
+    core_lattice : list
+        2D list representing the core layout
+    guide_tube_positions : list
+        List of (x,y) tuples for guide tube positions
+
+    Returns
+    -------
+    tuple
+        (num_assemblies, n_guide_tubes)
+    """
     # Flatten the core lattice and count 'F's and 'E's
     flattened = [item for row in core_lattice for item in row]
     num_assemblies_F = flattened.count('F')
@@ -23,7 +36,18 @@ def calculate_derived_values(core_lattice, guide_tube_positions):
 
 
 def export_current_values(inputs):
-    """Export current parameter values in the exact format of inputs.py"""
+    """Export current parameter values in the exact format of inputs.py.
+
+    Parameters
+    ----------
+    inputs : dict
+        Dictionary of input parameters
+
+    Returns
+    -------
+    str
+        Filepath of the exported file
+    """
     # Get the Integrated Reactor Model directory (parent of parent of current file)
     current_file_dir = os.path.dirname(os.path.abspath(__file__))  # Inputs_GUI/utils/
     inputs_gui_dir = os.path.dirname(current_file_dir)  # Inputs_GUI/
@@ -36,11 +60,18 @@ def export_current_values(inputs):
 
 
 def export_inputs_to_file(inputs, filepath):
-    """Export inputs to a file in the exact format of inputs.py
+    """Export inputs to a file in the exact format of inputs.py.
 
-    Args:
-        inputs: Dictionary of input parameters
-        filepath: Full path where to save the file
+    Parameters
+    ----------
+    inputs : dict
+        Dictionary of input parameters
+    filepath : str
+        Full path where to save the file
+
+    Returns
+    -------
+    None
     """
     # Calculate derived values
     num_assemblies, n_guide_tubes = calculate_derived_values(

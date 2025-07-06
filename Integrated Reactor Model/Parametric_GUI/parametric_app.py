@@ -31,6 +31,19 @@ class ParametricApp:
     """Main parametric application controller"""
 
     def __init__(self, parent, main_gui):
+        """Initialize the parametric application controller.
+
+        Parameters
+        ----------
+        parent : tkinter.Widget
+            Parent widget for the application
+        main_gui : object
+            Main GUI object containing current_inputs
+
+        Returns
+        -------
+        None
+        """
         self.parent = parent
         self.main_gui = main_gui
 
@@ -47,7 +60,16 @@ class ParametricApp:
         self.preview_tab = None
 
     def setup(self):
-        """Setup the parametric interface"""
+        """Setup the parametric interface.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         # Main container
         main_frame = ttk.Frame(self.parent)
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)

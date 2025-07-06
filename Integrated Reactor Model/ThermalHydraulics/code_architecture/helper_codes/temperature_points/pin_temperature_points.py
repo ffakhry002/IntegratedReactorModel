@@ -4,11 +4,15 @@ from scipy import integrate
 def calculate_temperature_points_pins(th_system):
     """Calculate temperature points for pin geometry.
 
-    Args:
-        th_system: THSystem object containing geometry, material information, and thermal state
+    Parameters
+    ----------
+    th_system : THSystem
+        THSystem object containing geometry, material information, and thermal state
 
-    Returns:
-        tuple: Arrays of temperatures at different points
+    Returns
+    -------
+    tuple
+        Arrays of temperatures at different points
             - T_coolant_z: Coolant temperatures
             - T_clad_out: Outer cladding temperatures
             - T_clad_middle: Middle cladding temperatures

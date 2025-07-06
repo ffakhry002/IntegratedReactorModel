@@ -11,14 +11,24 @@ import joblib
 from sklearn.inspection import permutation_importance
 
 def create_feature_importance_plots(df, output_dir, models, target_type='flux', energy_group=None):
-    """Create feature importance plots for each model type for a specific target
+    """Create feature importance plots for each model type for a specific target.
 
-    Args:
-        df: DataFrame with test results
-        output_dir: Output directory (should already be target-specific, e.g., total_flux/feature_importance)
-        models: List of model types to process
-        target_type: Either 'flux' or 'keff'
-        energy_group: Optional energy group ('thermal', 'epithermal', 'fast') for energy-specific models
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        DataFrame with test results
+    output_dir : str
+        Output directory (should already be target-specific, e.g., total_flux/feature_importance)
+    models : list
+        List of model types to process
+    target_type : str, optional
+        Either 'flux' or 'keff', by default 'flux'
+    energy_group : str, optional
+        Optional energy group ('thermal', 'epithermal', 'fast') for energy-specific models
+
+    Returns
+    -------
+    None
     """
 
     # Get unique model-encoding-optimization combinations
@@ -37,7 +47,25 @@ def create_feature_importance_plots(df, output_dir, models, target_type='flux', 
             create_model_feature_importance(model_df, model_type, target_type, output_dir, energy_group)
 
 def create_model_feature_importance(model_df, model_type, target, output_dir, energy_group=None):
-    """Create feature importance plots for a specific model and target"""
+    """Create feature importance plots for a specific model and target.
+
+    Parameters
+    ----------
+    model_df : pandas.DataFrame
+        DataFrame filtered for specific model
+    model_type : str
+        Type of machine learning model
+    target : str
+        Target variable ('flux' or 'keff')
+    output_dir : str
+        Directory to save plots
+    energy_group : str, optional
+        Optional energy group specification
+
+    Returns
+    -------
+    None
+    """
 
     # Try to load a saved model to get feature importances
     model_path = find_model_file(model_type, target, energy_group)
@@ -63,7 +91,22 @@ def create_model_feature_importance(model_df, model_type, target, output_dir, en
         print(f"  No model file found for {model_type} {target}")
 
 def find_model_file(model_type, target, energy_group=None):
-    """Find the saved model file for a given model type and target"""
+    """Find the saved model file for a given model type and target.
+
+    Parameters
+    ----------
+    model_type : str
+        Type of machine learning model
+    target : str
+        Target variable ('flux' or 'keff')
+    energy_group : str, optional
+        Optional energy group specification
+
+    Returns
+    -------
+    str or None
+        Path to the model file if found, None otherwise
+    """
 
     # Get the directory containing this script
     script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -103,10 +146,23 @@ def find_model_file(model_type, target, energy_group=None):
 
     return None
 
-# feature_importance.py - UPDATED extract_feature_importances function
-
 def extract_feature_importances(model_data, model_type, target):
-    """Extract feature importances from a loaded model"""
+    """Extract feature importances from a loaded model.
+
+    Parameters
+    ----------
+    model_data : dict
+        Loaded model data from joblib
+    model_type : str
+        Type of machine learning model
+    target : str
+        Target variable ('flux' or 'keff')
+
+    Returns
+    -------
+    numpy.ndarray or None
+        Feature importances if available, None otherwise
+    """
 
     # Skip SVM and neural_net models
     if model_type in ['svm', 'neural_net']:
@@ -144,7 +200,23 @@ def extract_feature_importances(model_data, model_type, target):
     return None
 
 def create_full_feature_plot(importances, model_type, target, output_dir):
-    """Create a plot showing all 22 individual features"""
+    """Create a plot showing all 22 individual features.
+
+    Parameters
+    ----------
+    importances : numpy.ndarray
+        Feature importance values
+    model_type : str
+        Type of machine learning model
+    target : str
+        Target variable ('flux' or 'keff')
+    output_dir : str
+        Directory to save the plot
+
+    Returns
+    -------
+    None
+    """
 
     # Correct structure: Global(2), Local(16), NCI(4) = 22 features
     # Local features: 4 per position (fuel density, coolant contact, edge distance, center distance)

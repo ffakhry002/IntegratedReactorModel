@@ -116,6 +116,19 @@ from .base_model import ReactorModelBase
 
 class SVMReactorModel(ReactorModelBase):
     def __init__(self, scale_features=True, **kwargs):
+        """Initialize SVM reactor model.
+
+        Parameters
+        ----------
+        scale_features : bool, optional
+            Whether to apply feature scaling, by default True
+        **kwargs : dict
+            Additional parameters for SVR model
+
+        Returns
+        -------
+        None
+        """
         super().__init__()  # Initialize base class
         self.model_class_name = 'svm'
 
@@ -131,7 +144,20 @@ class SVMReactorModel(ReactorModelBase):
         self.scale_features = scale_features
 
     def fit_flux(self, X_train, y_flux):
-        """Train flux model only"""
+        """Train flux model only.
+
+        Parameters
+        ----------
+        X_train : numpy.ndarray
+            Training input features
+        y_flux : numpy.ndarray
+            Training flux target values
+
+        Returns
+        -------
+        SVMReactorModel
+            Self for method chaining
+        """
         # Use base class validation
         y_flux = self.validate_flux_output(y_flux)
 
@@ -153,7 +179,20 @@ class SVMReactorModel(ReactorModelBase):
         return self
 
     def fit_keff(self, X_train, y_keff):
-        """Train k-eff model only"""
+        """Train k-eff model only.
+
+        Parameters
+        ----------
+        X_train : numpy.ndarray
+            Training input features
+        y_keff : numpy.ndarray
+            Training k-effective target values
+
+        Returns
+        -------
+        SVMReactorModel
+            Self for method chaining
+        """
         if self.scale_features:
             # Use Pipeline for keff too
             self.keff_model = Pipeline([
@@ -167,7 +206,18 @@ class SVMReactorModel(ReactorModelBase):
         return self
 
     def predict_flux(self, X_test):
-        """Predict flux values"""
+        """Predict flux values.
+
+        Parameters
+        ----------
+        X_test : numpy.ndarray
+            Test input features
+
+        Returns
+        -------
+        numpy.ndarray
+            Predicted flux values
+        """
         if self.flux_model is None:
             raise ValueError("Flux model not trained")
 
@@ -182,7 +232,18 @@ class SVMReactorModel(ReactorModelBase):
         return predictions
 
     def predict_keff(self, X_test):
-        """Predict k-effective"""
+        """Predict k-effective.
+
+        Parameters
+        ----------
+        X_test : numpy.ndarray
+            Test input features
+
+        Returns
+        -------
+        numpy.ndarray
+            Predicted k-effective values
+        """
         if self.keff_model is None:
             raise ValueError("K-eff model not trained")
 
@@ -197,7 +258,17 @@ class SVMReactorModel(ReactorModelBase):
         return predictions
 
     def _get_model_specific_metadata(self):
-        """Add SVM-specific metadata"""
+        """Add SVM-specific metadata.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        dict
+            Dictionary containing SVM-specific metadata
+        """
         metadata = {
             'scale_features': self.scale_features,
             'svm_params': self.params
@@ -208,7 +279,17 @@ class SVMReactorModel(ReactorModelBase):
         return metadata
 
     def _restore_model_specific_attributes(self, data):
-        """Restore SVM-specific attributes"""
+        """Restore SVM-specific attributes.
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary containing model data to restore
+
+        Returns
+        -------
+        None
+        """
         self.scale_features = data.get('scale_features', True)
         self.params = data.get('svm_params', {})
         # Pipeline handles scaling internally, no need to restore scalers

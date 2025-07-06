@@ -31,9 +31,9 @@ def create_model(depletion_type='core', inputs_dict=None):
 
     Parameters
     ----------
-    depletion_type : str
+    depletion_type : str, optional
         Type of depletion model to create: 'core', 'assembly', 'assembly_enhanced',
-        'element', or 'element_enhanced'
+        'element', or 'element_enhanced', by default 'core'
     inputs_dict : dict, optional
         Custom inputs dictionary. If None, uses the global inputs.
 
@@ -268,9 +268,9 @@ def run_depletion(model=None, output_dir=None, depletion_type='core', inputs_dic
         OpenMC model instance. If not provided, creates a new one
     output_dir : str, optional
         Directory to write output files. If None, uses ./depletion/outputs/
-    depletion_type : str
+    depletion_type : str, optional
         Type of depletion to run: 'core', 'assembly', 'assembly_enhanced',
-        'element', or 'element_enhanced'
+        'element', or 'element_enhanced', by default 'core'
     inputs_dict : dict, optional
         Custom inputs dictionary. If None, uses the global inputs.
 

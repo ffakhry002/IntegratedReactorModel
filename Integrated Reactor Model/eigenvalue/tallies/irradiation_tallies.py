@@ -12,7 +12,18 @@ from Reactor.geometry_helpers.utils import generate_cell_id
 from eigenvalue.tallies.energy_groups import get_energy_bins
 
 def create_irradiation_tallies(inputs_dict=None):
-    """Create tallies for irradiation positions."""
+    """Create tallies for irradiation positions.
+
+    Parameters
+    ----------
+    inputs_dict : dict, optional
+        Custom inputs dictionary. If None, uses the global inputs.
+
+    Returns
+    -------
+    openmc.Tallies
+        Collection of energy-dependent flux tallies for each irradiation position
+    """
     # Use provided inputs or default to global inputs
     if inputs_dict is None:
         inputs_dict = inputs

@@ -55,7 +55,18 @@ class InteractiveParameterSelector:
         self.available_parameters = []
 
     def check_available_parameters(self, restrict_6x6=False) -> List[str]:
-        """Check which parameters are available in the physics parameters file."""
+        """Check which parameters are available in the physics parameters file.
+
+        Parameters
+        ----------
+        restrict_6x6 : bool, optional
+            Whether to use 6x6 restricted configurations, by default False
+
+        Returns
+        -------
+        List[str]
+            List of available parameter names
+        """
         suffix = "_6x6" if restrict_6x6 else ""
         params_file = SCRIPT_DIR / f'output/data/physics_parameters{suffix}.pkl'
 
@@ -76,7 +87,17 @@ class InteractiveParameterSelector:
         return self.available_parameters
 
     def interactive_selection(self) -> List[str]:
-        """Interactively select which parameters to use."""
+        """Interactively select which parameters to use.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        List[str]
+            List of selected parameter names
+        """
         print("\n" + "="*60)
         print("GEOMETRIC PARAMETER SELECTION")
         print("="*60)
@@ -132,7 +153,17 @@ class InteractiveParameterSelector:
         return self.selected_parameters
 
     def _custom_selection(self) -> List[str]:
-        """Allow custom selection of parameters."""
+        """Allow custom selection of parameters.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        List[str]
+            List of custom selected parameter names
+        """
         selected = []
 
         print("\n" + "-"*60)
@@ -159,7 +190,16 @@ class InteractiveParameterSelector:
         return selected
 
     def _save_selection(self):
-        """Save the current selection to a file."""
+        """Save the current selection to a file.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         selection_file = SCRIPT_DIR / 'output/parameter_selection.json'
         selection_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -170,7 +210,17 @@ class InteractiveParameterSelector:
             }, f, indent=2)
 
     def _load_previous_selection(self) -> List[str]:
-        """Load a previous parameter selection."""
+        """Load a previous parameter selection.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        List[str]
+            List of previously selected parameter names, empty if not found
+        """
         selection_file = SCRIPT_DIR / 'output/parameter_selection.json'
 
         if not selection_file.exists():
@@ -195,7 +245,20 @@ class InteractiveParameterSelector:
             return []
 
     def filter_physics_parameters(self, physics_params: List[Dict], selected_params: List[str]) -> np.ndarray:
-        """Filter physics parameters to only include selected ones."""
+        """Filter physics parameters to only include selected ones.
+
+        Parameters
+        ----------
+        physics_params : List[Dict]
+            List of dictionaries containing physics parameters for each configuration
+        selected_params : List[str]
+            List of parameter names to include
+
+        Returns
+        -------
+        np.ndarray
+            Feature matrix with selected parameters only
+        """
         n_configs = len(physics_params)
         n_features = len(selected_params)
 
@@ -209,10 +272,18 @@ class InteractiveParameterSelector:
 
 
 def get_parameter_selection(interactive=True, restrict_6x6=False) -> Tuple[List[str], bool]:
-    """
-    Get parameter selection either interactively or from saved selection.
+    """Get parameter selection either interactively or from saved selection.
 
-    Returns:
+    Parameters
+    ----------
+    interactive : bool, optional
+        Whether to use interactive selection, by default True
+    restrict_6x6 : bool, optional
+        Whether to use 6x6 restricted configurations, by default False
+
+    Returns
+    -------
+    Tuple[List[str], bool]
         Tuple of (selected_parameters, was_interactive)
     """
     selector = InteractiveParameterSelector()

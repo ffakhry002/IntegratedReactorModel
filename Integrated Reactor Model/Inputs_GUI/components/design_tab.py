@@ -29,7 +29,16 @@ class DesignTab:
         self.guide_tube_positions = copy.deepcopy(self.design_inputs.get('guide_tube_positions', []))
 
     def setup(self):
-        """Setup the unified design interface"""
+        """Setup the unified design interface.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         # Main container
         main_frame = ttk.Frame(self.parent)
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
@@ -92,7 +101,17 @@ class DesignTab:
         self.update_pin_designer_visibility()
 
     def setup_core_designer(self, parent):
-        """Setup the core layout designer panel"""
+        """Setup the core layout designer panel.
+
+        Parameters
+        ----------
+        parent : tkinter.Widget
+            Parent widget to contain the core designer
+
+        Returns
+        -------
+        None
+        """
         # Core designer frame
         core_frame = ttk.LabelFrame(parent, text="Core Layout Designer", padding=10)
         core_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -179,7 +198,17 @@ class DesignTab:
         self.create_core_grid()
 
     def setup_pin_designer(self, parent):
-        """Setup the pin layout designer panel"""
+        """Setup the pin layout designer panel.
+
+        Parameters
+        ----------
+        parent : tkinter.Widget
+            Parent widget to contain the pin designer
+
+        Returns
+        -------
+        None
+        """
         # Pin designer frame
         self.pin_designer_frame = ttk.LabelFrame(parent, text="Pin Layout Designer", padding=10)
         self.pin_designer_frame.pack(fill=tk.BOTH, expand=True)
@@ -223,7 +252,16 @@ Click pins to toggle between:
         self.create_pin_grid()
 
     def create_core_grid(self):
-        """Create the interactive core grid"""
+        """Create the interactive core grid.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         # Clear existing widgets
         for widget in self.core_grid_frame.winfo_children():
             widget.destroy()
@@ -246,7 +284,16 @@ Click pins to toggle between:
                 cell.bind('<Button-1>', lambda e, r=i, c=j: self.toggle_core_cell(r, c))
 
     def create_pin_grid(self):
-        """Create the interactive pin grid"""
+        """Create the interactive pin grid.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         # Clear existing widgets
         for widget in self.pin_grid_frame.winfo_children():
             widget.destroy()
@@ -280,7 +327,18 @@ Click pins to toggle between:
                 pin.bind('<Button-1>', lambda e, r=i, c=j: self.toggle_pin(r, c))
 
     def get_core_cell_color(self, value):
-        """Get color for core cell based on value"""
+        """Get color for core cell based on value.
+
+        Parameters
+        ----------
+        value : str
+            Cell value ('C', 'F', 'E', 'I_X', etc.)
+
+        Returns
+        -------
+        str
+            Hex color code for the cell
+        """
         if value == 'C':
             return '#87CEEB'  # Sky blue for control
         elif value == 'F':
@@ -293,7 +351,19 @@ Click pins to toggle between:
             return '#FFFFFF'  # White for unknown
 
     def toggle_core_cell(self, row, col):
-        """Toggle core cell value on click"""
+        """Toggle core cell value on click.
+
+        Parameters
+        ----------
+        row : int
+            Row index of the cell
+        col : int
+            Column index of the cell
+
+        Returns
+        -------
+        None
+        """
         current = self.core_lattice[row][col]
 
         # Define toggle sequence
@@ -319,7 +389,19 @@ Click pins to toggle between:
         self.create_core_grid()
 
     def toggle_pin(self, row, col):
-        """Toggle pin between fuel and guide tube"""
+        """Toggle pin between fuel and guide tube.
+
+        Parameters
+        ----------
+        row : int
+            Row index of the pin
+        col : int
+            Column index of the pin
+
+        Returns
+        -------
+        None
+        """
         if (row, col) in self.guide_tube_positions:
             self.guide_tube_positions.remove((row, col))
         else:
@@ -464,7 +546,16 @@ Click pins to toggle between:
             self.pin_frame_container.pack_forget()
 
     def apply_all_changes(self):
-        """Apply all design changes to the main GUI"""
+        """Apply all design changes to the main GUI.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         # Update main GUI inputs
         self.main_gui.current_inputs['core_lattice'] = copy.deepcopy(self.core_lattice)
         self.main_gui.current_inputs['assembly_type'] = self.assembly_type_var.get()

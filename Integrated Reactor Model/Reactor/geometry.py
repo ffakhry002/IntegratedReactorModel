@@ -30,6 +30,10 @@ def plot_geometry(output_dir=None, inputs_dict=None):
         Directory to save outputs. If None, saves in local directory.
     inputs_dict : dict, optional
         Custom inputs dictionary. If None, uses the global inputs.
+
+    Returns
+    -------
+    None
     """
     # Use provided inputs or default to global inputs
     if inputs_dict is None:

@@ -24,11 +24,34 @@ class EfficientDistanceCache:
         self.access_order = []
 
     def _get_cache_key(self, idx1: int, idx2: int) -> Tuple[int, int]:
-        """Generate symmetric cache key."""
+        """Generate symmetric cache key.
+
+        Parameters
+        ----------
+        idx1 : int
+            First index
+        idx2 : int
+            Second index
+
+        Returns
+        -------
+        Tuple[int, int]
+            Sorted tuple for symmetric cache key
+        """
         return tuple(sorted([idx1, idx2]))
 
     def _evict_lru_if_needed(self, cache_dict: Dict):
-        """Evict least recently used items if cache is too large."""
+        """Evict least recently used items if cache is too large.
+
+        Parameters
+        ----------
+        cache_dict : Dict
+            Cache dictionary to check and potentially evict from
+
+        Returns
+        -------
+        None
+        """
         if len(cache_dict) > self.max_cache_size:
             # Find LRU items
             items_by_access = [(self.access_count[key], key) for key in cache_dict.keys()]
@@ -42,7 +65,24 @@ class EfficientDistanceCache:
 
     def get_distance(self, distance_type: str, idx1: int, idx2: int,
                     compute_func: Callable) -> float:
-        """Get cached distance or compute and cache."""
+        """Get cached distance or compute and cache.
+
+        Parameters
+        ----------
+        distance_type : str
+            Type of distance ('euclidean', 'manhattan', 'jaccard', etc.)
+        idx1 : int
+            First configuration index
+        idx2 : int
+            Second configuration index
+        compute_func : Callable
+            Function to compute distance if not cached
+
+        Returns
+        -------
+        float
+            Distance value
+        """
         key = self._get_cache_key(idx1, idx2)
 
         # Select appropriate cache
@@ -67,7 +107,17 @@ class EfficientDistanceCache:
         return distance
 
     def get_stats(self) -> Dict:
-        """Get cache statistics."""
+        """Get cache statistics.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        Dict
+            Dictionary containing cache statistics including hit rates and sizes
+        """
         total_size = (len(self.euclidean_cache) +
                      len(self.manhattan_cache) +
                      len(self.jaccard_cache) +
@@ -93,7 +143,16 @@ class EfficientDistanceCache:
         }
 
     def clear(self):
-        """Clear all caches."""
+        """Clear all caches.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         self.euclidean_cache.clear()
         self.manhattan_cache.clear()
         self.jaccard_cache.clear()

@@ -7,10 +7,21 @@ class ReactorEncodings:
 
     @staticmethod
     def one_hot_encoding(lattice: np.ndarray) -> Tuple[np.ndarray, List[Tuple], List[Tuple]]:
-        """
+        """One-hot encoding with position features.
+
         Method 1: One-hot encoding with position features
         FIXED: All irradiation positions encoded identically - no label-specific features
-        Returns: (features, irr_positions, position_order)
+
+        Parameters
+        ----------
+        lattice : np.ndarray
+            2D array representing the reactor core layout
+
+        Returns
+        -------
+        tuple
+            (features, irr_positions, position_order) where features is the encoded array,
+            irr_positions is list of irradiation positions, and position_order is sorted positions
         """
         feature_vec = []
         irr_positions = []
@@ -48,9 +59,21 @@ class ReactorEncodings:
 
     @staticmethod
     def categorical_encoding(lattice: np.ndarray) -> Tuple[np.ndarray, List[Tuple], List[Tuple]]:
-        """
+        """Simple categorical encoding.
+
         Method 2: Simple categorical encoding
         FIXED: All irradiation positions get the same categorical value
+
+        Parameters
+        ----------
+        lattice : np.ndarray
+            2D array representing the reactor core layout
+
+        Returns
+        -------
+        tuple
+            (features, irr_positions, position_order) where features is the encoded array,
+            irr_positions is list of irradiation positions, and position_order is sorted positions
         """
         feature_vec = []
         irr_positions = []
@@ -88,7 +111,8 @@ class ReactorEncodings:
 
     @staticmethod
     def physics_based_encoding(lattice: np.ndarray) -> Tuple[np.ndarray, List[Tuple], List[Tuple]]:
-        """
+        """Physics-based encoding with global and local features.
+
         Method 3: Physics-based encoding with global and local features
         FIXED: No label-specific features, only spatial physics
 
@@ -97,6 +121,17 @@ class ReactorEncodings:
         - 4 local features per irradiation position (fuel density, coolant contact, edge distance, center distance)
         - 1 NCI value per irradiation position
         Total: 2 + 4*(4+1) = 22 features for 4 positions
+
+        Parameters
+        ----------
+        lattice : np.ndarray
+            2D array representing the reactor core layout
+
+        Returns
+        -------
+        tuple
+            (features, irr_positions, position_order) where features is the encoded array,
+            irr_positions is list of irradiation positions, and position_order is sorted positions
         """
         irr_positions = []
 
@@ -128,7 +163,18 @@ class ReactorEncodings:
 
     @staticmethod
     def _compute_global_features(positions: List[Tuple]) -> np.ndarray:
-        """Compute global configuration features using paper's coordinate system"""
+        """Compute global configuration features using paper's coordinate system.
+
+        Parameters
+        ----------
+        positions : List[Tuple]
+            List of (row, col) tuples for irradiation positions
+
+        Returns
+        -------
+        np.ndarray
+            Array of global features
+        """
         # Convert to continuous coordinates (center of cells)
         continuous_positions = [(i + 0.5, j + 0.5) for i, j in positions]
         positions_array = np.array(continuous_positions)
@@ -151,7 +197,22 @@ class ReactorEncodings:
 
     @staticmethod
     def _compute_local_features(lattice: np.ndarray, i: int, j: int) -> List[float]:
-        """Compute local features for a specific position using paper's definitions"""
+        """Compute local features for a specific position using paper's definitions.
+
+        Parameters
+        ----------
+        lattice : np.ndarray
+            2D array representing the reactor core layout
+        i : int
+            Row position
+        j : int
+            Column position
+
+        Returns
+        -------
+        List[float]
+            List of local features for the position
+        """
         # Position center for distance calculations
         pos_center = (i + 0.5, j + 0.5)
         reactor_center = (4.0, 4.0)
@@ -208,18 +269,23 @@ class ReactorEncodings:
 
     @staticmethod
     def _compute_nci_for_positions(positions: List[Tuple], lambda_decay: float = 1.5) -> List[float]:
-        """
-        Compute Neutron Competition Index for each irradiation position.
+        """Compute Neutron Competition Index for each irradiation position.
+
         NCI_i = sum over j≠i of contribution based on distance thresholds:
         - d < sqrt(4.9): exp(-d_ij / lambda) (exponential decay)
         - sqrt(4.9) <= d <= sqrt(5.1): 0.1 (constant small value)
         - d > sqrt(5.1): 0 (no contribution)
 
-        Args:
-            positions: List of (row, col) tuples for irradiation positions
-            lambda_decay: Decay parameter (default 1.5)
+        Parameters
+        ----------
+        positions : List[Tuple]
+            List of (row, col) tuples for irradiation positions
+        lambda_decay : float, optional
+            Decay parameter, by default 1.5
 
-        Returns:
+        Returns
+        -------
+        List[float]
             List of NCI values, one per position
         """
         # Convert to continuous coordinates (center of cells)
@@ -252,9 +318,21 @@ class ReactorEncodings:
 
     @staticmethod
     def spatial_convolution_encoding(lattice: np.ndarray) -> Tuple[np.ndarray, List[Tuple], List[Tuple]]:
-        """
+        """Spatial convolution-like encoding.
+
         Method 4: Spatial convolution-like encoding
         FIXED: All irradiation positions encoded identically
+
+        Parameters
+        ----------
+        lattice : np.ndarray
+            2D array representing the reactor core layout
+
+        Returns
+        -------
+        tuple
+            (features, irr_positions, position_order) where features is the encoded array,
+            irr_positions is list of irradiation positions, and position_order is sorted positions
         """
         feature_vec = []
         irr_positions = []
@@ -292,9 +370,21 @@ class ReactorEncodings:
 
     @staticmethod
     def graph_based_encoding(lattice: np.ndarray) -> Tuple[np.ndarray, List[Tuple], List[Tuple]]:
-        """
+        """Graph-based encoding.
+
         Method 5: Graph-based encoding
         FIXED: No label-specific features
+
+        Parameters
+        ----------
+        lattice : np.ndarray
+            2D array representing the reactor core layout
+
+        Returns
+        -------
+        tuple
+            (features, irr_positions, position_order) where features is the encoded array,
+            irr_positions is list of irradiation positions, and position_order is sorted positions
         """
         G = nx.Graph()
         irr_positions = []
@@ -366,9 +456,21 @@ class ReactorEncodings:
 
     @staticmethod
     def raw_2d_grid(lattice: np.ndarray) -> Tuple[np.ndarray, List[Tuple], List[Tuple]]:
-        """
+        """Raw 2D grid for CNN input.
+
         Method 6: Raw 2D grid for CNN input
         FIXED: All irradiation positions in same channel
+
+        Parameters
+        ----------
+        lattice : np.ndarray
+            2D array representing the reactor core layout
+
+        Returns
+        -------
+        tuple
+            (grid, irr_positions, position_order) where grid is the 3D encoded array,
+            irr_positions is list of irradiation positions, and position_order is sorted positions
         """
         irr_positions = []
 
