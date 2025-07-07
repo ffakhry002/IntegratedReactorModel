@@ -6,13 +6,15 @@ import pandas as pd
 from datetime import datetime
 import os
 
-def parse_reactor_data(filename: str) -> Tuple[List[np.ndarray], List[Dict], List[float], List[str], List[Dict]]:
+def parse_reactor_data(filename: str, suppress_warnings: bool = False) -> Tuple[List[np.ndarray], List[Dict], List[float], List[str], List[Dict]]:
     """Parse reactor configuration data from text file with validation.
 
     Parameters
     ----------
     filename : str
         Path to the text file containing reactor configuration data
+    suppress_warnings : bool, optional
+        If True, suppresses warnings about missing flux data (useful for prediction files)
 
     Returns
     -------
@@ -104,8 +106,8 @@ def parse_reactor_data(filename: str) -> Tuple[List[np.ndarray], List[Dict], Lis
 
         # Validate and normalize flux data
         if lattice.size > 0:  # Only validate if lattice was parsed successfully
-            flux_dict_normalized, warnings = validate_irradiation_positions(lattice, flux_dict_raw)
-            if warnings:
+            flux_dict_normalized, warnings = validate_irradiation_positions(lattice, flux_dict_raw, suppress_warnings)
+            if warnings and not suppress_warnings:
                 all_warnings.extend([f"RUN {run_idx + 1}: {w}" for w in warnings])
             flux_data.append(flux_dict_normalized)
             energy_groups.append(energy_dict)
@@ -113,8 +115,8 @@ def parse_reactor_data(filename: str) -> Tuple[List[np.ndarray], List[Dict], Lis
             flux_data.append(flux_dict_raw)
             energy_groups.append(energy_dict)
 
-    # Print all warnings at the end
-    if all_warnings:
+    # Print all warnings at the end (unless suppressed)
+    if all_warnings and not suppress_warnings:
         print("\nWarnings during parsing:")
         for warning in all_warnings:
             print(f"  - {warning}")
@@ -830,7 +832,7 @@ def prepare_ml_data(lattices: List[np.ndarray], flux_data: List[Dict], k_effecti
     return (np.array(X_features), np.array(y_flux_values),
             np.array(y_k_eff), irr_positions_list)
 
-def validate_irradiation_positions(lattice: np.ndarray, flux_dict: Dict) -> Tuple[Dict, List[str]]:
+def validate_irradiation_positions(lattice: np.ndarray, flux_dict: Dict, suppress_warnings: bool = False) -> Tuple[Dict, List[str]]:
     """Validate and normalize irradiation positions.
 
     Parameters
@@ -839,6 +841,8 @@ def validate_irradiation_positions(lattice: np.ndarray, flux_dict: Dict) -> Tupl
         8x8 reactor configuration array
     flux_dict : Dict
         Dictionary mapping irradiation positions to flux values
+    suppress_warnings : bool, optional
+        If True, suppresses warnings about missing flux data (useful for prediction files)
 
     Returns
     -------
@@ -880,7 +884,7 @@ def validate_irradiation_positions(lattice: np.ndarray, flux_dict: Dict) -> Tupl
             # Use a default value or interpolate
             normalized_flux[label] = 0.0  # Or np.nan to flag missing data
 
-    if missing_flux:
+    if missing_flux and not suppress_warnings:
         warnings.append(f"Missing flux values for: {missing_flux}")
 
     # If we have non-standard labels, remap them
@@ -891,6 +895,7 @@ def validate_irradiation_positions(lattice: np.ndarray, flux_dict: Dict) -> Tupl
             if label in normalized_flux:
                 remapped_flux[new_label] = normalized_flux[label]
         normalized_flux = remapped_flux
-        warnings.append(f"Remapped labels: {irr_labels} -> {list(remapped_flux.keys())}")
+        if not suppress_warnings:
+            warnings.append(f"Remapped labels: {irr_labels} -> {list(remapped_flux.keys())}")
 
     return normalized_flux, warnings
