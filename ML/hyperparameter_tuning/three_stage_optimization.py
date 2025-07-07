@@ -39,11 +39,34 @@ class TimeoutException(Exception):
     pass
 
 def timeout_handler(signum, frame):
-    """Signal handler for timeout"""
+    """Signal handler for timeout.
+
+    Parameters
+    ----------
+    signum : int
+        Signal number
+    frame : object
+        Current stack frame
+
+    Returns
+    -------
+    None
+    """
     raise TimeoutException("Operation timed out")
 
 def with_timeout(timeout_seconds):
-    """Decorator to add timeout to functions"""
+    """Decorator to add timeout to functions.
+
+    Parameters
+    ----------
+    timeout_seconds : int
+        Number of seconds before timing out
+
+    Returns
+    -------
+    callable
+        Decorated function with timeout capability
+    """
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -452,7 +475,29 @@ _NO_DEFAULT = object()
 
 def get_param_value(params: Dict[str, Any], base_key: str,
                    default: Any = _NO_DEFAULT, verbose: bool = False) -> Any:
-    """Get parameter value checking for all possible prefixes (estimator__svr__, estimator__, svr__, direct)"""
+    """Get parameter value checking for all possible prefixes (estimator__svr__, estimator__, svr__, direct).
+
+    Parameters
+    ----------
+    params : Dict[str, Any]
+        Dictionary of parameters to search
+    base_key : str
+        Base parameter name to search for
+    default : Any, optional
+        Default value to return if not found (default: raises error)
+    verbose : bool, optional
+        Whether to print verbose output (default: False)
+
+    Returns
+    -------
+    Any
+        Parameter value found or default value
+
+    Raises
+    ------
+    KeyError
+        If parameter not found and no default provided
+    """
     # Check in order of specificity (most specific first)
 
     # 1. Double-nested for SVM flux models: estimator__svr__C
@@ -484,7 +529,22 @@ def get_param_value(params: Dict[str, Any], base_key: str,
         raise KeyError(f"Parameter '{base_key}' not found. Available keys: {available_keys}")
 
 def get_optional_param(params: Dict[str, Any], base_key: str, default: Any) -> Any:
-    """Get optional parameter value silently"""
+    """Get optional parameter value silently.
+
+    Parameters
+    ----------
+    params : Dict[str, Any]
+        Dictionary of parameters to search
+    base_key : str
+        Base parameter name to search for
+    default : Any
+        Default value to return if not found
+
+    Returns
+    -------
+    Any
+        Parameter value found or default value
+    """
     return get_param_value(params, base_key, default, verbose=False)
 
 # ============================================================================
@@ -1083,7 +1143,18 @@ class ParameterHandlerFactory:
 # SCORING FUNCTIONS
 # ============================================================================
 def create_mape_scorer(use_log_flux: bool):
-    """Create custom MAPE scorer for flux models"""
+    """Create a MAPE scorer for model evaluation.
+
+    Parameters
+    ----------
+    use_log_flux : bool
+        Whether flux values are log-transformed
+
+    Returns
+    -------
+    callable
+        MAPE scorer function for use with scikit-learn
+    """
     from sklearn.metrics import make_scorer
 
     def mape_scorer(y_true, y_pred):

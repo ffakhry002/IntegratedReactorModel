@@ -17,6 +17,16 @@ import numpy as np
 
 class OptimizationHistoryTracker:
     def __init__(self):
+        """Initialize the optimization history tracker.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         self.log_dir = "ML/outputs/logs"
         self.excel_file = "ML/hyperparameter_tuning/optimisation_history_logs.xlsx"
 
@@ -799,6 +809,16 @@ class OptimizationHistoryTracker:
         self.save_history(updated_df, update_details)
 
 def main():
+    """Main function to run the optimization history tracker.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    None
+    """
     tracker = OptimizationHistoryTracker()
     tracker.run()
 

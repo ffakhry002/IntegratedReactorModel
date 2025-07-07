@@ -20,6 +20,17 @@ class ReactorModelTester:
     """Class to handle testing of reactor ML models"""
 
     def __init__(self, models_dir=None):
+        """Initialize the reactor model tester.
+
+        Parameters
+        ----------
+        models_dir : str, optional
+            Directory containing trained models. If None, uses default 'models'.
+
+        Returns
+        -------
+        None
+        """
         self.encodings = ReactorEncodings()
         self.available_models = []
         self.test_results = []

@@ -16,7 +16,18 @@ from datetime import datetime
 from pathlib import Path
 
 def select_excel_file(prompt_message):
-    """Interactive Excel file selection from ML/outputs/excel_reports"""
+    """Interactive Excel file selection from ML/outputs/excel_reports.
+
+    Parameters
+    ----------
+    prompt_message : str
+        Message to display to user for file selection
+
+    Returns
+    -------
+    str or None
+        Path to selected Excel file or None if cancelled
+    """
     excel_dir = "ML/outputs/excel_reports"
     excel_path = Path(excel_dir)
 
@@ -70,7 +81,18 @@ def select_excel_file(prompt_message):
             return None
 
 def load_excel_data(filepath):
-    """Load Excel file and return dataframe"""
+    """Load Excel file and return dataframe.
+
+    Parameters
+    ----------
+    filepath : str
+        Path to Excel file to load
+
+    Returns
+    -------
+    pd.DataFrame or None
+        Loaded DataFrame or None if error occurred
+    """
     try:
         df = pd.read_excel(filepath, sheet_name='Test Results')
         print(f"✓ Loaded {len(df)} rows from {os.path.basename(filepath)}")
@@ -80,7 +102,18 @@ def load_excel_data(filepath):
         return None
 
 def detect_data_type(df):
-    """Detect what type of data is in the dataframe"""
+    """Detect what type of data is in the dataframe.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame to analyze
+
+    Returns
+    -------
+    list
+        List of detected data types (e.g., ['thermal', 'keff'])
+    """
     data_types = []
 
     # Check for flux modes
@@ -108,7 +141,18 @@ def detect_data_type(df):
     return data_types
 
 def create_merge_key(row):
-    """Create a unique key for matching configurations across files"""
+    """Create a unique key for matching configurations across files.
+
+    Parameters
+    ----------
+    row : pd.Series
+        Row from DataFrame containing configuration information
+
+    Returns
+    -------
+    str
+        Unique key string for matching configurations
+    """
     # Use config_id, model_class, encoding, and optimization_method
     key_parts = [
         str(row.get('config_id', '')),
@@ -119,7 +163,19 @@ def create_merge_key(row):
     return '|'.join(key_parts)
 
 def save_merged_excel(df, output_path):
-    """Save merged dataframe to Excel with proper formatting for mixed data"""
+    """Save merged dataframe to Excel with proper formatting for mixed data.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame containing merged data to save
+    output_path : str
+        Path where Excel file should be saved
+
+    Returns
+    -------
+    None
+    """
     from openpyxl.styles import Font, PatternFill, Alignment
     from openpyxl.utils import get_column_letter
 
@@ -200,7 +256,22 @@ def save_merged_excel(df, output_path):
     print(f"Excel file saved with proper formatting for merged data")
 
 def merge_all_energy(thermal_df, epithermal_df, fast_df):
-    """Merge thermal, epithermal, and fast results into multi-energy format"""
+    """Merge thermal, epithermal, and fast results into multi-energy format.
+
+    Parameters
+    ----------
+    thermal_df : pd.DataFrame
+        DataFrame containing thermal flux results
+    epithermal_df : pd.DataFrame
+        DataFrame containing epithermal flux results
+    fast_df : pd.DataFrame
+        DataFrame containing fast flux results
+
+    Returns
+    -------
+    pd.DataFrame
+        Merged DataFrame with all energy groups and calculated totals
+    """
     print("\nPerforming all-energy merge...")
 
     # Add merge keys
@@ -297,7 +368,20 @@ def merge_all_energy(thermal_df, epithermal_df, fast_df):
     return merged_df
 
 def merge_total_keff(total_df, keff_df):
-    """Merge total flux and k-eff results"""
+    """Merge total flux and k-eff results.
+
+    Parameters
+    ----------
+    total_df : pd.DataFrame
+        DataFrame containing total flux results
+    keff_df : pd.DataFrame
+        DataFrame containing k-eff results
+
+    Returns
+    -------
+    pd.DataFrame
+        Merged DataFrame with both flux and k-eff data
+    """
     print("\nPerforming total + k-eff merge...")
 
     # Add merge keys
@@ -329,7 +413,17 @@ def merge_total_keff(total_df, keff_df):
     return merged_df
 
 def show_menu():
-    """Display the merge options menu"""
+    """Display the merge options menu.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    str
+        User's menu choice
+    """
     print("\n" + "="*60)
     print("EXCEL RESULTS MERGER")
     print("="*60)
@@ -343,7 +437,18 @@ def show_menu():
     return input("\nSelect merge option (1-5): ").strip()
 
 def get_output_path(default_name):
-    """Get output file path from user"""
+    """Get output file path from user.
+
+    Parameters
+    ----------
+    default_name : str
+        Default filename to suggest to user
+
+    Returns
+    -------
+    str
+        Full path to output Excel file
+    """
     output_name = input(f"\nOutput filename (default: {default_name}): ").strip()
     if not output_name:
         output_name = default_name
@@ -356,7 +461,16 @@ def get_output_path(default_name):
     return os.path.join('ML/outputs/excel_reports', output_name)
 
 def main():
-    """Main merge utility"""
+    """Main merge utility function.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    None
+    """
     while True:
         choice = show_menu()
 

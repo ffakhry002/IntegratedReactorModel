@@ -89,6 +89,17 @@ def cleanup_local_outputs():
 
 class THSystem:
     def __init__(self, inputs_dict):
+        """Initialize the thermal hydraulics system.
+
+        Parameters
+        ----------
+        inputs_dict : dict
+            Dictionary containing reactor configuration parameters
+
+        Returns
+        -------
+        None
+        """
         # Store the inputs_dict for later use
         self.inputs_dict = inputs_dict
 

@@ -26,7 +26,31 @@ TOTAL_TIMEOUT = 30*60*60  # 30 hours total per model
 
 @contextmanager
 def timeout(duration):
+    """Context manager to timeout operations after a specified duration.
+
+    Parameters
+    ----------
+    duration : int
+        Duration in seconds after which to timeout
+
+    Returns
+    -------
+    None
+    """
     def timeout_handler(signum, frame):
+        """Handle timeout signal.
+
+        Parameters
+        ----------
+        signum : int
+            Signal number
+        frame : object
+            Current stack frame
+
+        Returns
+        -------
+        None
+        """
         raise TimeoutError(f"Operation timed out after {duration} seconds")
 
     # Set the signal handler and a duration-second alarm
@@ -116,6 +140,18 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
     custom_mape_scorer = make_scorer(mape_scorer_wrapper, greater_is_better=False)
 
     def objective(trial):
+        """Objective function for flux model hyperparameter optimization.
+
+        Parameters
+        ----------
+        trial : optuna.Trial
+            Optuna trial object for hyperparameter suggestions
+
+        Returns
+        -------
+        float
+            Score to minimize (MAPE or MSE depending on flux mode)
+        """
         nonlocal completed_trials
         trial_start = time.time()
 
@@ -297,6 +333,19 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
 
     # Add callback to print best value updates
     def callback(study, trial):
+        """Callback function to print best trial updates for flux optimization.
+
+        Parameters
+        ----------
+        study : optuna.Study
+            Optuna study object
+        trial : optuna.Trial
+            Current trial object
+
+        Returns
+        -------
+        None
+        """
         if study.best_trial.number == trial.number:
             if flux_mode == 'bin':
                 print(f"\n[NEW BEST] Trial {trial.number}: MSE = {study.best_value:.6f}")
@@ -377,6 +426,18 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
     completed_trials = 0
 
     def objective(trial):
+        """Objective function for k-eff model hyperparameter optimization.
+
+        Parameters
+        ----------
+        trial : optuna.Trial
+            Optuna trial object for hyperparameter suggestions
+
+        Returns
+        -------
+        float
+            Score to minimize (MSE)
+        """
         nonlocal completed_trials
         trial_start = time.time()
 
@@ -573,6 +634,19 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
 
     # Add callback to print best value updates
     def callback(study, trial):
+        """Callback function to print best trial updates for k-eff optimization.
+
+        Parameters
+        ----------
+        study : optuna.Study
+            Optuna study object
+        trial : optuna.Trial
+            Current trial object
+
+        Returns
+        -------
+        None
+        """
         if study.best_trial.number == trial.number:
             print(f"\n[NEW BEST] Trial {trial.number}: {study.best_value:.6f}")
             print(f"Parameters: {trial.params}\n")

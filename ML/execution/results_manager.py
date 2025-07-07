@@ -5,7 +5,20 @@ class ResultsManager:
     """Manage training results and summaries"""
 
     def initialize_results(self, config, data_splits):
-        """Initialize results dictionary"""
+        """Initialize results dictionary with training configuration.
+
+        Parameters
+        ----------
+        config : TrainingConfig
+            Training configuration object
+        data_splits : dict
+            Dictionary containing train/test data splits
+
+        Returns
+        -------
+        dict
+            Initialized results dictionary with training info and empty result containers
+        """
         return {
             'training_info': {
                 'date': datetime.now().isoformat(),
@@ -23,7 +36,25 @@ class ResultsManager:
         }
 
     def add_result(self, target, model_type, model, metrics, best_params):
-        """Add a model's results"""
+        """Add a model's results to the internal results storage.
+
+        Parameters
+        ----------
+        target : str
+            Target type ('flux' or 'keff')
+        model_type : str
+            Type of model (e.g. 'xgboost', 'random_forest')
+        model : object
+            Trained model object
+        metrics : dict
+            Dictionary of performance metrics
+        best_params : dict
+            Dictionary of best hyperparameters
+
+        Returns
+        -------
+        None
+        """
         if not hasattr(self, 'all_results'):
             self.all_results = {'flux_results': {}, 'keff_results': {}}
 
@@ -34,7 +65,19 @@ class ResultsManager:
         }
 
     def save_json_results(self, results, filepath):
-        """Save results to JSON file"""
+        """Save results to JSON file.
+
+        Parameters
+        ----------
+        results : dict
+            Results dictionary to save
+        filepath : str
+            Path to save the JSON file
+
+        Returns
+        -------
+        None
+        """
         # Merge with stored results
         if hasattr(self, 'all_results'):
             results.update(self.all_results)
@@ -43,7 +86,21 @@ class ResultsManager:
             json.dump(results, f, indent=2)
 
     def save_text_summary(self, results, filepath, duration):
-        """Save human-readable summary to text file"""
+        """Save human-readable summary to text file.
+
+        Parameters
+        ----------
+        results : dict
+            Results dictionary to summarize
+        filepath : str
+            Path to save the text summary
+        duration : float
+            Training duration in seconds
+
+        Returns
+        -------
+        None
+        """
         if hasattr(self, 'all_results'):
             results.update(self.all_results)
 
@@ -110,7 +167,17 @@ class ResultsManager:
             f.write("="*80 + "\n")
 
     def print_best_models(self, results):
-        """Print best models to console"""
+        """Print best models to console.
+
+        Parameters
+        ----------
+        results : dict
+            Results dictionary containing model performance data
+
+        Returns
+        -------
+        None
+        """
         if hasattr(self, 'all_results'):
             results.update(self.all_results)
 
@@ -129,7 +196,21 @@ class ResultsManager:
                 print(f"  R²: {best_model[1]['metrics']['r2']:.4f}")
 
     def save_text_summary_multi_encoding(self, results, filepath, duration):
-        """Save human-readable summary for multi-encoding results"""
+        """Save human-readable summary for multi-encoding results.
+
+        Parameters
+        ----------
+        results : dict
+            Results dictionary containing multi-encoding training results
+        filepath : str
+            Path to save the text summary
+        duration : float
+            Training duration in seconds
+
+        Returns
+        -------
+        None
+        """
         with open(filepath, 'w') as f:
             f.write("="*80 + "\n")
             f.write("NUCLEAR REACTOR ML TRAINING SUMMARY - MULTI-ENCODING\n")
@@ -254,7 +335,17 @@ class ResultsManager:
             f.write("="*80 + "\n")
 
     def print_best_models_multi_encoding(self, results):
-        """Print best models across all encodings to console"""
+        """Print best models across all encodings to console.
+
+        Parameters
+        ----------
+        results : dict
+            Results dictionary containing multi-encoding training results
+
+        Returns
+        -------
+        None
+        """
         print("\n" + "-"*60)
         print("BEST MODELS SUMMARY")
         print("-"*60)
@@ -283,7 +374,21 @@ class ResultsManager:
                 print(f"  R²: {best_r2:.4f}")
 
     def save_text_summary_complete(self, results, filepath, duration):
-        """Save comprehensive summary for all combinations"""
+        """Save comprehensive summary for all combinations.
+
+        Parameters
+        ----------
+        results : dict
+            Results dictionary containing all encoding/optimization combinations
+        filepath : str
+            Path to save the comprehensive text summary
+        duration : float
+            Training duration in seconds
+
+        Returns
+        -------
+        None
+        """
         with open(filepath, 'w') as f:
             f.write("="*80 + "\n")
             f.write("NUCLEAR REACTOR ML TRAINING SUMMARY - COMPLETE\n")
@@ -384,7 +489,17 @@ class ResultsManager:
                                 f"{metrics['r2']:<8.4f}\n")
 
     def print_best_models_complete(self, results):
-        """Print best models across all combinations"""
+        """Print best models across all combinations.
+
+        Parameters
+        ----------
+        results : dict
+            Results dictionary containing all encoding/optimization combinations
+
+        Returns
+        -------
+        None
+        """
         print("\n" + "-"*60)
         print("BEST MODELS SUMMARY - ALL COMBINATIONS")
         print("-"*60)
