@@ -15,6 +15,17 @@ class TerminalLogger:
     """Logger that captures exactly what appears in the terminal"""
 
     def __init__(self, log_file_path):
+        """Initialize the terminal logger with file redirection.
+
+        Parameters
+        ----------
+        log_file_path : str
+            Path to the log file where terminal output will be saved
+
+        Returns
+        -------
+        None
+        """
         self.log_file_path = log_file_path
         self.log_file = open(log_file_path, 'a', buffering=1)  # Line buffered
         self.original_stdout = sys.stdout
@@ -50,7 +61,19 @@ class TerminalLogger:
         self.stderr_thread.start()
 
     def _reader_thread(self, pipe_fd, console_fd):
-        """Thread that reads from pipe and writes to both console and log file"""
+        """Thread that reads from pipe and writes to both console and log file.
+
+        Parameters
+        ----------
+        pipe_fd : int
+            File descriptor for the pipe to read from
+        console_fd : int
+            File descriptor for the console to write to
+
+        Returns
+        -------
+        None
+        """
         while not self.stop_threads:
             try:
                 # Check if there's data to read
@@ -73,7 +96,16 @@ class TerminalLogger:
                 pass
 
     def close(self):
-        """Restore original stdout/stderr and close log file"""
+        """Restore original stdout/stderr and close log file.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         # Stop reader threads
         self.stop_threads = True
 
@@ -104,6 +136,17 @@ class SimpleLogger:
     """Fallback logger using simple Python stdout/stderr redirection"""
 
     def __init__(self, log_file_path):
+        """Initialize the simple logger with stdout/stderr redirection.
+
+        Parameters
+        ----------
+        log_file_path : str
+            Path to the log file where output will be saved
+
+        Returns
+        -------
+        None
+        """
         self.log_file_path = log_file_path
         self.stdout = TeeOutput(sys.stdout, log_file_path)
         self.stderr = TeeOutput(sys.stderr, log_file_path)
@@ -111,7 +154,16 @@ class SimpleLogger:
         sys.stderr = self.stderr
 
     def close(self):
-        """Restore original stdout/stderr"""
+        """Restore original stdout/stderr.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         sys.stdout = self.stdout.terminal
         sys.stderr = self.stderr.terminal
         self.stdout.close()
@@ -122,20 +174,64 @@ class TeeOutput:
     """Helper class to duplicate output to both terminal and file"""
 
     def __init__(self, terminal, log_file_path):
+        """Initialize the tee output to duplicate output to terminal and file.
+
+        Parameters
+        ----------
+        terminal : file
+            Original terminal output stream
+        log_file_path : str
+            Path to the log file
+
+        Returns
+        -------
+        None
+        """
         self.terminal = terminal
         self.log = open(log_file_path, 'a', buffering=1)
 
     def write(self, message):
+        """Write message to both terminal and log file.
+
+        Parameters
+        ----------
+        message : str
+            Message to write
+
+        Returns
+        -------
+        None
+        """
         self.terminal.write(message)
         self.terminal.flush()
         self.log.write(message)
         self.log.flush()
 
     def flush(self):
+        """Flush both terminal and log file.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         self.terminal.flush()
         self.log.flush()
 
     def close(self):
+        """Close the log file.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         self.log.close()
 
 

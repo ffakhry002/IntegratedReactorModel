@@ -18,6 +18,16 @@ from datetime import datetime
 
 class OptimizationHistoryTracker:
     def __init__(self):
+        """Initialize the optimization history tracker for model files.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         self.models_dir = "/root/IntegratedReactorModel/ML/outputs/models"
         self.excel_file = "/root/IntegratedReactorModel/ML/hyperparameter_tuning/optimisation_history.xlsx"
 
@@ -57,7 +67,17 @@ class OptimizationHistoryTracker:
         self.all_params = unique_params
 
     def scan_model_files(self) -> List[str]:
-        """Scan models directory for all model files"""
+        """Scan models directory for all model files.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        List[str]
+            List of paths to model files found in the models directory
+        """
         models_path = Path(self.models_dir)
 
         if not models_path.exists():
@@ -75,7 +95,18 @@ class OptimizationHistoryTracker:
         return [str(f) for f in sorted(model_files)]
 
     def parse_model_filename(self, filename: str) -> Optional[Dict]:
-        """Parse model filename to extract model type, target, encoding, and optimization method"""
+        """Parse model filename to extract model type, target, encoding, and optimization method.
+
+        Parameters
+        ----------
+        filename : str
+            Path to the model file
+
+        Returns
+        -------
+        Optional[Dict]
+            Dictionary containing parsed model information or None if parsing fails
+        """
         # Extract just the filename without path
         base_name = os.path.basename(filename)
 
@@ -138,7 +169,18 @@ class OptimizationHistoryTracker:
         }
 
     def extract_model_data(self, model_path: str) -> Optional[Dict]:
-        """Extract data from a model pickle file"""
+        """Extract data from a model pickle file.
+
+        Parameters
+        ----------
+        model_path : str
+            Path to the model pickle file
+
+        Returns
+        -------
+        Optional[Dict]
+            Dictionary containing extracted model data or None if extraction fails
+        """
         try:
             # Load the model data
             model_data = joblib.load(model_path)
@@ -205,7 +247,17 @@ class OptimizationHistoryTracker:
             return None
 
     def load_existing_history(self) -> pd.DataFrame:
-        """Load existing optimization history Excel file from all sheets"""
+        """Load existing optimization history Excel file from all sheets.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame containing existing optimization history data
+        """
         base_columns = ['Model', 'Target', 'Flux Mode', 'Encoding', 'Optimisation',
                        'Test MAPE', 'Test R²', 'Test MAE', 'Test RMSE', 'Test MSE',
                        'Training Time (minutes)']
@@ -279,7 +331,20 @@ class OptimizationHistoryTracker:
         return pd.DataFrame(columns=base_columns + self.all_params)
 
     def update_history(self, existing_df: pd.DataFrame, new_results: List[Dict]) -> Tuple[pd.DataFrame, List[Dict]]:
-        """Update history with new results, only keeping better MAPE scores"""
+        """Update history with new results, only keeping better MAPE scores.
+
+        Parameters
+        ----------
+        existing_df : pd.DataFrame
+            Existing optimization history DataFrame
+        new_results : List[Dict]
+            List of new optimization results to add/update
+
+        Returns
+        -------
+        Tuple[pd.DataFrame, List[Dict]]
+            Tuple of (updated_df, update_details) containing updated history and change details
+        """
         updated_df = existing_df.copy()
         updates_made = 0
         additions_made = 0
@@ -367,7 +432,19 @@ class OptimizationHistoryTracker:
         return updated_df, update_details
 
     def save_history(self, df: pd.DataFrame, update_details: List[Dict]):
-        """Save updated history to Excel file with proper formatting"""
+        """Save updated history to Excel file with proper formatting.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            DataFrame containing optimization history to save
+        update_details : List[Dict]
+            List of dictionaries containing update details for reporting
+
+        Returns
+        -------
+        None
+        """
         try:
             # Ensure directory exists
             os.makedirs(os.path.dirname(self.excel_file), exist_ok=True)
@@ -429,7 +506,19 @@ class OptimizationHistoryTracker:
             print(f"Error saving Excel file: {e}")
 
     def _format_sheet(self, ws, df):
-        """Format Excel sheet with colors and styling"""
+        """Format Excel sheet with colors and styling.
+
+        Parameters
+        ----------
+        ws : openpyxl.worksheet.worksheet.Worksheet
+            Excel worksheet to format
+        df : pd.DataFrame
+            DataFrame containing the data that was written to the sheet
+
+        Returns
+        -------
+        None
+        """
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
         from openpyxl.utils import get_column_letter
 
@@ -509,7 +598,18 @@ class OptimizationHistoryTracker:
             ws.column_dimensions[column_letter].width = adjusted_width
 
     def _expand_parameter_name(self, param_name):
-        """Expand parameter names to be more descriptive"""
+        """Expand parameter names to be more descriptive.
+
+        Parameters
+        ----------
+        param_name : str
+            Short parameter name to expand
+
+        Returns
+        -------
+        str
+            Descriptive parameter name for display
+        """
         expansions = {
             'n_estimators': 'Number of Estimators',
             'max_depth': 'Maximum Depth',
@@ -545,7 +645,16 @@ class OptimizationHistoryTracker:
         return expansions.get(param_name, param_name)
 
     def run(self):
-        """Main execution function"""
+        """Main execution function for optimization history tracking.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         print("="*60)
         print("OPTIMIZATION HISTORY TRACKER - Model Files Version")
         print("="*60)
@@ -584,6 +693,16 @@ class OptimizationHistoryTracker:
         self.save_history(updated_df, update_details)
 
 def main():
+    """Main function to run the optimization history tracker.
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    None
+    """
     tracker = OptimizationHistoryTracker()
     tracker.run()
 

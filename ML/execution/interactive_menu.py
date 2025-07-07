@@ -14,6 +14,17 @@ class InteractiveTrainer:
     """
 
     def __init__(self, outputs_dir=None):
+        """Initialize the interactive trainer.
+
+        Parameters
+        ----------
+        outputs_dir : str, optional
+            Directory for outputs. If None, uses default location.
+
+        Returns
+        -------
+        None
+        """
         self.config = TrainingConfig()
         self.data_handler = DataHandler()
         self.model_trainer = ModelTrainer(data_handler=self.data_handler)

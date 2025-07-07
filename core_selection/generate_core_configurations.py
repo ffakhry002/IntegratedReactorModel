@@ -18,6 +18,17 @@ SCRIPT_DIR = Path(__file__).parent.absolute()
 
 class CoreConfigGenerator:
     def __init__(self, use_6x6_restriction=False):
+        """Initialize the core configuration generator.
+
+        Parameters
+        ----------
+        use_6x6_restriction : bool, optional
+            Whether to restrict configurations to central 6x6 square (default: False)
+
+        Returns
+        -------
+        None
+        """
         self.configurations = []
         self.irradiation_sets = []
         self.all_configurations_before_symmetry = []

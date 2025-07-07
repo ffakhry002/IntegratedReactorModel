@@ -192,6 +192,18 @@ def run_testing(outputs_dir=None):
 
     # Function to get output filename
     def get_output_filename(model_type_desc):
+        """Get output filename for Excel report based on model type.
+
+        Parameters
+        ----------
+        model_type_desc : str
+            Description of the model type for the filename
+
+        Returns
+        -------
+        str
+            Full path to the output Excel file
+        """
         print("\n" + "-"*40)
         print(f"Results for: {model_type_desc}")
         output_file = input("Output Excel filename (press Enter for timestamp): ").strip()

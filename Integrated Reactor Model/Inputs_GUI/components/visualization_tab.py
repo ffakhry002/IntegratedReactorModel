@@ -1,4 +1,4 @@
-# Visualization tab component
+n # Visualization tab component
 
 """
 Visualization Tab Component
@@ -18,6 +18,19 @@ from Inputs_GUI.utils.constants import MATERIAL_COLORS
 
 class VisualizationTab:
     def __init__(self, parent, main_gui):
+        """Initialize the visualization tab component.
+
+        Parameters
+        ----------
+        parent : tkinter.Widget
+            Parent widget for this tab
+        main_gui : object
+            Main GUI application object
+
+        Returns
+        -------
+        None
+        """
         self.parent = parent
         self.main_gui = main_gui
 

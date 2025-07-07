@@ -43,6 +43,17 @@ class ThermalState:
         MDNBR (float): Minimum departure from nucleate boiling ratio
     """
     def __init__(self, z_points=1000):
+        """Initialize the thermal state object.
+
+        Parameters
+        ----------
+        z_points : int, optional
+            Number of axial mesh points for discretization (default: 1000)
+
+        Returns
+        -------
+        None
+        """
         self.z_points = z_points
         # Temperature arrays
         self.T_coolant_z = None

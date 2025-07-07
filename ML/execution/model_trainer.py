@@ -15,6 +15,17 @@ class ModelTrainer:
     """Handle model training and evaluation"""
 
     def __init__(self, data_handler=None):
+        """Initialize the model trainer.
+
+        Parameters
+        ----------
+        data_handler : object, optional
+            Data handler object to access flux transform settings
+
+        Returns
+        -------
+        None
+        """
         # Store reference to data_handler to access flux transform settings
         self.data_handler = data_handler
 

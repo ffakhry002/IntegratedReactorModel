@@ -51,6 +51,16 @@ class InteractiveParameterSelector:
     }
 
     def __init__(self):
+        """Initialize the interactive parameter selector.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         self.selected_parameters = []
         self.available_parameters = []
 

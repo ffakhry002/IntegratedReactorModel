@@ -12,6 +12,16 @@ class ReactorModelBase(ABC):
     """
 
     def __init__(self):
+        """Initialize the base reactor model.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         self.flux_model = None
         self.keff_model = None
         self._n_flux_outputs = 4  # Standard number of flux positions (will be updated based on flux_mode)

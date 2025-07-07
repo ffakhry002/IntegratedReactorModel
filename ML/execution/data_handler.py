@@ -7,6 +7,16 @@ class DataHandler:
     """Handle data loading and preprocessing"""
 
     def __init__(self):
+        """Initialize the data handler.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+        """
         self.encodings = ReactorEncodings()
         self.use_log_flux = True  # Flag to use log transform for flux
         self.flux_scale = 1e14    # Alternative scaling factor

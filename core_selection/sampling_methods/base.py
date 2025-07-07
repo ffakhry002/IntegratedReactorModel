@@ -28,6 +28,19 @@ class BaseSampler:
     """
 
     def __init__(self, use_6x6_restriction=False, selected_parameters=None):
+        """Initialize the base sampler.
+
+        Parameters
+        ----------
+        use_6x6_restriction : bool, optional
+            Whether to restrict configurations to central 6x6 square (default: False)
+        selected_parameters : list, optional
+            List of parameter names to use for sampling. If None, uses all available (default: None)
+
+        Returns
+        -------
+        None
+        """
         # Only set default method_name if not already set by child class
         if not hasattr(self, 'method_name'):
             self.method_name = "base"
