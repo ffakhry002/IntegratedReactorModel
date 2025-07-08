@@ -209,7 +209,7 @@ class AllCoresGenerator:
             for i, config in enumerate(self.configurations):
                 f.write(f"RUN {i+1}:\n")
                 f.write("----------------------------------------\n")
-                f.write(f"Description: random_geometric_{i+1}\n")
+                f.write(f"Description: core_config_{i+1}\n")
                 f.write(f"  core_lattice: {self.format_configuration_for_output(config)}\n")
                 f.write("=" * 80 + "\n\n")
                 f.write("=" * 80 + "\n\n")

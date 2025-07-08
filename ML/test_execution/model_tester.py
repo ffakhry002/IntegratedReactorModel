@@ -178,118 +178,104 @@ class ReactorModelTester:
 
         for filepath in model_files:
             try:
-                # Load model metadata
-                model_data = joblib.load(filepath)
+                # Parse model info from filename first (most efficient)
+                filename = os.path.basename(filepath)
+                parts = filename.replace('.pkl', '').split('_')
 
-                # Extract metadata
-                if 'model_class' in model_data:
-                    # New format with full metadata
-                    model_info = {
-                        'filepath': filepath,
-                        'model_class': model_data['model_class'],
-                        'model_type': model_data['model_type'],  # flux or keff
-                        'encoding': model_data['encoding'],
-                        'optimization_method': model_data.get('optimization_method', 'unknown'),
-                        'model': model_data.get('model'),
-                        'use_log_flux': model_data.get('use_log_flux', False),
-                        'flux_scale': model_data.get('flux_scale', 1e14),
-                        'flux_mode': model_data.get('flux_mode', 'total')  # NEW: Extract flux mode
-                    }
-                else:
-                    # Try to parse from filename for backward compatibility
-                    filename = os.path.basename(filepath)
-                    parts = filename.replace('.pkl', '').split('_')
+                model_info = self._parse_model_info_from_filename(parts, filepath)
 
-                    # Check if flux mode is in filename
-                    flux_mode = 'total'
-                    if len(parts) >= 3 and parts[1] == 'flux':
-                        # Check for new single energy modes
-                        if parts[2] == 'thermal' and len(parts) > 3 and parts[3] == 'only':
-                            flux_mode = 'thermal_only'
-                            # Adjust parsing for model_flux_thermal_only_encoding_optimization.pkl
-                            model_info = {
-                                'filepath': filepath,
-                                'model_class': parts[0],
-                                'model_type': 'flux',
-                                'flux_mode': flux_mode,
-                                'encoding': parts[4] if len(parts) > 4 else 'unknown',
-                                'optimization_method': parts[5] if len(parts) > 5 else 'unknown',
-                                'model': model_data.get('model', model_data),
-                                'use_log_flux': model_data.get('use_log_flux', True),
-                                'flux_scale': model_data.get('flux_scale', 1e14)
-                            }
-                        elif parts[2] == 'epithermal' and len(parts) > 3 and parts[3] == 'only':
-                            flux_mode = 'epithermal_only'
-                            model_info = {
-                                'filepath': filepath,
-                                'model_class': parts[0],
-                                'model_type': 'flux',
-                                'flux_mode': flux_mode,
-                                'encoding': parts[4] if len(parts) > 4 else 'unknown',
-                                'optimization_method': parts[5] if len(parts) > 5 else 'unknown',
-                                'model': model_data.get('model', model_data),
-                                'use_log_flux': model_data.get('use_log_flux', True),
-                                'flux_scale': model_data.get('flux_scale', 1e14)
-                            }
-                        elif parts[2] == 'fast' and len(parts) > 3 and parts[3] == 'only':
-                            flux_mode = 'fast_only'
-                            model_info = {
-                                'filepath': filepath,
-                                'model_class': parts[0],
-                                'model_type': 'flux',
-                                'flux_mode': flux_mode,
-                                'encoding': parts[4] if len(parts) > 4 else 'unknown',
-                                'optimization_method': parts[5] if len(parts) > 5 else 'unknown',
-                                'model': model_data.get('model', model_data),
-                                'use_log_flux': model_data.get('use_log_flux', True),
-                                'flux_scale': model_data.get('flux_scale', 1e14)
-                            }
-                        elif parts[2] in ['energy', 'bin', 'total']:
-                            flux_mode = parts[2]
-                            model_info = {
-                                'filepath': filepath,
-                                'model_class': parts[0],
-                                'model_type': 'flux',
-                                'flux_mode': flux_mode,
-                                'encoding': parts[3] if len(parts) > 3 else 'unknown',
-                                'optimization_method': parts[4] if len(parts) > 4 else 'unknown',
-                                'model': model_data.get('model', model_data),
-                                'use_log_flux': model_data.get('use_log_flux', True),
-                                'flux_scale': model_data.get('flux_scale', 1e14)
-                            }
-                        else:
-                            # Default parsing for backward compatibility
-                            model_info = {
-                                'filepath': filepath,
-                                'model_class': parts[0] if len(parts) > 0 else 'unknown',
-                                'model_type': parts[1] if len(parts) > 1 else 'unknown',
-                                'encoding': parts[2] if len(parts) > 2 else 'unknown',
-                                'optimization_method': parts[3] if len(parts) > 3 else 'unknown',
-                                'model': model_data.get('model', model_data),
-                                'use_log_flux': False,
-                                'flux_scale': 1e14,
-                                'flux_mode': 'total'
-                            }
-                    else:
-                        # Standard format: model_type_encoding_optimization.pkl
-                        model_info = {
-                            'filepath': filepath,
-                            'model_class': parts[0] if len(parts) > 0 else 'unknown',
-                            'model_type': parts[1] if len(parts) > 1 else 'unknown',
-                            'encoding': parts[2] if len(parts) > 2 else 'unknown',
-                            'optimization_method': parts[3] if len(parts) > 3 else 'unknown',
-                            'model': model_data.get('model', model_data),
-                            'use_log_flux': False,
-                            'flux_scale': 1e14,
-                            'flux_mode': 'total'
-                        }
+                # Only load the actual model file if we need metadata that's not in filename
+                # For now, we'll use filename parsing and set reasonable defaults
+                # The actual model loading will happen later when the model is selected for use
 
                 self.available_models.append(model_info)
 
             except Exception as e:
-                print(f"Warning: Could not load {filepath}: {e}")
+                print(f"Warning: Could not process {filepath}: {e}")
 
         return self.available_models
+
+    def _parse_model_info_from_filename(self, parts, filepath):
+        """Parse model information from filename without loading the actual model"""
+        # Check if flux mode is in filename
+        flux_mode = 'total'
+        if len(parts) >= 3 and parts[1] == 'flux':
+            # Check for new single energy modes
+            if parts[2] == 'thermal' and len(parts) > 3 and parts[3] == 'only':
+                flux_mode = 'thermal_only'
+                # Adjust parsing for model_flux_thermal_only_encoding_optimization.pkl
+                model_info = {
+                    'filepath': filepath,
+                    'model_class': parts[0],
+                    'model_type': 'flux',
+                    'flux_mode': flux_mode,
+                    'encoding': parts[4] if len(parts) > 4 else 'unknown',
+                    'optimization_method': parts[5] if len(parts) > 5 else 'unknown',
+                    'use_log_flux': True,  # Default for single energy modes
+                    'flux_scale': 1e14
+                }
+            elif parts[2] == 'epithermal' and len(parts) > 3 and parts[3] == 'only':
+                flux_mode = 'epithermal_only'
+                model_info = {
+                    'filepath': filepath,
+                    'model_class': parts[0],
+                    'model_type': 'flux',
+                    'flux_mode': flux_mode,
+                    'encoding': parts[4] if len(parts) > 4 else 'unknown',
+                    'optimization_method': parts[5] if len(parts) > 5 else 'unknown',
+                    'use_log_flux': True,  # Default for single energy modes
+                    'flux_scale': 1e14
+                }
+            elif parts[2] == 'fast' and len(parts) > 3 and parts[3] == 'only':
+                flux_mode = 'fast_only'
+                model_info = {
+                    'filepath': filepath,
+                    'model_class': parts[0],
+                    'model_type': 'flux',
+                    'flux_mode': flux_mode,
+                    'encoding': parts[4] if len(parts) > 4 else 'unknown',
+                    'optimization_method': parts[5] if len(parts) > 5 else 'unknown',
+                    'use_log_flux': True,  # Default for single energy modes
+                    'flux_scale': 1e14
+                }
+            elif parts[2] in ['energy', 'bin', 'total']:
+                flux_mode = parts[2]
+                model_info = {
+                    'filepath': filepath,
+                    'model_class': parts[0],
+                    'model_type': 'flux',
+                    'flux_mode': flux_mode,
+                    'encoding': parts[3] if len(parts) > 3 else 'unknown',
+                    'optimization_method': parts[4] if len(parts) > 4 else 'unknown',
+                    'use_log_flux': True,  # Default for multi-energy modes
+                    'flux_scale': 1e14
+                }
+            else:
+                # Default parsing for backward compatibility
+                model_info = {
+                    'filepath': filepath,
+                    'model_class': parts[0] if len(parts) > 0 else 'unknown',
+                    'model_type': parts[1] if len(parts) > 1 else 'unknown',
+                    'encoding': parts[2] if len(parts) > 2 else 'unknown',
+                    'optimization_method': parts[3] if len(parts) > 3 else 'unknown',
+                    'use_log_flux': False,
+                    'flux_scale': 1e14,
+                    'flux_mode': 'total'
+                }
+        else:
+            # Standard format: model_type_encoding_optimization.pkl
+            model_info = {
+                'filepath': filepath,
+                'model_class': parts[0] if len(parts) > 0 else 'unknown',
+                'model_type': parts[1] if len(parts) > 1 else 'unknown',
+                'encoding': parts[2] if len(parts) > 2 else 'unknown',
+                'optimization_method': parts[3] if len(parts) > 3 else 'unknown',
+                'use_log_flux': False,
+                'flux_scale': 1e14,
+                'flux_mode': 'total'
+            }
+
+        return model_info
 
     def encode_lattice(self, lattice, encoding_method):
         """Encode a lattice using the specified method - returns position order"""
@@ -360,8 +346,21 @@ class ReactorModelTester:
 
                 features = features.reshape(1, -1)
 
-                # Load model data
+                # Load model data - now we load the actual model file
                 model_data = joblib.load(model_info['filepath'])
+
+                # Update model_info with actual metadata from file if available
+                if 'model_class' in model_data:
+                    # Update with actual metadata from file
+                    model_info.update({
+                        'model_class': model_data['model_class'],
+                        'model_type': model_data['model_type'],
+                        'encoding': model_data['encoding'],
+                        'optimization_method': model_data.get('optimization_method', model_info.get('optimization_method', 'unknown')),
+                        'use_log_flux': model_data.get('use_log_flux', model_info.get('use_log_flux', False)),
+                        'flux_scale': model_data.get('flux_scale', model_info.get('flux_scale', 1e14)),
+                        'flux_mode': model_data.get('flux_mode', model_info.get('flux_mode', 'total'))
+                    })
 
                 # CRITICAL FIX: Properly load model using the appropriate model class
                 model_class_name = model_info.get('model_class', 'unknown')

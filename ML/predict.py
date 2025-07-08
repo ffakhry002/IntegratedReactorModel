@@ -6,6 +6,7 @@ from datetime import datetime
 import multiprocessing
 from joblib import Parallel, delayed
 from tqdm import tqdm
+import time
 
 # Suppress joblib parallel output messages
 os.environ['JOBLIB_VERBOSITY'] = '0'
@@ -28,6 +29,8 @@ class PredictionRunner:
         self.tester = None
         self.available_models = []
         self.model_map = {}
+        self.loaded_models_cache = {}  # Cache for loaded models
+        self.current_model_key = None  # Track current model to avoid reloading
 
     def setup_directories(self):
         """Setup output directories"""
@@ -57,6 +60,18 @@ class PredictionRunner:
         keff_models = [m for m in self.available_models if m['model_type'] == 'keff']
 
         print(f"\nFound {len(self.available_models)} trained models:")
+
+        # Show file sizes to help identify large models
+        total_size = 0
+        for model in self.available_models:
+            file_size = os.path.getsize(model['filepath']) / (1024 * 1024)  # MB
+            total_size += file_size
+            if file_size > 50:  # Warn about large models
+                print(f"  ⚠️  Large model file: {os.path.basename(model['filepath'])} ({file_size:.1f} MB)")
+
+        if total_size > 100:
+            print(f"  Total model size: {total_size:.1f} MB")
+            print("  Note: Large models may take longer to load\n")
 
         model_index = 1
         self.model_map = {}
@@ -142,27 +157,35 @@ class PredictionRunner:
         if choices['predict_thermal'] and choices['predict_epithermal'] and choices['predict_fast']:
             combine_choice = input("\nDo you want to add the fluxes (thermal + epithermal + fast) or do separate predictions? (add/separate): ").strip().lower()
             choices['combine_fluxes'] = combine_choice == 'add'
-            choices['predict_total'] = False  # Don't need separate total if combining all three
+            choices['predict_total'] = False
         else:
             choices['combine_fluxes'] = False
-            # Always ask about total flux unless all three energy groups are selected
-            total_choice = input("\nDo you want to predict total flux? (y/n): ").strip().lower()
-            choices['predict_total'] = total_choice == 'y'
+
+        total_choice = input("Do you want to predict total flux? (y/n): ").strip().lower()
+        choices['predict_total'] = total_choice == 'y'
 
         # Get model selections for each flux type
         flux_models = [i for i, m in self.model_map.items() if m['model_type'] == 'flux']
 
         if choices['predict_thermal']:
             choices['thermal_model'] = self._select_flux_model("thermal", flux_models)
+            if not choices['thermal_model']:
+                choices['predict_thermal'] = False
 
         if choices['predict_epithermal']:
             choices['epithermal_model'] = self._select_flux_model("epithermal", flux_models)
+            if not choices['epithermal_model']:
+                choices['predict_epithermal'] = False
 
         if choices['predict_fast']:
             choices['fast_model'] = self._select_flux_model("fast", flux_models)
+            if not choices['fast_model']:
+                choices['predict_fast'] = False
 
         if choices.get('predict_total', False):
             choices['total_model'] = self._select_flux_model("total", flux_models)
+            if not choices['total_model']:
+                choices['predict_total'] = False
 
         return choices
 
@@ -248,144 +271,231 @@ class PredictionRunner:
             print("Invalid input! Please enter a number.")
             return None
 
-    def _extract_descriptions_manually(self, test_file, num_configs):
-        """Manually extract descriptions from configuration file"""
-        descriptions = []
-        try:
-            with open(test_file, 'r') as f:
-                content = f.read()
+    def _load_model_cached(self, model_info):
+        """Load a model with caching to avoid repeated file I/O"""
+        filepath = model_info['filepath']
 
-            # Split by runs and extract descriptions
-            import re
-            runs = re.split(r'RUN \d+:', content)[1:]  # Skip header
+        # Create a unique key for this model
+        model_key = f"{filepath}_{model_info.get('model_type', 'unknown')}"
 
-            for run in runs[:num_configs]:  # Only get as many as we have configs
-                desc_match = re.search(r'Description:\s*(.+?)(?:\n|$)', run)
-                if desc_match:
-                    description = desc_match.group(1).strip()
-                    descriptions.append(description)
-                else:
-                    descriptions.append(f"Config_{len(descriptions)+1}")
+        # Check if this is the same model we just used
+        if self.current_model_key == model_key and filepath in self.loaded_models_cache:
+            return self.loaded_models_cache[filepath]
 
-            # Fill in any missing descriptions
-            while len(descriptions) < num_configs:
-                descriptions.append(f"Config_{len(descriptions)+1}")
+        # Check if already cached but different from current
+        if filepath in self.loaded_models_cache:
+            self.current_model_key = model_key
+            return self.loaded_models_cache[filepath]
 
-        except Exception as e:
-            # Fallback to default descriptions
-            descriptions = [f"Config_{i+1}" for i in range(num_configs)]
+        # Clear cache if switching models (memory management)
+        if self.current_model_key != model_key:
+            self._clear_model_cache()
+            self.current_model_key = model_key
 
-        return descriptions
+        # Load the model silently
+        model_data = joblib.load(filepath)
+        model_class_name = model_info.get('model_class', 'unknown')
 
-    def _process_single_configuration(self, config_data):
-        """Process a single configuration - designed for parallel execution"""
-        i, lattice, description, choices = config_data
+        # Load using appropriate model class
+        model_wrapper = None
+        if model_class_name == 'xgboost':
+            from ML_models import XGBoostReactorModel
+            model_wrapper, metadata = XGBoostReactorModel.load_model(filepath)
+        elif model_class_name == 'random_forest':
+            from ML_models import RandomForestReactorModel
+            model_wrapper, metadata = RandomForestReactorModel.load_model(filepath)
+        elif model_class_name == 'svm':
+            from ML_models import SVMReactorModel
+            model_wrapper, metadata = SVMReactorModel.load_model(filepath)
+        elif model_class_name == 'neural_net':
+            from ML_models import NeuralNetReactorModel
+            model_wrapper, metadata = NeuralNetReactorModel.load_model(filepath)
 
-        config_id = f"Config_{i+1}"
-
-        result = {
-            'config_id': config_id,
-            'description': description
+        # Cache the loaded model
+        self.loaded_models_cache[filepath] = {
+            'model_data': model_data,
+            'model_wrapper': model_wrapper,
+            'metadata': metadata
         }
 
+        return self.loaded_models_cache[filepath]
+
+    def _clear_model_cache(self):
+        """Clear the model cache to free memory"""
+        self.loaded_models_cache.clear()
+
+    def _process_single_prediction(self, config_data):
+        """Process a single prediction for a specific model and configuration"""
+        i, lattice, description, model_info, prediction_type, flux_type = config_data
+
         try:
-            # K-eff prediction
-            if choices['predict_keff'] and choices.get('keff_model'):
-                try:
-                    keff_pred = self._predict_single_value(lattice, choices['keff_model'], 'keff')
-                    result['keff'] = keff_pred
-                except Exception as e:
-                    result['keff'] = 'Error'
-
-            # Flux predictions
-            flux_predictions = {}
-
-            if choices['predict_thermal'] and choices.get('thermal_model'):
-                try:
-                    thermal_flux = self._predict_flux_values(lattice, choices['thermal_model'], 'thermal')
-                    flux_predictions['thermal'] = thermal_flux
-                except Exception as e:
-                    pass  # Skip errors in parallel processing
-
-            if choices['predict_epithermal'] and choices.get('epithermal_model'):
-                try:
-                    epithermal_flux = self._predict_flux_values(lattice, choices['epithermal_model'], 'epithermal')
-                    flux_predictions['epithermal'] = epithermal_flux
-                except Exception as e:
-                    pass  # Skip errors in parallel processing
-
-            if choices['predict_fast'] and choices.get('fast_model'):
-                try:
-                    fast_flux = self._predict_flux_values(lattice, choices['fast_model'], 'fast')
-                    flux_predictions['fast'] = fast_flux
-                except Exception as e:
-                    pass  # Skip errors in parallel processing
-
-            if choices.get('predict_total', False) and choices.get('total_model'):
-                try:
-                    total_flux = self._predict_flux_values(lattice, choices['total_model'], 'total')
-                    flux_predictions['total'] = total_flux
-                except Exception as e:
-                    pass  # Skip errors in parallel processing
-
-            # Process flux results
-            self._process_flux_results(result, flux_predictions, choices, lattice)
-
+            if prediction_type == 'keff':
+                return i, self._predict_single_value(lattice, model_info, 'keff'), 'keff', None
+            else:  # flux prediction
+                flux_values = self._predict_flux_values(lattice, model_info, flux_type)
+                return i, flux_values, flux_type, None
         except Exception as e:
-            result['error'] = str(e)
-
-        return result
+            return i, None, prediction_type, str(e)
 
     def run_predictions(self, choices, test_file):
-        """Run the actual predictions with parallel processing and progress bar"""
+        """Run predictions grouped by model type for efficiency"""
         from utils.txt_to_data import parse_reactor_data
 
         print("\nLoading test data...")
 
-        # Parse test data (configuration-only file for prediction)
-        # Suppress warnings since we expect missing flux values in prediction files
-        parse_result = parse_reactor_data(test_file, suppress_warnings=True)
-
+        # Parse test data
+        parse_result = parse_reactor_data(test_file)
         if len(parse_result) == 5:
-            # New format with energy groups
-            lattices, descriptions, flux_data, keff_data, energy_groups = parse_result
+            lattices, flux_data, keff_data, descriptions, energy_groups = parse_result
         elif len(parse_result) == 4:
-            # Format with descriptions
-            lattices, descriptions, flux_data, keff_data = parse_result
+            lattices, flux_data, keff_data, descriptions = parse_result
             energy_groups = None
         else:
-            # Old format without descriptions
             lattices, flux_data, keff_data = parse_result
             descriptions = [f"Config_{i+1}" for i in range(len(lattices))]
             energy_groups = None
 
-        # For prediction files, manually extract descriptions if needed
-        if not descriptions or len(descriptions) == 0 or (descriptions and isinstance(descriptions[0], dict)):
-            # Descriptions are missing or corrupted - manually parse them from the file
-            descriptions = self._extract_descriptions_manually(test_file, len(lattices))
-
         print(f"Loaded {len(lattices)} configurations")
+
+        # Initialize results dictionary
+        results = []
+        for i, lattice in enumerate(lattices):
+            description = descriptions[i] if i < len(descriptions) else f"Config_{i+1}"
+            results.append({
+                'config_id': f"Config_{i+1}",
+                'description': description
+            })
 
         # Detect number of CPU cores
         n_cores = multiprocessing.cpu_count()
-        n_jobs = min(n_cores, len(lattices))  # Don't use more cores than configurations
 
-        print(f"Using {n_jobs} CPU cores for parallel processing")
+        # Process predictions grouped by model type
+        prediction_tasks = []
 
-        # Prepare data for parallel processing
-        config_data = []
-        for i, lattice in enumerate(lattices):
-            description = descriptions[i] if i < len(descriptions) else f"Config_{i+1}"
-            config_data.append((i, lattice, description, choices))
+        # Group predictions by model
+        if choices.get('predict_keff') and choices.get('keff_model'):
+            model_info = choices['keff_model']
+            print(f"\nProcessing k-eff predictions with {model_info['model_class']}...")
 
-        # Run predictions in parallel with progress bar
-        print("\nRunning predictions...")
-        results = Parallel(n_jobs=n_jobs)(
-            delayed(self._process_single_configuration)(data)
-            for data in tqdm(config_data, desc="Processing configurations", unit="config")
-        )
+            # Pre-load the model once to avoid repeated loading
+            print(f"Loading k-eff model...")
+            self._load_model_cached(model_info)
+
+            # Prepare data for this model
+            config_data = [(i, lattices[i], descriptions[i], model_info, 'keff', None)
+                          for i in range(len(lattices))]
+
+            # Run predictions for this model - use sequential processing to leverage cache
+            keff_results = []
+            for data in tqdm(config_data, desc=f"K-eff ({model_info['model_class']})"):
+                result = self._process_single_prediction(data)
+                keff_results.append(result)
+
+            # Store results
+            for idx, value, pred_type, error in keff_results:
+                if error:
+                    results[idx]['keff'] = 'Error'
+                else:
+                    results[idx]['keff'] = value
+
+        # Process each flux type
+        for flux_type in ['thermal', 'epithermal', 'fast', 'total']:
+            if choices.get(f'predict_{flux_type}') and choices.get(f'{flux_type}_model'):
+                model_info = choices[f'{flux_type}_model']
+                print(f"\nProcessing {flux_type} flux predictions with {model_info['model_class']}...")
+
+                # Pre-load the model once to avoid repeated loading in parallel workers
+                print(f"Loading {flux_type} flux model...")
+                self._load_model_cached(model_info)
+
+                # Prepare data for this model
+                config_data = [(i, lattices[i], descriptions[i], model_info, 'flux', flux_type)
+                              for i in range(len(lattices))]
+
+                # Run predictions for this model - use sequential processing to leverage cache
+                flux_results = []
+                for data in tqdm(config_data, desc=f"{flux_type.capitalize()} flux ({model_info['model_class']})"):
+                    result = self._process_single_prediction(data)
+                    flux_results.append(result)
+
+                # Store results
+                for idx, flux_values, pred_flux_type, error in flux_results:
+                    if not error and flux_values:
+                        # Store flux values for each irradiation position
+                        for label, value in flux_values.items():
+                            if label.startswith('I_'):
+                                label_num = int(label.split('_')[1])
+                                results[idx][f'I_{label_num}_{flux_type}'] = value
+
+        # Clear cache at the end
+        self._clear_model_cache()
+
+        # Post-process results to calculate percentages and averages
+        print("\nCalculating aggregated values...")
+        for i, result in enumerate(results):
+            self._calculate_aggregated_values(result, choices, lattices[i])
 
         return results
+
+    def _calculate_aggregated_values(self, result, choices, lattice):
+        """Calculate percentages and averages for a single result"""
+        # Find all irradiation labels in lattice
+        irr_labels = []
+        for i in range(lattice.shape[0]):
+            for j in range(lattice.shape[1]):
+                if lattice[i, j].startswith('I_'):
+                    if lattice[i, j] not in irr_labels:
+                        irr_labels.append(lattice[i, j])
+        irr_labels.sort()
+
+        # Calculate percentages if all three energy groups are present
+        if choices.get('predict_thermal') and choices.get('predict_epithermal') and choices.get('predict_fast'):
+            for label in irr_labels:
+                label_num = int(label.split('_')[1])
+
+                thermal_key = f'I_{label_num}_thermal'
+                epithermal_key = f'I_{label_num}_epithermal'
+                fast_key = f'I_{label_num}_fast'
+
+                if all(key in result for key in [thermal_key, epithermal_key, fast_key]):
+                    thermal_val = result[thermal_key]
+                    epithermal_val = result[epithermal_key]
+                    fast_val = result[fast_key]
+
+                    total_flux = thermal_val + epithermal_val + fast_val
+
+                    if total_flux > 0:
+                        result[f'I_{label_num}_thermal_percent'] = (thermal_val / total_flux) * 100
+                        result[f'I_{label_num}_epithermal_percent'] = (epithermal_val / total_flux) * 100
+                        result[f'I_{label_num}_fast_percent'] = (fast_val / total_flux) * 100
+                        result[f'I_{label_num}_total_flux'] = total_flux
+
+        # Calculate averages
+        for flux_type in ['thermal', 'epithermal', 'fast', 'total']:
+            if choices.get(f'predict_{flux_type}', False):
+                values = []
+                for label in irr_labels:
+                    label_num = int(label.split('_')[1])
+                    key = f'I_{label_num}_{flux_type}'
+                    if key in result:
+                        values.append(result[key])
+
+                if values:
+                    result[f'average_{flux_type}_flux'] = np.mean(values)
+
+        # Calculate total flux statistics if we have combined flux
+        if 'I_1_total_flux' in result:  # Check if we calculated total flux
+            total_values = []
+            for label in irr_labels:
+                label_num = int(label.split('_')[1])
+                key = f'I_{label_num}_total_flux'
+                if key in result:
+                    total_values.append(result[key])
+
+            if total_values:
+                result['average_total_flux'] = np.mean(total_values)
+                result['min_total_flux'] = np.min(total_values)
+                result['max_total_flux'] = np.max(total_values)
 
     def _predict_single_value(self, lattice, model_info, value_type):
         """Predict a single value (like k-eff)"""
@@ -400,24 +510,10 @@ class PredictionRunner:
 
         features = features.reshape(1, -1)
 
-        # Load and use model
-        model_data = joblib.load(model_info['filepath'])
-        model_class_name = model_info.get('model_class', 'unknown')
-
-        # Import and use appropriate model class
-        model_wrapper = None
-        if model_class_name == 'xgboost':
-            from ML_models import XGBoostReactorModel
-            model_wrapper, metadata = XGBoostReactorModel.load_model(model_info['filepath'])
-        elif model_class_name == 'random_forest':
-            from ML_models import RandomForestReactorModel
-            model_wrapper, metadata = RandomForestReactorModel.load_model(model_info['filepath'])
-        elif model_class_name == 'svm':
-            from ML_models import SVMReactorModel
-            model_wrapper, metadata = SVMReactorModel.load_model(model_info['filepath'])
-        elif model_class_name == 'neural_net':
-            from ML_models import NeuralNetReactorModel
-            model_wrapper, metadata = NeuralNetReactorModel.load_model(model_info['filepath'])
+        # Load model using cache
+        cached_model = self._load_model_cached(model_info)
+        model_data = cached_model['model_data']
+        model_wrapper = cached_model['model_wrapper']
 
         if model_wrapper:
             if value_type == 'keff':
@@ -446,24 +542,10 @@ class PredictionRunner:
 
         features = features.reshape(1, -1)
 
-        # Load and use model
-        model_data = joblib.load(model_info['filepath'])
-        model_class_name = model_info.get('model_class', 'unknown')
-
-        # Import and use appropriate model class
-        model_wrapper = None
-        if model_class_name == 'xgboost':
-            from ML_models import XGBoostReactorModel
-            model_wrapper, metadata = XGBoostReactorModel.load_model(model_info['filepath'])
-        elif model_class_name == 'random_forest':
-            from ML_models import RandomForestReactorModel
-            model_wrapper, metadata = RandomForestReactorModel.load_model(model_info['filepath'])
-        elif model_class_name == 'svm':
-            from ML_models import SVMReactorModel
-            model_wrapper, metadata = SVMReactorModel.load_model(model_info['filepath'])
-        elif model_class_name == 'neural_net':
-            from ML_models import NeuralNetReactorModel
-            model_wrapper, metadata = NeuralNetReactorModel.load_model(model_info['filepath'])
+        # Load model using cache
+        cached_model = self._load_model_cached(model_info)
+        model_data = cached_model['model_data']
+        model_wrapper = cached_model['model_wrapper']
 
         if model_wrapper:
             flux_pred = model_wrapper.predict_flux(features)
@@ -509,84 +591,10 @@ class PredictionRunner:
 
         elif flux_mode in ['energy', 'bin']:
             # Handle energy/bin modes with multiple energy groups
-            # This is more complex - for now return raw predictions
             # TODO: Implement proper energy group handling
             return {'raw_predictions': flux_pred}
 
         return {}
-
-    def _process_flux_results(self, result, flux_predictions, choices, lattice):
-        """Process flux predictions and add to result"""
-        # Find all irradiation labels in lattice
-        irr_labels = []
-        for i in range(lattice.shape[0]):
-            for j in range(lattice.shape[1]):
-                if lattice[i, j].startswith('I_'):
-                    if lattice[i, j] not in irr_labels:
-                        irr_labels.append(lattice[i, j])
-        irr_labels.sort()  # Sort for consistent ordering
-
-        # Add individual flux predictions
-        for flux_type in ['thermal', 'epithermal', 'fast', 'total']:
-            if flux_type in flux_predictions:
-                flux_data = flux_predictions[flux_type]
-                for label in irr_labels:
-                    if label in flux_data:
-                        label_num = int(label.split('_')[1])
-                        result[f'I_{label_num}_{flux_type}'] = flux_data[label]
-
-        # Calculate percentages if all three energy groups are present
-        if choices.get('predict_thermal') and choices.get('predict_epithermal') and choices.get('predict_fast'):
-            if 'thermal' in flux_predictions and 'epithermal' in flux_predictions and 'fast' in flux_predictions:
-                for label in irr_labels:
-                    label_num = int(label.split('_')[1])
-
-                    thermal_val = flux_predictions['thermal'].get(label, 0)
-                    epithermal_val = flux_predictions['epithermal'].get(label, 0)
-                    fast_val = flux_predictions['fast'].get(label, 0)
-
-                    total_flux = thermal_val + epithermal_val + fast_val
-
-                    if total_flux > 0:
-                        result[f'I_{label_num}_thermal_percent'] = (thermal_val / total_flux) * 100
-                        result[f'I_{label_num}_epithermal_percent'] = (epithermal_val / total_flux) * 100
-                        result[f'I_{label_num}_fast_percent'] = (fast_val / total_flux) * 100
-
-        # Calculate averages
-        self._calculate_flux_averages(result, choices, irr_labels)
-
-    def _calculate_flux_averages(self, result, choices, irr_labels):
-        """Calculate average flux values"""
-        for flux_type in ['thermal', 'epithermal', 'fast', 'total']:
-            if choices.get(f'predict_{flux_type}', False):
-                values = []
-                for label in irr_labels:
-                    label_num = int(label.split('_')[1])
-                    key = f'I_{label_num}_{flux_type}'
-                    if key in result:
-                        values.append(result[key])
-
-                if values:
-                    result[f'average_{flux_type}_flux'] = np.mean(values)
-
-        # Calculate total flux if we have all three energy groups
-        if choices.get('predict_thermal') and choices.get('predict_epithermal') and choices.get('predict_fast'):
-            total_values = []
-            for label in irr_labels:
-                label_num = int(label.split('_')[1])
-                thermal_key = f'I_{label_num}_thermal'
-                epithermal_key = f'I_{label_num}_epithermal'
-                fast_key = f'I_{label_num}_fast'
-
-                if all(key in result for key in [thermal_key, epithermal_key, fast_key]):
-                    total_val = result[thermal_key] + result[epithermal_key] + result[fast_key]
-                    total_values.append(total_val)
-                    result[f'I_{label_num}_total_flux'] = total_val
-
-            if total_values:
-                result['average_total_flux'] = np.mean(total_values)
-                result['min_total_flux'] = np.min(total_values)
-                result['max_total_flux'] = np.max(total_values)
 
     def create_excel_report(self, results, choices):
         """Create Excel report with dynamic columns"""
