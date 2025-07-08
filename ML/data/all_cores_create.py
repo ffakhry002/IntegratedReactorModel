@@ -135,7 +135,7 @@ class AllCoresGenerator:
             # Create configuration for "before symmetry" list
             config = base_lattice.copy()
             for idx, (i, j) in enumerate(irrad_positions):
-                config[i, j] = 'I'
+                config[i, j] = f'I_{idx+1}'
 
             # Save all configurations before symmetry
             self.all_configurations_before_symmetry.append(config.copy())
@@ -209,12 +209,43 @@ class AllCoresGenerator:
             for i, config in enumerate(self.configurations):
                 f.write(f"RUN {i+1}:\n")
                 f.write("----------------------------------------\n")
-                f.write(f"Description: random_geometric_{i+1}\n")
+                f.write(f"Description: core_config_{i+1}\n")
                 f.write(f"  core_lattice: {self.format_configuration_for_output(config)}\n")
                 f.write("=" * 80 + "\n\n")
                 f.write("=" * 80 + "\n\n")
 
         print(f"✓ Saved {len(self.configurations)} unique configurations to {output_path}")
+        return output_path
+
+    def save_configurations_to_file_custom(self, configs_to_save, filename, description_prefix):
+        """Save a custom set of configurations to a text file in the specified format.
+
+        Parameters
+        ----------
+        configs_to_save : list
+            List of configurations to save
+        filename : str
+            Name of the output file
+        description_prefix : str
+            Prefix for the description of each configuration
+
+        Returns
+        -------
+        str
+            Path to the saved file
+        """
+        output_path = os.path.join(os.path.dirname(__file__), filename)
+
+        with open(output_path, 'w') as f:
+            for i, config in enumerate(configs_to_save):
+                f.write(f"RUN {i+1}:\n")
+                f.write("----------------------------------------\n")
+                f.write(f"Description: {description_prefix}_{i+1}\n")
+                f.write(f"  core_lattice: {self.format_configuration_for_output(config)}\n")
+                f.write("=" * 80 + "\n\n")
+                f.write("=" * 80 + "\n\n")
+
+        print(f"✓ Saved {len(configs_to_save)} configurations to {output_path}")
         return output_path
 
 
@@ -223,19 +254,53 @@ def main():
     print("ALL REACTOR CORES TEST GENERATOR")
     print("="*60)
     print("Generating all possible 8x8 reactor core configurations")
-    print("with 4 irradiation positions and D4 symmetry reduction.")
+    print("with 4 irradiation positions.")
     print("="*60)
+
+    # Ask about symmetry reduction
+    print("\nSYMMETRY REDUCTION OPTIONS:")
+    print("1. Apply D4 symmetry reduction (reduces ~330k configs to ~41k)")
+    print("2. No symmetry reduction (all ~330k unique configurations)")
+
+    while True:
+        try:
+            choice = input("\nSelect option (1 or 2): ").strip()
+            if choice == "1":
+                apply_symmetry = True
+                break
+            elif choice == "2":
+                apply_symmetry = False
+                break
+            else:
+                print("Invalid choice! Please enter 1 or 2.")
+        except KeyboardInterrupt:
+            print("\nOperation cancelled.")
+            return
 
     # Create and run the generator
     generator = AllCoresGenerator()
     generator.generate_configurations()
 
-    # Save configurations
-    output_file = generator.save_configurations_to_file()
+    # Choose which configurations to save based on user choice
+    if apply_symmetry:
+        configs_to_save = generator.configurations
+        output_filename = "all_reactor_configurations_D4.txt"
+        description_prefix = "core_config"
+        print(f"\nSaving {len(configs_to_save)} symmetry-reduced configurations...")
+    else:
+        configs_to_save = generator.all_configurations_before_symmetry
+        output_filename = "all_reactor_configurations_full.txt"
+        description_prefix = "full_config"
+        print(f"\nSaving ALL {len(configs_to_save)} configurations (no symmetry reduction)...")
+
+    # Save configurations with the appropriate filename
+    output_path = generator.save_configurations_to_file_custom(configs_to_save, output_filename, description_prefix)
 
     print("\n" + "="*60)
     print("GENERATION COMPLETE!")
-    print(f"Output saved to: {output_file}")
+    print(f"Symmetry reduction: {'Applied' if apply_symmetry else 'Not applied'}")
+    print(f"Total configurations: {len(configs_to_save):,}")
+    print(f"Output saved to: {output_path}")
     print("="*60)
 
 
