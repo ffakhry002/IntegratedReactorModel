@@ -173,7 +173,13 @@ class HistogramGenerator:
             numeric_values = pd.to_numeric(values, errors='coerce').dropna()
             all_values.extend(numeric_values.tolist())
 
-        return np.array(all_values)
+        extracted_array = np.array(all_values)
+
+        # Add verification output for data extraction
+        if len(extracted_array) > 0:
+            print(f"  {data_type.capitalize()}: {len(extracted_array)} values, range [{np.min(extracted_array):.2e}, {np.max(extracted_array):.2e}]")
+
+        return extracted_array
 
     def has_percentage_data(self):
         """Check if we have all three percentage columns for ternary plots"""
@@ -181,20 +187,15 @@ class HistogramGenerator:
                 len(self.available_columns['epithermal_percent']) > 0 and
                 len(self.available_columns['fast_percent']) > 0)
 
-    def create_ternary_plot(self):
-        """Create ternary plot for thermal/epithermal/fast percentages with density heatmap"""
-        if not HAS_TERNARY:
-            print("Ternary package not available. Skipping ternary plot.")
-            print("Install with: pip install python-ternary")
-            return None
-
+    def create_energy_distribution_clear(self):
+        """Create clear visualization for thermal/epithermal/fast percentages distribution"""
         # Extract percentage data for each irradiation position
         thermal_cols = self.available_columns['thermal_percent']
         epithermal_cols = self.available_columns['epithermal_percent']
         fast_cols = self.available_columns['fast_percent']
 
         if not (thermal_cols and epithermal_cols and fast_cols):
-            print("Missing percentage data for ternary plot")
+            print("Missing percentage data for energy distribution plot")
             return None
 
         # Combine data from all irradiation positions and configurations
@@ -217,78 +218,96 @@ class HistogramGenerator:
                         all_data.append((thermal_pct, epithermal_pct, fast_pct))
 
         if not all_data:
-            print("No valid percentage data found for ternary plot")
+            print("No valid percentage data found for energy distribution plot")
             return None
 
-        print(f"Creating ternary plot with {len(all_data)} data points...")
+        print(f"Creating CLEAR energy distribution plots with {len(all_data)} data points...")
 
-        # Create figure for ternary plot
-        fig, ax = plt.subplots(figsize=(10, 10))
+        # Extract individual arrays
+        thermal_data = np.array([point[0] for point in all_data])
+        epithermal_data = np.array([point[1] for point in all_data])
+        fast_data = np.array([point[2] for point in all_data])
 
-        # Create ternary plot
-        scale = 100
-        figure, tax = ternary.figure(scale=scale, ax=ax)
+        # Create figure with 2x2 subplots for comprehensive analysis
+        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(16, 12))
 
-        # Convert data to dictionary format for heatmap
-        # Count occurrences in each grid cell
-        from collections import defaultdict
-        density_data = defaultdict(int)
+        # 1. HEXBIN PLOT: Thermal vs Epithermal (INCREASED GRANULARITY)
+        hb1 = ax1.hexbin(thermal_data, epithermal_data, gridsize=80, cmap='plasma', mincnt=1)
+        ax1.set_xlabel('Thermal %', fontsize=12)
+        ax1.set_ylabel('Epithermal %', fontsize=12)
+        ax1.set_title('High-Resolution Density: Thermal vs Epithermal\n(80x80 hexagonal bins)',
+                     fontsize=12, fontweight='bold')
+        ax1.grid(True, alpha=0.3)
+        plt.colorbar(hb1, ax=ax1, label='Point Density')
 
-        # Create a grid for counting
-        grid_size = 10  # 10x10 grid
-        for thermal_pct, epithermal_pct, fast_pct in all_data:
-            # Round to grid
-            t_grid = round(thermal_pct / grid_size) * grid_size
-            e_grid = round(epithermal_pct / grid_size) * grid_size
-            f_grid = round(fast_pct / grid_size) * grid_size
+        # 2. HEXBIN PLOT: Thermal vs Fast (INCREASED GRANULARITY)
+        hb2 = ax2.hexbin(thermal_data, fast_data, gridsize=80, cmap='viridis', mincnt=1)
+        ax2.set_xlabel('Thermal %', fontsize=12)
+        ax2.set_ylabel('Fast %', fontsize=12)
+        ax2.set_title('High-Resolution Density: Thermal vs Fast\n(80x80 hexagonal bins)',
+                     fontsize=12, fontweight='bold')
+        ax2.grid(True, alpha=0.3)
+        plt.colorbar(hb2, ax=ax2, label='Point Density')
 
-            # Normalize to sum to 100
-            total = t_grid + e_grid + f_grid
-            if total > 0:
-                t_grid = t_grid * 100 / total
-                e_grid = e_grid * 100 / total
-                f_grid = f_grid * 100 / total
+        # 3. HEXBIN PLOT: Epithermal vs Fast (INCREASED GRANULARITY)
+        hb3 = ax3.hexbin(epithermal_data, fast_data, gridsize=80, cmap='coolwarm', mincnt=1)
+        ax3.set_xlabel('Epithermal %', fontsize=12)
+        ax3.set_ylabel('Fast %', fontsize=12)
+        ax3.set_title('High-Resolution Density: Epithermal vs Fast\n(80x80 hexagonal bins)',
+                     fontsize=12, fontweight='bold')
+        ax3.grid(True, alpha=0.3)
+        plt.colorbar(hb3, ax=ax3, label='Point Density')
 
-                density_data[(t_grid, e_grid, f_grid)] += 1
+        # 4. ALL POINTS SCATTER (NO SAMPLING)
+        print(f"Creating scatter plot with ALL {len(all_data)} points...")
+        scatter = ax4.scatter(thermal_data, epithermal_data,
+                            c=fast_data, cmap='rainbow', alpha=0.3, s=1)
+        ax4.set_xlabel('Thermal %', fontsize=12)
+        ax4.set_ylabel('Epithermal %', fontsize=12)
+        ax4.set_title(f'ALL Data Points: Thermal vs Epithermal\n({len(all_data):,} points, color = Fast %)',
+                     fontsize=12, fontweight='bold')
+        ax4.grid(True, alpha=0.3)
+        cbar = plt.colorbar(scatter, ax=ax4)
+        cbar.set_label('Fast %', rotation=270, labelpad=15)
 
-        # Convert to ternary coordinate format for heatmap
-        heatmap_data = {}
-        for (t, e, f), count in density_data.items():
-            # Ternary coordinates are (t, e, f) where t+e+f=100
-            heatmap_data[(t, e)] = count
+        # Add comprehensive statistics
+        stats_text = f"""Dataset Statistics:
+Points: {len(all_data):,}
 
-        # Create heatmap
-        tax.heatmap(heatmap_data, scale=scale, style="triangular",
-                   cmap="viridis", colorbar=True)
+Thermal %:
+  Mean: {np.mean(thermal_data):.1f}%
+  Std:  {np.std(thermal_data):.1f}%
+  Range: {np.min(thermal_data):.1f}% - {np.max(thermal_data):.1f}%
 
-        # Set labels and title
-        tax.set_title("Reactor Flux Energy Distribution\n" +
-                     f"Density map of {len(all_data)} data points",
-                     fontsize=14, fontweight='bold', pad=20)
-        tax.left_axis_label("Epithermal %", fontsize=12)
-        tax.right_axis_label("Fast %", fontsize=12)
-        tax.bottom_axis_label("Thermal %", fontsize=12)
+Epithermal %:
+  Mean: {np.mean(epithermal_data):.1f}%
+  Std:  {np.std(epithermal_data):.1f}%
+  Range: {np.min(epithermal_data):.1f}% - {np.max(epithermal_data):.1f}%
 
-        # Add grid and boundary
-        tax.gridlines(multiple=10, color="gray", alpha=0.5)
-        tax.boundary(linewidth=2.0)
+Fast %:
+  Mean: {np.mean(fast_data):.1f}%
+  Std:  {np.std(fast_data):.1f}%
+  Range: {np.min(fast_data):.1f}% - {np.max(fast_data):.1f}%"""
 
-        # Clear the original axes
-        tax.clear_matplotlib_ticks()
+        ax4.text(1.02, 1.0, stats_text, transform=ax4.transAxes,
+                verticalalignment='top', fontsize=9,
+                bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.8))
 
         # Save plot
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        ternary_filename = f"ternary_plot_{timestamp}.png"
+        plot_filename = f"energy_distribution_clear.png"
         if self.output_dir:
-            ternary_path = os.path.join(self.output_dir, ternary_filename)
+            plot_path = os.path.join(self.output_dir, plot_filename)
         else:
-            ternary_path = ternary_filename
+            plot_path = plot_filename
 
-        plt.savefig(ternary_path, dpi=300, bbox_inches='tight')
-        print(f"Ternary plot saved to: {ternary_filename}")
+        plt.tight_layout()
+        plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+        print(f"CLEAR energy distribution analysis saved to: {plot_filename}")
 
         plt.show()
-        return ternary_path
+
+        return plot_path
 
     def create_histograms_and_boxplots(self):
         """Create histograms and box plots for reactor data types"""
@@ -321,7 +340,7 @@ class HistogramGenerator:
 
         # Store histogram data for Excel export
         histogram_data = {}
-
+        num_bins = 25
         # Create histograms for each data type
         for i, data_type in enumerate(available_types):
             values = self.extract_values(data_type)
@@ -331,7 +350,7 @@ class HistogramGenerator:
                 continue
 
             # Calculate histogram with 1000 bins
-            hist, bin_edges = np.histogram(values, bins=1000)
+            hist, bin_edges = np.histogram(values, bins=num_bins)
             bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
 
             # Store histogram data
@@ -343,7 +362,7 @@ class HistogramGenerator:
 
             # Plot histogram
             ax = axes[i]
-            ax.hist(values, bins=1000, alpha=0.7, edgecolor='black', linewidth=0.5)
+            ax.hist(values, bins=num_bins, alpha=0.7, edgecolor='black', linewidth=0.5)
 
             # Set title and labels with proper names
             data_name = {
@@ -354,7 +373,7 @@ class HistogramGenerator:
                 'fast': 'Fast Flux'
             }.get(data_type, data_type.capitalize())
 
-            title = f'{data_name} Distribution (1000 discretised bins)\n'
+            title = f'{data_name} Distribution ({num_bins} discretised bins)\n'
             title += f'Min: {np.min(values):.2e}, Max: {np.max(values):.2e}, N: {len(values)}'
             ax.set_title(title, fontsize=12, fontweight='bold')
             ax.set_ylabel('Frequency')
@@ -406,6 +425,23 @@ class HistogramGenerator:
                 box_ax.grid(True, alpha=0.3)
                 box_ax.set_axisbelow(True)
 
+                # IMPROVED: Set y-axis limits based on actual data range to prevent squashing
+                # Calculate the overall min and max across all flux types
+                all_flux_values = np.concatenate(box_data)
+                data_min = np.min(all_flux_values)
+                data_max = np.max(all_flux_values)
+                data_range = data_max - data_min
+
+                # Add 10% padding above and below for better visualization
+                padding = data_range * 0.1
+                y_min = data_min - padding
+                y_max = data_max + padding
+
+                # Set the limits
+                box_ax.set_ylim(y_min, y_max)
+
+                print(f"  Box plot y-axis: [{y_min:.2e}, {y_max:.2e}] (data range: {data_range:.2e})")
+
                 # Use scientific notation for y-axis
                 box_ax.ticklabel_format(style='scientific', axis='y', scilimits=(0,0))
 
@@ -414,7 +450,7 @@ class HistogramGenerator:
 
         # Save the plot
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        plot_filename = f"histogram_analysis_{timestamp}.png"
+        plot_filename = f"histogram_analysis_{num_bins}.png"
         if self.output_dir:
             plot_path = os.path.join(self.output_dir, plot_filename)
         else:
@@ -426,13 +462,13 @@ class HistogramGenerator:
         plt.show()
 
         # Save histogram data to Excel
-        self.save_histogram_data_to_excel(histogram_data, timestamp)
+        self.save_histogram_data_to_excel(histogram_data, num_bins)
 
         return plot_path
 
-    def save_histogram_data_to_excel(self, histogram_data, timestamp):
+    def save_histogram_data_to_excel(self, histogram_data, num_bins):
         """Save histogram data to Excel file with separate sheets"""
-        excel_filename = f"histogram_data_{timestamp}.xlsx"
+        excel_filename = f"histogram_data_{num_bins}.xlsx"
         if self.output_dir:
             excel_path = os.path.join(self.output_dir, excel_filename)
         else:
@@ -510,15 +546,13 @@ class HistogramGenerator:
             # Create standard plots (keff, total flux, thermal flux, epithermal flux, fast flux, box plot)
             plot_path = self.create_histograms_and_boxplots()
 
-            # Automatically create ternary plot if percentage data is available
+            # Automatically create energy distribution plots if percentage data is available
             if self.has_percentage_data():
-                print(f"\nDetected percentage data! Creating ternary plot...")
+                print(f"\nDetected percentage data! Creating energy distribution plots...")
                 try:
-                    self.create_ternary_plot()
+                    self.create_energy_distribution_clear()
                 except Exception as e:
-                    print(f"Error creating ternary plot: {e}")
-                    print("This may be due to missing python-ternary package.")
-                    print("Install with: pip install python-ternary")
+                    print(f"Error creating energy distribution plots: {e}")
 
             if plot_path:
                 print("\n" + "="*60)
