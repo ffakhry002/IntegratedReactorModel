@@ -6,56 +6,43 @@ Two fuel assemblies at positions (2,6) and (6,6) in an 8×8 plate-type reactor c
 
 ## Root Cause Analysis
 
-After investigating the codebase, I identified a **coordinate system mismatch** between the actual fuel assembly geometry and the power tally mesh positioning.
+After investigating the codebase, I identified a **plate positioning offset** between where the actual fuel plates are located in the geometry and where the power tally meshes think they are positioned.
 
 ### Key Findings
 
-#### 1. Assembly Dimension Calculations
-Both geometry and power tallies correctly calculate the same assembly dimensions:
-- **Geometry (`core.py`)**: `assembly_pitch = (plates_per_assembly * fuel_plate_pitch + 2 * clad_structure_width) * 100`
-- **Power Tallies (`power_tallies.py`)**: `assembly_width = (fuel_plate_width + 2 * clad_structure_width) * 100`
-- **Result**: Both calculate 5.11 cm (since `fuel_plate_width` = `plates_per_assembly * fuel_plate_pitch`)
+#### 1. Assembly-Level Positioning is Correct
+The assembly-level coordinates are correctly calculated and identical between geometry and power tallies:
+- Assembly centers match exactly between geometry and power tallies
+- No systematic coordinate offset at the assembly level
+- Assembly dimensions are consistently calculated as 5.11 cm
 
-#### 2. Coordinate System Discrepancy
-The issue lies in how positions are calculated:
+#### 2. Plate-Level Positioning Offset
+The issue occurs within individual fuel assemblies - the power tally meshes for individual plates are offset from where the actual fuel plates are positioned:
 
-**Geometry Lattice Positioning (`core.py`)**:
+**Actual Plate Positioning (geometry)**:
+- Plates positioned at: `lattice_start_y + plate_k * fuel_plate_pitch`
+- Example positions: -2.405, -2.035, -1.665... cm
+
+**Power Tally Mesh Positioning**:
+- Meshes positioned at: `plate_region_start + (plate_k + 0.5) * fuel_plate_pitch`
+- Example positions: -2.220, -1.850, -1.480... cm
+
+**Critical Offset**: **+0.185 cm** (exactly half of fuel_plate_pitch = 0.37/2)
+
+#### 3. The Problematic `+0.5` Factor
+The power tally code incorrectly adds 0.5 to the plate index:
 ```python
-ll_x = -assembly_pitch * n_cols / 2  # = -4 * assembly_pitch
-ll_y = -assembly_pitch * n_rows / 2  # = -4 * assembly_pitch
-core_lattice.pitch = (assembly_pitch, assembly_pitch)
+plate_y = plate_region_start + (plate_k + 0.5) * fuel_plate_pitch  # WRONG
 ```
-- Uses OpenMC's lattice indexing where cell (i,j) is at lattice coordinates
-- Assembly at (i,j) has center at: `(ll_x + j * assembly_pitch, ll_y + i * assembly_pitch)`
-
-**Power Tally Positioning (`power_tallies.py`)**:
-```python
-x_pos = (j - len(row)/2 + 0.5) * assembly_width
-y_pos = (i - len(core_layout)/2 + 0.5) * assembly_width
-```
-- Uses a different centering formula with +0.5 offset
-
-#### 3. Position Calculation Comparison
-
-For position (2,6) in an 8×8 grid:
-
-**Actual Geometry Position**:
-- x = -4 * pitch + 6 * pitch = 2 * pitch
-- y = -4 * pitch + 2 * pitch = -2 * pitch
-
-**Power Tally Position**:
-- x = (6 - 4 + 0.5) * width = 2.5 * width  
-- y = (2 - 4 + 0.5) * width = -1.5 * width
-
-**Offset**: +0.5 pitch in both X and Y directions
+This shifts all power tally meshes by half a plate pitch away from the actual fuel plates.
 
 ### Why This Affects Specific Assemblies
 
-The +0.5 assembly pitch offset causes power tally meshes to be positioned between actual fuel assemblies rather than over them. Assemblies at positions (2,6) and (6,6) are particularly affected because:
+The 0.185 cm offset affects all assemblies, but only causes zero power readings in assemblies (2,6) and (6,6) because:
 
-1. They're located where this systematic offset causes complete misalignment
-2. The offset may interact with the specific geometry layout to cause the tally volumes to fall entirely in coolant regions
-3. Other assemblies might have partial overlap that still captures some power
+1. **Geometric sensitivity**: These specific positions may have geometry arrangements where the offset causes meshes to fall entirely in coolant regions between plates
+2. **Position-dependent effects**: The offset may interact with adjacent irradiation positions or edge effects
+3. **Fuel meat positioning**: The offset might cause meshes to miss the narrow fuel meat regions (1.47 mm thick) within the plates
 
 ## Affected Code Files
 
@@ -77,21 +64,19 @@ core_lattice.pitch = (assembly_pitch, assembly_pitch)
 
 ## Recommended Fix
 
-Modify the power tally positioning formula in `power_tallies.py` to match the geometry coordinate system:
+Remove the erroneous `+0.5` factor from the plate positioning calculation in the power tally mesh creation:
 
-**Current (incorrect)**:
+**Current (incorrect) - Line 215 in `power_tallies.py`**:
 ```python
-x_pos = (j - len(row)/2 + 0.5) * assembly_width
-y_pos = (i - len(core_layout)/2 + 0.5) * assembly_width
+plate_y = plate_region_start + (plate_k + 0.5) * fuel_plate_pitch  # WRONG
 ```
 
 **Proposed (correct)**:
 ```python
-x_pos = (j - len(row)/2) * assembly_width
-y_pos = (i - len(core_layout)/2) * assembly_width
+plate_y = plate_region_start + plate_k * fuel_plate_pitch  # CORRECT
 ```
 
-This removes the erroneous +0.5 offset that was causing the misalignment.
+This aligns the power tally meshes with the actual fuel plate positions in the geometry.
 
 ## Verification Steps
 
@@ -111,30 +96,23 @@ After applying the fix:
 
 ## Files to Modify
 
-### Primary Fixes Required:
+### Primary Fix Required:
 
-1. **`eigenvalue/tallies/power_tallies.py`** (lines 91-92, 135-136, 200-201):
-   ```python
-   # Remove +0.5 from these lines:
-   x_pos = (j - len(row)/2 + 0.5) * assembly_width      # Line 91
-   y_pos = (i - len(core_layout)/2 + 0.5) * assembly_width  # Line 92
-   assembly_x = (j - len(row)/2 + 0.5) * assembly_width     # Line 135  
-   assembly_y = (i - len(core_layout)/2 + 0.5) * assembly_width # Line 136
-   assembly_x = (j - len(row)/2 + 0.5) * assembly_width     # Line 200
-   assembly_y = (i - len(core_layout)/2 + 0.5) * assembly_width # Line 201
-   ```
+**`eigenvalue/tallies/power_tallies.py`** (line 215 in `create_plate_element_tallies`):
+```python
+# BEFORE (incorrect):
+plate_y = plate_region_start + (plate_k + 0.5) * fuel_plate_pitch
 
-2. **`eigenvalue/tallies/irradiation_tallies.py`** (lines 103-104):
-   ```python
-   # Same issue found - remove +0.5 from these lines:
-   x_pos = (j - len(row)/2 + 0.5) * width               # Line 103
-   y_pos = (i - len(core_layout)/2 + 0.5) * width       # Line 104
-   ```
+# AFTER (correct):  
+plate_y = plate_region_start + plate_k * fuel_plate_pitch
+```
 
-### Additional Review Needed:
-- `plotting/functions/power.py` - Check for similar positioning calculations
-- Any other files using assembly positioning formulas
+### Files NOT Affected:
+- **Assembly-level positioning** (lines 91-92, 135-136, 200-201) is **CORRECT**
+- **`irradiation_tallies.py`** positioning is **CORRECT** (as evidenced by working irradiation tallies)
+- The issue is specifically with **plate-level** positioning within fuel assemblies
 
-**Impact**: This systematic coordinate offset affects both power tallies AND irradiation tallies, potentially causing incorrect positioning of irradiation position tallies as well.
+### Root Cause Clarification:
+This is NOT a systematic coordinate system issue. The problem is specifically in the individual plate positioning within fuel assemblies, where the power tally meshes are offset by exactly half a plate pitch (0.185 cm) from the actual fuel plate locations.
 
-This fix should resolve the 0 power issue for assemblies (2,6) and (6,6) by ensuring their power tally meshes are correctly positioned over the actual fuel regions, and will also correct any similar issues with irradiation tallies.
+This fix should resolve the 0 power issue for assemblies (2,6) and (6,6) by aligning the power tally meshes with the actual fuel plate positions. The fix addresses the root cause of the 0.185 cm offset that was causing power tally meshes to miss the fuel regions in these sensitive assembly positions.
