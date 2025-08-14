@@ -327,6 +327,25 @@ class D4SymmetryAverager:
 
         for group_key, group_configs in tqdm(self.symmetry_groups.items(), desc="Averaging groups"):
             averaged_data = self.average_group_predictions(group_configs)
+
+            # Find the config with the lowest number in this group
+            lowest_num = float('inf')
+            lowest_config_desc = group_configs[0]['description']
+
+            for cfg in group_configs:
+                desc = cfg['description']
+                import re
+                match = re.search(r'(\d+)', desc)
+                if match:
+                    num = int(match.group(1))
+                    if num < lowest_num:
+                        lowest_num = num
+                        lowest_config_desc = desc
+
+            # Update the averaged data with the lowest numbered description
+            averaged_data['config_id'] = f"Avg_{lowest_config_desc}"
+            averaged_data['description'] = lowest_config_desc
+
             averaged_rows.append(averaged_data)
 
         # Create dataframe
@@ -383,17 +402,44 @@ class D4SymmetryAverager:
         with open(text_filename, 'w') as f:
             run_num = 1
 
-            # Sort groups by canonical description for consistent output
+            # Sort groups by the lowest config number in each group
+            def get_lowest_config_number(group_configs):
+                """Extract the lowest configuration number from a group"""
+                numbers = []
+                for cfg in group_configs:
+                    desc = cfg['description']
+                    # Try to extract number from descriptions like 'core_config_123' or 'config_123'
+                    import re
+                    match = re.search(r'(\d+)', desc)
+                    if match:
+                        numbers.append(int(match.group(1)))
+                return min(numbers) if numbers else float('inf')
+
+            # Sort groups by their lowest configuration number
             sorted_groups = sorted(self.symmetry_groups.items(),
-                                key=lambda x: self.canonical_configs[x[0]]['description'])
+                                key=lambda x: get_lowest_config_number(x[1]))
 
             for group_key, group_configs in sorted_groups:
                 canonical = self.canonical_configs[group_key]
 
+                # Find the config with the lowest number in this group
+                lowest_num = float('inf')
+                lowest_config_desc = canonical['description']
+
+                for cfg in group_configs:
+                    desc = cfg['description']
+                    match = re.search(r'(\d+)', desc)
+                    if match:
+                        num = int(match.group(1))
+                        if num < lowest_num:
+                            lowest_num = num
+                            lowest_config_desc = desc
+
                 # Write in original format
                 f.write(f"RUN {run_num}:\n")
                 f.write("-" * 40 + "\n")
-                f.write(f"Description: {canonical['description']}\n")
+                # Use the lowest numbered config's description
+                f.write(f"Description: {lowest_config_desc}\n")
 
                 # Convert lattice to list format for output
                 lattice_list = canonical['lattice'].tolist()
@@ -401,10 +447,8 @@ class D4SymmetryAverager:
 
                 # Add symmetry group information
                 f.write(f"  // Symmetry group size: {len(group_configs)}\n")
-                f.write(f"  // Group members: {', '.join([cfg['description'] for cfg in group_configs[:5]])}")
-                if len(group_configs) > 5:
-                    f.write(f"... and {len(group_configs) - 5} more")
-                f.write("\n")
+                # Show ALL group members, no truncation
+                f.write(f"  // Group members: {', '.join([cfg['description'] for cfg in group_configs])}\n")
 
                 # Show irradiation positions clearly
                 f.write(f"  // Irradiation positions:\n")

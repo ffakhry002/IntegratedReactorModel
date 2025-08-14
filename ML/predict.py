@@ -130,7 +130,7 @@ class PredictionRunner:
                 for i in keff_models:
                     model = self.model_map[i]
                     print(f"    {i}. {model['model_class']} - k-eff "
-                          f"({model['encoding']}, {model['optimization_method']})")
+                        f"({model['encoding']}, {model['optimization_method']})")
 
                 try:
                     keff_model_choice = int(input("Select k-eff model number: ").strip())
@@ -157,12 +157,21 @@ class PredictionRunner:
         if choices['predict_thermal'] and choices['predict_epithermal'] and choices['predict_fast']:
             combine_choice = input("\nDo you want to add the fluxes (thermal + epithermal + fast) or do separate predictions? (add/separate): ").strip().lower()
             choices['combine_fluxes'] = combine_choice == 'add'
-            choices['predict_total'] = False
-        else:
-            choices['combine_fluxes'] = False
 
-        total_choice = input("Do you want to predict total flux? (y/n): ").strip().lower()
-        choices['predict_total'] = total_choice == 'y'
+            # If adding fluxes, we DON'T need a separate total flux prediction
+            if choices['combine_fluxes']:
+                choices['predict_total'] = False
+                print("Total flux will be calculated as the sum of thermal + epithermal + fast")
+            else:
+                # Only ask about total flux if doing separate predictions
+                total_choice = input("\nDo you want to predict total flux independently? (y/n): ").strip().lower()
+                choices['predict_total'] = total_choice == 'y'
+        else:
+            # If not all three are selected, can't combine them
+            choices['combine_fluxes'] = False
+            # Ask about total flux prediction
+            total_choice = input("\nDo you want to predict total flux? (y/n): ").strip().lower()
+            choices['predict_total'] = total_choice == 'y'
 
         # Get model selections for each flux type
         flux_models = [i for i, m in self.model_map.items() if m['model_type'] == 'flux']
@@ -339,23 +348,79 @@ class PredictionRunner:
 
     def run_predictions(self, choices, test_file):
         """Run predictions grouped by model type for efficiency"""
-        from utils.txt_to_data import parse_reactor_data
-
         print("\nLoading test data...")
 
-        # Parse test data
-        parse_result = parse_reactor_data(test_file)
-        if len(parse_result) == 5:
-            lattices, flux_data, keff_data, descriptions, energy_groups = parse_result
-        elif len(parse_result) == 4:
-            lattices, flux_data, keff_data, descriptions = parse_result
-            energy_groups = None
-        else:
-            lattices, flux_data, keff_data = parse_result
-            descriptions = [f"Config_{i+1}" for i in range(len(lattices))]
-            energy_groups = None
+        # Parse test data - handle both formats
+        lattices = []
+        descriptions = []
 
-        print(f"Loaded {len(lattices)} configurations")
+        with open(test_file, 'r') as f:
+            content = f.read()
+
+        # Simple parsing for lattice-only format
+        import re
+
+        # Split by RUN entries - more robust pattern
+        run_pattern = r'RUN\s+\d+\s*:'
+        runs = re.split(run_pattern, content)
+
+        print(f"Found {len(runs)-1} RUN entries in file")
+
+        for i, run in enumerate(runs[1:], 1):  # Skip empty first split
+            if not run.strip():
+                continue
+
+            # Extract description - more flexible pattern
+            desc_match = re.search(r'Description:\s*([^\n]+)', run)
+            if desc_match:
+                description = desc_match.group(1).strip()
+            else:
+                print(f"Warning: No description found for RUN {i}")
+                description = f"Config_{i}"
+
+            # Extract lattice - more flexible pattern
+            lattice_match = re.search(r'core_lattice:\s*(\[.*?\])\s*(?:Success|Modified|$|=)', run, re.DOTALL)
+
+            if lattice_match:
+                lattice_str = lattice_match.group(1)
+                try:
+                    # Clean up the string more thoroughly
+                    lattice_str = lattice_str.replace('\n', ' ')
+                    lattice_str = re.sub(r'\s+', ' ', lattice_str)
+                    lattice_str = lattice_str.strip()
+
+                    # Try to evaluate the lattice
+                    lattice_list = eval(lattice_str)
+
+                    # Verify it's a valid 8x8 lattice
+                    if len(lattice_list) == 8 and all(len(row) == 8 for row in lattice_list):
+                        lattice_array = np.array(lattice_list, dtype='<U10')
+                        lattices.append(lattice_array)
+                        descriptions.append(description)
+                    else:
+                        print(f"Invalid lattice dimensions for {description}: {len(lattice_list)}x{len(lattice_list[0]) if lattice_list else 0}")
+                except Exception as e:
+                    # More detailed error reporting
+                    print(f"Failed to parse lattice for {description}")
+                    print(f"  Error: {str(e)}")
+                    if len(lattice_str) > 100:
+                        print(f"  Lattice string (first 100 chars): {lattice_str[:100]}...")
+                    else:
+                        print(f"  Lattice string: {lattice_str}")
+                    continue
+            else:
+                print(f"No lattice found for {description}")
+
+        print(f"\nSuccessfully loaded {len(lattices)} configurations")
+
+        if len(lattices) == 0:
+            print("\nNo valid configurations found!")
+            print("Check if your file format matches the expected pattern:")
+            print("  RUN N:")
+            print("  ----------------------------------------")
+            print("  Description: config_name")
+            print("  core_lattice: [[...]]")
+            return []
 
         # Initialize results dictionary
         results = []
@@ -366,32 +431,23 @@ class PredictionRunner:
                 'description': description
             })
 
-        # Detect number of CPU cores
-        n_cores = multiprocessing.cpu_count()
-
+        # Rest of the function remains the same...
         # Process predictions grouped by model type
-        prediction_tasks = []
-
-        # Group predictions by model
         if choices.get('predict_keff') and choices.get('keff_model'):
             model_info = choices['keff_model']
             print(f"\nProcessing k-eff predictions with {model_info['model_class']}...")
 
-            # Pre-load the model once to avoid repeated loading
             print(f"Loading k-eff model...")
             self._load_model_cached(model_info)
 
-            # Prepare data for this model
             config_data = [(i, lattices[i], descriptions[i], model_info, 'keff', None)
-                          for i in range(len(lattices))]
+                        for i in range(len(lattices))]
 
-            # Run predictions for this model - use sequential processing to leverage cache
             keff_results = []
             for data in tqdm(config_data, desc=f"K-eff ({model_info['model_class']})"):
                 result = self._process_single_prediction(data)
                 keff_results.append(result)
 
-            # Store results
             for idx, value, pred_type, error in keff_results:
                 if error:
                     results[idx]['keff'] = 'Error'
@@ -404,33 +460,26 @@ class PredictionRunner:
                 model_info = choices[f'{flux_type}_model']
                 print(f"\nProcessing {flux_type} flux predictions with {model_info['model_class']}...")
 
-                # Pre-load the model once to avoid repeated loading in parallel workers
                 print(f"Loading {flux_type} flux model...")
                 self._load_model_cached(model_info)
 
-                # Prepare data for this model
                 config_data = [(i, lattices[i], descriptions[i], model_info, 'flux', flux_type)
-                              for i in range(len(lattices))]
+                            for i in range(len(lattices))]
 
-                # Run predictions for this model - use sequential processing to leverage cache
                 flux_results = []
                 for data in tqdm(config_data, desc=f"{flux_type.capitalize()} flux ({model_info['model_class']})"):
                     result = self._process_single_prediction(data)
                     flux_results.append(result)
 
-                # Store results
                 for idx, flux_values, pred_flux_type, error in flux_results:
                     if not error and flux_values:
-                        # Store flux values for each irradiation position
                         for label, value in flux_values.items():
                             if label.startswith('I_'):
                                 label_num = int(label.split('_')[1])
                                 results[idx][f'I_{label_num}_{flux_type}'] = value
 
-        # Clear cache at the end
         self._clear_model_cache()
 
-        # Post-process results to calculate percentages and averages
         print("\nCalculating aggregated values...")
         for i, result in enumerate(results):
             self._calculate_aggregated_values(result, choices, lattices[i])
