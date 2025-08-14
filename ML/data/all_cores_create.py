@@ -259,8 +259,8 @@ def main():
 
     # Ask about symmetry reduction
     print("\nSYMMETRY REDUCTION OPTIONS:")
-    print("1. Apply D4 symmetry reduction (reduces ~330k configs to ~41k)")
-    print("2. No symmetry reduction (all ~330k unique configurations)")
+    print("1. Apply D4 symmetry reduction (reduces ~270k configs to ~34k)")
+    print("2. No symmetry reduction (all ~270k unique configurations)")
 
     while True:
         try:
@@ -290,7 +290,7 @@ def main():
     else:
         configs_to_save = generator.all_configurations_before_symmetry
         output_filename = "all_reactor_configurations_full.txt"
-        description_prefix = "full_config"
+        description_prefix = "config"
         print(f"\nSaving ALL {len(configs_to_save)} configurations (no symmetry reduction)...")
 
     # Save configurations with the appropriate filename
