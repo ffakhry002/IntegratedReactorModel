@@ -15,6 +15,36 @@ sys.path.append(reactor_dir)
 
 from utils.base_inputs import inputs
 
+def parse_irradiation_type(lattice_position, inputs_dict):
+    """Parse irradiation position type from lattice string.
+
+    Parameters
+    ----------
+    lattice_position : str
+        Position string from core lattice (e.g., 'I_1', 'I_2P', 'I_3B', 'I_4G')
+    inputs_dict : dict
+        Inputs dictionary containing irradiation_fill
+
+    Returns
+    -------
+    str
+        Irradiation type: 'PWR_loop', 'BWR_loop', 'Gas_capsule', 'vacuum', or 'fill'
+    """
+    if not lattice_position.startswith('I_'):
+        raise ValueError(f"Invalid irradiation position: {lattice_position}")
+
+    # Check for suffix
+    if lattice_position.endswith('P'):
+        return 'PWR_loop'
+    elif lattice_position.endswith('B'):
+        return 'BWR_loop'
+    elif lattice_position.endswith('G'):
+        return 'Gas_capsule'
+    else:
+        # No suffix, use exact irradiation_fill material name
+        irradiation_fill = inputs_dict.get('irradiation_fill', 'Vacuum')
+        return irradiation_fill
+
 def build_irradiation_cell_uni(mat_dict, position=None, inputs_dict=None):
     """Build an irradiation cell universe.
 
@@ -36,8 +66,15 @@ def build_irradiation_cell_uni(mat_dict, position=None, inputs_dict=None):
     if inputs_dict is None:
         inputs_dict = inputs
 
-    # Get irradiation type
-    irradiation_type = inputs_dict.get('irradiation_type')
+    # Get irradiation type based on lattice position
+    if position is not None:
+        i, j = position
+        core_lattice = inputs_dict['core_lattice']
+        lattice_position = core_lattice[i][j]
+        irradiation_type = parse_irradiation_type(lattice_position, inputs_dict)
+    else:
+        # Fallback to default when no position provided
+        irradiation_type = inputs_dict.get('irradiation_fill', 'Vacuum')
 
     # Calculate cell dimensions based on assembly type
     if inputs_dict['assembly_type'] == 'Pin':
@@ -102,14 +139,14 @@ def build_irradiation_cell_uni(mat_dict, position=None, inputs_dict=None):
             right_clad_region = +x2p & -x3p & +y1p & -y2p
 
             # Create cells
-            inner_cell = openmc.Cell(name='pwr_loop_center')
+            inner_cell = openmc.Cell(name=f'{irradiation_type}_center')
             inner_cell.region = inner_region
             if position is not None:
                 inner_cell.id = generate_cell_id('irradiation', position)
-                inner_cell.name = get_irradiation_cell_name(position, inputs_dict['core_lattice']) + '_pwr'
-            inner_cell.fill = mat_dict['PWR_loop']
+                inner_cell.name = get_irradiation_cell_name(position, inputs_dict['core_lattice']) + f'_{irradiation_type}'
+            inner_cell.fill = mat_dict[irradiation_type]
 
-            outer_cell = openmc.Cell(name='pwr_loop_outer')
+            outer_cell = openmc.Cell(name=f'{irradiation_type}_outer')
             outer_cell.region = outer_region
             outer_cell.fill = mat_dict['Al6061']
 
@@ -160,34 +197,28 @@ def build_irradiation_cell_uni(mat_dict, position=None, inputs_dict=None):
             y0p = openmc.YPlane(y0)
             y3p = openmc.YPlane(y3)
 
-            # Inner circle (PWR loop material)
+            # Inner circle (loop material)
             inner_region = -inner_circle & +x0p & -x3p & +y0p & -y3p
 
             # Outer annular region (Al6061)
             outer_region = +inner_circle & +x0p & -x3p & +y0p & -y3p
 
             # Create cells
-            inner_cell = openmc.Cell(name='pwr_loop_center', region=inner_region)
+            inner_cell = openmc.Cell(name=f'{irradiation_type}_center', region=inner_region)
             if position is not None:
                 inner_cell.id = generate_cell_id('irradiation', position)
-                inner_cell.name = get_irradiation_cell_name(position, inputs_dict['core_lattice']) + '_pwr'
-            inner_cell.fill = mat_dict['PWR_loop']
+                inner_cell.name = get_irradiation_cell_name(position, inputs_dict['core_lattice']) + f'_{irradiation_type}'
+            inner_cell.fill = mat_dict[irradiation_type]
 
-            outer_cell = openmc.Cell(name='pwr_loop_outer', region=outer_region)
+            outer_cell = openmc.Cell(name=f'{irradiation_type}_outer', region=outer_region)
             outer_cell.fill = mat_dict['Al6061']
 
             cells = [inner_cell, outer_cell]
 
     else:
-        # STANDARD SQUARE GEOMETRY (vacuum or fill)
-        # Select material based on irradiation_type
-        if irradiation_type == 'vacuum':
-            fill_material = mat_dict['Vacuum']
-        elif irradiation_type == 'fill':
-            fill_material = mat_dict['Test pos']
-        else:
-            # Default fallback
-            fill_material = mat_dict['Vacuum']
+        # STANDARD SQUARE GEOMETRY (any material)
+        # Use the exact material name from irradiation_fill
+        fill_material = mat_dict[irradiation_type]
 
         if inputs_dict['irradiation_clad']:
             # Calculate inner dimensions with cladding

@@ -519,6 +519,7 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
         vacuum.temperature = default_T
         material_list.append(vacuum)
 
+    # PWR Loop Material (31% Ti, 4% graphite, 65% water by volume at 300°C)
     if (mat_list is None) or ('PWR_loop' in mat_list):
         from CoolProp.CoolProp import PropsSI
 
@@ -526,18 +527,125 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
         pwr_temp = 573.15  # 300°C in Kelvin
         pwr_pressure = 15.5e6  # 15.5 MPa in Pa
 
-        # Get water density directly from CoolProp
-        water_density = PropsSI('D', 'T', pwr_temp, 'P', pwr_pressure, 'Water')  # kg/m³
+        # Get water density at PWR conditions
+        water_density_pwr = PropsSI('D', 'T', pwr_temp, 'P', pwr_pressure, 'Water')  # kg/m³
 
-        # Create borated water using OpenMC's built-in method
-        pwrloop = openmc.Material(name='PWR_loop')
-        pwrloop.add_element('H', 2.0)
-        pwrloop.add_element('O', 1.0)
-        pwrloop.add_element('B', 1400e-6, percent_type='ao')  # 1400 ppm as atom fraction
-        pwrloop.set_density('g/cm3', water_density / 1000)
+        # Create pure water with boron (1400 ppm)
+        water_pwr = openmc.Material(name='water_pwr_base')
+        water_pwr.add_nuclide('H1', 2.0)
+        water_pwr.add_nuclide('O16', 1.0)
+        water_pwr.set_density('g/cm3', water_density_pwr / 1000)
+
+        # Create boron component
+        boron_pwr = openmc.Material(name='boron_pwr')
+        boron_pwr.add_element('B', 1.0)
+        boron_pwr.set_density('g/cm3', 2.34)
+
+        # Mix water with boron (1400 ppm by weight)
+        borated_water = openmc.Material.mix_materials(
+            [water_pwr, boron_pwr],
+            [0.9986, 0.0014],  # 1400 ppm
+            'wo',
+            name='borated_water_pwr'
+        )
+        borated_water.set_density('g/cm3', water_density_pwr / 1000)
+
+        # Create titanium component
+        titanium = openmc.Material(name='titanium')
+        titanium.add_element('Ti', 1.0)
+        titanium.set_density('g/cm3', 4.506)  # Ti density at room temp
+
+        # Create graphite component
+        graphite = openmc.Material(name='graphite')
+        graphite.add_element('C', 1.0)
+        graphite.set_density('g/cm3', 2.267)  # Graphite density at room temp
+
+        # Mix all components by volume: 31% Ti, 4% graphite, 65% water
+        pwrloop = openmc.Material.mix_materials(
+            [titanium, graphite, borated_water],
+            [0.31, 0.04, 0.65],
+            'vo',  # Volume fractions
+            name='PWR_loop'
+        )
         pwrloop.add_s_alpha_beta('c_H_in_H2O')
         pwrloop.temperature = pwr_temp
         material_list.append(pwrloop)
+
+    # BWR Loop Material (31% Ti, 4% graphite, 65% DI water by volume at 300°C)
+    if (mat_list is None) or ('BWR_loop' in mat_list):
+        from CoolProp.CoolProp import PropsSI
+
+        # BWR loop conditions (same temperature as PWR but lower pressure)
+        bwr_temp = 573.15  # 300°C in Kelvin
+        bwr_pressure = 7.2e6  # 7.2 MPa typical BWR pressure
+
+        # Get water density at BWR conditions
+        water_density_bwr = PropsSI('D', 'T', bwr_temp, 'P', bwr_pressure, 'Water')  # kg/m³
+
+        # Create pure DI water (no boron for BWR)
+        water_bwr = openmc.Material(name='water_bwr')
+        water_bwr.add_nuclide('H1', 2.0)
+        water_bwr.add_nuclide('O16', 1.0)
+        water_bwr.set_density('g/cm3', water_density_bwr / 1000)
+
+        # Create titanium component
+        titanium_bwr = openmc.Material(name='titanium_bwr')
+        titanium_bwr.add_element('Ti', 1.0)
+        titanium_bwr.set_density('g/cm3', 4.506)  # Ti density at room temp
+
+        # Create graphite component
+        graphite_bwr = openmc.Material(name='graphite_bwr')
+        graphite_bwr.add_element('C', 1.0)
+        graphite_bwr.set_density('g/cm3', 2.267)  # Graphite density at room temp
+
+        # Mix all components by volume: 31% Ti, 4% graphite, 65% water
+        bwrloop = openmc.Material.mix_materials(
+            [titanium_bwr, graphite_bwr, water_bwr],
+            [0.31, 0.04, 0.65],
+            'vo',  # Volume fractions
+            name='BWR_loop'
+        )
+        bwrloop.add_s_alpha_beta('c_H_in_H2O')
+        bwrloop.temperature = bwr_temp
+        material_list.append(bwrloop)
+
+    # Gas Capsule Material (10% Ti, 14% He, 76% graphite by volume at 600°C)
+    if (mat_list is None) or ('Gas_capsule' in mat_list):
+        # Gas capsule conditions
+        gas_temp = 873.15  # 600°C in Kelvin
+        gas_pressure = 101325  # 1 atm in Pa (standard pressure)
+
+        # Calculate helium density using ideal gas law
+        # ρ = PM/RT where P=pressure, M=molar mass, R=gas constant, T=temperature
+        helium_molar_mass = 4.0026e-3  # kg/mol
+        gas_constant = 8.314  # J/(mol·K)
+        helium_density = (gas_pressure * helium_molar_mass) / (gas_constant * gas_temp)
+        # This gives ~0.056 kg/m³ = 0.000056 g/cm³
+
+        # Create helium component
+        helium_gas = openmc.Material(name='helium_gas')
+        helium_gas.add_element('He', 1.0)
+        helium_gas.set_density('g/cm3', helium_density / 1000)  # Convert kg/m³ to g/cm³
+
+        # Create titanium component
+        titanium_gas = openmc.Material(name='titanium_gas')
+        titanium_gas.add_element('Ti', 1.0)
+        titanium_gas.set_density('g/cm3', 4.506)  # Ti density at room temp
+
+        # Create graphite component
+        graphite_gas = openmc.Material(name='graphite_gas')
+        graphite_gas.add_element('C', 1.0)
+        graphite_gas.set_density('g/cm3', 2.267)  # Graphite density at room temp
+
+        # Mix all components by volume: 10% Ti, 14% He, 76% graphite
+        gas_capsule = openmc.Material.mix_materials(
+            [titanium_gas, helium_gas, graphite_gas],
+            [0.10, 0.14, 0.76],
+            'vo',  # Volume fractions
+            name='Gas_capsule'
+        )
+        gas_capsule.temperature = gas_temp
+        material_list.append(gas_capsule)
 
     materials = openmc.Materials(material_list)
     mat_dict = {mat.name: mat for mat in materials}

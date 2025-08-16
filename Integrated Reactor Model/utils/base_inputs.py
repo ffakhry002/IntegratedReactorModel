@@ -11,11 +11,11 @@ base_inputs = {
     # Core Layout
     "core_lattice": [  # C: coolant, F: fuel assembly, E: enriched fuel assembly, I: irradiation position
         ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
-        ['C', 'F', 'F', 'F', 'F', 'F', 'I_4', 'C'],
-        ['F', 'F', 'I_1', 'F', 'F', 'F', 'F', 'F'],
+        ['C', 'F', 'F', 'F', 'F', 'F', 'I_4G', 'C'],
+        ['F', 'F', 'I_1B', 'F', 'F', 'F', 'F', 'F'],
         ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
         ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-        ['F', 'F', 'I_2', 'F', 'F', 'F', 'I_3', 'F'],
+        ['F', 'F', 'I_2', 'F', 'F', 'F', 'I_3P', 'F'],
         ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
         ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
     ],
@@ -93,7 +93,7 @@ base_inputs = {
     ###########################################
     "irradiation_clad": False,              # Include irradiation position cladding
     "irradiation_clad_thickness": 0.0015, # Irradiation cladding thickness [m]
-    "irradiation_type": "PWR_loop",  # Options: "Vacuum", "Test Pos (fill)", "PWR_loop"
+    "irradiation_fill": "Vacuum",  # Default fill for irradiation positions without suffix: "Vacuum", "Test Pos (fill)"
 
     "PWR_loop_diameter": 0.6,
     "BWR_loop_diameter": 0.6,

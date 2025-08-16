@@ -92,7 +92,9 @@ def plot_geometry(output_dir=None, inputs_dict=None):
         # Irradiation cell materials
         mat_dict['Test pos']: 'slategray',  # Fill material (Al-water mixture)
         mat_dict['Vacuum']: 'black',
-        mat_dict['PWR_loop']: 'mediumpurple',  # or any distinctive color
+        mat_dict['PWR_loop']: 'mediumpurple',  # PWR loop
+        mat_dict['BWR_loop']: 'orange',     # BWR loop
+        mat_dict['Gas_capsule']: 'limegreen',     # Gas capsule
 
         # Core structure materials
         mat_dict['Steel']: 'lightgray',  # Light gray

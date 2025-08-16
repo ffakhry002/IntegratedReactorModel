@@ -7,7 +7,7 @@ Handles reactor core level visualization
 from matplotlib.patches import Circle, Rectangle
 from matplotlib.collections import PatchCollection
 
-from Inputs_GUI.utils.constants import get_material_color
+from Inputs_GUI.utils.constants import get_material_color, get_irradiation_material_type
 from Inputs_GUI.visualization.plotting_utils import (
     draw_pin_assembly_detailed, draw_plate_assembly_detailed,
     draw_core_pins_side_view, draw_core_plates_side_view
