@@ -4,6 +4,7 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import shutil
+import importlib
 
 # Add root directory to path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -38,7 +39,6 @@ def plot_geometry(output_dir=None, inputs_dict=None):
     # Use provided inputs or default to global inputs
     if inputs_dict is None:
         inputs_dict = inputs
-
     # Determine output directory
     if output_dir is None:
         script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -92,6 +92,7 @@ def plot_geometry(output_dir=None, inputs_dict=None):
         # Irradiation cell materials
         mat_dict['Test pos']: 'slategray',  # Fill material (Al-water mixture)
         mat_dict['Vacuum']: 'black',
+        mat_dict['PWR_loop']: 'mediumpurple',  # or any distinctive color
 
         # Core structure materials
         mat_dict['Steel']: 'lightgray',  # Light gray

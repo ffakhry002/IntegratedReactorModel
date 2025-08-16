@@ -93,7 +93,11 @@ base_inputs = {
     ###########################################
     "irradiation_clad": False,              # Include irradiation position cladding
     "irradiation_clad_thickness": 0.0015, # Irradiation cladding thickness [m]
-    "irradiation_cell_fill": "Vacuum",      # Fill: "Vacuum" or "fill" (Al-water mix)
+    "irradiation_type": "PWR_loop",  # Options: "Vacuum", "Test Pos (fill)", "PWR_loop"
+
+    "PWR_loop_diameter": 0.6,
+    "BWR_loop_diameter": 0.6,
+    "Gas_capsule_diameter": 0.6,
 
     ###########################################
     # OpenMC Transport Parameters

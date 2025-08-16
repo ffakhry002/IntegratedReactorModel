@@ -519,6 +519,26 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
         vacuum.temperature = default_T
         material_list.append(vacuum)
 
+    if (mat_list is None) or ('PWR_loop' in mat_list):
+        from CoolProp.CoolProp import PropsSI
+
+        # PWR loop conditions
+        pwr_temp = 573.15  # 300°C in Kelvin
+        pwr_pressure = 15.5e6  # 15.5 MPa in Pa
+
+        # Get water density directly from CoolProp
+        water_density = PropsSI('D', 'T', pwr_temp, 'P', pwr_pressure, 'Water')  # kg/m³
+
+        # Create borated water using OpenMC's built-in method
+        pwrloop = openmc.Material(name='PWR_loop')
+        pwrloop.add_element('H', 2.0)
+        pwrloop.add_element('O', 1.0)
+        pwrloop.add_element('B', 1400e-6, percent_type='ao')  # 1400 ppm as atom fraction
+        pwrloop.set_density('g/cm3', water_density / 1000)
+        pwrloop.add_s_alpha_beta('c_H_in_H2O')
+        pwrloop.temperature = pwr_temp
+        material_list.append(pwrloop)
+
     materials = openmc.Materials(material_list)
     mat_dict = {mat.name: mat for mat in materials}
 
@@ -528,7 +548,7 @@ if __name__ == "__main__":
     mat_dict, materials = make_materials(inputs_dict=inputs)
 
     # Create output directory if it doesn't exist
-    output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'outputs')
+    output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'output')
     os.makedirs(output_dir, exist_ok=True)
 
     # Write materials to text file
