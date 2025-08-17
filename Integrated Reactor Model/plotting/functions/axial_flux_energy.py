@@ -162,9 +162,15 @@ def _create_multiline_plots(irradiation_data, inputs_dict, plot_dir, half_height
     -------
     None
     """
-    # Sort the irradiation positions by their number (I_1, I_2, etc.)
+    # Sort the irradiation positions by their number (I_1, I_2P, I_3B, etc.)
+    import re
+    def extract_position_number(pos_name):
+        # Extract just the number part, ignoring suffix letters (P, B, G)
+        match = re.search(r'I_(\d+)', pos_name)
+        return int(match.group(1)) if match else 0
+
     sorted_positions = sorted(irradiation_data.items(),
-                            key=lambda x: int(x[0].split('_')[1]))
+                            key=lambda x: extract_position_number(x[0]))
     n_positions = len(sorted_positions)
 
     # Create figure with one plot per row (matching flux_traps.py style)
@@ -244,9 +250,15 @@ def _create_heatmap_plots(irradiation_data, inputs_dict, plot_dir, half_height):
     -------
     None
     """
-    # Sort the irradiation positions by their number (I_1, I_2, etc.)
+    # Sort the irradiation positions by their number (I_1, I_2P, I_3B, etc.)
+    import re
+    def extract_position_number(pos_name):
+        # Extract just the number part, ignoring suffix letters (P, B, G)
+        match = re.search(r'I_(\d+)', pos_name)
+        return int(match.group(1)) if match else 0
+
     sorted_positions = sorted(irradiation_data.items(),
-                            key=lambda x: int(x[0].split('_')[1]))
+                            key=lambda x: extract_position_number(x[0]))
     n_positions = len(sorted_positions)
 
     # Calculate subplot arrangement - 2 columns

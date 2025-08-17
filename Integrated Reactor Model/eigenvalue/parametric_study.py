@@ -144,7 +144,8 @@ def write_base_inputs_log(param_dir, base_inputs):
             'average_linear_power', 'cos_curve_squeeze', 'CP_PD_MLP_ALP'
         ],
         'Irradiation Position Parameters': [
-            'irradiation_clad', 'irradiation_clad_thickness', 'irradiation_cell_fill'
+            'irradiation_clad', 'irradiation_clad_thickness', 'irradiation_fill',
+            'PWR_loop_diameter', 'BWR_loop_diameter', 'Gas_capsule_diameter'
         ],
         'OpenMC Transport Parameters': [
             'batches', 'inactive', 'particles', 'energy_structure', 'thermal_cutoff', 'fast_cutoff',

@@ -11,18 +11,18 @@ base_inputs = {
     # Core Layout
     "core_lattice": [  # C: coolant, F: fuel assembly, E: enriched fuel assembly, I: irradiation position
         ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
-        ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
-        ['F', 'F', 'I_1', 'F', 'F', 'I_4', 'F', 'F'],
+        ['C', 'F', 'F', 'F', 'F', 'F', 'I_4G', 'C'],
+        ['F', 'F', 'I_1B', 'F', 'F', 'F', 'F', 'F'],
         ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
         ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-        ['F', 'F', 'I_2', 'F', 'F', 'I_3', 'F', 'F'],
+        ['F', 'F', 'I_2', 'F', 'F', 'F', 'I_3P', 'F'],
         ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
-        ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C']
+        ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
     ],
 
     # Core Operating Parameters
     "core_power": 10.0,              # Core power [MW]
-    "assembly_type": 'Pin',        # Assembly type: 'Pin' or 'Plate'
+    "assembly_type": 'Plate',        # Assembly type: 'Pin' or 'Plate'
 
     ###########################################
     # Geometry Specifications
@@ -48,16 +48,16 @@ base_inputs = {
     "r_clad_inner": 0.0042,      # Cladding inner radius [m]
     "r_clad_outer": 0.00475,     # Cladding outer radius [m]
     "n_side_pins": 3,            # Number of pins per assembly side
-    "guide_tube_positions": [(1,1)],   # List of (x,y) tuples for guide tube positions
+    "guide_tube_positions": [(1, 1)],   # List of (x,y) tuples for guide tube positions
 
     # Plate Fuel Assembly Parameters
-    "fuel_meat_width": 3.91/100,      # Fuel meat width [m]
-    "fuel_plate_width": 4.81/100,       # Fuel plate width [m]
-    "fuel_plate_pitch": 0.37/100,       # Plate-to-plate pitch [m]
-    "fuel_meat_thickness": 0.147/100,    # Fuel meat thickness [m]
-    "clad_thickness": 0.025/100,       # coolant to fuel meat in y direction cladding thickness [m]
+    "fuel_meat_width": 0.0391,      # Fuel meat width [m]
+    "fuel_plate_width": 0.0481,       # Fuel plate width [m]
+    "fuel_plate_pitch": 0.0037,       # Plate-to-plate pitch [m]
+    "fuel_meat_thickness": 0.00147,    # Fuel meat thickness [m]
+    "clad_thickness": 0.00025,       # coolant to fuel meat in y direction cladding thickness [m]
     "plates_per_assembly": 13,         # Number of plates per assembly
-    "clad_structure_width": 0.15/100,  # Support structure width [m]
+    "clad_structure_width": 0.0015,  # Support structure width [m]
 
     ###########################################
     # Materials Configuration
@@ -76,9 +76,9 @@ base_inputs = {
     ###########################################
     # Thermal Hydraulics Parameters
     ###########################################
-    "reactor_pressure": 3e5,          # System pressure [Pa]
+    "reactor_pressure": 300000.0,          # System pressure [Pa]
     "flow_rate": 3,                   # Coolant flow rate [m/s]
-    "T_inlet": 273.15 + 42,          # Inlet temperature [K]
+    "T_inlet": 315.15,          # Inlet temperature [K]
 
     # Direct Thermal hydraulics calculation mode only
     "input_power_density": 100,        # Power density [kW/L]
@@ -86,27 +86,31 @@ base_inputs = {
     "average_linear_power": 50,       # Average linear power [kW/m]
     "cos_curve_squeeze": 0,           # Axial power shape parameter [0-1]
     "CP_PD_MLP_ALP": "CP",          # CP: core power (MW), PD: power density (kW/L)
-                                    # MLP: max linear power (kW/m), ALP: avg linear power (kW/m)
+                                     # MLP: max linear power (kW/m), ALP: avg linear power (kW/m)
 
     ###########################################
     # Irradiation Position Parameters
     ###########################################
     "irradiation_clad": False,              # Include irradiation position cladding
-    "irradiation_clad_thickness": 0.15/100, # Irradiation cladding thickness [m]
-    "irradiation_cell_fill": "Vacuum",      # Fill: "Vacuum" or "fill" (Al-water mix)
+    "irradiation_clad_thickness": 0.0015, # Irradiation cladding thickness [m]
+    "irradiation_fill": "Vacuum",  # Default fill for irradiation positions without suffix: "Vacuum", "Test Pos (fill)"
+
+    "PWR_loop_diameter": 0.6,
+    "BWR_loop_diameter": 0.6,
+    "Gas_capsule_diameter": 0.6,
 
     ###########################################
     # OpenMC Transport Parameters
     ###########################################
     # Standard Transport Settings
-    "batches": 150,                   # Number of active batches
-    "inactive": 20,                   # Number of inactive batches
-    "particles": int(2e4),            # Particles per batch
+    "batches": int(230),                   # Number of active batches
+    "inactive": int(20),                   # Number of inactive batches
+    "particles": int(250000),            # Particles per batch
     "energy_structure": 'log1001',    # Energy group structure
 
     # Energy Group Boundaries
-    "thermal_cutoff": 0.625,          # Thermal/epithermal boundary [eV]
-    "fast_cutoff": 100.0e3,          # Epithermal/fast boundary [eV]
+    "thermal_cutoff": float(0.625),          # Thermal/epithermal boundary [eV]
+    "fast_cutoff": float(100000.0),          # Epithermal/fast boundary [eV]
 
     # Tally Granularity Settings
     "power_tally_axial_segments": 50,     # Number of axial segments for power tallies
@@ -123,26 +127,20 @@ base_inputs = {
     # Depletion Calculation Parameters
     ###########################################
     # Depletion Scenario Selection (only one should be True)
-    "deplete_core": False,                    # Full core depletion
-    "deplete_assembly": False,               # Single assembly with reflective BC
+    "deplete_core": True,                    # Full core depletion
+    "deplete_assembly": True,               # Single assembly with reflective BC
     "deplete_assembly_enhanced": False,      # Single enhanced assembly with reflective BC
     "deplete_element": False,                # Single fuel element with reflective BC
     "deplete_element_enhanced": False,       # Single enhanced fuel element with reflective BC
 
     # Time Steps Configuration
     "depletion_timestep_units": "MWd/kgHM",  # Units for timesteps: 'MWd/kgHM' or 'days'
-    "depletion_timesteps": [
-        {"steps": 5, "size": 1},  # 5 steps of 0.2 MWd/kgHM or days
-        {"steps": 5, "size": 0.5},  # 10 steps of 1.0 MWd/kgHM or days
-        {"steps": 5, "size": 2.5},   # 5 steps of 2.0 MWd/kgHM or days
-        {"steps": 5, "size": 5},   # 5 steps of 2.0 MWd/kgHM or days
-        {"steps": 5, "size": 10},   # 5 steps of 2.0 MWd/kgHM or days
-    ],
+    "depletion_timesteps": [{'steps': 10, 'size': 0.01},{'steps': 10, 'size': 0.1}, {'steps': 10, 'size': 0.5}, {'steps': 5, 'size': 2.5}, {'steps': 5, 'size': 5.0}, {'steps': 5, 'size': 10.0}],
 
     # Transport Settings for Depletion
-    "depletion_particles": 5000,       # Particles per batch for depletion
-    "depletion_batches": 120,         # Active batches for depletion
-    "depletion_inactive": 20,         # Inactive batches for depletion
+    "depletion_particles": int(20000),       # Particles per batch for depletion
+    "depletion_batches": int(130),         # Active batches for depletion
+    "depletion_inactive": int(20),         # Inactive batches for depletion
 
     # Depletion Options
     "depletion_integrator": "predictor",  # Integration algorithm
@@ -151,26 +149,17 @@ base_inputs = {
     "depletion_chain": "casl",       # Depletion chain type ('casl' or 'endfb71')
 
     # Nuclides to Extract and Plot
-    "depletion_nuclides": [
-        'U235',   # Primary fissile fuel
-        'U238',   # Fertile fuel
-        'Pu239',  # Primary plutonium breeding product
-        'Xe135',  # Important neutron poison (short-lived)
-        'Sm149',  # Important neutron poison (long-lived)
-        'Cs137',  # Important fission product (long-lived)
-        'Sr90',   # Important fission product (long-lived)
-        'I131'    # Important fission product (short-lived)
-    ],
+    "depletion_nuclides": ['U235', 'U238', 'Pu239', 'Xe135', 'Sm149', 'Cs137', 'Sr90', 'I131'],
 
     ###########################################
     # Miscellaneous Settings
     ###########################################
     "outputs_folder": "local_outputs",  # Base output directory
-    "pixels": (8000, 8000),            # Plot resolution
+    "pixels": (16000, 16000),            # Plot resolution
 }
 
 
-############################ UPDATED INPUTS #####################################
+############################ UPDATED INPUTS #####################################
 
 
 def calculate_derived_values(core_lattice, guide_tube_positions):
@@ -207,6 +196,6 @@ num_assemblies, n_guide_tubes = calculate_derived_values(base_inputs["core_latti
 # Add derived values to create final inputs dictionary
 inputs = {
     **base_inputs,
-    "n_guide_tubes": n_guide_tubes,  # number of guide tubes per assembly
-    "num_assemblies": num_assemblies  # Automatically calculated from core_lattice
+    "n_guide_tubes": 1,  # number of guide tubes per assembly
+    "num_assemblies": 48  # Automatically calculated from core_lattice
 }
