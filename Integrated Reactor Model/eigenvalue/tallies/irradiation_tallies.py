@@ -7,8 +7,10 @@ This module provides functions for:
 """
 
 import openmc
+import numpy as np
 from inputs import inputs
 from Reactor.geometry_helpers.utils import generate_cell_id
+from Reactor.geometry_helpers.irradiation_cell import parse_irradiation_type
 from eigenvalue.tallies.energy_groups import get_energy_bins
 
 def create_irradiation_tallies(inputs_dict=None):
@@ -56,9 +58,11 @@ def create_irradiation_tallies(inputs_dict=None):
 def create_irradiation_axial_tallies(inputs_dict=None):
     """Create axial flux tallies for irradiation positions.
 
-    This creates a mesh tally for each irradiation position that divides
-    the position into axial segments to measure flux variation with height.
-    Uses a single energy group for total flux.
+    This creates mesh tallies for each irradiation position:
+    - Cylindrical meshes for PWR/BWR/Gas positions (P, B, G suffixes)
+    - Regular (square) meshes for other positions (no suffix)
+
+    All meshes divide the position into axial segments and use single energy group.
 
     Parameters
     ----------
@@ -82,32 +86,35 @@ def create_irradiation_axial_tallies(inputs_dict=None):
     # Get core dimensions from inputs (in cm)
     half_height = inputs_dict['fuel_height'] * 50  # Convert to cm
     if inputs_dict['assembly_type'] == 'Pin':
-        width = inputs_dict['pin_pitch'] * inputs_dict['n_side_pins'] * 100  # Convert to cm
+        cell_width = inputs_dict['pin_pitch'] * inputs_dict['n_side_pins'] * 100  # Convert to cm
     else:
-        width = (inputs_dict['fuel_plate_width'] + 2 * inputs_dict['clad_structure_width']) * 100  # Convert to cm
-
-    # Subtract cladding thickness if present
-    if inputs_dict.get('irradiation_clad', False):
-        clad_thickness = inputs_dict['irradiation_clad_thickness'] * 100  # Convert to cm
-        width = width - (2 * clad_thickness)  # Subtract cladding from both sides
+        cell_width = (2 * inputs_dict['clad_structure_width'] + inputs_dict['fuel_plate_width']) * 100  # Convert to cm
 
     # Create tallies for each irradiation position
     core_layout = inputs_dict['core_lattice']
     for i, row in enumerate(core_layout):
         for j, pos in enumerate(row):
             if pos.startswith('I_'):
-                # Create a mesh for this position
-                mesh = openmc.RegularMesh()
-                mesh.dimension = [1, 1, n_axial_segments]  # Single radial cell, multiple axial segments
+                # Parse irradiation type to determine mesh type
+                irradiation_type = parse_irradiation_type(pos, inputs_dict)
 
-                # Calculate position in core (in cm)
-                x_pos = (j - len(row)/2 + 0.5) * width
-                y_pos = (i - len(core_layout)/2 + 0.5) * width
+                # Calculate position in core (in cm) - center of assembly
+                x_pos = (j - len(row)/2 + 0.5) * cell_width
+                y_pos = (i - len(core_layout)/2 + 0.5) * cell_width
 
-                # Set mesh boundaries
-                half_width = width/2
-                mesh.lower_left = [x_pos - half_width, y_pos - half_width, -half_height]
-                mesh.upper_right = [x_pos + half_width, y_pos + half_width, half_height]
+                # Create mesh based on irradiation type
+                if irradiation_type in ['PWR_loop', 'BWR_loop', 'Gas_capsule']:
+                    # Create cylindrical mesh for loop-type positions
+                    mesh = _create_cylindrical_irradiation_mesh(
+                        pos, irradiation_type, x_pos, y_pos,
+                        cell_width, half_height, n_axial_segments, inputs_dict
+                    )
+                else:
+                    # Create regular (square) mesh for other positions
+                    mesh = _create_regular_irradiation_mesh(
+                        pos, x_pos, y_pos, cell_width, half_height,
+                        n_axial_segments, inputs_dict
+                    )
 
                 # Create mesh filter and tally
                 mesh_filter = openmc.MeshFilter(mesh)
@@ -121,3 +128,113 @@ def create_irradiation_axial_tallies(inputs_dict=None):
                 tallies.append(tally)
 
     return tallies
+
+def _create_cylindrical_irradiation_mesh(pos, irradiation_type, x_pos, y_pos,
+                                        cell_width, half_height, n_axial_segments, inputs_dict):
+    """Create a cylindrical mesh for loop-type irradiation positions.
+
+    Parameters
+    ----------
+    pos : str
+        Position name (e.g., 'I_1P', 'I_2B', 'I_3G')
+    irradiation_type : str
+        Type of irradiation ('PWR_loop', 'BWR_loop', 'Gas_capsule')
+    x_pos, y_pos : float
+        Center position in cm
+    cell_width : float
+        Assembly cell width in cm
+    half_height : float
+        Half height of fuel region in cm
+    n_axial_segments : int
+        Number of axial segments
+    inputs_dict : dict
+        Inputs dictionary
+
+    Returns
+    -------
+    openmc.CylindricalMesh
+        Cylindrical mesh for the irradiation position
+    """
+    # Get radius from diameter parameter (same calculation as in geometry)
+    if irradiation_type == 'PWR_loop':
+        circle_radius = inputs_dict['PWR_loop_diameter']/2 * cell_width
+    elif irradiation_type == 'BWR_loop':
+        circle_radius = inputs_dict['BWR_loop_diameter']/2 * cell_width
+    elif irradiation_type == 'Gas_capsule':
+        circle_radius = inputs_dict['Gas_capsule_diameter']/2 * cell_width
+    else:
+        raise ValueError(f"Unknown irradiation type: {irradiation_type}")
+
+    # Subtract cladding thickness if present
+    if inputs_dict.get('irradiation_clad', False):
+        clad_thickness = inputs_dict['irradiation_clad_thickness'] * 100  # Convert m to cm
+        # Reduce the available radius by cladding thickness impact
+        available_cell_width = cell_width - (2 * clad_thickness)
+        circle_radius = circle_radius * (available_cell_width / cell_width)
+
+    # Create cylindrical mesh
+    # r_grid: from center (0) to cavity radius
+    r_grid = [0.0, circle_radius]
+
+    # z_grid: axial segments from -half_height to +half_height
+    z_grid = [-half_height + i * (2*half_height)/n_axial_segments for i in range(n_axial_segments + 1)]
+
+    # phi_grid: single azimuthal bin (full 360°)
+    phi_grid = [0.0, 2*np.pi]  # 0 to 2π
+
+    # Create mesh with origin at the assembly center
+    mesh = openmc.CylindricalMesh(
+        r_grid=r_grid,
+        z_grid=z_grid,
+        phi_grid=phi_grid,
+        origin=[x_pos, y_pos, 0.0]  # Center at assembly position
+    )
+
+    print(f"Created cylindrical mesh for {pos} ({irradiation_type}): "
+          f"radius={circle_radius:.2f}cm, origin=({x_pos:.1f}, {y_pos:.1f}, 0.0)")
+
+    return mesh
+
+def _create_regular_irradiation_mesh(pos, x_pos, y_pos, cell_width, half_height,
+                                   n_axial_segments, inputs_dict):
+    """Create a regular (square) mesh for non-loop irradiation positions.
+
+    Parameters
+    ----------
+    pos : str
+        Position name (e.g., 'I_1', 'I_2')
+    x_pos, y_pos : float
+        Center position in cm
+    cell_width : float
+        Assembly cell width in cm
+    half_height : float
+        Half height of fuel region in cm
+    n_axial_segments : int
+        Number of axial segments
+    inputs_dict : dict
+        Inputs dictionary
+
+    Returns
+    -------
+    openmc.RegularMesh
+        Regular mesh for the irradiation position
+    """
+    # Calculate mesh width (subtract cladding if present)
+    width = cell_width
+    if inputs_dict.get('irradiation_clad', False):
+        clad_thickness = inputs_dict['irradiation_clad_thickness'] * 100  # Convert m to cm
+        width = width - (2 * clad_thickness)  # Subtract cladding from both sides
+
+    # Create regular mesh
+    mesh = openmc.RegularMesh()
+    mesh.dimension = [1, 1, n_axial_segments]  # Single radial cell, multiple axial segments
+
+    # Set mesh boundaries
+    half_width = width/2
+    mesh.lower_left = [x_pos - half_width, y_pos - half_width, -half_height]
+    mesh.upper_right = [x_pos + half_width, y_pos + half_width, half_height]
+
+    print(f"Created regular mesh for {pos}: "
+          f"width={width:.2f}cm, center=({x_pos:.1f}, {y_pos:.1f})")
+
+    return mesh

@@ -52,7 +52,7 @@ def get_mesh_volume(mesh):
 
     Parameters
     ----------
-    mesh : openmc.RegularMesh
+    mesh : openmc.RegularMesh or openmc.CylindricalMesh
         The mesh to calculate volume for
 
     Returns
@@ -60,7 +60,26 @@ def get_mesh_volume(mesh):
     float
         Volume of a single mesh element in cm³
     """
-    return np.prod(np.array(mesh.upper_right) - np.array(mesh.lower_left))/np.prod(mesh.dimension)
+    if isinstance(mesh, openmc.CylindricalMesh):
+        # Cylindrical volume = π * r² * height
+        # For single radial and azimuthal cell covering full cylinder
+        r_outer = mesh.r_grid[-1]  # Outer radius
+        r_inner = mesh.r_grid[0]   # Inner radius (should be 0)
+        height = mesh.z_grid[-1] - mesh.z_grid[0]
+
+        # Total cylindrical volume
+        total_volume = np.pi * (r_outer**2 - r_inner**2) * height
+
+        # Number of mesh cells (r × φ × z)
+        n_r = len(mesh.r_grid) - 1
+        n_phi = len(mesh.phi_grid) - 1
+        n_z = len(mesh.z_grid) - 1
+        total_cells = n_r * n_phi * n_z
+
+        return total_volume / total_cells
+    else:
+        # Existing RegularMesh calculation
+        return np.prod(np.array(mesh.upper_right) - np.array(mesh.lower_left))/np.prod(mesh.dimension)
 
 def get_tally_volume(tally, sp, inputs_dict=None):
     """Get the volume associated with a tally.

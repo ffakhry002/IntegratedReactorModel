@@ -132,7 +132,7 @@ def plot_geometry(output_dir=None, inputs_dict=None):
     plot_core_xy = core_universe.plot(**core_params)
     plot_core_xy.figure.set_size_inches(8, 8)
     plot_core_xy.figure.savefig(os.path.join(output_dir, 'core_xy.png'),
-                               dpi=300, bbox_inches='tight')
+                               dpi=30, bbox_inches='tight')
     plt.close()
 
     # YZ plot through center
@@ -142,7 +142,7 @@ def plot_geometry(output_dir=None, inputs_dict=None):
     plot_core_yz = core_universe.plot(**core_params)
     plot_core_yz.figure.set_size_inches(8, 12)
     plot_core_yz.figure.savefig(os.path.join(output_dir, 'core_yz.png'),
-                               dpi=300, bbox_inches='tight')
+                               dpi=30, bbox_inches='tight')
     plt.close()
 
     # XZ plot through center
@@ -150,7 +150,7 @@ def plot_geometry(output_dir=None, inputs_dict=None):
     plot_core_xz = core_universe.plot(**core_params)
     plot_core_xz.figure.set_size_inches(8, 12)
     plot_core_xz.figure.savefig(os.path.join(output_dir, 'core_xz.png'),
-                               dpi=300, bbox_inches='tight')
+                               dpi=30, bbox_inches='tight')
     plt.close()
 
     # Calculate irradiation cell dimensions
@@ -171,14 +171,14 @@ def plot_geometry(output_dir=None, inputs_dict=None):
             plot_irr_xy = first_irr_universe.plot(basis='xy', **irradiation_params)
             plot_irr_xy.figure.set_size_inches(6, 6)
             plot_irr_xy.figure.savefig(os.path.join(output_dir, 'irradiation_cell_xy.png'),
-                                    dpi=300, bbox_inches='tight')
+                                    dpi=30, bbox_inches='tight')
             plt.close()
 
             # Create Irradiation Cell YZ plot
             plot_irr_yz = first_irr_universe.plot(basis='yz', **irradiation_params)
             plot_irr_yz.figure.set_size_inches(6, 6)
             plot_irr_yz.figure.savefig(os.path.join(output_dir, 'irradiation_cell_yz.png'),
-                                    dpi=300, bbox_inches='tight')
+                                    dpi=30, bbox_inches='tight')
             plt.close()
         except Exception as e:
             print(f"Error generating flux trap plots: {str(e)}")
@@ -205,14 +205,14 @@ def plot_geometry(output_dir=None, inputs_dict=None):
         plot_xy = assembly_universe.plot(basis='xy', **assembly_params)
         plot_xy.figure.set_size_inches(6, 6)
         plot_xy.figure.savefig(os.path.join(output_dir, 'pin_assembly_xy.png'),
-                              dpi=300, bbox_inches='tight')
+                              dpi=30, bbox_inches='tight')
         plt.close()
 
         # Create Pin Assembly YZ plot
         plot_yz = assembly_universe.plot(basis='yz', **assembly_params)
         plot_yz.figure.set_size_inches(6, 6)
         plot_yz.figure.savefig(os.path.join(output_dir, 'pin_assembly_yz.png'),
-                              dpi=300, bbox_inches='tight')
+                              dpi=30, bbox_inches='tight')
         plt.close()
 
         # Pin cell plots
@@ -223,14 +223,14 @@ def plot_geometry(output_dir=None, inputs_dict=None):
         plot_pin_xy = pin_universe.plot(basis='xy', **pin_params)
         plot_pin_xy.figure.set_size_inches(6, 6)
         plot_pin_xy.figure.savefig(os.path.join(output_dir, 'single_pin_xy.png'),
-                                  dpi=300, bbox_inches='tight')
+                                  dpi=30, bbox_inches='tight')
         plt.close()
 
         # Create Single Pin YZ plot
         plot_pin_yz = pin_universe.plot(basis='yz', **pin_params)
         plot_pin_yz.figure.set_size_inches(6, 6)
         plot_pin_yz.figure.savefig(os.path.join(output_dir, 'single_pin_yz.png'),
-                                  dpi=300, bbox_inches='tight')
+                                  dpi=30, bbox_inches='tight')
         plt.close()
 
     else:  # Plate assembly
@@ -252,14 +252,14 @@ def plot_geometry(output_dir=None, inputs_dict=None):
         plot_xy = assembly_universe.plot(basis='xy', **assembly_params)
         plot_xy.figure.set_size_inches(6, 6)
         plot_xy.figure.savefig(os.path.join(output_dir, 'plate_assembly_xy.png'),
-                              dpi=300, bbox_inches='tight')
+                              dpi=30, bbox_inches='tight')
         plt.close()
 
         # Create Plate Assembly YZ plot
         plot_yz = assembly_universe.plot(basis='yz', **assembly_params)
         plot_yz.figure.set_size_inches(6, 6)
         plot_yz.figure.savefig(os.path.join(output_dir, 'plate_assembly_yz.png'),
-                              dpi=300, bbox_inches='tight')
+                              dpi=30, bbox_inches='tight')
         plt.close()
 
         # Single plate plots
@@ -270,14 +270,14 @@ def plot_geometry(output_dir=None, inputs_dict=None):
         plot_plate_xy = plate_universe.plot(basis='xy', **plate_params)
         plot_plate_xy.figure.set_size_inches(6, 6)
         plot_plate_xy.figure.savefig(os.path.join(output_dir, 'single_plate_xy.png'),
-                                    dpi=300, bbox_inches='tight')
+                                    dpi=30, bbox_inches='tight')
         plt.close()
 
         # Create Single Plate YZ plot
         plot_plate_yz = plate_universe.plot(basis='yz', **plate_params)
         plot_plate_yz.figure.set_size_inches(6, 6)
         plot_plate_yz.figure.savefig(os.path.join(output_dir, 'single_plate_yz.png'),
-                                    dpi=300, bbox_inches='tight')
+                                    dpi=30, bbox_inches='tight')
         plt.close()
 
     print(f"Geometry plots saved to: {output_dir}")
