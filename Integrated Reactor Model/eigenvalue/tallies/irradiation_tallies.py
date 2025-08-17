@@ -90,6 +90,10 @@ def create_irradiation_axial_tallies(inputs_dict=None):
     else:
         cell_width = (2 * inputs_dict['clad_structure_width'] + inputs_dict['fuel_plate_width']) * 100  # Convert to cm
 
+    # Create single energy group filter (0 to 20 MeV) ONCE - REUSE for all positions
+    energy_filter = openmc.EnergyFilter([0.0, 20.0e6])  # Single group for total flux
+    print(f"Created axial energy filter - ID: {energy_filter.id}, reused for all irradiation positions")
+
     # Create tallies for each irradiation position
     core_layout = inputs_dict['core_lattice']
     for i, row in enumerate(core_layout):
@@ -119,9 +123,7 @@ def create_irradiation_axial_tallies(inputs_dict=None):
                 # Create mesh filter and tally
                 mesh_filter = openmc.MeshFilter(mesh)
 
-                # Create single energy group filter (0 to 20 MeV)
-                energy_filter = openmc.EnergyFilter([0.0, 20.0e6])  # Single group for total flux
-
+                # REUSE the single energy filter created above (no longer inside loop)
                 tally = openmc.Tally(name=f"{pos}_axial")
                 tally.filters = [mesh_filter, energy_filter]
                 tally.scores = ['flux']

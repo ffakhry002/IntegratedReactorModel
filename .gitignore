@@ -52,3 +52,5 @@ openmc/
 
 # Hyperparameter tuning outputs
 ML/hyperparameter_tuning/optimisation_history.xlsx
+
+Integrated Reactor Model/Reactor/output/

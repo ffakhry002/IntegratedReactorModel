@@ -50,11 +50,9 @@ def make_and_run_openmc_model(model, statepoint_name, folder='Output/'):
         shutil.copy2(old_sp, new_sp)  # Copy instead of rename to keep original
         os.remove(old_sp)  # Remove original after successful copy
 
-    # Reset auto IDs for next run
-    openmc.mixin.reset_auto_ids()
-
 def run_eigenvalue(inputs_dict=None):
-    """Run eigenvalue calculation.
+    """
+    Run eigenvalue calculation with OpenMC.
 
     Parameters
     ----------
@@ -64,9 +62,10 @@ def run_eigenvalue(inputs_dict=None):
     Returns
     -------
     tuple
-        (k_effective, standard_deviation) where k_effective is the eigenvalue
-        and standard_deviation is the associated uncertainty
+        (k_effective_nominal, k_effective_std_dev)
     """
+    # Clear OpenMC's auto ID counters first to prevent conflicts
+    openmc.mixin.reset_auto_ids()
     # Use provided inputs or default to global inputs
     if inputs_dict is None:
         inputs_dict = inputs
