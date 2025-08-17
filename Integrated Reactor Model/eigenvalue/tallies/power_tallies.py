@@ -41,7 +41,9 @@ def create_power_tallies(inputs_dict=None):
     if inputs_dict['assembly_type'] == 'Pin':
         assembly_width = inputs_dict['pin_pitch'] * inputs_dict['n_side_pins'] * 100  # Convert to cm
     else:
-        assembly_width = (inputs_dict['fuel_plate_width'] + 2 * inputs_dict['clad_structure_width']) * 100  # Convert to cm
+        # Use same calculation as geometry to ensure mesh alignment
+        assembly_width = (inputs_dict['plates_per_assembly'] * inputs_dict['fuel_plate_pitch'] +
+                         2 * inputs_dict['clad_structure_width']) * 100  # Convert to cm
 
     # Create total core power tally
     total_power_tally = openmc.Tally(name='total_power')
@@ -81,6 +83,19 @@ def create_assembly_tallies(tallies, n_axial_segments, half_height, assembly_wid
     """
     # Create assembly-wise power tallies
     core_layout = inputs_dict['core_lattice']
+    n_rows, n_cols = len(core_layout), len(core_layout[0])
+
+    # Calculate assembly pitch exactly as in core.py
+    if inputs_dict['assembly_type'] == 'Pin':
+        assembly_pitch = inputs_dict['pin_pitch'] * inputs_dict['n_side_pins'] * 100
+    else:
+        assembly_pitch = (inputs_dict['plates_per_assembly'] * inputs_dict['fuel_plate_pitch'] +
+                        2 * inputs_dict['clad_structure_width']) * 100
+
+    # Calculate lower left position exactly as in core.py
+    ll_x = -assembly_pitch * n_cols / 2
+    ll_y = -assembly_pitch * n_rows / 2
+
     for i, row in enumerate(core_layout):
         for j, pos in enumerate(row):
             if pos in ['F', 'E']:  # This is a fuel assembly position
@@ -88,12 +103,12 @@ def create_assembly_tallies(tallies, n_axial_segments, half_height, assembly_wid
                 mesh = openmc.RegularMesh()
                 mesh.dimension = [1, 1, n_axial_segments]  # Single radial cell, multiple axial segments
 
-                # Calculate position in core (in cm)
-                x_pos = (j - len(row)/2 + 0.5) * assembly_width
-                y_pos = (i - len(core_layout)/2 + 0.5) * assembly_width
+                # Calculate position exactly as geometry lattice does
+                x_pos = ll_x + (j + 0.5) * assembly_pitch
+                y_pos = ll_y + (i + 0.5) * assembly_pitch
 
                 # Set mesh boundaries
-                half_width = assembly_width/2
+                half_width = assembly_pitch/2
                 mesh.lower_left = [x_pos - half_width, y_pos - half_width, -half_height]
                 mesh.upper_right = [x_pos + half_width, y_pos + half_width, half_height]
 

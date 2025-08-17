@@ -356,6 +356,11 @@ def run_single_parametric_case(run_num, run_dict, param_dir, log_file):
 
         # Run OpenMC simulation
         print("Running OpenMC simulation...")
+
+        # Additional reset right before eigenvalue to ensure clean tally creation
+        openmc.mixin.reset_auto_ids()
+        print("OpenMC auto IDs reset before geometry creation")
+
         k_eff, k_std = run_eigenvalue(inputs_dict=modified_inputs)
 
         print(f"Simulation completed successfully!")
