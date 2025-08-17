@@ -316,5 +316,15 @@ def build_irradiation_cell_uni(mat_dict, position=None, inputs_dict=None):
             main_cell.fill = fill_material  # Use selected material
             cells = [main_cell]
 
-    irradiation_universe = openmc.Universe(name='irradiation_universe', cells=cells)
+    # Create universe with explicit ID from the start
+    if position is not None:
+        i, j = position
+        # Generate a unique universe ID based on position
+        universe_base = 6000000  # Irradiation universes
+        universe_id = universe_base + i * 1000 + j * 10
+        irradiation_universe = openmc.Universe(universe_id=universe_id, name='irradiation_universe', cells=cells)
+        irradiation_universe.name = f"irradiation_universe_{i}_{j}"
+    else:
+        irradiation_universe = openmc.Universe(name='irradiation_universe', cells=cells)
+
     return irradiation_universe
