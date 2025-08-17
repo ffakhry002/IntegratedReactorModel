@@ -11,7 +11,7 @@ sys.path.append(root_dir)
 from utils.base_inputs import inputs
 from .utils import generate_cell_id
 
-def build_plate_cell_fuel_uni(mat_dict, is_enhanced=False, inputs_dict=None):
+def build_plate_cell_fuel_uni(mat_dict, is_enhanced=False, inputs_dict=None, universe_id=None):
     """Build a single fuel plate universe with proper bounds.
 
     Parameters
@@ -22,6 +22,8 @@ def build_plate_cell_fuel_uni(mat_dict, is_enhanced=False, inputs_dict=None):
         Whether this is an enhanced fuel position (with higher enrichment), by default False
     inputs_dict : dict, optional
         Custom inputs dictionary. If None, uses the global inputs.
+    universe_id : int, optional
+        Explicit universe ID to assign. If None, uses auto-assignment.
 
     Returns
     -------
@@ -125,7 +127,10 @@ def build_plate_cell_fuel_uni(mat_dict, is_enhanced=False, inputs_dict=None):
     cells.append(bottom_moderator)
 
     # Create universe with all bounded cells
-    fuel_plate_universe = openmc.Universe(cells=cells)
+    if universe_id is not None:
+        fuel_plate_universe = openmc.Universe(universe_id=universe_id, cells=cells)
+    else:
+        fuel_plate_universe = openmc.Universe(cells=cells)
     return fuel_plate_universe
 
 def build_fuel_assembly_uni(mat_dict, position=None, is_enhanced=False, inputs_dict=None):
@@ -194,7 +199,46 @@ def build_fuel_assembly_uni(mat_dict, position=None, is_enhanced=False, inputs_d
     # Create assembly cells with explicit bounds
     cells = []
 
-    # Side structure plates
+    # Build fuel plate universe
+    # Calculate explicit ID and pass to universe creation
+    if position is not None:
+        i, j = position
+        fuel_base = 3000000 if is_enhanced else 2000000  # Back to reasonable values
+        fuel_id = fuel_base + i * 1000 + j * 10 + 1  # +1 to distinguish from assembly
+        fuel = build_plate_cell_fuel_uni(mat_dict, is_enhanced, inputs_dict, universe_id=fuel_id)
+    else:
+        # Position is None - this is the problem! Function called without position info
+        print(f"WARNING: build_fuel_assembly_uni called with position=None - this will create auto-assigned universe IDs!")
+        fuel = build_plate_cell_fuel_uni(mat_dict, is_enhanced, inputs_dict)
+
+    # Create fuel plate lattice
+    yoffset = (assembly_width - fuel_plate_pitch * plates_per_assembly) / 2
+    fuel_plates = openmc.RectLattice()
+    fuel_plates.lower_left = [-fuel_plate_width/2.0, -assembly_width/2.0 + yoffset]
+    fuel_plates.pitch = [fuel_plate_width, fuel_plate_pitch]
+
+    # Create coolant universe for outer region
+    coolant_cell = openmc.Cell(fill=mat_dict[f"{inputs_dict['coolant_type']} Coolant"])
+    coolant_universe = openmc.Universe(cells=[coolant_cell])
+    fuel_plates.outer = coolant_universe
+
+    # Set up fuel plate array (now uses correct explicit universe ID)
+    fuel_plates.universes = np.tile(fuel, (plates_per_assembly, 1))
+
+    # Add fuel cell FIRST so it has priority in OpenMC's cell checking
+    # Create fuel region cell with proper bounds
+    fuel_cell = openmc.Cell(name='fuel_plate_cell')
+    if position is not None:
+        fuel_cell.id = generate_cell_id('fuel', position, is_enhanced)
+        fuel_cell.name = f"{'enhanced_' if is_enhanced else ''}fuel_plate_cell_{position[0]}_{position[1]}"
+    fuel_cell.fill = fuel_plates
+
+    # Use simple direct bounds for the fuel region instead of negations
+    # The fuel region is simply the area between x1-x2 and y1-y2
+    fuel_cell.region = (+x1p & -x2p & +y1p & -y2p) & ~(+x0p & -x1p & +y0p & -y3p) & ~(+x2p & -x3p & +y0p & -y3p)
+    cells.append(fuel_cell)  # Add fuel cell FIRST
+
+    # NOW add the side structure plates (they won't interfere with fuel region)
     left_structure = openmc.Cell(fill=mat_dict[clad_material],
                                 region=+x0p & -x1p & +y0p & -y3p)
     cells.append(left_structure)
@@ -211,33 +255,15 @@ def build_fuel_assembly_uni(mat_dict, position=None, is_enhanced=False, inputs_d
                                   region=+x1p & -x2p & +y0p & -y1p)
     cells.append(bottom_structure)
 
-    # Build fuel plate universe
-    fuel = build_plate_cell_fuel_uni(mat_dict, is_enhanced, inputs_dict)
-
-    # Create fuel plate lattice
-    yoffset = (assembly_width - fuel_plate_pitch * plates_per_assembly) / 2
-    fuel_plates = openmc.RectLattice()
-    fuel_plates.lower_left = [-fuel_plate_width/2.0, -assembly_width/2.0 + yoffset]
-    fuel_plates.pitch = [fuel_plate_width, fuel_plate_pitch]
-
-    # Create coolant universe for outer region
-    coolant_cell = openmc.Cell(fill=mat_dict[f"{inputs_dict['coolant_type']} Coolant"])
-    coolant_universe = openmc.Universe(cells=[coolant_cell])
-    fuel_plates.outer = coolant_universe
-
-    # Set up fuel plate array
-    fuel_plates.universes = np.tile(fuel, (plates_per_assembly, 1))
-
-    # Create fuel region cell with proper bounds
-    fuel_cell = openmc.Cell(name='fuel_plate_cell')
+    # Create universe with explicit ID from the start
     if position is not None:
-        fuel_cell.id = generate_cell_id('fuel', position, is_enhanced)
-        fuel_cell.name = f"{'enhanced_' if is_enhanced else ''}fuel_plate_cell_{position[0]}_{position[1]}"
-    fuel_cell.fill = fuel_plates
-    # Add explicit bounds for the fuel region
-    fuel_cell.region = (+x1p & -x2p & +y1p & -y2p) & ~(+x0p & -x1p & +y0p & -y3p) & ~(+x2p & -x3p & +y0p & -y3p)
-    cells.append(fuel_cell)
+        i, j = position
+        # Generate a unique universe ID based on position
+        universe_base = 5000000 if is_enhanced else 4000000  # Back to reasonable values
+        universe_id = universe_base + i * 1000 + j * 10
+        assembly_universe = openmc.Universe(universe_id=universe_id, cells=cells)
+        assembly_universe.name = f"{'enhanced_' if is_enhanced else ''}fuel_assembly_universe_{i}_{j}"
+    else:
+        assembly_universe = openmc.Universe(cells=cells)
 
-    # Create assembly universe with all cells
-    assembly_universe = openmc.Universe(cells=cells)
     return assembly_universe

@@ -63,9 +63,9 @@ def build_core_uni(mat_dict, inputs_dict=None):
     z_top_refl = openmc.ZPlane(z0=half_fuel+plenum+top_refl)
     z_top_bio = openmc.ZPlane(z0=half_fuel+plenum+top_refl+top_bio, boundary_type='vacuum')
 
-    # Create coolant universe
+    # Create coolant universe with explicit ID to prevent auto-assignment conflicts
     coolant_cell = openmc.Cell(fill=mat_dict[f"{inputs_dict['coolant_type']} Outer"])
-    coolant_universe = openmc.Universe(cells=[coolant_cell])
+    coolant_universe = openmc.Universe(universe_id=1000000, cells=[coolant_cell])  # Use high ID to avoid conflicts
 
     # Create core lattice
     lattice_array = np.array(inputs_dict['core_lattice'])
@@ -160,7 +160,7 @@ def build_core_uni(mat_dict, inputs_dict=None):
                                region=-r2 & +z_top_refl & -z_top_bio)
     cells.append(bioshield_top)
 
-    # Create the core universe with all bounded cells
-    core_universe = openmc.Universe(cells=cells)
+    # Create the core universe with all bounded cells and explicit ID
+    core_universe = openmc.Universe(universe_id=1000001, cells=cells)  # Use high ID to avoid conflicts
 
     return core_universe, first_irr_universe

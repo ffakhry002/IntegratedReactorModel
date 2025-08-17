@@ -156,6 +156,16 @@ def build_fuel_assembly_uni(mat_dict, position=None, is_enhanced=False, inputs_d
         assembly_cell.id = generate_cell_id('fuel', position, is_enhanced)
         assembly_cell.name = f"{'enhanced_' if is_enhanced else ''}fuel_pin_cell_{position[0]}_{position[1]}"
     assembly_cell.fill = pin_lattice
-    assembly_uni = openmc.Universe(name='Fuel assembly', cells=[assembly_cell])
+
+    # Create universe with explicit ID from the start
+    if position is not None:
+        i, j = position
+        # Generate a unique universe ID based on position
+        universe_base = 5000000 if is_enhanced else 4000000
+        universe_id = universe_base + i * 1000 + j * 10
+        assembly_uni = openmc.Universe(universe_id=universe_id, name='Fuel assembly', cells=[assembly_cell])
+        assembly_uni.name = f"{'enhanced_' if is_enhanced else ''}fuel_assembly_universe_{i}_{j}"
+    else:
+        assembly_uni = openmc.Universe(name='Fuel assembly', cells=[assembly_cell])
 
     return assembly_uni
