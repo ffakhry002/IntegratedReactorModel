@@ -167,12 +167,9 @@ def _create_cylindrical_irradiation_mesh(pos, irradiation_type, x_pos, y_pos,
     else:
         raise ValueError(f"Unknown irradiation type: {irradiation_type}")
 
-    # Subtract cladding thickness if present
-    if inputs_dict.get('irradiation_clad', False):
-        clad_thickness = inputs_dict['irradiation_clad_thickness'] * 100  # Convert m to cm
-        # Reduce the available radius by cladding thickness impact
-        available_cell_width = cell_width - (2 * clad_thickness)
-        circle_radius = circle_radius * (available_cell_width / cell_width)
+    # NOTE: Cladding does NOT affect cylinder radius - only square boundary planes
+    # The cylinder radius stays the same regardless of cladding setting
+    # (cladding only affects the square constraints in the actual geometry)
 
     # Create cylindrical mesh
     # r_grid: from center (0) to cavity radius
