@@ -159,7 +159,7 @@ def get_mesh_volume(mesh):
         Volume of a single mesh element in cm³
     """
     if isinstance(mesh, openmc.CylindricalMesh):
-        # Cylindrical volume = π * r² * height
+        # Cylindrical volume = pi * r² * height
         # For single radial and azimuthal cell covering full cylinder
         r_outer = mesh.r_grid[-1]  # Outer radius
         r_inner = mesh.r_grid[0]   # Inner radius (should be 0)
@@ -168,7 +168,7 @@ def get_mesh_volume(mesh):
         # Total cylindrical volume
         total_volume = np.pi * (r_outer**2 - r_inner**2) * height
 
-        # Number of mesh cells (r × φ × z)
+        # Number of mesh cells (r × phi × z)
         n_r = len(mesh.r_grid) - 1
         n_phi = len(mesh.phi_grid) - 1
         n_z = len(mesh.z_grid) - 1
