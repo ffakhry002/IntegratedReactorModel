@@ -265,18 +265,26 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
         al6061_enhanced.temperature = np.mean(TH_data['T_clad_middle_z'])
         material_list.append(al6061_enhanced)
 
-    # Helium gap
+    # Helium gap (for regular fuel assemblies)
     if (mat_list is None) or ('Helium' in mat_list):
         helium = openmc.Material(name='Helium')
         helium.add_element('He', 1.0)
-        helium.set_density('g/cm3', 0.0001785)  # Density at STP
 
-        # Set temperature based on assembly type
-        if inputs_dict['assembly_type'] == 'Pin':
-            helium.temperature = np.mean(TH_data['T_gap_z'])
-        else:  # Plate fuel doesn't have a gap
-            helium.temperature = default_T
+        # # Set temperature based on assembly type
+        # if inputs_dict['assembly_type'] == 'Pin':
+        #     helium_temp = np.mean(TH_data['T_gap_z'])
+        # else:  # Plate fuel doesn't have a gap
+        #     helium_temp = default_T
+        helium_temp = default_T
+        # Calculate density using ideal gas law for fuel assembly gap
+        # ρ = PM/RT where P=pressure (Pa), M=molar mass (kg/mol), R=gas constant (J/mol·K), T=temperature (K)
+        helium_pressure = 101325  # 1 atm in Pa
+        helium_molar_mass = 4.0026e-3  # kg/mol
+        gas_constant = 8.314  # J/(mol·K)
+        helium_density = (helium_pressure * helium_molar_mass) / (gas_constant * helium_temp)
 
+        helium.set_density('g/cm3', helium_density / 1000)  # Convert kg/m³ to g/cm³
+        helium.temperature = helium_temp
         material_list.append(helium)
 
     #############################################
@@ -285,25 +293,6 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
 
     # Water materials based on coolant type
     coolant_type = inputs_dict.get('coolant_type', 'Light Water')
-
-    # Calculate total plate thickness for plate fuel
-    if inputs_dict['assembly_type'] == 'Plate':
-        # Total plate thickness is fuel meat plus cladding on both sides
-        fuel_plate_thickness = inputs_dict['fuel_meat_thickness'] + 2*inputs_dict['clad_thickness']
-
-        # Calculate total channel volume for plate assembly
-        channel_thickness = inputs_dict['fuel_plate_pitch'] - fuel_plate_thickness
-        channel_width = inputs_dict['fuel_plate_width']
-        channel_height = inputs_dict['fuel_height']
-        n_channels = inputs_dict['plates_per_assembly'] + 1  # One more channel than plates
-
-        total_channel_volume = channel_thickness * channel_width * channel_height * n_channels
-    else:
-        # Pin fuel - calculate pin assembly coolant volume
-        pin_area = np.pi * inputs_dict['r_clad_outer']**2
-        assembly_area = inputs_dict['pin_pitch']**2 * inputs_dict['n_side_pins']**2
-        coolant_area = assembly_area - (inputs_dict['n_side_pins']**2 - inputs_dict['n_guide_tubes']) * pin_area
-        total_channel_volume = coolant_area * inputs_dict['fuel_height']
 
     coolant_config = {
         'Light Water': {
@@ -463,6 +452,15 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
         beryllium_oxide.temperature = default_T
         material_list.append(beryllium_oxide)
 
+    # Graphite (with S(α,β) table)
+    if (mat_list is None) or ('graphite' in mat_list):
+        graphite = openmc.Material(name='graphite')
+        graphite.add_element('C', 1.0)
+        graphite.set_density('g/cm3', 1.75)  # From MCNP materials
+        graphite.add_s_alpha_beta('c_Graphite')
+        graphite.temperature = default_T
+        material_list.append(graphite)
+
     # Irradiation Position Fill (Al6061-Water Mixture)
     if (mat_list is None) or ('Test pos-fill' in mat_list):
         # Create Al6061 component
@@ -527,47 +525,52 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
         pwr_temp = 573.15  # 300°C in Kelvin
         pwr_pressure = 15.5e6  # 15.5 MPa in Pa
 
-        # Get water density at PWR conditions
+        # Get pure water density at PWR conditions using CoolProp
         water_density_pwr = PropsSI('D', 'T', pwr_temp, 'P', pwr_pressure, 'Water')  # kg/m³
 
-        # Create pure water with boron (1400 ppm)
-        water_pwr = openmc.Material(name='water_pwr_base')
-        water_pwr.add_nuclide('H1', 2.0)
-        water_pwr.add_nuclide('O16', 1.0)
-        water_pwr.set_density('g/cm3', water_density_pwr / 1000)
+        # Create borated water with MCNP material 4000 composition
+        borated_water = openmc.Material(name='borated_water_pwr')
+        # Use exact atomic fractions from MCNP material 4000
+        borated_water.add_nuclide('H1', 0.66667, percent_type='ao')
+        borated_water.add_nuclide('O16', 0.33333, percent_type='ao')
+        borated_water.add_nuclide('B10', 0.000280, percent_type='ao')  # Natural B10 abundance in 1400 ppm
+        borated_water.add_nuclide('B11', 0.001120, percent_type='ao')  # Natural B11 abundance in 1400 ppm
+        borated_water.add_nuclide('Li6', 1.67e-07, percent_type='ao')  # Trace lithium
 
-        # Create boron component
-        boron_pwr = openmc.Material(name='boron_pwr')
-        boron_pwr.add_element('B', 1.0)
-        boron_pwr.set_density('g/cm3', 2.34)
+        # Calculate composite density properly
+        # 1400 ppm boron means 0.0014 by weight, 0.9986 water
+        rho_boron = 2.34  # g/cm³ for elemental boron
+        w_water = 0.9986  # mass fraction of water
+        w_boron = 0.0014  # mass fraction of boron
 
-        # Mix water with boron (1400 ppm by weight)
-        borated_water = openmc.Material.mix_materials(
-            [water_pwr, boron_pwr],
-            [0.9986, 0.0014],  # 1400 ppm
-            'wo',
-            name='borated_water_pwr'
-        )
-        borated_water.set_density('g/cm3', water_density_pwr / 1000)
+        # Volume of each component per unit mass of mixture
+        V_water = w_water / (water_density_pwr / 1000)  # cm³ of water per gram of mixture
+        V_boron = w_boron / rho_boron  # cm³ of boron per gram of mixture
+
+        # Composite density = 1 / (total volume per unit mass)
+        rho_composite = 1 / (V_water + V_boron)  # g/cm³
+
+        borated_water.set_density('g/cm3', rho_composite)
+        borated_water.temperature = pwr_temp
 
         # Create titanium component
-        titanium = openmc.Material(name='titanium')
+        titanium = openmc.Material(name='titanium_pwr')
         titanium.add_element('Ti', 1.0)
         titanium.set_density('g/cm3', 4.506)  # Ti density at room temp
 
-        # Create graphite component
-        graphite = openmc.Material(name='graphite')
-        graphite.add_element('C', 1.0)
-        graphite.set_density('g/cm3', 2.267)  # Graphite density at room temp
+        # Create graphite component (without S(a,b) table before mixing)
+        graphite_pwr = openmc.Material(name='graphite_pwr')
+        graphite_pwr.add_element('C', 1.0)
+        graphite_pwr.set_density('g/cm3', 1.75)  # Graphite density from MCNP
 
         # Mix all components by volume: 31% Ti, 4% graphite, 65% water
         pwrloop = openmc.Material.mix_materials(
-            [titanium, graphite, borated_water],
+            [titanium, graphite_pwr, borated_water],
             [0.31, 0.04, 0.65],
             'vo',  # Volume fractions
             name='PWR_loop'
         )
-        pwrloop.add_s_alpha_beta('c_H_in_H2O')
+        # Add S(a,b) tables after mixing
         pwrloop.temperature = pwr_temp
         material_list.append(pwrloop)
 
@@ -579,13 +582,14 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
         bwr_temp = 573.15  # 300°C in Kelvin
         bwr_pressure = 7.2e6  # 7.2 MPa typical BWR pressure
 
-        # Get water density at BWR conditions
+        # Get water density at BWR conditions using CoolProp
         water_density_bwr = PropsSI('D', 'T', bwr_temp, 'P', bwr_pressure, 'Water')  # kg/m³
 
         # Create pure DI water (no boron for BWR)
         water_bwr = openmc.Material(name='water_bwr')
         water_bwr.add_nuclide('H1', 2.0)
         water_bwr.add_nuclide('O16', 1.0)
+        # Use CoolProp density
         water_bwr.set_density('g/cm3', water_density_bwr / 1000)
 
         # Create titanium component
@@ -593,10 +597,10 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
         titanium_bwr.add_element('Ti', 1.0)
         titanium_bwr.set_density('g/cm3', 4.506)  # Ti density at room temp
 
-        # Create graphite component
+        # Create graphite component (without S(a,b) table before mixing)
         graphite_bwr = openmc.Material(name='graphite_bwr')
         graphite_bwr.add_element('C', 1.0)
-        graphite_bwr.set_density('g/cm3', 2.267)  # Graphite density at room temp
+        graphite_bwr.set_density('g/cm3', 1.75)  # Graphite density from MCNP
 
         # Mix all components by volume: 31% Ti, 4% graphite, 65% water
         bwrloop = openmc.Material.mix_materials(
@@ -605,7 +609,7 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
             'vo',  # Volume fractions
             name='BWR_loop'
         )
-        bwrloop.add_s_alpha_beta('c_H_in_H2O')
+        # Add S(a,b) tables after mixing
         bwrloop.temperature = bwr_temp
         material_list.append(bwrloop)
 
@@ -613,29 +617,22 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
     if (mat_list is None) or ('Gas_capsule' in mat_list):
         # Gas capsule conditions
         gas_temp = 873.15  # 600°C in Kelvin
-        gas_pressure = 101325  # 1 atm in Pa (standard pressure)
-
-        # Calculate helium density using ideal gas law
-        # ρ = PM/RT where P=pressure, M=molar mass, R=gas constant, T=temperature
-        helium_molar_mass = 4.0026e-3  # kg/mol
-        gas_constant = 8.314  # J/(mol·K)
-        helium_density = (gas_pressure * helium_molar_mass) / (gas_constant * gas_temp)
-        # This gives ~0.056 kg/m³ = 0.000056 g/cm³
 
         # Create helium component
         helium_gas = openmc.Material(name='helium_gas')
         helium_gas.add_element('He', 1.0)
-        helium_gas.set_density('g/cm3', helium_density / 1000)  # Convert kg/m³ to g/cm³
+        # Use MCNP reference density (at ~1°C), not operating temperature
+        helium_gas.set_density('g/cm3', 1.78e-4)
 
         # Create titanium component
         titanium_gas = openmc.Material(name='titanium_gas')
         titanium_gas.add_element('Ti', 1.0)
         titanium_gas.set_density('g/cm3', 4.506)  # Ti density at room temp
 
-        # Create graphite component
+        # Create graphite component (without S(a,b) table before mixing)
         graphite_gas = openmc.Material(name='graphite_gas')
         graphite_gas.add_element('C', 1.0)
-        graphite_gas.set_density('g/cm3', 2.267)  # Graphite density at room temp
+        graphite_gas.set_density('g/cm3', 1.75)  # Graphite density from MCNP
 
         # Mix all components by volume: 10% Ti, 14% He, 76% graphite
         gas_capsule = openmc.Material.mix_materials(
@@ -644,8 +641,126 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
             'vo',  # Volume fractions
             name='Gas_capsule'
         )
+        # Add S(a,b) table after mixing
         gas_capsule.temperature = gas_temp
         material_list.append(gas_capsule)
+
+    #############################################
+    # HTWL IRRADIATION EXPERIMENT MATERIALS
+    #############################################
+
+    if (mat_list is None) or ('Titanium' in mat_list):
+        # Create titanium component
+        titanium = openmc.Material(name='Titanium')
+        titanium.add_element('Ti', 1.0)
+        titanium.set_density('g/cm3', 4.506)  # Ti density at room temp
+        titanium.temperature = 573.15  # 300°C
+        material_list.append(titanium)
+
+    # Silicon Carbide (SiC) - Material 601 from HTWL
+    if (mat_list is None) or ('SiC' in mat_list):
+        sic = openmc.Material(name='SiC')
+        sic.add_element('Si', 0.5, percent_type='ao')
+        sic.add_element('C', 0.5, percent_type='ao')
+        sic.set_density('g/cm3', 3.21)
+        sic.temperature = 573.15  # 300°C
+        material_list.append(sic)
+
+    # CO2 Gas - Material 81 from HTWL
+    if (mat_list is None) or ('CO2' in mat_list):
+        co2 = openmc.Material(name='CO2')
+        co2.add_nuclide('C12', 1.0)
+        co2.add_nuclide('O16', 2.0)
+
+        # Use MCNP reference density (at ~9°C), not operating temperature
+        # MCNP convention for consistency
+        co2.set_density('g/cm3', 1.9e-3)
+
+        # Set temperature to autoclave operating temperature
+        co2.temperature = 373.15  # 100°C
+        material_list.append(co2)
+
+    # High-pressure Borated Water (Material 4000 from HTWL)
+    # 1400 ppm boron + lithium traces at 300°C
+    if (mat_list is None) or ('HP_Borated_Water' in mat_list):
+        from CoolProp.CoolProp import PropsSI
+
+        # High pressure water conditions
+        hp_water_temp = 573.15  # 300°C in Kelvin
+        hp_water_pressure = 15.5e6  # High pressure (15.5 MPa)
+
+        # Get pure water density at high pressure conditions using CoolProp
+        hp_water_density = PropsSI('D', 'T', hp_water_temp, 'P', hp_water_pressure, 'Water')  # kg/m³
+
+        hp_borated_water = openmc.Material(name='HP_Borated_Water')
+        # From MCNP material 4000: exact atomic fractions
+        hp_borated_water.add_nuclide('H1', 0.66667, percent_type='ao')
+        hp_borated_water.add_nuclide('O16', 0.33333, percent_type='ao')
+        hp_borated_water.add_nuclide('B10', 0.000280, percent_type='ao')
+        hp_borated_water.add_nuclide('B11', 0.001120, percent_type='ao')
+        hp_borated_water.add_nuclide('Li6', 1.67e-07, percent_type='ao')
+
+        # Calculate composite density (water + 1400 ppm boron)
+        rho_boron = 2.34  # g/cm³
+        w_water = 0.9986
+        w_boron = 0.0014
+        V_water = w_water / (hp_water_density / 1000)  # volume per unit mass
+        V_boron = w_boron / rho_boron
+        rho_composite = 1 / (V_water + V_boron)
+
+        hp_borated_water.set_density('g/cm3', rho_composite)
+        hp_borated_water.temperature = hp_water_temp
+        material_list.append(hp_borated_water)
+
+    # BWR Fluid (pure water at BWR operating conditions)
+    if (mat_list is None) or ('BWR_fluid' in mat_list):
+        from CoolProp.CoolProp import PropsSI
+
+        # BWR operating conditions
+        bwr_temp = 573.15  # 300°C in Kelvin
+        bwr_pressure = 7.2e6  # 7.2 MPa (typical BWR pressure)
+
+        # Get water density at BWR conditions using CoolProp
+        water_density_bwr = PropsSI('D', 'T', bwr_temp, 'P', bwr_pressure, 'Water')  # kg/m³
+
+        # Create pure water (no boron for BWR)
+        bwr_fluid = openmc.Material(name='BWR_fluid')
+        bwr_fluid.add_nuclide('H1', 2.0, percent_type='ao')
+        bwr_fluid.add_nuclide('O16', 1.0, percent_type='ao')
+
+        # Set density from CoolProp
+        bwr_fluid.set_density('g/cm3', water_density_bwr / 1000)
+        # bwr_fluid.add_s_alpha_beta('c_H_in_H2O')
+        bwr_fluid.temperature = bwr_temp
+        material_list.append(bwr_fluid)
+
+    #############################################
+    # SIGMA IRRADIATION EXPERIMENT MATERIALS
+    #############################################
+
+    # Tungsten - Material 620 from SIGMA
+    if (mat_list is None) or ('Tungsten' in mat_list):
+        tungsten = openmc.Material(name='Tungsten')
+        tungsten.add_nuclide('W182', 0.265, percent_type='ao')
+        tungsten.add_nuclide('W183', 0.1431, percent_type='ao')
+        tungsten.add_nuclide('W184', 0.3064, percent_type='ao')
+        tungsten.add_nuclide('W186', 0.2843, percent_type='ao')
+        tungsten.set_density('g/cm3', 19.3)
+        tungsten.temperature = 1073.15  # 800°C (sample temperature)
+        material_list.append(tungsten)
+
+    # High-temperature Helium for SIGMA
+    if (mat_list is None) or ('HT_Helium' in mat_list):
+        ht_helium = openmc.Material(name='HT_Helium')
+        ht_helium.add_element('He', 1.0)
+
+        # Use MCNP reference density (at ~1°C), not operating temperature
+        # MCNP convention for consistency
+        ht_helium.set_density('g/cm3', 1.78e-4)
+
+        # Set temperature to operating temperature
+        ht_helium.temperature = 1073.15  # 800°C (sample region)
+        material_list.append(ht_helium)
 
     materials = openmc.Materials(material_list)
     mat_dict = {mat.name: mat for mat in materials}
