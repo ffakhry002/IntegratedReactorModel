@@ -6,6 +6,153 @@ import numpy as np
 import openmc
 from inputs import inputs
 
+def _get_cell_dimensions(inputs_dict):
+    """Get cell width and height from inputs.
+
+    Parameters
+    ----------
+    inputs_dict : dict
+        Inputs dictionary
+
+    Returns
+    -------
+    tuple
+        (cell_width, height) in cm
+    """
+    if inputs_dict['assembly_type'] == 'Pin':
+        cell_width = inputs_dict['pin_pitch'] * inputs_dict['n_side_pins'] * 100  # Convert m to cm
+    else:
+        cell_width = (inputs_dict['fuel_plate_width'] + 2 * inputs_dict['clad_structure_width']) * 100  # Convert m to cm
+
+    height = inputs_dict['fuel_height'] * 100  # Convert m to cm
+    return cell_width, height
+
+def _calculate_sigma_scaling_and_radii(cell_width, inputs_dict):
+    """Calculate SIGMA scaling factor and scaled radii.
+
+    Parameters
+    ----------
+    cell_width : float
+        Cell width in cm
+    inputs_dict : dict
+        Inputs dictionary
+
+    Returns
+    -------
+    tuple
+        (r_sample_inner, r_sample_outer) in cm
+    """
+    diameter_fraction = inputs_dict['Gas_capsule_diameter']
+    target_diameter = cell_width * diameter_fraction
+    mcnp_outer_radius = 2.618  # From build_complex_sigma
+    scale_factor = target_diameter / (2 * mcnp_outer_radius)
+
+        # Scale the radii (from build_complex_sigma)
+    r_sample_inner = 1.3 * scale_factor  # Inner radius of sample annulus
+    r_sample_outer = 1.8 * scale_factor  # Outer radius of sample annulus
+
+    return r_sample_inner, r_sample_outer
+
+def _calculate_annular_volume(r_inner, r_outer, height):
+    """Calculate annular volume.
+
+    Parameters
+    ----------
+    r_inner : float
+        Inner radius in cm
+    r_outer : float
+        Outer radius in cm
+    height : float
+        Height in cm
+
+    Returns
+    -------
+    float
+        Annular volume in cm³
+    """
+    return np.pi * (r_outer**2 - r_inner**2) * height
+
+def _calculate_cylindrical_volume(diameter_key, cell_width, height, inputs_dict):
+    """Calculate cylindrical volume for loop-type irradiation.
+
+    Parameters
+    ----------
+    diameter_key : str
+        Key for diameter in inputs (e.g., 'PWR_loop_diameter')
+    cell_width : float
+        Cell width in cm
+    height : float
+        Height in cm
+    inputs_dict : dict
+        Inputs dictionary
+
+    Returns
+    -------
+    float
+        Cylindrical volume in cm³
+    """
+    circle_radius = inputs_dict[diameter_key]/2 * cell_width
+    return np.pi * circle_radius**2 * height
+
+def _calculate_square_volume_with_cladding(cell_width, height, inputs_dict):
+    """Calculate square volume with optional cladding adjustment.
+
+    Parameters
+    ----------
+    cell_width : float
+        Cell width in cm
+    height : float
+        Height in cm
+    inputs_dict : dict
+        Inputs dictionary
+
+    Returns
+    -------
+    float
+        Square volume in cm³
+    """
+    width = cell_width
+    if inputs_dict.get('irradiation_clad', False):
+        clad_thickness = inputs_dict['irradiation_clad_thickness'] * 100  # Convert m to cm
+        width = width - (2 * clad_thickness)  # Subtract cladding from both sides
+    return width * width * height
+
+def _calculate_htwl_scaling_and_radii(cell_width, inputs_dict, use_bwr_water=False):
+    """Calculate HTWL scaling factor and scaled radii for sample regions.
+
+    Parameters
+    ----------
+    cell_width : float
+        Cell width in cm
+    inputs_dict : dict
+        Inputs dictionary
+    use_bwr_water : bool
+        Whether this is BWR (True) or PWR (False)
+
+    Returns
+    -------
+    tuple
+        (r_sample_inner, r_sample_outer, sample_height) in cm
+    """
+    # Use BWR or PWR diameter depending on water type
+    if use_bwr_water:
+        diameter_fraction = inputs_dict['BWR_loop_diameter']
+    else:
+        diameter_fraction = inputs_dict['PWR_loop_diameter']
+
+    target_diameter = cell_width * diameter_fraction
+    mcnp_outer_radius = 2.585  # From build_complex_htwl
+    scale_factor = target_diameter / (2 * mcnp_outer_radius)
+
+        # Scale the radii (from build_complex_htwl)
+    r_sample_inner = 0.3175 * scale_factor  # Inner radius of sample annulus
+    r_sample_outer = 0.45 * scale_factor    # Outer radius of sample annulus
+
+    # HTWL sample height (from geometry: z_capsule_bottom_top to z_capsule_top_bot)
+    sample_height = 23.0  # cm (from -23.5 to -0.5)
+
+    return r_sample_inner, r_sample_outer, sample_height
+
 def get_cell_volume(cell_id, sp, is_irradiation=False, inputs_dict=None):
     """Get the volume of a cell using ONLY deterministic calculations.
 
@@ -36,13 +183,28 @@ def get_cell_volume(cell_id, sp, is_irradiation=False, inputs_dict=None):
     # ALWAYS calculate deterministically - NEVER use OpenMC's cell.volume
     # This ensures perfect precision and eliminates any Monte Carlo noise
 
-    # Calculate dimensions deterministically
-    if inputs_dict['assembly_type'] == 'Pin':
-        cell_width = inputs_dict['pin_pitch'] * inputs_dict['n_side_pins'] * 100  # Convert m to cm
-    else:
-        cell_width = (inputs_dict['fuel_plate_width'] + 2 * inputs_dict['clad_structure_width']) * 100  # Convert m to cm
+    cell_width, height = _get_cell_dimensions(inputs_dict)
 
-    height = inputs_dict['fuel_height'] * 100  # Convert m to cm
+    # Check for Complex SIGMA sample cells first (higher priority)
+    if cell_id >= 6100000 and cell_id < 6200000:  # SIGMA base range
+        # Check if this is a sample cell (component code 15)
+        component_code = cell_id % 100
+        if component_code == 15:  # sample component (tungsten in geometry but could be any material)
+            # Calculate annular SIGMA sample volume using same scaling as geometry
+            r_sample_inner, r_sample_outer = _calculate_sigma_scaling_and_radii(cell_width, inputs_dict)
+            return _calculate_annular_volume(r_sample_inner, r_sample_outer, height)
+
+        # HTWL sample cells (component codes 3, 6, 9, 12 for the four sample outer rings)
+        elif component_code in [3, 6, 9, 12]:
+            # Determine if this is PWR or BWR
+            use_bwr_water = 6200000 <= cell_id < 6300000  # BWR range
+
+            # Calculate single HTWL sample ring volume with correct height
+            r_sample_inner, r_sample_outer, sample_height = _calculate_htwl_scaling_and_radii(cell_width, inputs_dict, use_bwr_water)
+            single_sample_volume = _calculate_annular_volume(r_sample_inner, r_sample_outer, sample_height)
+
+            # Note: This returns volume of ONE sample ring.
+            return single_sample_volume
 
     # For irradiation positions, calculate volume based on EXACT geometry
     if is_irradiation:
@@ -61,33 +223,22 @@ def get_cell_volume(cell_id, sp, is_irradiation=False, inputs_dict=None):
 
                     # Determine irradiation type and calculate EXACT deterministic volume
                     if lattice_position.endswith('P'):  # PWR_loop
-                        circle_radius = inputs_dict['PWR_loop_diameter']/2 * cell_width
-                        volume = np.pi * circle_radius**2 * height
+                        return _calculate_cylindrical_volume('PWR_loop_diameter', cell_width, height, inputs_dict)
                     elif lattice_position.endswith('B'):  # BWR_loop
-                        circle_radius = inputs_dict['BWR_loop_diameter']/2 * cell_width
-                        volume = np.pi * circle_radius**2 * height
+                        return _calculate_cylindrical_volume('BWR_loop_diameter', cell_width, height, inputs_dict)
                     elif lattice_position.endswith('G'):  # Gas_capsule
-                        circle_radius = inputs_dict['Gas_capsule_diameter']/2 * cell_width
-                        volume = np.pi * circle_radius**2 * height
+                        # Simple mode - full capsule volume
+                        # Note: Complex mode should never reach here because it uses specific sample cells
+                        return _calculate_cylindrical_volume('Gas_capsule_diameter', cell_width, height, inputs_dict)
                     else:
                         # Standard square geometry
-                        width = cell_width
-                        if inputs_dict.get('irradiation_clad', False):
-                            clad_thickness = inputs_dict['irradiation_clad_thickness'] * 100  # Convert m to cm
-                            width = width - (2 * clad_thickness)  # Subtract cladding from both sides
-                        volume = width * width * height
-
-                    return volume
+                        return _calculate_square_volume_with_cladding(cell_width, height, inputs_dict)
 
             except (IndexError, KeyError):
                 pass  # Fall back to old calculation if something goes wrong
 
         # Fallback to old square calculation if we can't determine geometry
-        width = cell_width
-        if inputs_dict.get('irradiation_clad', False):
-            clad_thickness = inputs_dict['irradiation_clad_thickness'] * 100  # Convert m to cm
-            width = width - (2 * clad_thickness)  # Subtract cladding from both sides
-        return width * width * height
+        return _calculate_square_volume_with_cladding(cell_width, height, inputs_dict)
     else:
         # Non-irradiation cells use square geometry
         return cell_width * cell_width * height
@@ -101,7 +252,7 @@ def calculate_deterministic_irradiation_volume(tally_name, inputs_dict=None):
     Parameters
     ----------
     tally_name : str
-        Name of the irradiation tally (e.g., 'I_1B', 'I_2', 'I_3P_axial')
+        Name of the irradiation tally (e.g., 'I_1B', 'I_2', 'I_3P_axial', 'I_4G')
     inputs_dict : dict, optional
         Custom inputs dictionary. If None, uses the global inputs.
 
@@ -117,33 +268,39 @@ def calculate_deterministic_irradiation_volume(tally_name, inputs_dict=None):
     # Extract base position name (remove _axial suffix if present)
     base_name = tally_name.replace('_axial', '')
 
-    # Calculate cell dimensions deterministically
-    if inputs_dict['assembly_type'] == 'Pin':
-        cell_width = inputs_dict['pin_pitch'] * inputs_dict['n_side_pins'] * 100  # Convert m to cm
-    else:
-        cell_width = (inputs_dict['fuel_plate_width'] + 2 * inputs_dict['clad_structure_width']) * 100  # Convert m to cm
-
-    height = inputs_dict['fuel_height'] * 100  # Convert m to cm
+    cell_width, height = _get_cell_dimensions(inputs_dict)
 
     # Determine geometry type from position name
     if base_name.endswith('P'):  # PWR_loop
-        circle_radius = inputs_dict['PWR_loop_diameter']/2 * cell_width
-        total_volume = np.pi * circle_radius**2 * height
+        # Check if this is Complex mode - if so, calculate HTWL sample volume
+        if inputs_dict.get('irradiation_cell_complexity', 'Simple') == 'Complex':
+            # Calculate single HTWL sample volume (12 o'clock position only)
+            r_sample_inner, r_sample_outer, sample_height = _calculate_htwl_scaling_and_radii(cell_width, inputs_dict, use_bwr_water=False)
+            single_sample_volume = _calculate_annular_volume(r_sample_inner, r_sample_outer, sample_height)
+            return single_sample_volume  # Just one sample ring, not 4×
+        else:
+            return _calculate_cylindrical_volume('PWR_loop_diameter', cell_width, height, inputs_dict)
     elif base_name.endswith('B'):  # BWR_loop
-        circle_radius = inputs_dict['BWR_loop_diameter']/2 * cell_width
-        total_volume = np.pi * circle_radius**2 * height
+        # Check if this is Complex mode - if so, calculate HTWL sample volume
+        if inputs_dict.get('irradiation_cell_complexity', 'Simple') == 'Complex':
+            # Calculate single HTWL sample volume (12 o'clock position only)
+            r_sample_inner, r_sample_outer, sample_height = _calculate_htwl_scaling_and_radii(cell_width, inputs_dict, use_bwr_water=True)
+            single_sample_volume = _calculate_annular_volume(r_sample_inner, r_sample_outer, sample_height)
+            return single_sample_volume  # Just one sample ring, not 4×
+        else:
+            return _calculate_cylindrical_volume('BWR_loop_diameter', cell_width, height, inputs_dict)
     elif base_name.endswith('G'):  # Gas_capsule
-        circle_radius = inputs_dict['Gas_capsule_diameter']/2 * cell_width
-        total_volume = np.pi * circle_radius**2 * height
+        # Check if this is Complex mode - if so, calculate sample annular volume
+        if inputs_dict.get('irradiation_cell_complexity', 'Simple') == 'Complex':
+            # Calculate annular sample volume using same scaling as geometry
+            r_sample_inner, r_sample_outer = _calculate_sigma_scaling_and_radii(cell_width, inputs_dict)
+            return _calculate_annular_volume(r_sample_inner, r_sample_outer, height)
+        else:
+            # Simple mode - full capsule volume
+            return _calculate_cylindrical_volume('Gas_capsule_diameter', cell_width, height, inputs_dict)
     else:
         # Standard square geometry
-        width = cell_width
-        if inputs_dict.get('irradiation_clad', False):
-            clad_thickness = inputs_dict['irradiation_clad_thickness'] * 100  # Convert m to cm
-            width = width - (2 * clad_thickness)  # Subtract cladding from both sides
-        total_volume = width * width * height
-
-    return total_volume
+        return _calculate_square_volume_with_cladding(cell_width, height, inputs_dict)
 
 def get_mesh_volume(mesh):
     """Calculate the volume of a mesh element.
@@ -162,7 +319,7 @@ def get_mesh_volume(mesh):
         # Cylindrical volume = pi * r² * height
         # For single radial and azimuthal cell covering full cylinder
         r_outer = mesh.r_grid[-1]  # Outer radius
-        r_inner = mesh.r_grid[0]   # Inner radius (should be 0)
+        r_inner = mesh.r_grid[0]   # Inner radius
         height = mesh.z_grid[-1] - mesh.z_grid[0]
 
         # Total cylindrical volume

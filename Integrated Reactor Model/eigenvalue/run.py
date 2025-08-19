@@ -41,7 +41,7 @@ def make_and_run_openmc_model(model, statepoint_name, folder='Output/'):
     workspace_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     os.environ['OPENMC_CROSS_SECTIONS'] = os.path.join(workspace_root, 'cross_sections', 'cross_sections.xml')
     model.export_to_xml(folder)
-    openmc.run(cwd=folder,geometry_debug=False)
+    openmc.run(cwd=folder,geometry_debug=True)
 
     # Rename statepoint file
     old_sp = os.path.join(folder, f'statepoint.{model.settings.batches}.h5')

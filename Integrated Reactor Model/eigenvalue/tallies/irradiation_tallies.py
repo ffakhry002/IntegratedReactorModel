@@ -10,7 +10,7 @@ import openmc
 import numpy as np
 from inputs import inputs
 from Reactor.geometry_helpers.utils import generate_cell_id
-from Reactor.geometry_helpers.irradiation_cell import parse_irradiation_type
+from Reactor.geometry_helpers.irradiation_cell import parse_irradiation_type, generate_complex_cell_id
 from eigenvalue.tallies.energy_groups import get_energy_bins
 
 def create_irradiation_tallies(inputs_dict=None):
@@ -42,10 +42,30 @@ def create_irradiation_tallies(inputs_dict=None):
     for i, row in enumerate(core_layout):
         for j, pos in enumerate(row):
             if pos.startswith('I_'):  # This is an irradiation position
-                # Create cell filter for this position
-                cell_id = generate_cell_id('irradiation', (i, j))
-                cell_filter = openmc.CellFilter([cell_id])
-                # Cell filter created for each irradiation position
+                # Parse irradiation type to determine if we need complex targeting
+                irradiation_type = parse_irradiation_type(pos, inputs_dict)
+
+                # Determine which cell to target based on complexity and type
+                if inputs_dict.get('irradiation_cell_complexity', 'Simple') == 'Complex':
+                    if irradiation_type == 'Gas_capsule':
+                        # For Complex Gas_capsule (SIGMA), target the single sample annular region
+                        cell_id = generate_complex_cell_id((i, j), 'sample', irradiation_type='SIGMA')
+                        cell_filter = openmc.CellFilter([cell_id])
+                        print(f"Created Complex Gas_capsule tally {pos} targeting SIGMA sample cell ID: {cell_id}")
+                    elif irradiation_type in ['PWR_loop', 'BWR_loop']:
+                        # For Complex HTWL, target only the 12 o'clock sample (sample_1)
+                        irrad_type = 'PWR_loop' if irradiation_type == 'PWR_loop' else 'BWR_loop'
+                        sample_cell_id = generate_complex_cell_id((i, j), 'sample_1_sample', irradiation_type=irrad_type)
+                        cell_filter = openmc.CellFilter([sample_cell_id])
+                        print(f"Created Complex {irradiation_type} tally {pos} targeting HTWL 12 o'clock sample cell ID: {sample_cell_id}")
+                    else:
+                        # For other complex types, fall back to standard
+                        cell_id = generate_cell_id('irradiation', (i, j))
+                        cell_filter = openmc.CellFilter([cell_id])
+                else:
+                    # For all Simple cases, use standard irradiation cell
+                    cell_id = generate_cell_id('irradiation', (i, j))
+                    cell_filter = openmc.CellFilter([cell_id])
 
                 # Create tally for this position
                 tally = openmc.Tally(name=pos)
@@ -61,6 +81,7 @@ def create_irradiation_axial_tallies(inputs_dict=None):
     This creates mesh tallies for each irradiation position:
     - Cylindrical meshes for PWR/BWR/Gas positions (P, B, G suffixes)
     - Regular (square) meshes for other positions (no suffix)
+    - For Complex Gas_capsule: annular cylindrical mesh for tungsten region
 
     All meshes divide the position into axial segments and use single energy group.
 
@@ -94,7 +115,7 @@ def create_irradiation_axial_tallies(inputs_dict=None):
     energy_filter = openmc.EnergyFilter([0.0, 20.0e6])  # Single group for total flux
     print(f"Created axial energy filter - ID: {energy_filter.id}, reused for all irradiation positions")
 
-    # Create tallies for each irradiation position
+
     core_layout = inputs_dict['core_lattice']
     for i, row in enumerate(core_layout):
         for j, pos in enumerate(row):
@@ -106,13 +127,28 @@ def create_irradiation_axial_tallies(inputs_dict=None):
                 x_pos = (j - len(row)/2 + 0.5) * cell_width
                 y_pos = (i - len(core_layout)/2 + 0.5) * cell_width
 
-                # Create mesh based on irradiation type
+                # Create mesh based on irradiation type and complexity
                 if irradiation_type in ['PWR_loop', 'BWR_loop', 'Gas_capsule']:
-                    # Create cylindrical mesh for loop-type positions
-                    mesh = _create_cylindrical_irradiation_mesh(
-                        pos, irradiation_type, x_pos, y_pos,
-                        cell_width, half_height, n_axial_segments, inputs_dict
-                    )
+                    # Check if this is Complex Gas_capsule (needs special annular mesh)
+                    if (inputs_dict.get('irradiation_cell_complexity', 'Simple') == 'Complex' and
+                        irradiation_type == 'Gas_capsule'):
+                        # Create annular cylindrical mesh for sample region
+                        mesh = _create_sigma_sample_mesh(
+                            pos, x_pos, y_pos, cell_width, half_height, n_axial_segments, inputs_dict
+                        )
+                    elif (inputs_dict.get('irradiation_cell_complexity', 'Simple') == 'Complex' and
+                          irradiation_type in ['PWR_loop', 'BWR_loop']):
+                        # Create annular cylindrical mesh for HTWL 12 o'clock sample
+                        mesh = _create_htwl_sample_mesh(
+                            pos, irradiation_type, x_pos, y_pos, cell_width,
+                            half_height, n_axial_segments, inputs_dict
+                        )
+                    else:
+                        # Create regular cylindrical mesh for loop-type positions
+                        mesh = _create_cylindrical_irradiation_mesh(
+                            pos, irradiation_type, x_pos, y_pos,
+                            cell_width, half_height, n_axial_segments, inputs_dict
+                        )
                 else:
                     # Create regular (square) mesh for other positions
                     mesh = _create_regular_irradiation_mesh(
@@ -130,6 +166,153 @@ def create_irradiation_axial_tallies(inputs_dict=None):
                 tallies.append(tally)
 
     return tallies
+
+def _create_sigma_sample_mesh(pos, x_pos, y_pos, cell_width, half_height, n_axial_segments, inputs_dict):
+    """Create annular cylindrical mesh for SIGMA sample region.
+
+    This creates a mesh that covers only the sample annular region (3rd annular circle)
+    between the inner graphite and outer graphite regions.
+
+    Parameters
+    ----------
+    pos : str
+        Position name (e.g., 'I_4G')
+    x_pos, y_pos : float
+        Center position in cm
+    cell_width : float
+        Assembly cell width in cm
+    half_height : float
+        Half height of fuel region in cm
+    n_axial_segments : int
+        Number of axial segments
+    inputs_dict : dict
+        Inputs dictionary
+
+    Returns
+    -------
+    openmc.CylindricalMesh
+        Annular cylindrical mesh for the tungsten region
+    """
+    # Use same scaling as SIGMA geometry in build_complex_sigma
+    diameter_fraction = inputs_dict['Gas_capsule_diameter']
+    target_diameter = cell_width * diameter_fraction
+    mcnp_outer_radius = 2.618  # From build_complex_sigma
+    scale_factor = target_diameter / (2 * mcnp_outer_radius)
+
+    # Scale the radii to match geometry (from build_complex_sigma)
+    r_sample_inner = 1.3 * scale_factor  # Inner radius of sample annulus
+    r_sample_outer = 1.8 * scale_factor  # Outer radius of sample annulus
+
+    # Create annular cylindrical mesh
+    # r_grid: from inner to outer sample radius
+    r_grid = [r_sample_inner, r_sample_outer]
+
+    # z_grid: axial segments from -half_height to +half_height
+    z_grid = [-half_height + i * (2*half_height)/n_axial_segments for i in range(n_axial_segments + 1)]
+
+    # phi_grid: single azimuthal bin (full 360°)
+    phi_grid = [0.0, 2*np.pi]  # 0 to 2π
+
+    # Create mesh with origin at the assembly center
+    mesh = openmc.CylindricalMesh(
+        r_grid=r_grid,
+        z_grid=z_grid,
+        phi_grid=phi_grid,
+        origin=[x_pos, y_pos, 0.0]  # Center at assembly position
+    )
+
+    print(f"Created SIGMA sample annular mesh for {pos}: "
+          f"r_inner={r_sample_inner:.2f}cm, r_outer={r_sample_outer:.2f}cm, "
+          f"origin=({x_pos:.1f}, {y_pos:.1f}, 0.0)")
+
+    return mesh
+
+def _create_htwl_sample_mesh(pos, irradiation_type, x_pos, y_pos, cell_width,
+                             half_height, n_axial_segments, inputs_dict):
+    """Create annular cylindrical mesh for HTWL 12 o'clock sample region.
+
+    This creates a mesh that covers only the sample annular region of the 12 o'clock
+    position, with proper vertical dimensions and adjusted axial resolution.
+
+    Parameters
+    ----------
+    pos : str
+        Position name (e.g., 'I_1P', 'I_2B')
+    irradiation_type : str
+        Type of irradiation ('PWR_loop' or 'BWR_loop')
+    x_pos, y_pos : float
+        Center position of the assembly in cm
+    cell_width : float
+        Assembly cell width in cm
+    half_height : float
+        Half height of fuel region in cm (not used for HTWL)
+    n_axial_segments : int
+        Number of axial segments for standard fuel height
+    inputs_dict : dict
+        Inputs dictionary
+
+    Returns
+    -------
+    openmc.CylindricalMesh
+        Annular cylindrical mesh for the HTWL sample region
+    """
+    # Use same scaling as HTWL geometry
+    if irradiation_type == 'BWR_loop':
+        diameter_fraction = inputs_dict['BWR_loop_diameter']
+    else:  # PWR_loop
+        diameter_fraction = inputs_dict['PWR_loop_diameter']
+
+    target_diameter = cell_width * diameter_fraction
+    mcnp_outer_radius = 2.585  # From build_complex_htwl
+    scale_factor = target_diameter / (2 * mcnp_outer_radius)
+
+    # Scale the radii for sample annular region
+    r_sample_inner = 0.3175 * scale_factor  # Inner radius of sample annulus
+    r_sample_outer = 0.45 * scale_factor    # Outer radius of sample annulus
+    r_sample_center = 1.03 * scale_factor   # Distance from center to sample center
+
+    # HTWL sample vertical dimensions (from geometry)
+    z_sample_bottom = -23.5  # cm (z_capsule_bottom_top)
+    z_sample_top = -0.5      # cm (z_capsule_top_bot)
+    sample_height = z_sample_top - z_sample_bottom  # 23 cm
+
+    # Calculate adjusted number of axial segments to maintain resolution
+    # If fuel height has n_axial_segments, and HTWL sample is shorter,
+    # we want proportionally fewer segments to maintain same resolution
+    fuel_height = inputs_dict['fuel_height'] * 100  # Convert to cm
+    axial_resolution = fuel_height / n_axial_segments  # cm per segment
+    n_sample_segments = int(sample_height / axial_resolution)
+
+    print(f"HTWL sample mesh: fuel_height={fuel_height}cm with {n_axial_segments} segments "
+          f"→ sample_height={sample_height}cm with {n_sample_segments} segments "
+          f"(resolution={axial_resolution:.2f}cm/segment)")
+
+    # Create annular cylindrical mesh
+    # r_grid: annular region from inner to outer sample radius
+    r_grid = [r_sample_inner, r_sample_outer]
+
+    # z_grid: axial segments from sample bottom to top
+    z_grid = [z_sample_bottom + i * sample_height/n_sample_segments
+              for i in range(n_sample_segments + 1)]
+
+    # phi_grid: single azimuthal bin (full 360°)
+    phi_grid = [0.0, 2*np.pi]  # 0 to 2π
+
+    # Create mesh with origin offset to the 12 o'clock sample position
+    # 12 o'clock sample is at (0, r_sample_center) relative to assembly center
+    mesh = openmc.CylindricalMesh(
+        r_grid=r_grid,
+        z_grid=z_grid,
+        phi_grid=phi_grid,
+        origin=[x_pos, y_pos + r_sample_center, 0.0]  # Offset to 12 o'clock position
+    )
+
+    print(f"Created HTWL sample annular mesh for {pos} ({irradiation_type}): "
+          f"r_inner={r_sample_inner:.3f}cm, r_outer={r_sample_outer:.3f}cm, "
+          f"z_range=[{z_sample_bottom}, {z_sample_top}]cm, "
+          f"origin=({x_pos:.1f}, {y_pos + r_sample_center:.1f}, 0.0)")
+
+    return mesh
 
 def _create_cylindrical_irradiation_mesh(pos, irradiation_type, x_pos, y_pos,
                                         cell_width, half_height, n_axial_segments, inputs_dict):
