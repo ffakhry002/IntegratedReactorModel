@@ -3,7 +3,7 @@ base_inputs = {
     ###########################################
     # Parametric Study Configuration
     ###########################################
-    "parametric_study": True,        # Toggle for parametric study mode
+    "parametric_study": False,        # Toggle for parametric study mode
 
     ###########################################
     # Core Configuration
@@ -98,9 +98,14 @@ base_inputs = {
     # Complexity
     "irradiation_cell_complexity": "Complex", # Simple: smeared channels, Complex: MCNP provided positions
 
+    # Complex fills
+    "PWR_sample_fill": "Vacuum", # PWR loop sample fill
+    "BWR_sample_fill": "Vacuum", # BWR loop sample fill
+    "Gas_capsule_fill": "Vacuum", # Gas capsule sample fill
+
     # Loop Diameters
-    "PWR_loop_diameter": 0.7, # PWR loop diameter [% cell width]
-    "BWR_loop_diameter": 0.8, # BWR loop diameter [% cell width]
+    "PWR_loop_diameter": 0.9, # PWR loop diameter [% cell width]
+    "BWR_loop_diameter": 0.9, # BWR loop diameter [% cell width]
     "Gas_capsule_diameter": 0.9, # Gas capsule diameter [% cell width]
 
     ###########################################
@@ -142,8 +147,8 @@ base_inputs = {
     "depletion_timesteps": [{'steps': 10, 'size': 0.01},{'steps': 10, 'size': 0.1}, {'steps': 10, 'size': 0.5}, {'steps': 5, 'size': 2.5}, {'steps': 5, 'size': 5.0}, {'steps': 5, 'size': 10.0}],
 
     # Transport Settings for Depletion
-    "depletion_particles": int(20000),       # Particles per batch for depletion
-    "depletion_batches": int(130),         # Active batches for depletion
+    "depletion_particles": int(1000),       # Particles per batch for depletion
+    "depletion_batches": int(100),         # Active batches for depletion
     "depletion_inactive": int(20),         # Inactive batches for depletion
 
     # Depletion Options

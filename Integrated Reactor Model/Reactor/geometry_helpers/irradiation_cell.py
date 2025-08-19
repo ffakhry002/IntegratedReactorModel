@@ -74,12 +74,12 @@ def generate_complex_cell_id(position, component_type, component_index=0, irradi
         'spine_below': 50,
         'spine_above': 51,
         # HTWL samples (1-4 at clock positions)
-        'sample_1_ti': 1, 'sample_1_graphite': 2, 'sample_1_sic': 3,
-        'sample_2_ti': 4, 'sample_2_graphite': 5, 'sample_2_sic': 6,
-        'sample_3_ti': 7, 'sample_3_graphite': 8, 'sample_3_sic': 9,
-        'sample_4_ti': 10, 'sample_4_graphite': 11, 'sample_4_sic': 12,
+        'sample_1_ti': 1, 'sample_1_graphite': 2, 'sample_1_sample': 3,
+        'sample_2_ti': 4, 'sample_2_graphite': 5, 'sample_2_sample': 6,
+        'sample_3_ti': 7, 'sample_3_graphite': 8, 'sample_3_sample': 9,
+        'sample_4_ti': 10, 'sample_4_graphite': 11, 'sample_4_sample': 12,
         # SIGMA layers
-        'inner_he': 13, 'inner_graphite': 14, 'tungsten': 15,
+        'inner_he': 13, 'inner_graphite': 14, 'sample': 15,
         'outer_graphite': 16, 'outer_he': 17,
         # Structural
         'capsule_wall': 18,
@@ -145,8 +145,8 @@ def build_complex_htwl(mat_dict, position, inputs_dict, use_bwr_water=False, irr
     # Scale all MCNP radii
     r_spine = 0.24 * scale_factor
     r_sample_ti = 0.1 * scale_factor
-    r_sample_graphite = 0.3175 * scale_factor
-    r_sample_sic = 0.45 * scale_factor
+    r_sample_inner = 0.3175 * scale_factor
+    r_sample_outer = 0.45 * scale_factor
     r_sample_center = 1.03 * scale_factor  # Distance from center to sample centers
     r_capsule_inner = 1.698 * scale_factor
     r_capsule_outer = 1.778 * scale_factor
@@ -202,8 +202,8 @@ def build_complex_htwl(mat_dict, position, inputs_dict, use_bwr_water=False, irr
     for x, y in sample_positions:
         sample_cylinders.append({
             'ti': openmc.ZCylinder(x0=x, y0=y, r=r_sample_ti),
-            'graphite': openmc.ZCylinder(x0=x, y0=y, r=r_sample_graphite),
-            'sic': openmc.ZCylinder(x0=x, y0=y, r=r_sample_sic),
+            'graphite': openmc.ZCylinder(x0=x, y0=y, r=r_sample_inner),
+            'sample': openmc.ZCylinder(x0=x, y0=y, r=r_sample_outer),
         })
 
     # Z-planes
@@ -242,8 +242,8 @@ def build_complex_htwl(mat_dict, position, inputs_dict, use_bwr_water=False, irr
     spine_cell.fill = mat_dict['Titanium']
     cells.append(spine_cell)
 
-    # Spine above samples (z: -0.5 to z_top) - VARIABLE HEIGHT
-    spine_above_region = -cyl_spine & +z_cap_top_bot & -z_top
+    # Spine above samples (z: 0.0 to z_top) - starts after capsule top plate
+    spine_above_region = -cyl_spine & +z_cap_top_top & -z_top
     spine_above_cell = openmc.Cell(name='spine_above')
     spine_above_cell.id = generate_complex_cell_id(position, 'spine_above', irradiation_type=irradiation_type)
     spine_above_cell.region = spine_above_region
@@ -272,19 +272,23 @@ def build_complex_htwl(mat_dict, position, inputs_dict, use_bwr_water=False, irr
         graphite_cell.fill = mat_dict['graphite']
         cells.append(graphite_cell)
 
-        # SiC cladding
-        sic_region = +cyls['graphite'] & -cyls['sic'] & +z_cap_bot_top & -z_cap_top_bot
-        sic_cell = openmc.Cell(name=f'sample_{i}_sic')
-        sic_cell.id = generate_complex_cell_id(position, f'sample_{i}_sic', irradiation_type=irradiation_type)
-        sic_cell.region = sic_region
-        sic_cell.fill = mat_dict['SiC']
-        cells.append(sic_cell)
+        # Sample region (outer annular region of HTWL samples)
+        sample_region = +cyls['graphite'] & -cyls['sample'] & +z_cap_bot_top & -z_cap_top_bot
+        sample_cell = openmc.Cell(name=f'sample_{i}_sample')
+        sample_cell.id = generate_complex_cell_id(position, f'sample_{i}_sample', irradiation_type=irradiation_type)
+        sample_cell.region = sample_region
+        # Use PWR or BWR sample fill material from inputs
+        if use_bwr_water:
+            sample_cell.fill = mat_dict[inputs_dict['BWR_sample_fill']]
+        else:
+            sample_cell.fill = mat_dict[inputs_dict['PWR_sample_fill']]
+        cells.append(sample_cell)
 
     # Water inside capsule (around samples and spine)
     # This is the complex region: inside capsule, outside spine, outside all 4 samples
     water_capsule_region = -cyl_capsule_inner & +cyl_spine & +z_cap_bot_top & -z_cap_top_bot
     for cyls in sample_cylinders:
-        water_capsule_region = water_capsule_region & +cyls['sic']
+        water_capsule_region = water_capsule_region & +cyls['sample']
 
     water_capsule_cell = openmc.Cell(name='water_capsule')
     water_capsule_cell.id = generate_complex_cell_id(position, 'water_capsule', irradiation_type=irradiation_type)
@@ -293,15 +297,15 @@ def build_complex_htwl(mat_dict, position, inputs_dict, use_bwr_water=False, irr
     cells.append(water_capsule_cell)
 
     # ========== CAPSULE PLATES ==========
-    # Capsule bottom plate
-    cap_bot_region = -cyl_capsule_outer & +z_cap_bot_bot & -z_cap_bot_top
+    # Capsule bottom plate (exclude spine area to avoid overlap)
+    cap_bot_region = -cyl_capsule_outer & +cyl_spine & +z_cap_bot_bot & -z_cap_bot_top
     cap_bot_cell = openmc.Cell(name='capsule_bottom_plate')
     cap_bot_cell.id = generate_complex_cell_id(position, 'capsule_bottom_plate', irradiation_type=irradiation_type)
     cap_bot_cell.region = cap_bot_region
     cap_bot_cell.fill = mat_dict['Titanium']
     cells.append(cap_bot_cell)
 
-    # Capsule top plate
+    # Capsule top plate (spine does not extend through top plate)
     cap_top_region = -cyl_capsule_outer & +z_cap_top_bot & -z_cap_top_top
     cap_top_cell = openmc.Cell(name='capsule_top_plate')
     cap_top_cell.id = generate_complex_cell_id(position, 'capsule_top_plate', irradiation_type=irradiation_type)
@@ -461,8 +465,8 @@ def build_complex_sigma(mat_dict, position, inputs_dict):
     # Scale all MCNP radii
     r_spine = 0.25 * scale_factor
     r_inner_he = 0.5 * scale_factor
-    r_inner_graphite = 1.3 * scale_factor
-    r_tungsten = 1.8 * scale_factor
+    r_sample_inner = 1.3 * scale_factor
+    r_sample_outer = 1.8 * scale_factor
     r_outer_graphite = 2.35 * scale_factor
     r_outer_he = 2.4511 * scale_factor
     r_thimble_inner = 2.4511 * scale_factor
@@ -480,8 +484,8 @@ def build_complex_sigma(mat_dict, position, inputs_dict):
     # Radial surfaces (all concentric cylinders)
     cyl_spine = openmc.ZCylinder(r=r_spine)
     cyl_inner_he = openmc.ZCylinder(r=r_inner_he)
-    cyl_inner_graphite = openmc.ZCylinder(r=r_inner_graphite)
-    cyl_tungsten = openmc.ZCylinder(r=r_tungsten)
+    cyl_sample_inner = openmc.ZCylinder(r=r_sample_inner)
+    cyl_sample_outer = openmc.ZCylinder(r=r_sample_outer)
     cyl_outer_graphite = openmc.ZCylinder(r=r_outer_graphite)
     cyl_outer_he = openmc.ZCylinder(r=r_outer_he)
     cyl_thimble_outer = openmc.ZCylinder(r=r_thimble_outer)
@@ -520,23 +524,23 @@ def build_complex_sigma(mat_dict, position, inputs_dict):
     cells.append(inner_he_cell)
 
     # Inner graphite holder
-    inner_graphite_region = +cyl_inner_he & -cyl_inner_graphite & +z_bot & -z_top
+    inner_graphite_region = +cyl_inner_he & -cyl_sample_inner & +z_bot & -z_top
     inner_graphite_cell = openmc.Cell(name='inner_graphite')
     inner_graphite_cell.id = generate_complex_cell_id(position, 'inner_graphite', irradiation_type='SIGMA')
     inner_graphite_cell.region = inner_graphite_region
     inner_graphite_cell.fill = mat_dict['graphite']
     cells.append(inner_graphite_cell)
 
-    # Tungsten sample
-    tungsten_region = +cyl_inner_graphite & -cyl_tungsten & +z_bot & -z_top
-    tungsten_cell = openmc.Cell(name='tungsten')
-    tungsten_cell.id = generate_complex_cell_id(position, 'tungsten', irradiation_type='SIGMA')
-    tungsten_cell.region = tungsten_region
-    tungsten_cell.fill = mat_dict['Tungsten']
-    cells.append(tungsten_cell)
+    # Sample region (material from inputs)
+    sample_region = +cyl_sample_inner & -cyl_sample_outer & +z_bot & -z_top
+    sample_cell = openmc.Cell(name='sample')
+    sample_cell.id = generate_complex_cell_id(position, 'sample', irradiation_type='SIGMA')
+    sample_cell.region = sample_region
+    sample_cell.fill = mat_dict[inputs_dict['Gas_capsule_fill']]
+    cells.append(sample_cell)
 
     # Outer graphite holder
-    outer_graphite_region = +cyl_tungsten & -cyl_outer_graphite & +z_bot & -z_top
+    outer_graphite_region = +cyl_sample_outer & -cyl_outer_graphite & +z_bot & -z_top
     outer_graphite_cell = openmc.Cell(name='outer_graphite')
     outer_graphite_cell.id = generate_complex_cell_id(position, 'outer_graphite', irradiation_type='SIGMA')
     outer_graphite_cell.region = outer_graphite_region

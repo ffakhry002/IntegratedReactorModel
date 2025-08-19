@@ -372,10 +372,6 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
 
     # Steel
     if (mat_list is None) or ('steel' in mat_list):
-        # Material modified from openmc PWR example
-        # 1. density set to 7.9, same as RPV steel
-        # 2. composition of steel kept as-is, just removed water (openmc will normalize the weight fractions)
-        # 3. s_alpha_beta removed. no water.
         steel = openmc.Material(name='Steel')
         steel.set_density('g/cm3', 7.9)
         steel.add_nuclide('Fe54', 0.035620772088, 'wo')
@@ -517,134 +513,6 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
         vacuum.temperature = default_T
         material_list.append(vacuum)
 
-    # PWR Loop Material (31% Ti, 4% graphite, 65% water by volume at 300°C)
-    if (mat_list is None) or ('PWR_loop' in mat_list):
-        from CoolProp.CoolProp import PropsSI
-
-        # PWR loop conditions
-        pwr_temp = 573.15  # 300°C in Kelvin
-        pwr_pressure = 15.5e6  # 15.5 MPa in Pa
-
-        # Get pure water density at PWR conditions using CoolProp
-        water_density_pwr = PropsSI('D', 'T', pwr_temp, 'P', pwr_pressure, 'Water')  # kg/m³
-
-        # Create borated water with MCNP material 4000 composition
-        borated_water = openmc.Material(name='borated_water_pwr')
-        # Use exact atomic fractions from MCNP material 4000
-        borated_water.add_nuclide('H1', 0.66667, percent_type='ao')
-        borated_water.add_nuclide('O16', 0.33333, percent_type='ao')
-        borated_water.add_nuclide('B10', 0.000280, percent_type='ao')  # Natural B10 abundance in 1400 ppm
-        borated_water.add_nuclide('B11', 0.001120, percent_type='ao')  # Natural B11 abundance in 1400 ppm
-        borated_water.add_nuclide('Li6', 1.67e-07, percent_type='ao')  # Trace lithium
-
-        # Calculate composite density properly
-        # 1400 ppm boron means 0.0014 by weight, 0.9986 water
-        rho_boron = 2.34  # g/cm³ for elemental boron
-        w_water = 0.9986  # mass fraction of water
-        w_boron = 0.0014  # mass fraction of boron
-
-        # Volume of each component per unit mass of mixture
-        V_water = w_water / (water_density_pwr / 1000)  # cm³ of water per gram of mixture
-        V_boron = w_boron / rho_boron  # cm³ of boron per gram of mixture
-
-        # Composite density = 1 / (total volume per unit mass)
-        rho_composite = 1 / (V_water + V_boron)  # g/cm³
-
-        borated_water.set_density('g/cm3', rho_composite)
-        borated_water.temperature = pwr_temp
-
-        # Create titanium component
-        titanium = openmc.Material(name='titanium_pwr')
-        titanium.add_element('Ti', 1.0)
-        titanium.set_density('g/cm3', 4.506)  # Ti density at room temp
-
-        # Create graphite component (without S(a,b) table before mixing)
-        graphite_pwr = openmc.Material(name='graphite_pwr')
-        graphite_pwr.add_element('C', 1.0)
-        graphite_pwr.set_density('g/cm3', 1.75)  # Graphite density from MCNP
-
-        # Mix all components by volume: 31% Ti, 4% graphite, 65% water
-        pwrloop = openmc.Material.mix_materials(
-            [titanium, graphite_pwr, borated_water],
-            [0.31, 0.04, 0.65],
-            'vo',  # Volume fractions
-            name='PWR_loop'
-        )
-        # Add S(a,b) tables after mixing
-        pwrloop.temperature = pwr_temp
-        material_list.append(pwrloop)
-
-    # BWR Loop Material (31% Ti, 4% graphite, 65% DI water by volume at 300°C)
-    if (mat_list is None) or ('BWR_loop' in mat_list):
-        from CoolProp.CoolProp import PropsSI
-
-        # BWR loop conditions (same temperature as PWR but lower pressure)
-        bwr_temp = 573.15  # 300°C in Kelvin
-        bwr_pressure = 7.2e6  # 7.2 MPa typical BWR pressure
-
-        # Get water density at BWR conditions using CoolProp
-        water_density_bwr = PropsSI('D', 'T', bwr_temp, 'P', bwr_pressure, 'Water')  # kg/m³
-
-        # Create pure DI water (no boron for BWR)
-        water_bwr = openmc.Material(name='water_bwr')
-        water_bwr.add_nuclide('H1', 2.0)
-        water_bwr.add_nuclide('O16', 1.0)
-        # Use CoolProp density
-        water_bwr.set_density('g/cm3', water_density_bwr / 1000)
-
-        # Create titanium component
-        titanium_bwr = openmc.Material(name='titanium_bwr')
-        titanium_bwr.add_element('Ti', 1.0)
-        titanium_bwr.set_density('g/cm3', 4.506)  # Ti density at room temp
-
-        # Create graphite component (without S(a,b) table before mixing)
-        graphite_bwr = openmc.Material(name='graphite_bwr')
-        graphite_bwr.add_element('C', 1.0)
-        graphite_bwr.set_density('g/cm3', 1.75)  # Graphite density from MCNP
-
-        # Mix all components by volume: 31% Ti, 4% graphite, 65% water
-        bwrloop = openmc.Material.mix_materials(
-            [titanium_bwr, graphite_bwr, water_bwr],
-            [0.31, 0.04, 0.65],
-            'vo',  # Volume fractions
-            name='BWR_loop'
-        )
-        # Add S(a,b) tables after mixing
-        bwrloop.temperature = bwr_temp
-        material_list.append(bwrloop)
-
-    # Gas Capsule Material (10% Ti, 14% He, 76% graphite by volume at 600°C)
-    if (mat_list is None) or ('Gas_capsule' in mat_list):
-        # Gas capsule conditions
-        gas_temp = 873.15  # 600°C in Kelvin
-
-        # Create helium component
-        helium_gas = openmc.Material(name='helium_gas')
-        helium_gas.add_element('He', 1.0)
-        # Use MCNP reference density (at ~1°C), not operating temperature
-        helium_gas.set_density('g/cm3', 1.78e-4)
-
-        # Create titanium component
-        titanium_gas = openmc.Material(name='titanium_gas')
-        titanium_gas.add_element('Ti', 1.0)
-        titanium_gas.set_density('g/cm3', 4.506)  # Ti density at room temp
-
-        # Create graphite component (without S(a,b) table before mixing)
-        graphite_gas = openmc.Material(name='graphite_gas')
-        graphite_gas.add_element('C', 1.0)
-        graphite_gas.set_density('g/cm3', 1.75)  # Graphite density from MCNP
-
-        # Mix all components by volume: 10% Ti, 14% He, 76% graphite
-        gas_capsule = openmc.Material.mix_materials(
-            [titanium_gas, helium_gas, graphite_gas],
-            [0.10, 0.14, 0.76],
-            'vo',  # Volume fractions
-            name='Gas_capsule'
-        )
-        # Add S(a,b) table after mixing
-        gas_capsule.temperature = gas_temp
-        material_list.append(gas_capsule)
-
     #############################################
     # HTWL IRRADIATION EXPERIMENT MATERIALS
     #############################################
@@ -730,7 +598,7 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
 
         # Set density from CoolProp
         bwr_fluid.set_density('g/cm3', water_density_bwr / 1000)
-        # bwr_fluid.add_s_alpha_beta('c_H_in_H2O')
+        bwr_fluid.add_s_alpha_beta('c_H_in_H2O')
         bwr_fluid.temperature = bwr_temp
         material_list.append(bwr_fluid)
 
@@ -761,6 +629,181 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
         # Set temperature to operating temperature
         ht_helium.temperature = 1073.15  # 800°C (sample region)
         material_list.append(ht_helium)
+
+    #############################################
+    # IRRADIATION LOOP MATERIALS (FULL COMPOSITION)
+    #############################################
+
+    # Create materials dictionary for lookup
+    materials_dict = {mat.name: mat for mat in material_list}
+
+         # PWR Loop Material - FULL COMPOSITION FROM COMPLEX MODE ANALYSIS
+    if (mat_list is None) or ('PWR_loop' in mat_list):
+        # Get sample material from inputs
+        pwr_sample_name = inputs_dict.get('PWR_sample_fill', 'Vacuum')
+        pwr_sample = materials_dict.get(pwr_sample_name)
+
+        if not pwr_sample:
+            print(f"Warning: PWR sample material '{pwr_sample_name}' not found. Using Vacuum.")
+            pwr_sample = materials_dict['Vacuum']
+
+        # Create materials without S(α,β) tables for mixing
+        # Titanium (no S(α,β) table)
+        titanium_mix = materials_dict['Titanium']
+
+        # Graphite without S(α,β) table
+        graphite_mix = openmc.Material(name='graphite_mix_pwr')
+        graphite_mix.add_element('C', 1.0)
+        graphite_mix.set_density('g/cm3', 1.75)
+        graphite_mix.temperature = 573.15
+
+        # Sample material (already no S(α,β) table for Vacuum)
+        sample_mix = pwr_sample
+
+        # HP Borated Water without S(α,β) table
+        hp_water_mix = openmc.Material(name='hp_water_mix_pwr')
+        hp_water_mix.add_nuclide('H1', 0.66667, percent_type='ao')
+        hp_water_mix.add_nuclide('O16', 0.33333, percent_type='ao')
+        hp_water_mix.add_nuclide('B10', 0.000280, percent_type='ao')
+        hp_water_mix.add_nuclide('B11', 0.001120, percent_type='ao')
+        hp_water_mix.add_nuclide('Li6', 1.67e-07, percent_type='ao')
+        hp_water_mix.set_density('g/cm3', 0.712)  # Approximate density at PWR conditions
+        hp_water_mix.temperature = 573.15
+
+        # CO2 (no S(α,β) table)
+        co2_mix = materials_dict['CO2']
+
+        # Al6061 (no S(α,β) table)
+        al6061_mix = materials_dict['Al6061']
+
+        # Light water coolant without S(α,β) table
+        coolant_mix = openmc.Material(name='coolant_mix_pwr')
+        coolant_mix.add_nuclide('H1', 2.0)
+        coolant_mix.add_nuclide('O16', 1.0)
+        coolant_mix.set_density('g/cm3', np.mean(TH_data['coolant_density'])/1000)
+        coolant_mix.temperature = 573.15
+
+        # Mix using EXACT percentages from complex mode analysis
+        pwrloop = openmc.Material.mix_materials(
+            [titanium_mix, graphite_mix, sample_mix, hp_water_mix, co2_mix, al6061_mix, coolant_mix],
+            [0.166,   # Titanium: 16.6%
+            0.021,   # graphite: 2.1%
+            0.029,   # Sample: 2.9%
+            0.446,   # HP_Borated_Water: 44.6%
+            0.097,   # CO2: 9.7%
+            0.175,   # Al6061: 17.5%
+            0.035],  # Light Water Coolant: 3.5%
+            'vo',
+            name='PWR_loop'
+        )
+        pwrloop.temperature = 573.15  # 300°C
+        material_list.append(pwrloop)
+
+        # BWR Loop Material - FULL COMPOSITION FROM COMPLEX MODE ANALYSIS
+    if (mat_list is None) or ('BWR_loop' in mat_list):
+        # Get sample material from inputs
+        bwr_sample_name = inputs_dict.get('BWR_sample_fill', 'Vacuum')
+        bwr_sample = materials_dict.get(bwr_sample_name)
+
+        if not bwr_sample:
+            print(f"Warning: BWR sample material '{bwr_sample_name}' not found. Using Vacuum.")
+            bwr_sample = materials_dict['Vacuum']
+
+        # Create materials without S(α,β) tables for mixing
+        # Titanium (no S(α,β) table)
+        titanium_mix = materials_dict['Titanium']
+
+        # Graphite without S(α,β) table
+        graphite_mix = openmc.Material(name='graphite_mix_bwr')
+        graphite_mix.add_element('C', 1.0)
+        graphite_mix.set_density('g/cm3', 1.75)
+        graphite_mix.temperature = 573.15
+
+        # Sample material (already no S(α,β) table for Vacuum)
+        sample_mix = bwr_sample
+
+        # BWR fluid without S(α,β) table
+        bwr_fluid_mix = openmc.Material(name='bwr_fluid_mix')
+        bwr_fluid_mix.add_nuclide('H1', 2.0)
+        bwr_fluid_mix.add_nuclide('O16', 1.0)
+        bwr_fluid_mix.set_density('g/cm3', 0.712)  # Approximate density at BWR conditions
+        bwr_fluid_mix.temperature = 573.15
+
+        # CO2 (no S(α,β) table)
+        co2_mix = materials_dict['CO2']
+
+        # Al6061 (no S(α,β) table)
+        al6061_mix = materials_dict['Al6061']
+
+        # Light water coolant without S(α,β) table
+        coolant_mix = openmc.Material(name='coolant_mix_bwr')
+        coolant_mix.add_nuclide('H1', 2.0)
+        coolant_mix.add_nuclide('O16', 1.0)
+        coolant_mix.set_density('g/cm3', np.mean(TH_data['coolant_density'])/1000)
+        coolant_mix.temperature = 573.15
+
+        # Mix using EXACT percentages from complex mode analysis
+        bwrloop = openmc.Material.mix_materials(
+            [titanium_mix, graphite_mix, sample_mix, bwr_fluid_mix, co2_mix, al6061_mix, coolant_mix],
+            [0.166,   # Titanium: 16.6%
+            0.021,   # graphite: 2.1%
+            0.029,   # Sample: 2.9%
+            0.446,   # BWR_fluid: 44.6%
+            0.097,   # CO2: 9.7%
+            0.175,   # Al6061: 17.5%
+            0.035],  # Light Water Coolant: 3.5%
+            'vo',
+            name='BWR_loop'
+        )
+        bwrloop.temperature = 573.15  # 300°C
+        material_list.append(bwrloop)
+
+        # Gas Capsule Material (SIGMA) - FULL COMPOSITION FROM COMPLEX MODE ANALYSIS
+    if (mat_list is None) or ('Gas_capsule' in mat_list):
+        # Get sample material from inputs
+        gas_sample_name = inputs_dict.get('Gas_capsule_fill', 'Vacuum')
+        gas_sample = materials_dict.get(gas_sample_name)
+
+        if not gas_sample:
+            print(f"Warning: Gas capsule sample material '{gas_sample_name}' not found. Using Vacuum.")
+            gas_sample = materials_dict['Vacuum']
+
+        # Create materials without S(α,β) tables for mixing
+        # Titanium (no S(α,β) table)
+        titanium_mix = materials_dict['Titanium']
+
+        # HT_Helium (no S(α,β) table)
+        ht_helium_mix = materials_dict['HT_Helium']
+
+        # Graphite without S(α,β) table
+        graphite_mix = openmc.Material(name='graphite_mix_gas')
+        graphite_mix.add_element('C', 1.0)
+        graphite_mix.set_density('g/cm3', 1.75)
+        graphite_mix.temperature = 1073.15
+
+        # Sample material (already no S(α,β) table for Vacuum)
+        sample_mix = gas_sample
+
+        # Light water coolant without S(α,β) table
+        coolant_mix = openmc.Material(name='coolant_mix_gas')
+        coolant_mix.add_nuclide('H1', 2.0)
+        coolant_mix.add_nuclide('O16', 1.0)
+        coolant_mix.set_density('g/cm3', np.mean(TH_data['coolant_density'])/1000)
+        coolant_mix.temperature = 1073.15
+
+        # Mix using EXACT percentages from complex mode analysis
+        gas_capsule = openmc.Material.mix_materials(
+            [titanium_mix, ht_helium_mix, graphite_mix, sample_mix, coolant_mix],
+            [0.074,   # Titanium: 7.4%
+            0.098,   # HT_Helium: 9.8%
+            0.543,   # graphite: 54.3%
+            0.226,   # Sample: 22.6%
+            0.059],  # Light Water Coolant: 5.9%
+            'vo',
+            name='Gas_capsule'
+        )
+        gas_capsule.temperature = 1073.15  # 800°C
+        material_list.append(gas_capsule)
 
     materials = openmc.Materials(material_list)
     mat_dict = {mat.name: mat for mat in materials}
