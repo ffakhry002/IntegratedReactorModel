@@ -154,40 +154,66 @@ def plot_flux_trap_distributions(sp, power_mw, plot_dir, inputs_dict=None):
     colors = plt.cm.viridis(np.linspace(0, 1, len(three_group_data)))
     half_height = inputs_dict['fuel_height'] * 50  # Convert to cm
 
-    # Get the number of axial segments from the first axial tally
-    n_axial_segments = None
-    for tally in sp.tallies.values():
-        if tally.name.endswith('_axial'):
-            n_axial_segments = tally.mean.shape[0]
-            break
-
-    if n_axial_segments is None:
-        raise ValueError("No axial tallies found")
-
-    z = np.linspace(-half_height, half_height, n_axial_segments)  # Match actual number of segments
+    # Create consistent z-axis for all plots (full fuel height)
+    fuel_z_axis = np.linspace(-half_height, half_height, 200)  # High resolution reference axis
 
     for tally in sp.tallies.values():
         if tally.name.endswith('_axial'):
             base_name = tally.name[:-6]  # Remove '_axial' suffix
-            # Get mesh volume for normalization
-            volume = get_tally_volume(tally, sp, inputs_dict)
 
-            # Get the flux data and normalize
-            # For axial tallies, we need to reshape to get the axial profile
-            mean = tally.mean.reshape(-1) * norm_factor / volume  # Simplified reshape for single energy group
-            std_dev = tally.std_dev.reshape(-1) * norm_factor / volume
+            # Get mesh information to determine actual z-positions
+            mesh_filter = None
+            for f in tally.filters:
+                if isinstance(f, openmc.MeshFilter):
+                    mesh_filter = f
+                    break
 
-            # Plot axial profile - switched coordinates
-            ax4.plot(z, mean, '-', label=base_name, linewidth=1)
+            if mesh_filter:
+                mesh = mesh_filter.mesh
 
-    # Configure axial flux plot - swapped x/y labels and settings
+                # Get actual z-positions from mesh
+                if hasattr(mesh, 'z_grid'):
+                    # Cylindrical mesh
+                    z_edges = np.array(mesh.z_grid)
+                    z_centers = 0.5 * (z_edges[:-1] + z_edges[1:])
+                elif hasattr(mesh, 'lower_left') and hasattr(mesh, 'upper_right'):
+                    # Regular mesh
+                    z_min = mesh.lower_left[2]
+                    z_max = mesh.upper_right[2]
+                    n_segments = mesh.dimension[2]
+                    z_edges = np.linspace(z_min, z_max, n_segments + 1)
+                    z_centers = 0.5 * (z_edges[:-1] + z_edges[1:])
+                else:
+                    print(f"Warning: Could not determine z-positions for {tally.name}")
+                    continue
+
+                # Get mesh volume for normalization
+                volume = get_tally_volume(tally, sp, inputs_dict)
+
+                # Get the flux data and normalize
+                mean = tally.mean.reshape(-1) * norm_factor / volume
+
+                # Plot axial profile at correct physical positions
+                ax4.plot(z_centers, mean, '-', label=base_name, linewidth=1)
+
+            else:
+                print(f"Warning: No mesh filter found for {tally.name}")
+
+    # Configure axial flux plot with consistent fuel height axis
     ax4.grid(True, which="major", ls="-", alpha=0.2)
-    ax4.set_ylabel('Total Flux [n/cm²/s]')  # Switched to ylabel
-    ax4.set_xlabel('Height [cm]')           # Switched to xlabel
+    ax4.set_ylabel('Total Flux [n/cm²/s]')
+    ax4.set_xlabel('Height [cm]')
     ax4.set_title('Axial Flux Distribution')
     ax4.legend()
-    ax4.yaxis.set_major_formatter(plt.ScalarFormatter(useMathText=True))  # Changed to yaxis
-    ax4.ticklabel_format(style='sci', axis='y', scilimits=(0,0))         # Changed to y axis
+    ax4.yaxis.set_major_formatter(plt.ScalarFormatter(useMathText=True))
+    ax4.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+
+    # Set consistent x-axis limits to full fuel height
+    ax4.set_xlim(-half_height, half_height)
+
+    # Add fuel boundary lines
+    ax4.axvline(x=-half_height, color='gray', linestyle='--', alpha=0.5, linewidth=1)
+    ax4.axvline(x=half_height, color='gray', linestyle='--', alpha=0.5, linewidth=1)
 
     # Rest of the code remains the same
     for ax in [ax1, ax2, ax3, ax4]:

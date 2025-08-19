@@ -114,7 +114,7 @@ base_inputs = {
     # Standard Transport Settings
     "batches": int(150),                   # Number of active batches
     "inactive": int(20),                   # Number of inactive batches
-    "particles": int(100000),            # Particles per batch
+    "particles": int(2500000),            # Particles per batch
     "energy_structure": 'log1001',    # Energy group structure
 
     # Energy Group Boundaries
@@ -129,7 +129,7 @@ base_inputs = {
 
     # Additional Tallies
     "Core_Three_Group_Energy_Bins": True, # True: use three energy bins for core tallies, False: don't tally energy groups
-    "tally_power": True,                  # True: calculate power tallies and TH, False: skip power calculations
+    "tally_power": False,                  # True: calculate power tallies and TH, False: skip power calculations
     "element_level_power_tallies": False, # True: tally power for individual fuel elements, False: tally power for assemblies
 
     ###########################################

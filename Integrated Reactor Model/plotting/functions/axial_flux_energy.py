@@ -85,11 +85,6 @@ def plot_axial_flux_energy_breakdown(sp, plot_dir, inputs_dict=None):
         print("No axial tallies found")
         return
 
-    # Get z positions from the first axial tally
-    first_axial = axial_tallies[0]
-    n_axial_segments = first_axial.mean.shape[0]
-    z = np.linspace(-half_height, half_height, n_axial_segments)
-
     # Process data for each irradiation position
     irradiation_data = {}
 
@@ -113,23 +108,49 @@ def plot_axial_flux_energy_breakdown(sp, plot_dir, inputs_dict=None):
                 break
 
         if axial_tally:
-            # Get axial distribution (total flux only from axial tally)
-            axial_volume = get_tally_volume(axial_tally, sp, inputs_dict)
-            axial_total = axial_tally.mean.reshape(-1) * norm_factor / axial_volume
+            # Get mesh information to determine actual z-positions
+            mesh_filter = None
+            for f in axial_tally.filters:
+                if isinstance(f, openmc.MeshFilter):
+                    mesh_filter = f
+                    break
 
-            # For energy-resolved axial distribution, we need to create it from the full 3D mesh data
-            # Since we don't have energy-resolved axial tallies, we'll use a different approach
-            # We'll create synthetic axial distributions based on the three-group data
+            if mesh_filter:
+                mesh = mesh_filter.mesh
 
-            # Store the data
-            irradiation_data[tally.name] = {
-                'fine_group_flux': mean,  # Fine energy group flux
-                'three_group_flux': means_3group,  # Three-group flux
-                'three_group_std': std_devs_3group,
-                'axial_total': axial_total,
-                'energy_mids': energy_mids_mev,
-                'z_positions': z
-            }
+                # Get actual z-positions from mesh
+                if hasattr(mesh, 'z_grid'):
+                    # Cylindrical mesh
+                    z_edges = np.array(mesh.z_grid)
+                    z_centers = 0.5 * (z_edges[:-1] + z_edges[1:])
+                elif hasattr(mesh, 'lower_left') and hasattr(mesh, 'upper_right'):
+                    # Regular mesh
+                    z_min = mesh.lower_left[2]
+                    z_max = mesh.upper_right[2]
+                    n_segments = mesh.dimension[2]
+                    z_edges = np.linspace(z_min, z_max, n_segments + 1)
+                    z_centers = 0.5 * (z_edges[:-1] + z_edges[1:])
+                else:
+                    print(f"Warning: Could not determine z-positions for {axial_tally.name}")
+                    z_centers = np.linspace(-half_height, half_height, len(axial_tally.mean.reshape(-1)))
+
+                # Get axial distribution (total flux only from axial tally)
+                axial_volume = get_tally_volume(axial_tally, sp, inputs_dict)
+                axial_total = axial_tally.mean.reshape(-1) * norm_factor / axial_volume
+
+                # Store the data with actual z-positions
+                irradiation_data[tally.name] = {
+                    'fine_group_flux': mean,  # Fine energy group flux
+                    'three_group_flux': means_3group,  # Three-group flux
+                    'three_group_std': std_devs_3group,
+                    'axial_total': axial_total,
+                    'energy_mids': energy_mids_mev,
+                    'z_positions': z_centers  # Use actual mesh z-positions
+                }
+            else:
+                print(f"Warning: No mesh filter found for {axial_tally.name}")
+        else:
+            print(f"Warning: No corresponding axial tally found for {tally.name}")
 
     # Create multi-line plots
     print("Creating multi-line energy breakdown plots...")
@@ -184,7 +205,7 @@ def _create_multiline_plots(irradiation_data, inputs_dict, plot_dir, half_height
     for idx, (pos_name, data) in enumerate(sorted_positions):
         ax = axes[idx]
 
-        z = data['z_positions']
+        z = data['z_positions']  # Use actual mesh z-positions
         axial_total = data['axial_total']
 
         # For the three-group plots, we need to create axial distributions
@@ -204,13 +225,13 @@ def _create_multiline_plots(irradiation_data, inputs_dict, plot_dir, half_height
             axial_epithermal = np.zeros_like(axial_total)
             axial_fast = np.zeros_like(axial_total)
 
-        # Plot each energy group - matching the style of flux_traps.py plot 4
+        # Plot each energy group at their actual z-positions
         ax.plot(z, axial_thermal, 'b-', label='Thermal', linewidth=1)
         ax.plot(z, axial_epithermal, 'g-', label='Epithermal', linewidth=1)
         ax.plot(z, axial_fast, 'r-', label='Fast', linewidth=1)
         ax.plot(z, axial_total, 'k-', label='Total', linewidth=1)
 
-        # Configure axial flux plot - matching flux_traps.py style
+        # Configure axial flux plot with consistent fuel height axis
         ax.grid(True, which="major", ls="-", alpha=0.2)
         ax.set_ylabel('Flux [n/cm²/s]')
         ax.set_xlabel('Height [cm]')
@@ -219,9 +240,12 @@ def _create_multiline_plots(irradiation_data, inputs_dict, plot_dir, half_height
         ax.yaxis.set_major_formatter(plt.ScalarFormatter(useMathText=True))
         ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
 
+        # Set consistent x-axis limits to full fuel height
+        ax.set_xlim(-half_height, half_height)
+
         # Add fuel boundary lines
-        ax.axvline(x=half_height, color='gray', linestyle='--', alpha=0.5)
-        ax.axvline(x=-half_height, color='gray', linestyle='--', alpha=0.5)
+        ax.axvline(x=half_height, color='gray', linestyle='--', alpha=0.5, linewidth=1)
+        ax.axvline(x=-half_height, color='gray', linestyle='--', alpha=0.5, linewidth=1)
 
         # Add minor grid
         ax.grid(True, which='minor', linestyle=':', alpha=0.1)
@@ -278,7 +302,7 @@ def _create_heatmap_plots(irradiation_data, inputs_dict, plot_dir, half_height):
     for idx, (pos_name, data) in enumerate(sorted_positions):
         ax = axes_flat[idx]
 
-        z = data['z_positions']
+        z = data['z_positions']  # Use actual mesh z-positions
         n_z = len(z)
         energy_mids = data['energy_mids']
         n_energy = len(energy_mids)
@@ -310,7 +334,7 @@ def _create_heatmap_plots(irradiation_data, inputs_dict, plot_dir, half_height):
                     vmax = 1e-10
                     vmin = 1e-16
 
-            # Create the heatmap with height on y-axis and energy on x-axis (flipped)
+            # Create the heatmap with height on y-axis and energy on x-axis
             im = ax.pcolormesh(energy_mids, z, flux_2d,
                               norm=LogNorm(vmin=vmin, vmax=vmax),
                               cmap='viridis', shading='auto')
@@ -319,9 +343,12 @@ def _create_heatmap_plots(irradiation_data, inputs_dict, plot_dir, half_height):
             im = ax.pcolormesh(energy_mids, z, flux_2d,
                               cmap='viridis', shading='auto')
 
-        # Set scales
+        # Set scales and limits
         ax.set_xscale('log')
         ax.set_xlim(1e-9, 20.0)  # Set x-axis limits from 1e-9 to 20 MeV
+
+        # Set consistent y-axis limits to full fuel height
+        ax.set_ylim(-half_height, half_height)
 
         # Set labels
         ax.set_ylabel('Height [cm]')

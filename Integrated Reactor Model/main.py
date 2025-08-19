@@ -155,15 +155,15 @@ def main():
         os.makedirs(scenario_dir)
         th_subdirs[scenario] = scenario_dir
 
-    # # Run geometry and materials generation
-    # print("\nGenerating geometry and materials...")
-    # plot_geometry(dirs['geometry_materials'], inputs_dict=inputs)
+    # Run geometry and materials generation
+    print("\nGenerating geometry and materials...")
+    plot_geometry(dirs['geometry_materials'], inputs_dict=inputs)
 
-    # # Run thermal hydraulics with cosine approximation
-    # print("\nRunning thermal hydraulics analysis with cosine approximation...")
-    # th_system = THSystem(inputs)
-    # thermal_state = th_system.calculate_temperature_distribution()
-    # th_system.write_results(th_subdirs['cosine_calculation'])
+    # Run thermal hydraulics with cosine approximation
+    print("\nRunning thermal hydraulics analysis with cosine approximation...")
+    th_system = THSystem(inputs)
+    thermal_state = th_system.calculate_temperature_distribution()
+    th_system.write_results(th_subdirs['cosine_calculation'])
 
     # Run OpenMC simulation
     print("\nRunning OpenMC simulation...")
