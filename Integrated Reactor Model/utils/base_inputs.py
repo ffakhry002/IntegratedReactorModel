@@ -3,7 +3,7 @@ base_inputs = {
     ###########################################
     # Parametric Study Configuration
     ###########################################
-    "parametric_study": False,        # Toggle for parametric study mode
+    "parametric_study": True,        # Toggle for parametric study mode
 
     ###########################################
     # Core Configuration
@@ -11,11 +11,11 @@ base_inputs = {
     # Core Layout
     "core_lattice": [  # C: coolant, F: fuel assembly, E: enriched fuel assembly, I: irradiation position
         ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
-        ['C', 'F', 'F', 'F', 'F', 'F', 'I_4G', 'C'],
-        ['F', 'F', 'I_1B', 'F', 'F', 'F', 'F', 'F'],
+        ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
         ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
+        ['F', 'F', 'F', 'I_1B', 'I_2', 'F', 'F', 'F'],
+        ['F', 'F', 'F', 'I_3P', 'I_4G', 'F', 'F', 'F'],
         ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-        ['F', 'F', 'I_2', 'F', 'F', 'F', 'I_3P', 'F'],
         ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
         ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
     ],
@@ -93,19 +93,23 @@ base_inputs = {
     ###########################################
     "irradiation_clad": False,              # Include irradiation position cladding
     "irradiation_clad_thickness": 0.0015, # Irradiation cladding thickness [m]
-    "irradiation_fill": "Vacuum",  # Default fill for irradiation positions without suffix: "Vacuum", "Test Pos (fill)"
+    "irradiation_fill": "Vacuum",  # Default fill for irradiation positions without suffix: e.g. "Vacuum" or "BWR_fluid"
 
-    "PWR_loop_diameter": 0.6,
-    "BWR_loop_diameter": 0.6,
-    "Gas_capsule_diameter": 0.6,
+    # Complexity
+    "irradiation_cell_complexity": "Complex", # Simple: smeared channels, Complex: MCNP provided positions
+
+    # Loop Diameters
+    "PWR_loop_diameter": 0.7, # PWR loop diameter [% cell width]
+    "BWR_loop_diameter": 0.8, # BWR loop diameter [% cell width]
+    "Gas_capsule_diameter": 0.9, # Gas capsule diameter [% cell width]
 
     ###########################################
     # OpenMC Transport Parameters
     ###########################################
     # Standard Transport Settings
-    "batches": int(230),                   # Number of active batches
+    "batches": int(150),                   # Number of active batches
     "inactive": int(20),                   # Number of inactive batches
-    "particles": int(250000),            # Particles per batch
+    "particles": int(100000),            # Particles per batch
     "energy_structure": 'log1001',    # Energy group structure
 
     # Energy Group Boundaries
@@ -121,14 +125,14 @@ base_inputs = {
     # Additional Tallies
     "Core_Three_Group_Energy_Bins": True, # True: use three energy bins for core tallies, False: don't tally energy groups
     "tally_power": True,                  # True: calculate power tallies and TH, False: skip power calculations
-    "element_level_power_tallies": True, # True: tally power for individual fuel elements, False: tally power for assemblies
+    "element_level_power_tallies": False, # True: tally power for individual fuel elements, False: tally power for assemblies
 
     ###########################################
     # Depletion Calculation Parameters
     ###########################################
     # Depletion Scenario Selection (only one should be True)
-    "deplete_core": True,                    # Full core depletion
-    "deplete_assembly": True,               # Single assembly with reflective BC
+    "deplete_core": False,                    # Full core depletion
+    "deplete_assembly": False,               # Single assembly with reflective BC
     "deplete_assembly_enhanced": False,      # Single enhanced assembly with reflective BC
     "deplete_element": False,                # Single fuel element with reflective BC
     "deplete_element_enhanced": False,       # Single enhanced fuel element with reflective BC
@@ -155,7 +159,7 @@ base_inputs = {
     # Miscellaneous Settings
     ###########################################
     "outputs_folder": "local_outputs",  # Base output directory
-    "pixels": (16000, 16000),            # Plot resolution
+    "pixels": (1600, 1600),            # Plot resolution
 }
 
 

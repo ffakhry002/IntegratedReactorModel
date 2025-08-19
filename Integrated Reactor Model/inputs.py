@@ -93,11 +93,15 @@ base_inputs = {
     ###########################################
     "irradiation_clad": False,              # Include irradiation position cladding
     "irradiation_clad_thickness": 0.0015, # Irradiation cladding thickness [m]
-    "irradiation_fill": "Vacuum",  # Default fill for irradiation positions without suffix: "Vacuum", "Test Pos (fill)"
+    "irradiation_fill": "Vacuum",  # Default fill for irradiation positions without suffix: e.g. "Vacuum" or "BWR_fluid"
 
-    "PWR_loop_diameter": 0.6,
-    "BWR_loop_diameter": 0.6,
-    "Gas_capsule_diameter": 0.9,
+    # Complexity
+    "irradiation_cell_complexity": "Complex", # Simple: smeared channels, Complex: MCNP provided positions
+
+    # Loop Diameters
+    "PWR_loop_diameter": 0.7, # PWR loop diameter [% cell width]
+    "BWR_loop_diameter": 0.8, # BWR loop diameter [% cell width]
+    "Gas_capsule_diameter": 0.9, # Gas capsule diameter [% cell width]
 
     ###########################################
     # OpenMC Transport Parameters

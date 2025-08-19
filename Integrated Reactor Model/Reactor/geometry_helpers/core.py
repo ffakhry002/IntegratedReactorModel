@@ -2,6 +2,7 @@ import openmc
 import numpy as np
 import os
 import sys
+import re
 
 # Add root directory to path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -12,6 +13,32 @@ from utils.base_inputs import inputs
 from .pin_fuel import build_fuel_assembly_uni as build_pin_assembly
 from .plate_fuel import build_fuel_assembly_uni as build_plate_assembly
 from .irradiation_cell import build_irradiation_cell_uni
+
+def extract_irradiation_type(position_name):
+    """Extract the irradiation type from position name.
+
+    Parameters
+    ----------
+    position_name : str
+        Position name like 'I_1P', 'I_2B', 'I_3G', 'I_4', etc.
+
+    Returns
+    -------
+    str
+        The irradiation type: 'P' for PWR, 'B' for BWR, 'G' for Gas, 'blank' for no suffix
+    """
+    if not position_name.startswith('I_'):
+        return 'blank'
+
+    # Extract everything after 'I_' and the number
+    match = re.match(r'I_\d+([PBG]?)', position_name)
+    if match:
+        suffix = match.group(1)
+        if suffix == '':
+            return 'blank'
+        else:
+            return suffix
+    return 'blank'
 
 def build_core_uni(mat_dict, inputs_dict=None):
     """Build the full core universe with proper cell definitions.
@@ -26,8 +53,10 @@ def build_core_uni(mat_dict, inputs_dict=None):
     Returns
     -------
     tuple
-        (core_universe, first_irr_universe) where core_universe is the complete
-        OpenMC Universe and first_irr_universe is the first irradiation cell universe
+        (core_universe, irradiation_universes) where core_universe is the complete
+        OpenMC Universe and irradiation_universes is a dictionary with irradiation types
+        as keys ('P', 'B', 'G', 'blank') and values containing 'universe' and 'position_name'
+        for each unique irradiation type found.
     """
     # Use provided inputs or default to global inputs
     if inputs_dict is None:
@@ -92,7 +121,9 @@ def build_core_uni(mat_dict, inputs_dict=None):
 
     # Create universe array with proper bounds
     universe_array = np.empty(lattice_array.shape, dtype=openmc.Universe)
-    first_irr_universe = None
+
+    # Dictionary to store unique irradiation types and their representative universes
+    irradiation_universes = {}
 
     # Fill universe array
     for i in range(n_rows):
@@ -106,8 +137,14 @@ def build_core_uni(mat_dict, inputs_dict=None):
                                     else build_plate_assembly(mat_dict, position=position, is_enhanced=True, inputs_dict=inputs_dict)
             elif lattice_array[i,j].startswith('I_'):
                 universe_array[i,j] = build_irradiation_cell_uni(mat_dict, position=position, inputs_dict=inputs_dict)
-                if first_irr_universe is None:
-                    first_irr_universe = universe_array[i,j]
+
+                # Extract irradiation type and store if not already seen
+                irr_type = extract_irradiation_type(lattice_array[i,j])
+                if irr_type not in irradiation_universes:
+                    irradiation_universes[irr_type] = {
+                        'universe': universe_array[i,j],
+                        'position_name': lattice_array[i,j]
+                    }
             else:  # 'C' for coolant
                 universe_array[i,j] = coolant_universe
 
@@ -163,4 +200,4 @@ def build_core_uni(mat_dict, inputs_dict=None):
     # Create the core universe with all bounded cells and explicit ID
     core_universe = openmc.Universe(universe_id=1000001, cells=cells)  # Use high ID to avoid conflicts
 
-    return core_universe, first_irr_universe
+    return core_universe, irradiation_universes

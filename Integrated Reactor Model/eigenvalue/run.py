@@ -83,7 +83,7 @@ def run_eigenvalue(inputs_dict=None):
 
     # Create materials and geometry
     mat_dict, materials = make_materials(mat_list=None, inputs_dict=inputs_dict)
-    core_universe, first_irr_universe = build_core_uni(mat_dict, inputs_dict=inputs_dict)
+    core_universe, irradiation_universes = build_core_uni(mat_dict, inputs_dict=inputs_dict)
     geometry = openmc.Geometry(core_universe)
 
     # Create settings
