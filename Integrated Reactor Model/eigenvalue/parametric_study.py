@@ -106,7 +106,11 @@ def write_base_inputs_log(param_dir, base_inputs):
         'fast_cutoff': 'eV',
         # Enrichment units
         'n%': '%',
-        'n%E': '%'
+        'n%E': '%',
+        # New irradiation parameters units
+        'PWR_loop_diameter': '% cell width',
+        'BWR_loop_diameter': '% cell width',
+        'Gas_capsule_diameter': '% cell width'
     }
 
     # Define pin-specific geometry parameters
@@ -145,6 +149,7 @@ def write_base_inputs_log(param_dir, base_inputs):
         ],
         'Irradiation Position Parameters': [
             'irradiation_clad', 'irradiation_clad_thickness', 'irradiation_fill',
+            'irradiation_cell_complexity', 'PWR_sample_fill', 'BWR_sample_fill', 'Gas_capsule_fill',
             'PWR_loop_diameter', 'BWR_loop_diameter', 'Gas_capsule_diameter'
         ],
         'OpenMC Transport Parameters': [
