@@ -54,6 +54,25 @@ LOG_501 = np.logspace(np.log10(1e-5), np.log10(20.0e6), 501)
 
 LOG_1001 = np.logspace(np.log10(1e-5), np.log10(20.0e6), 1001)
 
+def get_three_group_bins(inputs_dict):
+    """Get 3-group energy structure based on thermal and fast cutoffs from inputs.
+
+    Parameters
+    ----------
+    inputs_dict : dict
+        Inputs dictionary containing thermal_cutoff and fast_cutoff
+
+    Returns
+    -------
+    numpy.ndarray
+        Energy bin boundaries: [0, thermal_cutoff, fast_cutoff, 20MeV]
+    """
+    thermal_cutoff = inputs_dict.get('thermal_cutoff', 0.625)    # eV
+    fast_cutoff = inputs_dict.get('fast_cutoff', 100000.0)       # eV
+
+    # Create 3-group structure: Thermal | Epithermal | Fast
+    return np.array([0.0, thermal_cutoff, fast_cutoff, 20.0e6])
+
 
 def get_energy_bins(inputs_dict=None):
     """Get the energy group structure based on inputs setting.
@@ -78,6 +97,8 @@ def get_energy_bins(inputs_dict=None):
         return SCALE_238
     elif energy_structure.lower() == 'log1001':
         return LOG_1001
+    elif energy_structure.lower() == 'three_group':
+        return get_three_group_bins(inputs_dict)
     else:  # Default to log501
         return LOG_501
 

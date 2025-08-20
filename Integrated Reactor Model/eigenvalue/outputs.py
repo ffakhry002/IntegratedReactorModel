@@ -33,6 +33,11 @@ def collapse_to_three_groups(mean, std_dev, inputs_dict):
     tuple
         (means, std_devs) for the three collapsed groups
     """
+    # Check if we already have 3-group data (no collapsing needed!)
+    if len(mean) == 3:
+        print("Already 3-group data - no collapsing needed!")
+        return mean, std_dev
+
     # Get indices for group boundaries from inputs
     thermal_inds = get_group_indices(inputs_dict['thermal_cutoff'], inputs_dict)
     fast_inds = get_group_indices(inputs_dict['fast_cutoff'], inputs_dict)
