@@ -736,7 +736,7 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
         graphite_mix = openmc.Material(name='graphite_mix_bwr')
         graphite_mix.add_element('C', 1.0)
         graphite_mix.set_density('g/cm3', 1.75)
-        graphite_mix.temperature = 573.15
+        graphite_mix.temperature = 558.15
 
         # Sample material (already no S(α,β) table for Vacuum)
         sample_mix = bwr_sample
