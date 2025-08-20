@@ -667,8 +667,27 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
         hp_water_mix.add_nuclide('B10', 0.000280, percent_type='ao')
         hp_water_mix.add_nuclide('B11', 0.001120, percent_type='ao')
         hp_water_mix.add_nuclide('Li6', 1.67e-07, percent_type='ao')
-        hp_water_mix.set_density('g/cm3', 0.712)  # Approximate density at PWR conditions
-        hp_water_mix.temperature = 573.15
+
+        # Calculate actual PWR water density including boron using CoolProp
+        from CoolProp.CoolProp import PropsSI
+        pwr_temp = 573.15  # 300°C
+        pwr_pressure = 15.5e6  # 15.5 MPa
+        pwr_water_density = PropsSI('D', 'T', pwr_temp, 'P', pwr_pressure, 'Water')  # kg/m³
+        
+        # Account for 1400 ppm boron (same as HP_Borated_Water calculation)
+        rho_boron = 2.34  # g/cm³ for elemental boron
+        w_water = 0.9986  # mass fraction of water
+        w_boron = 0.0014  # mass fraction of boron (1400 ppm)
+        
+        # Calculate volumes per unit mass
+        V_water = w_water / (pwr_water_density / 1000)  # cm³ of water per gram of mixture
+        V_boron = w_boron / rho_boron  # cm³ of boron per gram of mixture
+        
+        # Composite density = 1 / (total volume per unit mass)
+        rho_composite = 1 / (V_water + V_boron)  # g/cm³
+        
+        hp_water_mix.set_density('g/cm3', rho_composite)
+        hp_water_mix.temperature = pwr_temp
 
         # CO2 (no S(α,β) table)
         co2_mix = materials_dict['CO2']
@@ -726,8 +745,13 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
         bwr_fluid_mix = openmc.Material(name='bwr_fluid_mix')
         bwr_fluid_mix.add_nuclide('H1', 2.0)
         bwr_fluid_mix.add_nuclide('O16', 1.0)
-        bwr_fluid_mix.set_density('g/cm3', 0.712)  # Approximate density at BWR conditions
-        bwr_fluid_mix.temperature = 573.15
+        # Calculate actual BWR water density using CoolProp (pure water, no boron)
+        from CoolProp.CoolProp import PropsSI
+        bwr_temp = 573.15  # 300°C
+        bwr_pressure = 7.2e6  # 7.2 MPa
+        bwr_water_density = PropsSI('D', 'T', bwr_temp, 'P', bwr_pressure, 'Water')  # kg/m³
+        bwr_fluid_mix.set_density('g/cm3', bwr_water_density / 1000)  # No boron adjustment needed
+        bwr_fluid_mix.temperature = bwr_temp
 
         # CO2 (no S(α,β) table)
         co2_mix = materials_dict['CO2']
