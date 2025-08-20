@@ -5,6 +5,15 @@ Helper functions for plotting.
 import numpy as np
 import openmc
 from inputs import inputs
+import sys
+import os
+
+# Add path to geometry helpers
+current_dir = os.path.dirname(os.path.abspath(__file__))
+root_dir = os.path.dirname(os.path.dirname(current_dir))
+sys.path.append(root_dir)
+
+from Reactor.geometry_helpers.irradiation_experiments import get_experiment_config, get_scaled_radii
 
 def _get_cell_dimensions(inputs_dict):
     """Get cell width and height from inputs.
@@ -44,12 +53,11 @@ def _calculate_sigma_scaling_and_radii(cell_width, inputs_dict):
     """
     diameter_fraction = inputs_dict['Gas_capsule_diameter']
     target_diameter = cell_width * diameter_fraction
-    mcnp_outer_radius = 2.618  # From build_complex_sigma
-    scale_factor = target_diameter / (2 * mcnp_outer_radius)
 
-        # Scale the radii (from build_complex_sigma)
-    r_sample_inner = 1.3 * scale_factor  # Inner radius of sample annulus
-    r_sample_outer = 1.8 * scale_factor  # Outer radius of sample annulus
+    # Get scaled radii from centralized configuration
+    scaled_radii, scale_factor = get_scaled_radii('Gas_capsule', target_diameter)
+    r_sample_inner = scaled_radii['sample_inner']  # Inner radius of sample annulus
+    r_sample_outer = scaled_radii['sample_outer']  # Outer radius of sample annulus
 
     return r_sample_inner, r_sample_outer
 
@@ -137,19 +145,21 @@ def _calculate_htwl_scaling_and_radii(cell_width, inputs_dict, use_bwr_water=Fal
     # Use BWR or PWR diameter depending on water type
     if use_bwr_water:
         diameter_fraction = inputs_dict['BWR_loop_diameter']
+        irradiation_type = 'BWR_loop'
     else:
         diameter_fraction = inputs_dict['PWR_loop_diameter']
+        irradiation_type = 'PWR_loop'
 
     target_diameter = cell_width * diameter_fraction
-    mcnp_outer_radius = 2.585  # From build_complex_htwl
-    scale_factor = target_diameter / (2 * mcnp_outer_radius)
 
-        # Scale the radii (from build_complex_htwl)
-    r_sample_inner = 0.3175 * scale_factor  # Inner radius of sample annulus
-    r_sample_outer = 0.45 * scale_factor    # Outer radius of sample annulus
+    # Get scaled radii from centralized configuration
+    scaled_radii, scale_factor = get_scaled_radii(irradiation_type, target_diameter)
+    r_sample_inner = scaled_radii['sample_inner']  # Inner radius of sample annulus
+    r_sample_outer = scaled_radii['sample_outer']   # Outer radius of sample annulus
 
-    # HTWL sample height (from geometry: z_capsule_bottom_top to z_capsule_top_bot)
-    sample_height = 23.0  # cm (from -23.5 to -0.5)
+    # HTWL sample height from centralized configuration
+    config = get_experiment_config(irradiation_type)
+    sample_height = config['sample_height']  # cm
 
     return r_sample_inner, r_sample_outer, sample_height
 

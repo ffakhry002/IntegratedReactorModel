@@ -3,6 +3,7 @@ import os
 import sys
 import numpy as np
 from .utils import generate_cell_id, get_irradiation_cell_name
+from .irradiation_experiments import get_experiment_config, get_scaled_radii, get_sample_positions, get_scaled_z_planes
 
 # Add root directory to path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -139,36 +140,37 @@ def build_complex_htwl(mat_dict, position, inputs_dict, use_bwr_water=False, irr
         diameter_fraction = inputs_dict['PWR_loop_diameter']  # Get from inputs
 
     target_diameter = cell_width * diameter_fraction
-    mcnp_outer_radius = 2.585  # Water gap outer radius in MCNP
-    scale_factor = target_diameter / (2 * mcnp_outer_radius)
 
-    # Scale all MCNP radii
-    r_spine = 0.24 * scale_factor
-    r_sample_ti = 0.1 * scale_factor
-    r_sample_inner = 0.3175 * scale_factor
-    r_sample_outer = 0.45 * scale_factor
-    r_sample_center = 1.03 * scale_factor  # Distance from center to sample centers
-    r_capsule_inner = 1.698 * scale_factor
-    r_capsule_outer = 1.778 * scale_factor
-    r_autoclave_inner = 1.93675 * scale_factor
-    r_autoclave_outer = 2.15265 * scale_factor
+    # Get scaled radii from centralized configuration
+    scaled_radii, scale_factor = get_scaled_radii(irradiation_type, target_diameter)
+
+    r_spine = scaled_radii['spine']
+    r_sample_ti = scaled_radii['sample_ti']
+    r_sample_inner = scaled_radii['sample_inner']
+    r_sample_outer = scaled_radii['sample_outer']
+    r_sample_center = scaled_radii['sample_center']  # Distance from center to sample centers
+    r_capsule_inner = scaled_radii['capsule_inner']
+    r_capsule_outer = scaled_radii['capsule_outer']
+    r_autoclave_inner = scaled_radii['autoclave_inner']
+    r_autoclave_outer = scaled_radii['autoclave_outer']
     # Thimble boundaries (CO2 goes up to thimble inner - they share the same surface)
-    r_thimble_inner = 2.2987 * scale_factor  # This is ALSO the CO2 outer boundary
-    r_thimble_outer = 2.54 * scale_factor
-    r_water_gap_outer = 2.585 * scale_factor  # Water gap outer radius (from MCNP surface 107)
+    r_thimble_inner = scaled_radii['thimble_inner']  # This is ALSO the CO2 outer boundary
+    r_thimble_outer = scaled_radii['thimble_outer']
+    r_water_gap_outer = scaled_radii['water_gap_outer']  # Water gap outer radius
 
     # Z-planes (keep original dimensions, don't scale)
     fuel_height = inputs_dict['fuel_height'] * 100  # m to cm
     z_bottom = -fuel_height / 2
     z_top = fuel_height / 2
 
-    # Fixed experimental positions (relative to center)
-    z_autoclave_bottom_bot = -28.305
-    z_autoclave_bottom_top = -27.305
-    z_capsule_bottom_bot = -24.0
-    z_capsule_bottom_top = -23.5
-    z_capsule_top_bot = -0.5
-    z_capsule_top_top = 0.0
+    # Get z-plane coordinates from centralized configuration
+    z_planes = get_scaled_z_planes(irradiation_type)
+    z_autoclave_bottom_bot = z_planes['autoclave_bottom_bot']
+    z_autoclave_bottom_top = z_planes['autoclave_bottom_top']
+    z_capsule_bottom_bot = z_planes['capsule_bottom_bot']
+    z_capsule_bottom_top = z_planes['capsule_bottom_top']
+    z_capsule_top_bot = z_planes['capsule_top_bot']
+    z_capsule_top_top = z_planes['capsule_top_top']
 
     # Select water material
     water_mat = mat_dict['BWR_fluid'] if use_bwr_water else mat_dict['HP_Borated_Water']
@@ -191,12 +193,7 @@ def build_complex_htwl(mat_dict, position, inputs_dict, use_bwr_water=False, irr
     cyl_water_gap_outer = openmc.ZCylinder(r=r_water_gap_outer)
 
     # Sample cylinders (off-axis at 12, 3, 6, 9 o'clock)
-    sample_positions = [
-        (0, r_sample_center),      # Sample 1 at 12:00
-        (r_sample_center, 0),      # Sample 2 at 3:00
-        (0, -r_sample_center),     # Sample 3 at 6:00
-        (-r_sample_center, 0),     # Sample 4 at 9:00
-    ]
+    sample_positions = get_sample_positions(irradiation_type, scale_factor)
 
     sample_cylinders = []
     for x, y in sample_positions:
@@ -459,19 +456,19 @@ def build_complex_sigma(mat_dict, position, inputs_dict):
     # Get scaling from inputs - SIGMA uses Gas_capsule diameter
     diameter_fraction = inputs_dict['Gas_capsule_diameter']  # Get from inputs
     target_diameter = cell_width * diameter_fraction
-    mcnp_outer_radius = 2.618  # Water gap outer radius in MCNP
-    scale_factor = target_diameter / (2 * mcnp_outer_radius)
 
-    # Scale all MCNP radii
-    r_spine = 0.25 * scale_factor
-    r_inner_he = 0.5 * scale_factor
-    r_sample_inner = 1.3 * scale_factor
-    r_sample_outer = 1.8 * scale_factor
-    r_outer_graphite = 2.35 * scale_factor
-    r_outer_he = 2.4511 * scale_factor
-    r_thimble_inner = 2.4511 * scale_factor
-    r_thimble_outer = 2.54 * scale_factor
-    r_water_gap = 2.618 * scale_factor
+    # Get scaled radii from centralized configuration
+    scaled_radii, scale_factor = get_scaled_radii('Gas_capsule', target_diameter)
+
+    r_spine = scaled_radii['spine']
+    r_inner_he = scaled_radii['inner_he']
+    r_sample_inner = scaled_radii['sample_inner']
+    r_sample_outer = scaled_radii['sample_outer']
+    r_outer_graphite = scaled_radii['outer_graphite']
+    r_outer_he = scaled_radii['outer_he']
+    r_thimble_inner = scaled_radii['thimble_inner']
+    r_thimble_outer = scaled_radii['thimble_outer']
+    r_water_gap = scaled_radii['water_gap_outer']
 
     # Z boundaries (full fuel height)
     fuel_height = inputs_dict['fuel_height'] * 100  # m to cm

@@ -11,6 +11,7 @@ import numpy as np
 from inputs import inputs
 from Reactor.geometry_helpers.utils import generate_cell_id
 from Reactor.geometry_helpers.irradiation_cell import parse_irradiation_type, generate_complex_cell_id
+from Reactor.geometry_helpers.irradiation_experiments import get_experiment_config, get_scaled_radii
 from eigenvalue.tallies.energy_groups import get_energy_bins
 
 def create_irradiation_tallies(inputs_dict=None):
@@ -196,12 +197,11 @@ def _create_sigma_sample_mesh(pos, x_pos, y_pos, cell_width, half_height, n_axia
     # Use same scaling as SIGMA geometry in build_complex_sigma
     diameter_fraction = inputs_dict['Gas_capsule_diameter']
     target_diameter = cell_width * diameter_fraction
-    mcnp_outer_radius = 2.618  # From build_complex_sigma
-    scale_factor = target_diameter / (2 * mcnp_outer_radius)
 
-    # Scale the radii to match geometry (from build_complex_sigma)
-    r_sample_inner = 1.3 * scale_factor  # Inner radius of sample annulus
-    r_sample_outer = 1.8 * scale_factor  # Outer radius of sample annulus
+    # Get scaled radii from centralized configuration
+    scaled_radii, scale_factor = get_scaled_radii('Gas_capsule', target_diameter)
+    r_sample_inner = scaled_radii['sample_inner']  # Inner radius of sample annulus
+    r_sample_outer = scaled_radii['sample_outer']  # Outer radius of sample annulus
 
     # Create annular cylindrical mesh
     # r_grid: from inner to outer sample radius
@@ -263,18 +263,18 @@ def _create_htwl_sample_mesh(pos, irradiation_type, x_pos, y_pos, cell_width,
         diameter_fraction = inputs_dict['PWR_loop_diameter']
 
     target_diameter = cell_width * diameter_fraction
-    mcnp_outer_radius = 2.585  # From build_complex_htwl
-    scale_factor = target_diameter / (2 * mcnp_outer_radius)
 
-    # Scale the radii for sample annular region
-    r_sample_inner = 0.3175 * scale_factor  # Inner radius of sample annulus
-    r_sample_outer = 0.45 * scale_factor    # Outer radius of sample annulus
-    r_sample_center = 1.03 * scale_factor   # Distance from center to sample center
+    # Get scaled radii from centralized configuration
+    scaled_radii, scale_factor = get_scaled_radii(irradiation_type, target_diameter)
+    r_sample_inner = scaled_radii['sample_inner']  # Inner radius of sample annulus
+    r_sample_outer = scaled_radii['sample_outer']   # Outer radius of sample annulus
+    r_sample_center = scaled_radii['sample_center'] # Distance from center to sample center
 
-    # HTWL sample vertical dimensions (from geometry)
-    z_sample_bottom = -23.5  # cm (z_capsule_bottom_top)
-    z_sample_top = -0.5      # cm (z_capsule_top_bot)
-    sample_height = z_sample_top - z_sample_bottom  # 23 cm
+    # HTWL sample vertical dimensions (from centralized configuration)
+    config = get_experiment_config(irradiation_type)
+    z_sample_bottom = config['z_planes']['capsule_bottom_top']  # cm
+    z_sample_top = config['z_planes']['capsule_top_bot']        # cm
+    sample_height = z_sample_top - z_sample_bottom              # cm
 
     # Calculate adjusted number of axial segments to maintain resolution
     # If fuel height has n_axial_segments, and HTWL sample is shorter,
