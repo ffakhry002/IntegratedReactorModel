@@ -585,7 +585,7 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
         from CoolProp.CoolProp import PropsSI
 
         # BWR operating conditions
-        bwr_temp = 573.15  # 300°C in Kelvin
+        bwr_temp = 558.15  # 285°C in Kelvin
         bwr_pressure = 7.2e6  # 7.2 MPa (typical BWR pressure)
 
         # Get water density at BWR conditions using CoolProp
@@ -747,7 +747,7 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
         bwr_fluid_mix.add_nuclide('O16', 1.0)
         # Calculate actual BWR water density using CoolProp (pure water, no boron)
         from CoolProp.CoolProp import PropsSI
-        bwr_temp = 573.15  # 300°C
+        bwr_temp = 558.15  # 285°C
         bwr_pressure = 7.2e6  # 7.2 MPa
         bwr_water_density = PropsSI('D', 'T', bwr_temp, 'P', bwr_pressure, 'Water')  # kg/m³
         bwr_fluid_mix.set_density('g/cm3', bwr_water_density / 1000)  # No boron adjustment needed
@@ -764,7 +764,7 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
         coolant_mix.add_nuclide('H1', 2.0)
         coolant_mix.add_nuclide('O16', 1.0)
         coolant_mix.set_density('g/cm3', np.mean(TH_data['coolant_density'])/1000)
-        coolant_mix.temperature = 573.15
+        coolant_mix.temperature = bwr_temp
 
         # Mix using EXACT percentages from complex mode analysis
         bwrloop = openmc.Material.mix_materials(
@@ -779,7 +779,7 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
             'vo',
             name='BWR_loop'
         )
-        bwrloop.temperature = 573.15  # 300°C
+        bwrloop.temperature = 558.15  # 285°C
         material_list.append(bwrloop)
 
         # Gas Capsule Material (SIGMA) - FULL COMPOSITION FROM COMPLEX MODE ANALYSIS
