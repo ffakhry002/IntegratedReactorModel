@@ -24,7 +24,7 @@ from eigenvalue.tallies.power_tallies import create_power_tallies
 from eigenvalue.outputs import process_results
 
 
-def make_and_run_openmc_model(model, statepoint_name, folder='Output/'):
+def make_and_run_openmc_model(model, statepoint_name, folder='Output/', fast_mode=False):
     """Run OpenMC simulation with given parameters.
 
     Parameters
@@ -35,20 +35,28 @@ def make_and_run_openmc_model(model, statepoint_name, folder='Output/'):
         Name for the statepoint file
     folder : str, optional
         Output directory for simulation files (default: 'Output/')
+    fast_mode : bool, optional
+        Whether to run in fast mode (skip XML export and file operations)
     """
     # Create output directory if it doesn't exist
     os.makedirs(folder, exist_ok=True)
     workspace_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     os.environ['OPENMC_CROSS_SECTIONS'] = os.path.join(workspace_root, 'cross_sections', 'cross_sections.xml')
-    model.export_to_xml(folder)
-    openmc.run(cwd=folder,geometry_debug=False)
 
-    # Rename statepoint file
-    old_sp = os.path.join(folder, f'statepoint.{model.settings.batches}.h5')
-    new_sp = os.path.join(folder, f'statepoint.{statepoint_name}.h5')
-    if os.path.exists(old_sp):
-        shutil.copy2(old_sp, new_sp)  # Copy instead of rename to keep original
-        os.remove(old_sp)  # Remove original after successful copy
+        # Always export XML files (OpenMC requires them)
+    model.export_to_xml(folder)
+    openmc.run(cwd=folder, geometry_debug=False)
+
+    if not fast_mode:
+        print("Standard mode: Managing statepoint file")
+        # Rename statepoint file in standard mode only
+        old_sp = os.path.join(folder, f'statepoint.{model.settings.batches}.h5')
+        new_sp = os.path.join(folder, f'statepoint.{statepoint_name}.h5')
+        if os.path.exists(old_sp):
+            shutil.copy2(old_sp, new_sp)  # Copy instead of rename to keep original
+            os.remove(old_sp)  # Remove original after successful copy
+    else:
+        print("Fast mode: Skipping statepoint file operations")
 
 def run_eigenvalue(inputs_dict=None):
     """
@@ -88,7 +96,7 @@ def run_eigenvalue(inputs_dict=None):
 
     # Create settings
     settings = openmc.Settings()
-    settings.verbosity = 7
+    settings.verbosity = inputs_dict.get('verbosity', 7)
     settings.seed = 1
     settings.batches = batches
     settings.inactive = inactive
@@ -132,26 +140,44 @@ def run_eigenvalue(inputs_dict=None):
     source.strength = 1.0
     settings.source = source
 
-    # Create entropy mesh matching the source region
-    entropy_mesh = openmc.RegularMesh()
-    entropy_mesh.lower_left = [-half_width_x, -half_width_y, -half_height]
-    entropy_mesh.upper_right = [half_width_x, half_width_y, half_height]
-    entropy_mesh.dimension = inputs_dict['entropy_mesh_dimension']
-    settings.entropy_mesh = entropy_mesh
+    # Create entropy mesh only if NOT in fast mode
+    if not inputs_dict.get('fast_mode', False):
+        entropy_mesh = openmc.RegularMesh()
+        entropy_mesh.lower_left = [-half_width_x, -half_width_y, -half_height]
+        entropy_mesh.upper_right = [half_width_x, half_width_y, half_height]
+        entropy_mesh.dimension = inputs_dict['entropy_mesh_dimension']
+        settings.entropy_mesh = entropy_mesh
+        print(f"Created entropy mesh with dimensions: {inputs_dict['entropy_mesh_dimension']}")
+    else:
+        print("Fast mode: Skipping entropy mesh creation for faster convergence")
 
     settings.temperature = {'method': 'interpolation', 'tolerance': 100}
     settings.run_mode = 'eigenvalue'
 
-    # Add tallies
+    # Add tallies - minimal set for fast mode
     tallies = openmc.Tallies()
-    tallies.extend(create_irradiation_tallies(inputs_dict=inputs_dict))
-    tallies.extend(create_irradiation_axial_tallies(inputs_dict=inputs_dict))
-    tallies.extend(create_nutotal_tallies())
-    tallies.extend(create_coreflux_tallys(inputs_dict=inputs_dict))
 
-    # Only add power tallies if tally_power is enabled
-    if inputs_dict.get('tally_power', True):
-        tallies.extend(create_power_tallies(inputs_dict=inputs_dict))
+    if inputs_dict.get('fast_mode', False):
+        print("Fast mode: Creating minimal tally set for maximum speed")
+        # MINIMAL TALLIES FOR FAST MODE - only what's needed for results.txt
+        tallies.extend(create_irradiation_tallies(inputs_dict=inputs_dict))  # Single cell flux tallies
+        tallies.extend(create_nutotal_tallies())                           # nu-fission, fission for k-eff
+        print("  ✓ Created irradiation position tallies (single cell)")
+        print("  ✓ Created nu-fission and fission tallies")
+        print("  ✗ Skipped axial mesh tallies")
+        print("  ✗ Skipped core flux mesh tallies")
+        print("  ✗ Skipped power tallies")
+    else:
+        print("Standard mode: Creating full tally set")
+        # STANDARD MODE - all tallies
+        tallies.extend(create_irradiation_tallies(inputs_dict=inputs_dict))
+        tallies.extend(create_irradiation_axial_tallies(inputs_dict=inputs_dict))
+        tallies.extend(create_nutotal_tallies())
+        tallies.extend(create_coreflux_tallys(inputs_dict=inputs_dict))
+
+        # Only add power tallies if tally_power is enabled
+        if inputs_dict.get('tally_power', True):
+            tallies.extend(create_power_tallies(inputs_dict=inputs_dict))
 
     # Create model
     model = openmc.model.Model()
@@ -180,10 +206,17 @@ def run_eigenvalue(inputs_dict=None):
 
     # Run the simulation
     statepoint_name = 'eigenvalue'
-    make_and_run_openmc_model(model, statepoint_name, output_dir)
+    make_and_run_openmc_model(model, statepoint_name, output_dir, inputs_dict.get('fast_mode', False))
 
-    # Extract results
-    sp_path = os.path.join(output_dir, f'statepoint.{statepoint_name}.h5')
+    # Extract results - handle different statepoint names for fast vs standard mode
+    if inputs_dict.get('fast_mode', False):
+        # In fast mode, use the original OpenMC statepoint filename
+        sp_path = os.path.join(output_dir, f'statepoint.{batches}.h5')
+        print(f"Fast mode: Reading statepoint from {sp_path}")
+    else:
+        # In standard mode, use the renamed statepoint file
+        sp_path = os.path.join(output_dir, f'statepoint.{statepoint_name}.h5')
+
     with openmc.StatePoint(sp_path) as sp:
         k_effective = sp.keff
         # Process and save results

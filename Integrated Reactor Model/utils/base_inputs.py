@@ -99,8 +99,8 @@ base_inputs = {
     "irradiation_cell_complexity": "Complex", # Simple: smeared channels, Complex: MCNP provided positions
 
     # Complex fills
-    "PWR_sample_fill": "Vacuum", # PWR loop sample fill
-    "BWR_sample_fill": "Vacuum", # BWR loop sample fill
+    "PWR_sample_fill": "mgo", # PWR loop sample fill
+    "BWR_sample_fill": "Concrete", # BWR loop sample fill
     "Gas_capsule_fill": "Vacuum", # Gas capsule sample fill
 
     # Loop Diameters
@@ -112,9 +112,9 @@ base_inputs = {
     # OpenMC Transport Parameters
     ###########################################
     # Standard Transport Settings
-    "batches": int(100),                   # Number of active batches
+    "batches": int(150),                   # Number of active batches
     "inactive": int(20),                   # Number of inactive batches
-    "particles": int(10000),            # Particles per batch
+    "particles": int(2500000),            # Particles per batch
     "energy_structure": 'log1001',    # Energy group structure
 
     # Energy Group Boundaries

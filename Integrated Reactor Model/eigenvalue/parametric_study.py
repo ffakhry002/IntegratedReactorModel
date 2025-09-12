@@ -129,7 +129,7 @@ def write_base_inputs_log(param_dir, base_inputs):
     # Define the sections and their headers as they appear in inputs.py
     sections = {
         'Parametric Study Configuration': [
-            'parametric_study'
+            'parametric_study', 'fast_mode'
         ],
         'Core Configuration': [
             'core_lattice', 'core_power', 'assembly_type'
@@ -164,7 +164,7 @@ def write_base_inputs_log(param_dir, base_inputs):
             'depletion_chain', 'depletion_nuclides'
         ],
         'Miscellaneous Settings': [
-            'outputs_folder', 'pixels'
+            'outputs_folder', 'dpi', 'verbosity'
         ],
         'Derived Values': [
             'n_guide_tubes', 'num_assemblies'
@@ -317,30 +317,52 @@ def run_single_parametric_case(run_num, run_dict, param_dir, log_file):
     run_dir = os.path.join(param_dir, f"run_{run_num}")
     os.makedirs(run_dir)
 
-    # Create subdirectories for this run
-    subdirs = {
-        'geometry_materials': os.path.join(run_dir, 'Geometry_and_Materials'),
-        'thermal_hydraulics': os.path.join(run_dir, 'ThermalHydraulics'),
-        'transport_data': os.path.join(run_dir, 'transport_data'),
-        'flux_plots': os.path.join(run_dir, 'flux_plots'),
-        'power_plots': os.path.join(run_dir, 'power_plots'),
-        'depletion_data': os.path.join(run_dir, 'depletion_data'),
-        'depletion_plots': os.path.join(run_dir, 'depletion_plots')
-    }
-
-    for dir_path in subdirs.values():
-        os.makedirs(dir_path)
-
-    # Create TH scenario directories
-    th_scenarios = ['cosine_calculation', 'hot_element', 'core_average']
-    th_subdirs = {}
-    for scenario in th_scenarios:
-        scenario_dir = os.path.join(subdirs['thermal_hydraulics'], scenario)
-        os.makedirs(scenario_dir)
-        th_subdirs[scenario] = scenario_dir
-
     # Update inputs for this run
     modified_inputs = update_inputs_with_run_dict(inputs, run_dict)
+
+    # Re-apply fast mode overrides if fast mode is enabled in this run
+    # This ensures parametric runs with fast_mode: True get proper fast mode settings
+    if modified_inputs.get('fast_mode', False):
+        from inputs import apply_fast_mode_overrides
+        modified_inputs = apply_fast_mode_overrides(modified_inputs)
+
+    # Check if we're in fast mode
+    is_fast_mode = modified_inputs.get('fast_mode', False)
+
+    if is_fast_mode:
+        print("FAST MODE: Skipping directory creation, plotting, and thermal hydraulics")
+        print("  Only running eigenvalue calculation for maximum speed")
+
+        # FAST MODE - only create transport_data directory (needed for XML, H5, results.txt)
+        subdirs = {
+            'transport_data': os.path.join(run_dir, 'transport_data')
+        }
+        os.makedirs(subdirs['transport_data'])
+
+    else:
+        print("STANDARD MODE: Creating full directory structure")
+
+        # STANDARD MODE - create full subdirectories
+        subdirs = {
+            'geometry_materials': os.path.join(run_dir, 'Geometry_and_Materials'),
+            'thermal_hydraulics': os.path.join(run_dir, 'ThermalHydraulics'),
+            'transport_data': os.path.join(run_dir, 'transport_data'),
+            'flux_plots': os.path.join(run_dir, 'flux_plots'),
+            'power_plots': os.path.join(run_dir, 'power_plots'),
+            'depletion_data': os.path.join(run_dir, 'depletion_data'),
+            'depletion_plots': os.path.join(run_dir, 'depletion_plots')
+        }
+
+        for dir_path in subdirs.values():
+            os.makedirs(dir_path)
+
+        # Create TH scenario directories
+        th_scenarios = ['cosine_calculation', 'hot_element', 'core_average']
+        th_subdirs = {}
+        for scenario in th_scenarios:
+            scenario_dir = os.path.join(subdirs['thermal_hydraulics'], scenario)
+            os.makedirs(scenario_dir)
+            th_subdirs[scenario] = scenario_dir
 
     try:
         # Save the current working directory
@@ -349,50 +371,67 @@ def run_single_parametric_case(run_num, run_dict, param_dir, log_file):
         # Change to run directory for the simulation
         os.chdir(run_dir)
 
-        # Run geometry and materials generation
-        print("Generating geometry and materials...")
-        plot_geometry(subdirs['geometry_materials'], inputs_dict=modified_inputs)
+        if is_fast_mode:
+            # FAST MODE - Only run eigenvalue calculation
+            print("Fast mode: Running OpenMC eigenvalue calculation only...")
 
-        # Run thermal hydraulics with cosine approximation
-        print("Running thermal hydraulics analysis...")
-        th_system = THSystem(modified_inputs)
-        thermal_state = th_system.calculate_temperature_distribution()
-        th_system.write_results(th_subdirs['cosine_calculation'])
+            # Additional reset right before eigenvalue to ensure clean tally creation
+            openmc.mixin.reset_auto_ids()
+            print("OpenMC auto IDs reset before geometry creation")
 
-        # Run OpenMC simulation
-        print("Running OpenMC simulation...")
+            k_eff, k_std = run_eigenvalue(inputs_dict=modified_inputs)
 
-        # Additional reset right before eigenvalue to ensure clean tally creation
-        openmc.mixin.reset_auto_ids()
-        print("OpenMC auto IDs reset before geometry creation")
+            print(f"Fast mode simulation completed successfully!")
+            print(f"k-effective = {k_eff:.6f} ± {k_std:.6f}")
 
-        k_eff, k_std = run_eigenvalue(inputs_dict=modified_inputs)
-
-        print(f"Simulation completed successfully!")
-        print(f"k-effective = {k_eff:.6f} ± {k_std:.6f}")
-
-        # Run depletion calculations if enabled
-        any_depletion_enabled = any(v for k, v in modified_inputs.items() if k.startswith('deplete_'))
-        if any_depletion_enabled:
-            print("Running depletion calculations...")
-            depletion_results = run_all_depletions(output_dir=subdirs['depletion_data'], inputs_dict=modified_inputs)
-
-        # Check if power tallies are enabled
-        if modified_inputs.get('tally_power', True):
-            # Generate all plots (including power plots)
-            print("Generating plots...")
-            plot_all(plot_dir=subdirs['flux_plots'], depletion_plot_dir=subdirs['depletion_plots'], power_plot_dir=subdirs['power_plots'], inputs_dict=modified_inputs)
-
-            # Run additional thermal hydraulics calculations with different power profiles
-            print("Running additional thermal hydraulics calculations...")
-            run_additional_th_calculations(subdirs, th_subdirs, modified_inputs)
         else:
-            # Generate only flux and depletion plots (no power plots)
-            print("Power tallies disabled - generating flux and depletion plots only...")
-            plot_all(plot_dir=subdirs['flux_plots'], depletion_plot_dir=subdirs['depletion_plots'], power_plot_dir=None, inputs_dict=modified_inputs)
-            print("Skipping additional thermal hydraulics calculations (power tallies disabled)")
+            # STANDARD MODE - Full simulation workflow
+            print("Standard mode: Running full simulation workflow...")
 
-        # Log results
+            # Run geometry and materials generation
+            print("Generating geometry and materials...")
+            plot_geometry(subdirs['geometry_materials'], inputs_dict=modified_inputs)
+
+            # Run thermal hydraulics with cosine approximation
+            print("Running thermal hydraulics analysis...")
+            th_system = THSystem(modified_inputs)
+            thermal_state = th_system.calculate_temperature_distribution()
+            th_system.write_results(th_subdirs['cosine_calculation'])
+
+            # Run OpenMC simulation
+            print("Running OpenMC simulation...")
+
+            # Additional reset right before eigenvalue to ensure clean tally creation
+            openmc.mixin.reset_auto_ids()
+            print("OpenMC auto IDs reset before geometry creation")
+
+            k_eff, k_std = run_eigenvalue(inputs_dict=modified_inputs)
+
+            print(f"Simulation completed successfully!")
+            print(f"k-effective = {k_eff:.6f} ± {k_std:.6f}")
+
+            # Run depletion calculations if enabled
+            any_depletion_enabled = any(v for k, v in modified_inputs.items() if k.startswith('deplete_'))
+            if any_depletion_enabled:
+                print("Running depletion calculations...")
+                depletion_results = run_all_depletions(output_dir=subdirs['depletion_data'], inputs_dict=modified_inputs)
+
+            # Check if power tallies are enabled
+            if modified_inputs.get('tally_power', True):
+                # Generate all plots (including power plots)
+                print("Generating plots...")
+                plot_all(plot_dir=subdirs['flux_plots'], depletion_plot_dir=subdirs['depletion_plots'], power_plot_dir=subdirs['power_plots'], inputs_dict=modified_inputs)
+
+                # Run additional thermal hydraulics calculations with different power profiles
+                print("Running additional thermal hydraulics calculations...")
+                run_additional_th_calculations(subdirs, th_subdirs, modified_inputs)
+            else:
+                # Generate only flux and depletion plots (no power plots)
+                print("Power tallies disabled - generating flux and depletion plots only...")
+                plot_all(plot_dir=subdirs['flux_plots'], depletion_plot_dir=subdirs['depletion_plots'], power_plot_dir=None, inputs_dict=modified_inputs)
+                print("Skipping additional thermal hydraulics calculations (power tallies disabled)")
+
+        # Log results (works for both fast and standard mode)
         log_run_results(log_file, run_num, run_dict, modified_inputs, k_eff, k_std, True)
 
         print(f"Run {run_num} completed successfully!")

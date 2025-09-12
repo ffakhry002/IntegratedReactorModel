@@ -123,15 +123,15 @@ def plot_all(plot_dir=None, depletion_plot_dir=None, power_plot_dir=None, inputs
     except Exception as e:
         print(f"Error generating normalized flux profiles: {str(e)}")
 
-    # Check if there are any irradiation positions for axial energy breakdown
-    if has_irradiation:
-        try:
-            print("\nGenerating axial flux energy breakdown plots...")
-            plot_axial_flux_energy_breakdown(sp, flux_plot_dir, inputs_dict)
-        except Exception as e:
-            print(f"Error generating axial flux energy breakdown plots: {str(e)}")
-    else:
-        print("\nSkipping axial flux energy breakdown plots (no irradiation positions in core)")
+    # # Check if there are any irradiation positions for axial energy breakdown
+    # if has_irradiation:
+    #     try:
+    #         print("\nGenerating axial flux energy breakdown plots...")
+    #         plot_axial_flux_energy_breakdown(sp, flux_plot_dir, inputs_dict)
+    #     except Exception as e:
+    #         print(f"Error generating axial flux energy breakdown plots: {str(e)}")
+    # else:
+    #     print("\nSkipping axial flux energy breakdown plots (no irradiation positions in core)")
 
     # Only generate power plots if power tallies are enabled
     if power_plot_dir is not None:
