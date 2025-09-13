@@ -62,9 +62,9 @@ def generate_complex_cell_id(position, component_type, component_index=0, irradi
     """
     i, j = position
     if irradiation_type == 'SIGMA':
-        type_offset = 100000
+        type_offset = 1000000  # FIXED: Increased from 100000 to 1000000 to prevent overlap
     elif irradiation_type == 'BWR_loop':
-        type_offset = 200000
+        type_offset = 2000000  # FIXED: Increased from 200000 to 2000000 to prevent overlap
     else:  # PWR_loop or default
         type_offset = 0
     base = 6000000 + type_offset + i * 10000 + j * 100
@@ -426,7 +426,7 @@ def build_complex_htwl(mat_dict, position, inputs_dict, use_bwr_water=False, irr
 
     # Create universe
     i, j = position
-    universe_id = 6000000 + i * 1000 + j * 10
+    universe_id = 6000000 + i * 10000 + j * 100  # Standardized encoding
     universe = openmc.Universe(universe_id=universe_id, name=f'htwl_{i}_{j}', cells=cells)
 
     return universe
@@ -613,7 +613,7 @@ def build_complex_sigma(mat_dict, position, inputs_dict):
 
     # Create universe with different base for SIGMA
     i, j = position
-    universe_id = 6100000 + i * 1000 + j * 10  # Different base from HTWL
+    universe_id = 7000000 + i * 10000 + j * 100  # FIXED: Updated to match new SIGMA cell base
     universe = openmc.Universe(universe_id=universe_id, name=f'sigma_{i}_{j}', cells=cells)
 
     return universe
@@ -906,7 +906,7 @@ def build_irradiation_cell_uni(mat_dict, position=None, inputs_dict=None):
         i, j = position
         # Generate a unique universe ID based on position
         universe_base = 6000000  # Irradiation universes
-        universe_id = universe_base + i * 1000 + j * 10
+        universe_id = universe_base + i * 10000 + j * 100  # Standardized encoding
         irradiation_universe = openmc.Universe(universe_id=universe_id, name='irradiation_universe', cells=cells)
         irradiation_universe.name = f"irradiation_universe_{i}_{j}"
     else:

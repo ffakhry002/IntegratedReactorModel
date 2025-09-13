@@ -219,11 +219,11 @@ def get_cell_volume(cell_id, sp, is_irradiation=False, inputs_dict=None):
     # For irradiation positions, calculate volume based on EXACT geometry
     if is_irradiation:
         # Reverse-engineer position from cell ID
-        # Irradiation cell IDs: 3000000 + i * 100000 + j * 1000 + part_num
+        # FIXED: Irradiation cell IDs now use standardized encoding: 3000000 + i * 10000 + j * 100 + part_num
         if cell_id >= 3000000:
             position_code = cell_id - 3000000
-            i = position_code // 100000
-            j = (position_code % 100000) // 1000
+            i = position_code // 10000  # FIXED: Changed from 100000 to 10000
+            j = (position_code % 10000) // 100  # FIXED: Changed from (% 100000) // 1000 to (% 10000) // 100
 
             # Get the position string from core lattice to determine irradiation type
             try:

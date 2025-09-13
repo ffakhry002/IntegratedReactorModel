@@ -166,7 +166,7 @@ base_inputs = {
     # Miscellaneous Settings
     ###########################################
     "outputs_folder": "local_outputs",  # Base output directory
-    "dpi": 3000,                        # Plot resolution (dots per inch)
+    "dpi": 30,                        # Plot resolution (dots per inch)
     "verbosity": 7,
 }
 

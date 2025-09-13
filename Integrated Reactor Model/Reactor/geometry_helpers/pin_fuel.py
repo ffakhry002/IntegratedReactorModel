@@ -162,7 +162,7 @@ def build_fuel_assembly_uni(mat_dict, position=None, is_enhanced=False, inputs_d
         i, j = position
         # Generate a unique universe ID based on position
         universe_base = 5000000 if is_enhanced else 4000000
-        universe_id = universe_base + i * 1000 + j * 10
+        universe_id = universe_base + i * 10000 + j * 100  # Standardized encoding
         assembly_uni = openmc.Universe(universe_id=universe_id, name='Fuel assembly', cells=[assembly_cell])
         assembly_uni.name = f"{'enhanced_' if is_enhanced else ''}fuel_assembly_universe_{i}_{j}"
     else:

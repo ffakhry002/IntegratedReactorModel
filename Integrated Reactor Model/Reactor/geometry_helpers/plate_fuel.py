@@ -204,7 +204,7 @@ def build_fuel_assembly_uni(mat_dict, position=None, is_enhanced=False, inputs_d
     if position is not None:
         i, j = position
         fuel_base = 3000000 if is_enhanced else 2000000  # Back to reasonable values
-        fuel_id = fuel_base + i * 1000 + j * 10 + 1  # +1 to distinguish from assembly
+        fuel_id = fuel_base + i * 10000 + j * 100 + 1  # +1 to distinguish from assembly, supports 99x99
         fuel = build_plate_cell_fuel_uni(mat_dict, is_enhanced, inputs_dict, universe_id=fuel_id)
     else:
         # Position is None - this is the problem! Function called without position info
@@ -260,7 +260,7 @@ def build_fuel_assembly_uni(mat_dict, position=None, is_enhanced=False, inputs_d
         i, j = position
         # Generate a unique universe ID based on position
         universe_base = 5000000 if is_enhanced else 4000000  # Back to reasonable values
-        universe_id = universe_base + i * 1000 + j * 10
+        universe_id = universe_base + i * 10000 + j * 100  # Standardized encoding
         assembly_universe = openmc.Universe(universe_id=universe_id, cells=cells)
         assembly_universe.name = f"{'enhanced_' if is_enhanced else ''}fuel_assembly_universe_{i}_{j}"
     else:

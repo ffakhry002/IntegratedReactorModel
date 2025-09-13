@@ -1,5 +1,6 @@
 import openmc
 from inputs import inputs
+from Reactor.geometry_helpers.utils import generate_filter_id
 
 
 def create_nutotal_tallies():
@@ -63,6 +64,7 @@ def create_coreflux_tallys(inputs_dict=None):
     mesh.upper_right = [total_radius, total_radius, half_height]
 
     mesh_filter = openmc.MeshFilter(mesh)
+    mesh_filter.id = generate_filter_id('mesh', component='core')
     print(f"Created core flux mesh filter - ID: {mesh_filter.id}, Dimensions: {mesh.dimension}")
 
     # Define three energy groups using cutoffs from inputs
@@ -72,6 +74,7 @@ def create_coreflux_tallys(inputs_dict=None):
     # Create energy bins for three groups: [0, thermal, fast, 20M]
     energy_bins = [0.0, thermal_cutoff, fast_cutoff, 20.0e6]
     energy_filter = openmc.EnergyFilter(energy_bins)
+    energy_filter.id = generate_filter_id('energy', component='core')
     print(f"Created core flux energy filter - ID: {energy_filter.id}, 3-group structure")
 
     # Create mesh tally with three energy groups
