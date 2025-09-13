@@ -3,7 +3,7 @@ import os
 import sys
 import numpy as np
 from .utils import generate_cell_id, get_irradiation_cell_name
-from .irradiation_experiments import get_experiment_config, get_scaled_radii, get_sample_positions, get_scaled_z_planes
+from .irradiation_experiments import get_experiment_config, get_scaled_radii, get_sample_positions, get_scaled_z_planes, get_reference_axial_bounds
 
 # Add root directory to path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -81,6 +81,7 @@ def generate_complex_cell_id(position, component_type, component_index=0, irradi
         'sample_4_ti': 10, 'sample_4_graphite': 11, 'sample_4_sample': 12,
         # SIGMA layers
         'inner_he': 13, 'inner_graphite': 14, 'sample': 15,
+        'sample_bottom': 25, 'sample_top': 26,  # Height-matched sample sections
         'outer_graphite': 16, 'outer_he': 17,
         # Structural
         'capsule_wall': 18,
@@ -529,12 +530,46 @@ def build_complex_sigma(mat_dict, position, inputs_dict):
     cells.append(inner_graphite_cell)
 
     # Sample region (material from inputs)
-    sample_region = +cyl_sample_inner & -cyl_sample_outer & +z_bot & -z_top
-    sample_cell = openmc.Cell(name='sample')
-    sample_cell.id = generate_complex_cell_id(position, 'sample', irradiation_type='SIGMA')
-    sample_cell.region = sample_region
-    sample_cell.fill = mat_dict[inputs_dict['Gas_capsule_fill']]
-    cells.append(sample_cell)
+    if inputs_dict.get('match_GS_height', False):
+        # Height matching enabled - split sample region into 3 axial segments
+        z_ref_bottom, z_ref_top, ref_height = get_reference_axial_bounds(inputs_dict)
+        z_ref_bot_plane = openmc.ZPlane(z_ref_bottom)
+        z_ref_top_plane = openmc.ZPlane(z_ref_top)
+
+        # Bottom sample section (not tallied)
+        sample_bottom_region = +cyl_sample_inner & -cyl_sample_outer & +z_bot & -z_ref_bot_plane
+        sample_bottom_cell = openmc.Cell(name='sample_bottom')
+        sample_bottom_cell.id = generate_complex_cell_id(position, 'sample_bottom', irradiation_type='SIGMA')
+        sample_bottom_cell.region = sample_bottom_region
+        sample_bottom_cell.fill = mat_dict[inputs_dict['Gas_capsule_fill']]
+        cells.append(sample_bottom_cell)
+
+        # Middle sample section (THIS IS TALLIED - matches PWR/BWR height)
+        sample_middle_region = +cyl_sample_inner & -cyl_sample_outer & +z_ref_bot_plane & -z_ref_top_plane
+        sample_middle_cell = openmc.Cell(name='sample')  # Standard name for tallying
+        sample_middle_cell.id = generate_complex_cell_id(position, 'sample', irradiation_type='SIGMA')  # Standard ID for tallying
+        sample_middle_cell.region = sample_middle_region
+        sample_middle_cell.fill = mat_dict[inputs_dict['Gas_capsule_fill']]
+        cells.append(sample_middle_cell)
+
+        # Top sample section (not tallied)
+        sample_top_region = +cyl_sample_inner & -cyl_sample_outer & +z_ref_top_plane & -z_top
+        sample_top_cell = openmc.Cell(name='sample_top')
+        sample_top_cell.id = generate_complex_cell_id(position, 'sample_top', irradiation_type='SIGMA')
+        sample_top_cell.region = sample_top_region
+        sample_top_cell.fill = mat_dict[inputs_dict['Gas_capsule_fill']]
+        cells.append(sample_top_cell)
+
+        print(f"Height matching enabled for gas experiment at position {position}")
+        print(f"  Using reference height from PWR/BWR experiments: {ref_height:.1f} cm")
+    else:
+        # Standard single sample region (full height)
+        sample_region = +cyl_sample_inner & -cyl_sample_outer & +z_bot & -z_top
+        sample_cell = openmc.Cell(name='sample')
+        sample_cell.id = generate_complex_cell_id(position, 'sample', irradiation_type='SIGMA')
+        sample_cell.region = sample_region
+        sample_cell.fill = mat_dict[inputs_dict['Gas_capsule_fill']]
+        cells.append(sample_cell)
 
     # Outer graphite holder
     outer_graphite_region = +cyl_sample_outer & -cyl_outer_graphite & +z_bot & -z_top

@@ -304,7 +304,16 @@ def calculate_deterministic_irradiation_volume(tally_name, inputs_dict=None):
         if inputs_dict.get('irradiation_cell_complexity', 'Simple') == 'Complex':
             # Calculate annular sample volume using same scaling as geometry
             r_sample_inner, r_sample_outer = _calculate_sigma_scaling_and_radii(cell_width, inputs_dict)
-            return _calculate_annular_volume(r_sample_inner, r_sample_outer, height)
+
+            # Check if height matching is enabled
+            if inputs_dict.get('match_GS_height', False):
+                # Use reference height from PWR/BWR experiments instead of full fuel height
+                from Reactor.geometry_helpers.irradiation_experiments import get_reference_axial_bounds
+                z_ref_bottom, z_ref_top, ref_height = get_reference_axial_bounds(inputs_dict)
+                return _calculate_annular_volume(r_sample_inner, r_sample_outer, ref_height)
+            else:
+                # Use full fuel height
+                return _calculate_annular_volume(r_sample_inner, r_sample_outer, height)
         else:
             # Simple mode - full capsule volume
             return _calculate_cylindrical_volume('Gas_capsule_diameter', cell_width, height, inputs_dict)

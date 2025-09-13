@@ -14,8 +14,8 @@ base_inputs = {
         ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
         ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
         ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-        ['F', 'F', 'F', 'I_1B', 'I_2', 'F', 'F', 'F'],
-        ['F', 'F', 'F', 'I_3P', 'I_4G', 'F', 'F', 'F'],
+        ['F', 'F', 'F', 'I_1P', 'I_2B', 'F', 'F', 'F'],
+        ['F', 'F', 'F', 'I_3', 'I_4G', 'F', 'F', 'F'],
         ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
         ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
         ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
@@ -98,6 +98,7 @@ base_inputs = {
 
     # Complexity
     "irradiation_cell_complexity": "Complex", # Simple: smeared channels, Complex: MCNP provided positions
+    "match_GS_height": False,
 
     # Complex fills
     "PWR_sample_fill": "mgo", # PWR loop sample fill

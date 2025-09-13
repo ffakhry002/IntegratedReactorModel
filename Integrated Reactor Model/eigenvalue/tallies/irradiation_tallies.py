@@ -11,7 +11,7 @@ import numpy as np
 from inputs import inputs
 from Reactor.geometry_helpers.utils import generate_cell_id
 from Reactor.geometry_helpers.irradiation_cell import parse_irradiation_type, generate_complex_cell_id
-from Reactor.geometry_helpers.irradiation_experiments import get_experiment_config, get_scaled_radii
+from Reactor.geometry_helpers.irradiation_experiments import get_experiment_config, get_scaled_radii, get_reference_axial_bounds
 from eigenvalue.tallies.energy_groups import get_energy_bins
 
 def create_irradiation_tallies(inputs_dict=None):
@@ -207,8 +207,15 @@ def _create_sigma_sample_mesh(pos, x_pos, y_pos, cell_width, half_height, n_axia
     # r_grid: from inner to outer sample radius
     r_grid = [r_sample_inner, r_sample_outer]
 
-    # z_grid: axial segments from -half_height to +half_height
-    z_grid = [-half_height + i * (2*half_height)/n_axial_segments for i in range(n_axial_segments + 1)]
+    # z_grid: axial segments
+    if inputs_dict.get('match_GS_height', False):
+        # Height matching enabled - use reference bounds from PWR/BWR experiments
+        z_ref_bottom, z_ref_top, ref_height = get_reference_axial_bounds(inputs_dict)
+        z_grid = [z_ref_bottom + i * ref_height/n_axial_segments for i in range(n_axial_segments + 1)]
+        print(f"Height matching enabled: using z-range {z_ref_bottom:.1f} to {z_ref_top:.1f} cm (matches PWR/BWR)")
+    else:
+        # Standard full height
+        z_grid = [-half_height + i * (2*half_height)/n_axial_segments for i in range(n_axial_segments + 1)]
 
     # phi_grid: single azimuthal bin (full 360°)
     phi_grid = [0.0, 2*np.pi]  # 0 to 2π

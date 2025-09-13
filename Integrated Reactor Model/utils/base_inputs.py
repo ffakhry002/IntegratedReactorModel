@@ -4,6 +4,7 @@ base_inputs = {
     # Parametric Study Configuration
     ###########################################
     "parametric_study": False,        # Toggle for parametric study mode
+    "fast_mode": False,              # Toggle for fast mode
 
     ###########################################
     # Core Configuration
@@ -13,8 +14,8 @@ base_inputs = {
         ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
         ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
         ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-        ['F', 'F', 'F', 'I_1B', 'I_2', 'F', 'F', 'F'],
-        ['F', 'F', 'F', 'I_3P', 'I_4G', 'F', 'F', 'F'],
+        ['F', 'F', 'F', 'I_1G', 'I_2G', 'F', 'F', 'F'],
+        ['F', 'F', 'F', 'I_3G', 'I_4G', 'F', 'F', 'F'],
         ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
         ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
         ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
@@ -97,6 +98,7 @@ base_inputs = {
 
     # Complexity
     "irradiation_cell_complexity": "Complex", # Simple: smeared channels, Complex: MCNP provided positions
+    "match_GS_height": True,
 
     # Complex fills
     "PWR_sample_fill": "mgo", # PWR loop sample fill
@@ -112,10 +114,10 @@ base_inputs = {
     # OpenMC Transport Parameters
     ###########################################
     # Standard Transport Settings
-    "batches": int(150),                   # Number of active batches
+    "batches": int(100),                   # Number of active batches
     "inactive": int(20),                   # Number of inactive batches
-    "particles": int(2500000),            # Particles per batch
-    "energy_structure": 'log1001',    # Energy group structure
+    "particles": int(10000),            # Particles per batch
+    "energy_structure": 'log1001',    # Energy group structure ['log1001', 'log501', 'scale238', 'three_group']
 
     # Energy Group Boundaries
     "thermal_cutoff": float(0.625),          # Thermal/epithermal boundary [eV]
@@ -164,7 +166,8 @@ base_inputs = {
     # Miscellaneous Settings
     ###########################################
     "outputs_folder": "local_outputs",  # Base output directory
-    "pixels": (1600, 1600),            # Plot resolution
+    "dpi": 3000,                        # Plot resolution (dots per inch)
+    "verbosity": 7,
 }
 
 
@@ -202,9 +205,70 @@ def calculate_derived_values(core_lattice, guide_tube_positions):
 num_assemblies, n_guide_tubes = calculate_derived_values(base_inputs["core_lattice"],
                                                        base_inputs["guide_tube_positions"])
 
+def apply_fast_mode_overrides(inputs_dict):
+    """Apply fast mode optimizations to inputs dictionary.
+
+    When fast_mode is True, this function applies optimizations for maximum
+    computational speed while preserving essential results for results.txt:
+    - 3-group energy structure
+    - Minimal tallies (only irradiation full cell + nu-fission/fission)
+    - No entropy mesh, no axial tallies, no power tallies
+    - Enforce all depletion scenarios to False
+    - Lower verbosity for less output processing
+
+    Parameters
+    ----------
+    inputs_dict : dict
+        Input parameters dictionary
+
+    Returns
+    -------
+    dict
+        Modified inputs dictionary with fast mode optimizations applied
+    """
+    if not inputs_dict.get('fast_mode', False):
+        return inputs_dict
+
+    print("FAST MODE ENABLED - Applying optimizations...")
+    print("THIS IS BASE INPUTS FAST MODE")
+
+    # Core fast mode changes for maximum speed
+    fast_overrides = {
+        "energy_structure": "three_group",
+
+        # Disable expensive tallies
+        "Core_Three_Group_Energy_Bins": False,
+        "tally_power": False,
+        "element_level_power_tallies": False,
+
+        # Enforce no depletion scenarios
+        "deplete_core": False,
+        "deplete_assembly": False,
+        "deplete_assembly_enhanced": False,
+        "deplete_element": False,
+        "deplete_element_enhanced": False,
+
+        "verbosity": 7,
+
+    }
+
+    inputs_dict.update(fast_overrides)
+
+    print("Fast mode optimizations applied:")
+    print(f"  - Energy structure: {inputs_dict['energy_structure']}")
+    print(f"  - Core tallies: {inputs_dict['Core_Three_Group_Energy_Bins']}")
+    print(f"  - Power tallies: {inputs_dict['tally_power']}")
+    print(f"  - All depletion scenarios: False")
+    print(f"  - Verbosity level: {inputs_dict['verbosity']}")
+
+    return inputs_dict
+
 # Add derived values to create final inputs dictionary
 inputs = {
     **base_inputs,
     "n_guide_tubes": 1,  # number of guide tubes per assembly
     "num_assemblies": 48  # Automatically calculated from core_lattice
 }
+
+# # Apply fast mode optimizations if enabled
+# inputs = apply_fast_mode_overrides(inputs)
