@@ -505,12 +505,12 @@ def build_complex_sigma(mat_dict, position, inputs_dict):
 
     # Build cells from inside out (all extend full height)
 
-    # Titanium spine
+    # Titanium spine (hot - 800°C)
     spine_region = -cyl_spine & +z_bot & -z_top
     spine_cell = openmc.Cell(name='spine')
     spine_cell.id = generate_complex_cell_id(position, 'spine', irradiation_type='SIGMA')
     spine_cell.region = spine_region
-    spine_cell.fill = mat_dict['Titanium']
+    spine_cell.fill = mat_dict['Titanium_hot']  # 1073K for SIGMA spine
     cells.append(spine_cell)
 
     # Inner helium gap
@@ -521,12 +521,12 @@ def build_complex_sigma(mat_dict, position, inputs_dict):
     inner_he_cell.fill = mat_dict['HT_Helium']
     cells.append(inner_he_cell)
 
-    # Inner graphite holder
+    # Inner graphite holder (hot - 800°C)
     inner_graphite_region = +cyl_inner_he & -cyl_sample_inner & +z_bot & -z_top
     inner_graphite_cell = openmc.Cell(name='inner_graphite')
     inner_graphite_cell.id = generate_complex_cell_id(position, 'inner_graphite', irradiation_type='SIGMA')
     inner_graphite_cell.region = inner_graphite_region
-    inner_graphite_cell.fill = mat_dict['graphite']
+    inner_graphite_cell.fill = mat_dict['graphite_hot']  # 1073K for SIGMA graphite
     cells.append(inner_graphite_cell)
 
     # Sample region (material from inputs)
@@ -571,12 +571,12 @@ def build_complex_sigma(mat_dict, position, inputs_dict):
         sample_cell.fill = mat_dict[inputs_dict['Gas_capsule_fill']]
         cells.append(sample_cell)
 
-    # Outer graphite holder
+    # Outer graphite holder (hot - 800°C)
     outer_graphite_region = +cyl_sample_outer & -cyl_outer_graphite & +z_bot & -z_top
     outer_graphite_cell = openmc.Cell(name='outer_graphite')
     outer_graphite_cell.id = generate_complex_cell_id(position, 'outer_graphite', irradiation_type='SIGMA')
     outer_graphite_cell.region = outer_graphite_region
-    outer_graphite_cell.fill = mat_dict['graphite']
+    outer_graphite_cell.fill = mat_dict['graphite_hot']  # 1073K for SIGMA graphite
     cells.append(outer_graphite_cell)
 
     # Outer helium gap
@@ -587,12 +587,12 @@ def build_complex_sigma(mat_dict, position, inputs_dict):
     outer_he_cell.fill = mat_dict['HT_Helium']
     cells.append(outer_he_cell)
 
-    # Thimble walls
+    # Thimble walls (cool - 100°C)
     thimble_region = +cyl_outer_he & -cyl_thimble_outer & +z_bot & -z_top
     thimble_cell = openmc.Cell(name='thimble')
     thimble_cell.id = generate_complex_cell_id(position, 'thimble', irradiation_type='SIGMA')
     thimble_cell.region = thimble_region
-    thimble_cell.fill = mat_dict['Titanium']
+    thimble_cell.fill = mat_dict['Titanium_cool']  # 373K for SIGMA thimble
     cells.append(thimble_cell)
 
     # Water gap
