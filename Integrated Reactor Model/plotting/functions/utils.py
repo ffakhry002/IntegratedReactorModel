@@ -219,11 +219,11 @@ def get_cell_volume(cell_id, sp, is_irradiation=False, inputs_dict=None):
     # For irradiation positions, calculate volume based on EXACT geometry
     if is_irradiation:
         # Reverse-engineer position from cell ID
-        # Irradiation cell IDs: 3000000 + i * 100000 + j * 1000 + part_num
+        # FIXED: Irradiation cell IDs now use standardized encoding: 3000000 + i * 10000 + j * 100 + part_num
         if cell_id >= 3000000:
             position_code = cell_id - 3000000
-            i = position_code // 100000
-            j = (position_code % 100000) // 1000
+            i = position_code // 10000  # FIXED: Changed from 100000 to 10000
+            j = (position_code % 10000) // 100  # FIXED: Changed from (% 100000) // 1000 to (% 10000) // 100
 
             # Get the position string from core lattice to determine irradiation type
             try:
@@ -304,7 +304,16 @@ def calculate_deterministic_irradiation_volume(tally_name, inputs_dict=None):
         if inputs_dict.get('irradiation_cell_complexity', 'Simple') == 'Complex':
             # Calculate annular sample volume using same scaling as geometry
             r_sample_inner, r_sample_outer = _calculate_sigma_scaling_and_radii(cell_width, inputs_dict)
-            return _calculate_annular_volume(r_sample_inner, r_sample_outer, height)
+
+            # Check if height matching is enabled
+            if inputs_dict.get('match_GS_height', False):
+                # Use reference height from PWR/BWR experiments instead of full fuel height
+                from Reactor.geometry_helpers.irradiation_experiments import get_reference_axial_bounds
+                z_ref_bottom, z_ref_top, ref_height = get_reference_axial_bounds(inputs_dict)
+                return _calculate_annular_volume(r_sample_inner, r_sample_outer, ref_height)
+            else:
+                # Use full fuel height
+                return _calculate_annular_volume(r_sample_inner, r_sample_outer, height)
         else:
             # Simple mode - full capsule volume
             return _calculate_cylindrical_volume('Gas_capsule_diameter', cell_width, height, inputs_dict)

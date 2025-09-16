@@ -9,9 +9,9 @@ This module provides functions for:
 import openmc
 import numpy as np
 from inputs import inputs
-from Reactor.geometry_helpers.utils import generate_cell_id
+from Reactor.geometry_helpers.utils import generate_cell_id, generate_filter_id
 from Reactor.geometry_helpers.irradiation_cell import parse_irradiation_type, generate_complex_cell_id
-from Reactor.geometry_helpers.irradiation_experiments import get_experiment_config, get_scaled_radii
+from Reactor.geometry_helpers.irradiation_experiments import get_experiment_config, get_scaled_radii, get_reference_axial_bounds
 from eigenvalue.tallies.energy_groups import get_energy_bins
 
 def create_irradiation_tallies(inputs_dict=None):
@@ -36,6 +36,7 @@ def create_irradiation_tallies(inputs_dict=None):
     # Get energy group structure
     energy_bins = get_energy_bins(inputs_dict)
     energy_filter = openmc.EnergyFilter(energy_bins)
+    energy_filter.id = generate_filter_id('energy', component='irradiation')
     print(f"Created irradiation energy filter - ID: {energy_filter.id}, Groups: {len(energy_bins)-1}")
 
     # Create tallies for each irradiation position in the core
@@ -52,21 +53,25 @@ def create_irradiation_tallies(inputs_dict=None):
                         # For Complex Gas_capsule (SIGMA), target the single sample annular region
                         cell_id = generate_complex_cell_id((i, j), 'sample', irradiation_type='SIGMA')
                         cell_filter = openmc.CellFilter([cell_id])
-                        print(f"Created Complex Gas_capsule tally {pos} targeting SIGMA sample cell ID: {cell_id}")
+                        cell_filter.id = generate_filter_id('cell', position=(i, j), component='irradiation', index=1)
+                        print(f"Created Complex Gas_capsule tally {pos} targeting SIGMA sample cell ID: {cell_id}, filter ID: {cell_filter.id}")
                     elif irradiation_type in ['PWR_loop', 'BWR_loop']:
                         # For Complex HTWL, target only the 12 o'clock sample (sample_1)
                         irrad_type = 'PWR_loop' if irradiation_type == 'PWR_loop' else 'BWR_loop'
                         sample_cell_id = generate_complex_cell_id((i, j), 'sample_1_sample', irradiation_type=irrad_type)
                         cell_filter = openmc.CellFilter([sample_cell_id])
-                        print(f"Created Complex {irradiation_type} tally {pos} targeting HTWL 12 o'clock sample cell ID: {sample_cell_id}")
+                        cell_filter.id = generate_filter_id('cell', position=(i, j), component='irradiation', index=2)
+                        print(f"Created Complex {irradiation_type} tally {pos} targeting HTWL 12 o'clock sample cell ID: {sample_cell_id}, filter ID: {cell_filter.id}")
                     else:
                         # For other complex types, fall back to standard
                         cell_id = generate_cell_id('irradiation', (i, j))
                         cell_filter = openmc.CellFilter([cell_id])
+                        cell_filter.id = generate_filter_id('cell', position=(i, j), component='irradiation', index=3)
                 else:
                     # For all Simple cases, use standard irradiation cell
                     cell_id = generate_cell_id('irradiation', (i, j))
                     cell_filter = openmc.CellFilter([cell_id])
+                    cell_filter.id = generate_filter_id('cell', position=(i, j), component='irradiation', index=0)
 
                 # Create tally for this position
                 tally = openmc.Tally(name=pos)
@@ -114,6 +119,7 @@ def create_irradiation_axial_tallies(inputs_dict=None):
 
     # Create single energy group filter (0 to 20 MeV) ONCE - REUSE for all positions
     energy_filter = openmc.EnergyFilter([0.0, 20.0e6])  # Single group for total flux
+    energy_filter.id = generate_filter_id('energy', component='axial')
     print(f"Created axial energy filter - ID: {energy_filter.id}, reused for all irradiation positions")
 
 
@@ -159,6 +165,7 @@ def create_irradiation_axial_tallies(inputs_dict=None):
 
                 # Create mesh filter and tally
                 mesh_filter = openmc.MeshFilter(mesh)
+                mesh_filter.id = generate_filter_id('mesh', position=(i, j), component='axial')
 
                 # REUSE the single energy filter created above (no longer inside loop)
                 tally = openmc.Tally(name=f"{pos}_axial")
@@ -207,8 +214,24 @@ def _create_sigma_sample_mesh(pos, x_pos, y_pos, cell_width, half_height, n_axia
     # r_grid: from inner to outer sample radius
     r_grid = [r_sample_inner, r_sample_outer]
 
-    # z_grid: axial segments from -half_height to +half_height
-    z_grid = [-half_height + i * (2*half_height)/n_axial_segments for i in range(n_axial_segments + 1)]
+        # z_grid: axial segments
+    if inputs_dict.get('match_GS_height', False):
+        # Height matching enabled - use same proportional scaling as HTWL
+        z_ref_bottom, z_ref_top, ref_height = get_reference_axial_bounds(inputs_dict)
+
+        # Use same proportional scaling logic as HTWL
+        fuel_height = inputs_dict['fuel_height'] * 100  # Convert to cm
+        axial_resolution = fuel_height / n_axial_segments  # cm per segment (same as HTWL)
+        n_sample_segments = int(ref_height / axial_resolution)  # Proportional segments
+
+        z_grid = [z_ref_bottom + i * ref_height/n_sample_segments for i in range(n_sample_segments + 1)]
+        print(f"Height matching enabled: using z-range {z_ref_bottom:.1f} to {z_ref_top:.1f} cm")
+        print(f"Gas sample mesh: fuel_height={fuel_height}cm with {n_axial_segments} segments "
+              f"→ sample_height={ref_height}cm with {n_sample_segments} segments "
+              f"(resolution={axial_resolution:.2f}cm/segment)")
+    else:
+        # Standard full height
+        z_grid = [-half_height + i * (2*half_height)/n_axial_segments for i in range(n_axial_segments + 1)]
 
     # phi_grid: single azimuthal bin (full 360°)
     phi_grid = [0.0, 2*np.pi]  # 0 to 2π

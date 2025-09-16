@@ -71,7 +71,7 @@ def get_three_group_bins(inputs_dict):
     fast_cutoff = inputs_dict.get('fast_cutoff', 100000.0)       # eV
 
     # Create 3-group structure: Thermal | Epithermal | Fast
-    return np.array([0.0, thermal_cutoff, fast_cutoff, 20.0e6])
+    return np.array([0.0, thermal_cutoff, fast_cutoff, 20.00001e6])
 
 
 def get_energy_bins(inputs_dict=None):

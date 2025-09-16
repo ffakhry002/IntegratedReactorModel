@@ -35,7 +35,6 @@ def collapse_to_three_groups(mean, std_dev, inputs_dict):
     """
     # Check if we already have 3-group data (no collapsing needed!)
     if len(mean) == 3:
-        print("Already 3-group data - no collapsing needed!")
         return mean, std_dev
 
     # Get indices for group boundaries from inputs

@@ -33,12 +33,29 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
     if inputs_dict is None:
         inputs_dict = inputs
 
-    if th_system is None:
-        th_system = THSystem(inputs_dict)
-        thermal_state = th_system.calculate_temperature_distribution()
+    # Check if fast_mode is enabled
+    fast_mode = inputs_dict.get('fast_mode', False)
 
-    TH_data = th_system.get_data()
-    T_inlet = TH_data['T_inlet']
+    if fast_mode:
+        # Use hardcoded values from materials.txt to avoid TH calculations
+        TH_data = {
+            'T_inlet': 315.15,
+            'T_fuel_avg_z': np.array([353.9049068828648]),
+            'T_clad_middle_z': np.array([338.4471007909708]),
+            'T_coolant_z': np.array([322.9169754458747]),
+            'coolant_density': np.array([991.5236519935561, 988.1276932265021]),  # kg/m³ - [inlet, average]
+            'T_outlet': 330.0  # Approximate value for outlet
+        }
+        T_inlet = TH_data['T_inlet']
+    else:
+        # Normal TH calculation path
+        if th_system is None:
+            th_system = THSystem(inputs_dict)
+            thermal_state = th_system.calculate_temperature_distribution()
+
+        TH_data = th_system.get_data()
+        T_inlet = TH_data['T_inlet']
+
     default_T = 273.15 + 23
 
     material_list = []
@@ -238,29 +255,43 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
 
     # Al6061 Cladding (Standard and Enhanced)
     if (mat_list is None) or ('Al6061' in mat_list) or ('Al6061-Enhanced' in mat_list):
-        # Standard Al6061
+        # Standard Al6061 with MCNP isotopic composition
         al6061 = openmc.Material(name='Al6061')
-        al6061.weight_percent = {
-            'Fe': 0.35,
-            'Zn': 0.125,
-            'Cr': 0.195,
-            'Mn': 0.075,
-            'Mg': 1.000,
-            'Si': 0.600,
-            'Ti': 0.075,
-            'Cu': 0.275,
-            'Al': 97.305
+        al6061_isotopes = {
+            'Al27': 9.754920E-1,
+            'Mn55': 7.430790E-4,
+            'Mg24': 8.844734E-3,
+            'Mg25': 1.120036E-3,
+            'Mg26': 1.232230E-3,
+            'Si28': 5.361653E-3,
+            'Si29': 2.722494E-4,
+            'Si30': 1.794680E-4,
+            'Ti46': 7.029666E-5,
+            'Ti47': 6.337692E-5,
+            'Ti48': 6.282300E-4,
+            'Ti49': 4.609463E-5,
+            'Ti50': 4.418574E-5,
+            'Cr50': 5.707073E-5,
+            'Cr52': 1.100508E-3,
+            'Cr53': 1.247828E-4,
+            'Cr54': 3.105844E-5,
+            'Fe54': 1.993963E-4,
+            'Fe56': 3.130096E-3,
+            'Fe57': 7.229098E-5,
+            'Fe58': 9.616737E-6,
+            'Cu63': 8.146414E-4,
+            'Cu65': 3.630286E-4
         }
-        for element, wt in al6061.weight_percent.items():
-            al6061.add_element(element, wt, percent_type='wo')
+        for isotope, fraction in al6061_isotopes.items():
+            al6061.add_nuclide(isotope, fraction, percent_type='ao')
         al6061.set_density('g/cm3', 2.7)
         al6061.temperature = np.mean(TH_data['T_clad_middle_z'])
         material_list.append(al6061)
 
         # Enhanced Al6061 (same composition, different name for coloring)
         al6061_enhanced = openmc.Material(name='Al6061-Enhanced')
-        for element, wt in al6061.weight_percent.items():
-            al6061_enhanced.add_element(element, wt, percent_type='wo')
+        for isotope, fraction in al6061_isotopes.items():
+            al6061_enhanced.add_nuclide(isotope, fraction, percent_type='ao')
         al6061_enhanced.set_density('g/cm3', 2.7)
         al6061_enhanced.temperature = np.mean(TH_data['T_clad_middle_z'])
         material_list.append(al6061_enhanced)
@@ -315,7 +346,12 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
         coolant = openmc.Material(name=f'{coolant_type} Coolant')
         coolant.add_nuclide(config['h_nuclide'], 2.0)
         coolant.add_nuclide('O16', 1.0)
-        coolant.set_density('g/cm3', np.mean(TH_data['coolant_density'])/1000)
+        if fast_mode:
+            # Use the average coolant density (second element)
+            coolant_density = TH_data['coolant_density'][1]
+        else:
+            coolant_density = np.mean(TH_data['coolant_density'])
+        coolant.set_density('g/cm3', coolant_density/1000)
         coolant.add_s_alpha_beta(config['s_alpha_beta'])
         coolant.temperature = np.mean(TH_data['T_coolant_z'])
         material_list.append(coolant)
@@ -348,19 +384,29 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
         plenum.add_nuclide(config['h_nuclide'], 2.0)
         plenum.add_nuclide('O16', 1.0)
 
-        if inputs_dict['assembly_type'] == 'Pin':
-            # Use outlet temperature for plenum
-            coolant_volume = inputs_dict['num_assemblies']*inputs_dict['fuel_height'] * ((inputs_dict['n_side_pins'] * inputs_dict['pin_pitch'])**2-(inputs_dict['n_side_pins']**2 * np.pi*inputs_dict['r_clad_outer']**2))
-            outer_volume = inputs_dict['fuel_height']*(np.pi * inputs_dict['tank_radius']**2) - inputs_dict['num_assemblies']*(inputs_dict['n_side_pins']**2 * inputs_dict['pin_pitch'])
-        elif inputs_dict['assembly_type'] == 'Plate':
-            coolant_volume = inputs_dict['plates_per_assembly']*inputs_dict['num_assemblies']*inputs_dict['fuel_height']*inputs_dict['fuel_plate_width']*(inputs_dict['fuel_plate_pitch']-inputs_dict['fuel_meat_thickness']-2*inputs_dict['clad_thickness'])
-            outer_volume = inputs_dict['fuel_height']*((np.pi * inputs_dict['tank_radius']**2) - inputs_dict['num_assemblies']*(inputs_dict['fuel_plate_width']+2*inputs_dict['clad_structure_width'])**2)
-        plenum_volume = coolant_volume + outer_volume
-        # plenum_temp = (coolant_volume*TH_data['T_outlet'] + outer_volume*TH_data['T_inlet'])/plenum_volume
-        plenum_temp = TH_data['T_inlet']
+        if fast_mode:
+            # In fast mode, use fixed temperature of 325K
+            plenum_temp = 325.0
+            # Use CoolProp to calculate density at 325K
+            from CoolProp.CoolProp import PropsSI
+            plenum_pressure = inputs_dict.get('reactor_pressure', 300000.0)  # Pa
+            plenum_density = PropsSI('D', 'T', plenum_temp, 'P', plenum_pressure, 'Water')  # kg/m³
+        else:
+            # Normal calculation mode - use original approach with T_inlet
+            if inputs_dict['assembly_type'] == 'Pin':
+                coolant_volume = inputs_dict['num_assemblies']*inputs_dict['fuel_height'] * ((inputs_dict['n_side_pins'] * inputs_dict['pin_pitch'])**2-(inputs_dict['n_side_pins']**2 * np.pi*inputs_dict['r_clad_outer']**2))
+                outer_volume = inputs_dict['fuel_height']*(np.pi * inputs_dict['tank_radius']**2) - inputs_dict['num_assemblies']*(inputs_dict['n_side_pins']**2 * inputs_dict['pin_pitch'])
+            elif inputs_dict['assembly_type'] == 'Plate':
+                coolant_volume = inputs_dict['plates_per_assembly']*inputs_dict['num_assemblies']*inputs_dict['fuel_height']*inputs_dict['fuel_plate_width']*(inputs_dict['fuel_plate_pitch']-inputs_dict['fuel_meat_thickness']-2*inputs_dict['clad_thickness'])
+                outer_volume = inputs_dict['fuel_height']*((np.pi * inputs_dict['tank_radius']**2) - inputs_dict['num_assemblies']*(inputs_dict['fuel_plate_width']+2*inputs_dict['clad_structure_width'])**2)
+            plenum_volume = coolant_volume + outer_volume
 
-        # Get density at outlet temperature
-        plenum_density = np.interp(plenum_temp, TH_data['T_coolant_z'], TH_data['coolant_density'])
+            # Use T_inlet as before (original behavior)
+            plenum_temp = TH_data['T_inlet']
+
+            # Get density at inlet temperature
+            plenum_density = np.interp(plenum_temp, TH_data['T_coolant_z'], TH_data['coolant_density'])
+
         plenum.set_density('g/cm3', plenum_density/1000)
         plenum.add_s_alpha_beta(config['s_alpha_beta'])
         plenum.temperature = plenum_temp
@@ -457,6 +503,15 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
         graphite.temperature = default_T
         material_list.append(graphite)
 
+    # Graphite hot (SIGMA holders) - Material 4 from SIGMA
+    if (mat_list is None) or ('graphite_hot' in mat_list):
+        graphite_hot = openmc.Material(name='graphite_hot')
+        graphite_hot.add_element('C', 1.0)
+        graphite_hot.set_density('g/cm3', 1.75)
+        graphite_hot.add_s_alpha_beta('c_Graphite')
+        graphite_hot.temperature = 1073.15  # 800°C (SIGMA sample region temperature)
+        material_list.append(graphite_hot)
+
     # Irradiation Position Fill (Al6061-Water Mixture)
     if (mat_list is None) or ('Test pos-fill' in mat_list):
         # Create Al6061 component
@@ -480,8 +535,13 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
         water = openmc.Material(name='Water component')
         water.add_nuclide('H1', 2.0)
         water.add_nuclide('O16', 1.0)
-        water_density, _, _, _ = get_coolant_properties(th_system, np.array([T_inlet]))
-        water.set_density('g/cm3', water_density[0] / 1000)
+        if fast_mode:
+            # Use hardcoded density for fast mode
+            water_density = 991.5236519935561  # kg/m³ at T_inlet
+        else:
+            water_density, _, _, _ = get_coolant_properties(th_system, np.array([T_inlet]))
+            water_density = water_density[0]
+        water.set_density('g/cm3', water_density / 1000)
         water.temperature = T_inlet
 
         # Define volume fractions
@@ -525,6 +585,22 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
         titanium.temperature = 573.15  # 300°C
         material_list.append(titanium)
 
+    # Titanium hot (SIGMA spine) - Material 100 from SIGMA
+    if (mat_list is None) or ('Titanium_hot' in mat_list):
+        titanium_hot = openmc.Material(name='Titanium_hot')
+        titanium_hot.add_element('Ti', 1.0)
+        titanium_hot.set_density('g/cm3', 4.506)
+        titanium_hot.temperature = 1073.15  # 800°C (SIGMA spine temperature)
+        material_list.append(titanium_hot)
+
+    # Titanium cool (SIGMA thimble) - Material 100 from SIGMA
+    if (mat_list is None) or ('Titanium_cool' in mat_list):
+        titanium_cool = openmc.Material(name='Titanium_cool')
+        titanium_cool.add_element('Ti', 1.0)
+        titanium_cool.set_density('g/cm3', 4.506)
+        titanium_cool.temperature = 373.15  # 100°C (SIGMA thimble temperature)
+        material_list.append(titanium_cool)
+
     # Silicon Carbide (SiC) - Material 601 from HTWL
     if (mat_list is None) or ('SiC' in mat_list):
         sic = openmc.Material(name='SiC')
@@ -542,7 +618,7 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
 
         # Use MCNP reference density (at ~9°C), not operating temperature
         # MCNP convention for consistency
-        co2.set_density('g/cm3', 1.9e-3)
+        co2.set_density('g/cm3', 0.0019)
 
         # Set temperature to autoclave operating temperature
         co2.temperature = 373.15  # 100°C
@@ -551,14 +627,9 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
     # High-pressure Borated Water (Material 4000 from HTWL)
     # 1400 ppm boron + lithium traces at 300°C
     if (mat_list is None) or ('HP_Borated_Water' in mat_list):
-        from CoolProp.CoolProp import PropsSI
-
         # High pressure water conditions
         hp_water_temp = 573.15  # 300°C in Kelvin
         hp_water_pressure = 15.5e6  # High pressure (15.5 MPa)
-
-        # Get pure water density at high pressure conditions using CoolProp
-        hp_water_density = PropsSI('D', 'T', hp_water_temp, 'P', hp_water_pressure, 'Water')  # kg/m³
 
         hp_borated_water = openmc.Material(name='HP_Borated_Water')
         # From MCNP material 4000: exact atomic fractions
@@ -568,13 +639,21 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
         hp_borated_water.add_nuclide('B11', 0.001120, percent_type='ao')
         hp_borated_water.add_nuclide('Li6', 1.67e-07, percent_type='ao')
 
-        # Calculate composite density (water + 1400 ppm boron)
-        rho_boron = 2.34  # g/cm³
-        w_water = 0.9986
-        w_boron = 0.0014
-        V_water = w_water / (hp_water_density / 1000)  # volume per unit mass
-        V_boron = w_boron / rho_boron
-        rho_composite = 1 / (V_water + V_boron)
+        if fast_mode:
+            # Use hardcoded density for fast mode
+            rho_composite = 0.7272160929696474
+        else:
+            from CoolProp.CoolProp import PropsSI
+            # Get pure water density at high pressure conditions using CoolProp
+            hp_water_density = PropsSI('D', 'T', hp_water_temp, 'P', hp_water_pressure, 'Water')  # kg/m³
+
+            # Calculate composite density (water + 1400 ppm boron)
+            rho_boron = 2.34  # g/cm³
+            w_water = 0.9986
+            w_boron = 0.0014
+            V_water = w_water / (hp_water_density / 1000)  # volume per unit mass
+            V_boron = w_boron / rho_boron
+            rho_composite = 1 / (V_water + V_boron)
 
         hp_borated_water.set_density('g/cm3', rho_composite)
         hp_borated_water.temperature = hp_water_temp
@@ -582,21 +661,24 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
 
     # BWR Fluid (pure water at BWR operating conditions)
     if (mat_list is None) or ('BWR_fluid' in mat_list):
-        from CoolProp.CoolProp import PropsSI
-
         # BWR operating conditions
         bwr_temp = 558.15  # 285°C in Kelvin
         bwr_pressure = 7.2e6  # 7.2 MPa (typical BWR pressure)
-
-        # Get water density at BWR conditions using CoolProp
-        water_density_bwr = PropsSI('D', 'T', bwr_temp, 'P', bwr_pressure, 'Water')  # kg/m³
 
         # Create pure water (no boron for BWR)
         bwr_fluid = openmc.Material(name='BWR_fluid')
         bwr_fluid.add_nuclide('H1', 2.0, percent_type='ao')
         bwr_fluid.add_nuclide('O16', 1.0, percent_type='ao')
 
-        # Set density from CoolProp
+        if fast_mode:
+            # Use hardcoded density for fast mode
+            water_density_bwr = 741.7606177239793  # kg/m³
+        else:
+            from CoolProp.CoolProp import PropsSI
+            # Get water density at BWR conditions using CoolProp
+            water_density_bwr = PropsSI('D', 'T', bwr_temp, 'P', bwr_pressure, 'Water')  # kg/m³
+
+        # Set density
         bwr_fluid.set_density('g/cm3', water_density_bwr / 1000)
         bwr_fluid.add_s_alpha_beta('c_H_in_H2O')
         bwr_fluid.temperature = bwr_temp
@@ -624,7 +706,7 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
 
         # Use MCNP reference density (at ~1°C), not operating temperature
         # MCNP convention for consistency
-        ht_helium.set_density('g/cm3', 1.78e-4)
+        ht_helium.set_density('g/cm3', 0.000178)
 
         # Set temperature to operating temperature
         ht_helium.temperature = 1073.15  # 800°C (sample region)
@@ -668,24 +750,29 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
         hp_water_mix.add_nuclide('B11', 0.001120, percent_type='ao')
         hp_water_mix.add_nuclide('Li6', 1.67e-07, percent_type='ao')
 
-        # Calculate actual PWR water density including boron using CoolProp
-        from CoolProp.CoolProp import PropsSI
+        # Calculate actual PWR water density including boron
         pwr_temp = 573.15  # 300°C
         pwr_pressure = 15.5e6  # 15.5 MPa
-        pwr_water_density = PropsSI('D', 'T', pwr_temp, 'P', pwr_pressure, 'Water')  # kg/m³
-        
-        # Account for 1400 ppm boron (same as HP_Borated_Water calculation)
-        rho_boron = 2.34  # g/cm³ for elemental boron
-        w_water = 0.9986  # mass fraction of water
-        w_boron = 0.0014  # mass fraction of boron (1400 ppm)
-        
-        # Calculate volumes per unit mass
-        V_water = w_water / (pwr_water_density / 1000)  # cm³ of water per gram of mixture
-        V_boron = w_boron / rho_boron  # cm³ of boron per gram of mixture
-        
-        # Composite density = 1 / (total volume per unit mass)
-        rho_composite = 1 / (V_water + V_boron)  # g/cm³
-        
+
+        if fast_mode:
+            # Use hardcoded density for fast mode (same as HP_Borated_Water)
+            rho_composite = 0.7272160929696474  # g/cm³
+        else:
+            from CoolProp.CoolProp import PropsSI
+            pwr_water_density = PropsSI('D', 'T', pwr_temp, 'P', pwr_pressure, 'Water')  # kg/m³
+
+            # Account for 1400 ppm boron (same as HP_Borated_Water calculation)
+            rho_boron = 2.34  # g/cm³ for elemental boron
+            w_water = 0.9986  # mass fraction of water
+            w_boron = 0.0014  # mass fraction of boron (1400 ppm)
+
+            # Calculate volumes per unit mass
+            V_water = w_water / (pwr_water_density / 1000)  # cm³ of water per gram of mixture
+            V_boron = w_boron / rho_boron  # cm³ of boron per gram of mixture
+
+            # Composite density = 1 / (total volume per unit mass)
+            rho_composite = 1 / (V_water + V_boron)  # g/cm³
+
         hp_water_mix.set_density('g/cm3', rho_composite)
         hp_water_mix.temperature = pwr_temp
 
@@ -699,7 +786,11 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
         coolant_mix = openmc.Material(name='coolant_mix_pwr')
         coolant_mix.add_nuclide('H1', 2.0)
         coolant_mix.add_nuclide('O16', 1.0)
-        coolant_mix.set_density('g/cm3', np.mean(TH_data['coolant_density'])/1000)
+        if fast_mode:
+            coolant_density = TH_data['coolant_density'][1]  # Use average density
+        else:
+            coolant_density = np.mean(TH_data['coolant_density'])
+        coolant_mix.set_density('g/cm3', coolant_density/1000)
         coolant_mix.temperature = 573.15
 
         # Mix using EXACT percentages from complex mode analysis
@@ -745,11 +836,18 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
         bwr_fluid_mix = openmc.Material(name='bwr_fluid_mix')
         bwr_fluid_mix.add_nuclide('H1', 2.0)
         bwr_fluid_mix.add_nuclide('O16', 1.0)
-        # Calculate actual BWR water density using CoolProp (pure water, no boron)
-        from CoolProp.CoolProp import PropsSI
+
         bwr_temp = 558.15  # 285°C
         bwr_pressure = 7.2e6  # 7.2 MPa
-        bwr_water_density = PropsSI('D', 'T', bwr_temp, 'P', bwr_pressure, 'Water')  # kg/m³
+
+        if fast_mode:
+            # Use hardcoded density for fast mode (same as BWR_fluid)
+            bwr_water_density = 741.7606177239793  # kg/m³
+        else:
+            # Calculate actual BWR water density using CoolProp (pure water, no boron)
+            from CoolProp.CoolProp import PropsSI
+            bwr_water_density = PropsSI('D', 'T', bwr_temp, 'P', bwr_pressure, 'Water')  # kg/m³
+
         bwr_fluid_mix.set_density('g/cm3', bwr_water_density / 1000)  # No boron adjustment needed
         bwr_fluid_mix.temperature = bwr_temp
 
@@ -763,7 +861,11 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
         coolant_mix = openmc.Material(name='coolant_mix_bwr')
         coolant_mix.add_nuclide('H1', 2.0)
         coolant_mix.add_nuclide('O16', 1.0)
-        coolant_mix.set_density('g/cm3', np.mean(TH_data['coolant_density'])/1000)
+        if fast_mode:
+            coolant_density = TH_data['coolant_density'][1]  # Use average density
+        else:
+            coolant_density = np.mean(TH_data['coolant_density'])
+        coolant_mix.set_density('g/cm3', coolant_density/1000)
         coolant_mix.temperature = bwr_temp
 
         # Mix using EXACT percentages from complex mode analysis
@@ -812,7 +914,11 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
         coolant_mix = openmc.Material(name='coolant_mix_gas')
         coolant_mix.add_nuclide('H1', 2.0)
         coolant_mix.add_nuclide('O16', 1.0)
-        coolant_mix.set_density('g/cm3', np.mean(TH_data['coolant_density'])/1000)
+        if fast_mode:
+            coolant_density = TH_data['coolant_density'][1]  # Use average density
+        else:
+            coolant_density = np.mean(TH_data['coolant_density'])
+        coolant_mix.set_density('g/cm3', coolant_density/1000)
         coolant_mix.temperature = 1073.15
 
         # Mix using EXACT percentages from complex mode analysis
@@ -831,7 +937,6 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
 
     materials = openmc.Materials(material_list)
     mat_dict = {mat.name: mat for mat in materials}
-
     return mat_dict, materials
 
 if __name__ == "__main__":

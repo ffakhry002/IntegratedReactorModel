@@ -147,7 +147,7 @@ def plot_geometry(output_dir=None, inputs_dict=None):
 
     # Common plot parameters
     plot_params = {
-        'pixels': inputs_dict['pixels'],
+        'pixels': (1600, 1600),  # Fixed pixel size for consistent aspect ratio
         'colors': mat_colors,
         'color_by': 'material'
     }
@@ -190,7 +190,7 @@ def plot_geometry(output_dir=None, inputs_dict=None):
     plot_core_xy = core_universe.plot(**core_params)
     plot_core_xy.figure.set_size_inches(10, 10)
     plot_core_xy.figure.savefig(os.path.join(subfolders['core'], 'core_xy.png'),
-                               dpi=3000, bbox_inches='tight')
+                               dpi=inputs_dict['dpi'], bbox_inches='tight')
     plt.close()
 
     # YZ plot through center
@@ -201,7 +201,7 @@ def plot_geometry(output_dir=None, inputs_dict=None):
     plot_core_yz = core_universe.plot(**core_params)
     plot_core_yz.figure.set_size_inches(8, 12)
     plot_core_yz.figure.savefig(os.path.join(subfolders['core'], 'core_yz.png'),
-                               dpi=3000, bbox_inches='tight')
+                               dpi=inputs_dict['dpi'], bbox_inches='tight')
     plt.close()
 
     # XZ plot through center
@@ -210,7 +210,7 @@ def plot_geometry(output_dir=None, inputs_dict=None):
     plot_core_xz = core_universe.plot(**core_params)
     plot_core_xz.figure.set_size_inches(8, 12)
     plot_core_xz.figure.savefig(os.path.join(subfolders['core'], 'core_xz.png'),
-                               dpi=3000, bbox_inches='tight')
+                               dpi=inputs_dict['dpi'], bbox_inches='tight')
     plt.close()
 
     # Calculate irradiation cell dimensions
@@ -271,7 +271,7 @@ def plot_geometry(output_dir=None, inputs_dict=None):
                 plot_irr_xy = universe.plot(basis='xy', **irradiation_params_xy)
                 plot_irr_xy.figure.set_size_inches(6, 6)
                 plot_irr_xy.figure.savefig(os.path.join(irr_folder, f'irradiation_cell{type_suffix}_xy.png'),
-                                        dpi=3000, bbox_inches='tight')
+                                  dpi=inputs_dict['dpi'], bbox_inches='tight')
                 plt.close()
 
                 # Create Irradiation Cell YZ plot with full fuel height
@@ -281,7 +281,7 @@ def plot_geometry(output_dir=None, inputs_dict=None):
                 plot_irr_yz = universe.plot(basis='yz', **irradiation_params_yz)
                 plot_irr_yz.figure.set_size_inches(6, 8)  # Taller figure for axial view
                 plot_irr_yz.figure.savefig(os.path.join(irr_folder, f'irradiation_cell{type_suffix}_yz.png'),
-                                        dpi=3000, bbox_inches='tight')
+                                        dpi=inputs_dict['dpi'], bbox_inches='tight')
                 plt.close()
 
                 # Create Irradiation Cell XZ plot with full fuel height
@@ -291,7 +291,7 @@ def plot_geometry(output_dir=None, inputs_dict=None):
                 plot_irr_xz = universe.plot(basis='xz', **irradiation_params_xz)
                 plot_irr_xz.figure.set_size_inches(6, 8)  # Taller figure for axial view
                 plot_irr_xz.figure.savefig(os.path.join(irr_folder, f'irradiation_cell{type_suffix}_xz.png'),
-                                        dpi=3000, bbox_inches='tight')
+                                        dpi=inputs_dict['dpi'], bbox_inches='tight')
                 plt.close()
 
                 # Additional YZ and XZ plots with 6cm axial slice (±3cm from optimal height)
@@ -302,7 +302,7 @@ def plot_geometry(output_dir=None, inputs_dict=None):
                 plot_irr_yz_slice = universe.plot(basis='yz', **irradiation_params_yz_slice)
                 plot_irr_yz_slice.figure.set_size_inches(6, 6)  # Square figure for 6cm slice
                 plot_irr_yz_slice.figure.savefig(os.path.join(irr_folder, f'irradiation_cell{type_suffix}_yz_6cm_slice.png'),
-                                                dpi=3000, bbox_inches='tight')
+                                                dpi=inputs_dict['dpi'], bbox_inches='tight')
                 plt.close()
 
                 print(f"plotting irradiation cell xz with 6cm axial slice around optimal height (z = {optimal_z} ± 3cm)")
@@ -312,7 +312,7 @@ def plot_geometry(output_dir=None, inputs_dict=None):
                 plot_irr_xz_slice = universe.plot(basis='xz', **irradiation_params_xz_slice)
                 plot_irr_xz_slice.figure.set_size_inches(6, 6)  # Square figure for 6cm slice
                 plot_irr_xz_slice.figure.savefig(os.path.join(irr_folder, f'irradiation_cell{type_suffix}_xz_6cm_slice.png'),
-                                                dpi=3000, bbox_inches='tight')
+                                                dpi=inputs_dict['dpi'], bbox_inches='tight')
                 plt.close()
 
         except Exception as e:
@@ -342,7 +342,7 @@ def plot_geometry(output_dir=None, inputs_dict=None):
         plot_xy = assembly_universe.plot(basis='xy', **assembly_params)
         plot_xy.figure.set_size_inches(6, 6)
         plot_xy.figure.savefig(os.path.join(subfolders['fuel'], 'pin_assembly_xy.png'),
-                              dpi=3000, bbox_inches='tight')
+                              dpi=inputs_dict['dpi'], bbox_inches='tight')
         plt.close()
 
         # Create Pin Assembly YZ plot
@@ -350,7 +350,7 @@ def plot_geometry(output_dir=None, inputs_dict=None):
         plot_yz = assembly_universe.plot(basis='yz', **assembly_params)
         plot_yz.figure.set_size_inches(6, 6)
         plot_yz.figure.savefig(os.path.join(subfolders['fuel'], 'pin_assembly_yz.png'),
-                              dpi=3000, bbox_inches='tight')
+                              dpi=inputs_dict['dpi'], bbox_inches='tight')
         plt.close()
 
         # Pin cell plots
@@ -362,14 +362,14 @@ def plot_geometry(output_dir=None, inputs_dict=None):
         plot_pin_xy = pin_universe.plot(basis='xy', **pin_params)
         plot_pin_xy.figure.set_size_inches(6, 6)
         plot_pin_xy.figure.savefig(os.path.join(subfolders['fuel'], 'single_pin_xy.png'),
-                                  dpi=3000, bbox_inches='tight')
+                                  dpi=inputs_dict['dpi'], bbox_inches='tight')
         plt.close()
         print("plotting single pin yz")
         # Create Single Pin YZ plot
         plot_pin_yz = pin_universe.plot(basis='yz', **pin_params)
         plot_pin_yz.figure.set_size_inches(6, 6)
         plot_pin_yz.figure.savefig(os.path.join(subfolders['fuel'], 'single_pin_yz.png'),
-                                  dpi=3000, bbox_inches='tight')
+                                  dpi=inputs_dict['dpi'], bbox_inches='tight')
         plt.close()
         print("plotting single pin xz")
     else:  # Plate assembly
@@ -394,7 +394,7 @@ def plot_geometry(output_dir=None, inputs_dict=None):
         plot_xy = assembly_universe.plot(basis='xy', **assembly_params)
         plot_xy.figure.set_size_inches(6, 6)
         plot_xy.figure.savefig(os.path.join(subfolders['fuel'], 'plate_assembly_xy.png'),
-                              dpi=3000, bbox_inches='tight')
+                              dpi=inputs_dict['dpi'], bbox_inches='tight')
         plt.close()
 
         # Create Plate Assembly YZ plot
@@ -402,7 +402,7 @@ def plot_geometry(output_dir=None, inputs_dict=None):
         plot_yz = assembly_universe.plot(basis='yz', **assembly_params)
         plot_yz.figure.set_size_inches(6, 6)
         plot_yz.figure.savefig(os.path.join(subfolders['fuel'], 'plate_assembly_yz.png'),
-                              dpi=3000, bbox_inches='tight')
+                              dpi=inputs_dict['dpi'], bbox_inches='tight')
         plt.close()
 
         # Single plate plots
@@ -414,7 +414,7 @@ def plot_geometry(output_dir=None, inputs_dict=None):
         plot_plate_xy = plate_universe.plot(basis='xy', **plate_params)
         plot_plate_xy.figure.set_size_inches(6, 6)
         plot_plate_xy.figure.savefig(os.path.join(subfolders['fuel'], 'single_plate_xy.png'),
-                                    dpi=3000, bbox_inches='tight')
+                                    dpi=inputs_dict['dpi'], bbox_inches='tight')
         plt.close()
 
         # Create Single Plate YZ plot
@@ -422,7 +422,7 @@ def plot_geometry(output_dir=None, inputs_dict=None):
         plot_plate_yz = plate_universe.plot(basis='yz', **plate_params)
         plot_plate_yz.figure.set_size_inches(6, 6)
         plot_plate_yz.figure.savefig(os.path.join(subfolders['fuel'], 'single_plate_yz.png'),
-                                    dpi=3000, bbox_inches='tight')
+                                    dpi=inputs_dict['dpi'], bbox_inches='tight')
         plt.close()
 
     # Create color legend as the final step

@@ -3,7 +3,7 @@ import os
 import sys
 import numpy as np
 from .utils import generate_cell_id, get_irradiation_cell_name
-from .irradiation_experiments import get_experiment_config, get_scaled_radii, get_sample_positions, get_scaled_z_planes
+from .irradiation_experiments import get_experiment_config, get_scaled_radii, get_sample_positions, get_scaled_z_planes, get_reference_axial_bounds
 
 # Add root directory to path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -62,9 +62,9 @@ def generate_complex_cell_id(position, component_type, component_index=0, irradi
     """
     i, j = position
     if irradiation_type == 'SIGMA':
-        type_offset = 100000
+        type_offset = 1000000  # FIXED: Increased from 100000 to 1000000 to prevent overlap
     elif irradiation_type == 'BWR_loop':
-        type_offset = 200000
+        type_offset = 2000000  # FIXED: Increased from 200000 to 2000000 to prevent overlap
     else:  # PWR_loop or default
         type_offset = 0
     base = 6000000 + type_offset + i * 10000 + j * 100
@@ -81,6 +81,7 @@ def generate_complex_cell_id(position, component_type, component_index=0, irradi
         'sample_4_ti': 10, 'sample_4_graphite': 11, 'sample_4_sample': 12,
         # SIGMA layers
         'inner_he': 13, 'inner_graphite': 14, 'sample': 15,
+        'sample_bottom': 25, 'sample_top': 26,  # Height-matched sample sections
         'outer_graphite': 16, 'outer_he': 17,
         # Structural
         'capsule_wall': 18,
@@ -425,7 +426,7 @@ def build_complex_htwl(mat_dict, position, inputs_dict, use_bwr_water=False, irr
 
     # Create universe
     i, j = position
-    universe_id = 6000000 + i * 1000 + j * 10
+    universe_id = 6000000 + i * 10000 + j * 100  # Standardized encoding
     universe = openmc.Universe(universe_id=universe_id, name=f'htwl_{i}_{j}', cells=cells)
 
     return universe
@@ -504,12 +505,12 @@ def build_complex_sigma(mat_dict, position, inputs_dict):
 
     # Build cells from inside out (all extend full height)
 
-    # Titanium spine
+    # Titanium spine (hot - 800°C)
     spine_region = -cyl_spine & +z_bot & -z_top
     spine_cell = openmc.Cell(name='spine')
     spine_cell.id = generate_complex_cell_id(position, 'spine', irradiation_type='SIGMA')
     spine_cell.region = spine_region
-    spine_cell.fill = mat_dict['Titanium']
+    spine_cell.fill = mat_dict['Titanium_hot']  # 1073K for SIGMA spine
     cells.append(spine_cell)
 
     # Inner helium gap
@@ -520,28 +521,62 @@ def build_complex_sigma(mat_dict, position, inputs_dict):
     inner_he_cell.fill = mat_dict['HT_Helium']
     cells.append(inner_he_cell)
 
-    # Inner graphite holder
+    # Inner graphite holder (hot - 800°C)
     inner_graphite_region = +cyl_inner_he & -cyl_sample_inner & +z_bot & -z_top
     inner_graphite_cell = openmc.Cell(name='inner_graphite')
     inner_graphite_cell.id = generate_complex_cell_id(position, 'inner_graphite', irradiation_type='SIGMA')
     inner_graphite_cell.region = inner_graphite_region
-    inner_graphite_cell.fill = mat_dict['graphite']
+    inner_graphite_cell.fill = mat_dict['graphite_hot']  # 1073K for SIGMA graphite
     cells.append(inner_graphite_cell)
 
     # Sample region (material from inputs)
-    sample_region = +cyl_sample_inner & -cyl_sample_outer & +z_bot & -z_top
-    sample_cell = openmc.Cell(name='sample')
-    sample_cell.id = generate_complex_cell_id(position, 'sample', irradiation_type='SIGMA')
-    sample_cell.region = sample_region
-    sample_cell.fill = mat_dict[inputs_dict['Gas_capsule_fill']]
-    cells.append(sample_cell)
+    if inputs_dict.get('match_GS_height', False):
+        # Height matching enabled - split sample region into 3 axial segments
+        z_ref_bottom, z_ref_top, ref_height = get_reference_axial_bounds(inputs_dict)
+        z_ref_bot_plane = openmc.ZPlane(z_ref_bottom)
+        z_ref_top_plane = openmc.ZPlane(z_ref_top)
 
-    # Outer graphite holder
+        # Bottom sample section (not tallied)
+        sample_bottom_region = +cyl_sample_inner & -cyl_sample_outer & +z_bot & -z_ref_bot_plane
+        sample_bottom_cell = openmc.Cell(name='sample_bottom')
+        sample_bottom_cell.id = generate_complex_cell_id(position, 'sample_bottom', irradiation_type='SIGMA')
+        sample_bottom_cell.region = sample_bottom_region
+        sample_bottom_cell.fill = mat_dict[inputs_dict['Gas_capsule_fill']]
+        cells.append(sample_bottom_cell)
+
+        # Middle sample section (THIS IS TALLIED - matches PWR/BWR height)
+        sample_middle_region = +cyl_sample_inner & -cyl_sample_outer & +z_ref_bot_plane & -z_ref_top_plane
+        sample_middle_cell = openmc.Cell(name='sample')  # Standard name for tallying
+        sample_middle_cell.id = generate_complex_cell_id(position, 'sample', irradiation_type='SIGMA')  # Standard ID for tallying
+        sample_middle_cell.region = sample_middle_region
+        sample_middle_cell.fill = mat_dict[inputs_dict['Gas_capsule_fill']]
+        cells.append(sample_middle_cell)
+
+        # Top sample section (not tallied)
+        sample_top_region = +cyl_sample_inner & -cyl_sample_outer & +z_ref_top_plane & -z_top
+        sample_top_cell = openmc.Cell(name='sample_top')
+        sample_top_cell.id = generate_complex_cell_id(position, 'sample_top', irradiation_type='SIGMA')
+        sample_top_cell.region = sample_top_region
+        sample_top_cell.fill = mat_dict[inputs_dict['Gas_capsule_fill']]
+        cells.append(sample_top_cell)
+
+        print(f"Height matching enabled for gas experiment at position {position}")
+        print(f"  Using reference height from PWR/BWR experiments: {ref_height:.1f} cm")
+    else:
+        # Standard single sample region (full height)
+        sample_region = +cyl_sample_inner & -cyl_sample_outer & +z_bot & -z_top
+        sample_cell = openmc.Cell(name='sample')
+        sample_cell.id = generate_complex_cell_id(position, 'sample', irradiation_type='SIGMA')
+        sample_cell.region = sample_region
+        sample_cell.fill = mat_dict[inputs_dict['Gas_capsule_fill']]
+        cells.append(sample_cell)
+
+    # Outer graphite holder (hot - 800°C)
     outer_graphite_region = +cyl_sample_outer & -cyl_outer_graphite & +z_bot & -z_top
     outer_graphite_cell = openmc.Cell(name='outer_graphite')
     outer_graphite_cell.id = generate_complex_cell_id(position, 'outer_graphite', irradiation_type='SIGMA')
     outer_graphite_cell.region = outer_graphite_region
-    outer_graphite_cell.fill = mat_dict['graphite']
+    outer_graphite_cell.fill = mat_dict['graphite_hot']  # 1073K for SIGMA graphite
     cells.append(outer_graphite_cell)
 
     # Outer helium gap
@@ -552,12 +587,12 @@ def build_complex_sigma(mat_dict, position, inputs_dict):
     outer_he_cell.fill = mat_dict['HT_Helium']
     cells.append(outer_he_cell)
 
-    # Thimble walls
+    # Thimble walls (cool - 100°C)
     thimble_region = +cyl_outer_he & -cyl_thimble_outer & +z_bot & -z_top
     thimble_cell = openmc.Cell(name='thimble')
     thimble_cell.id = generate_complex_cell_id(position, 'thimble', irradiation_type='SIGMA')
     thimble_cell.region = thimble_region
-    thimble_cell.fill = mat_dict['Titanium']
+    thimble_cell.fill = mat_dict['Titanium_cool']  # 373K for SIGMA thimble
     cells.append(thimble_cell)
 
     # Water gap
@@ -578,7 +613,7 @@ def build_complex_sigma(mat_dict, position, inputs_dict):
 
     # Create universe with different base for SIGMA
     i, j = position
-    universe_id = 6100000 + i * 1000 + j * 10  # Different base from HTWL
+    universe_id = 7000000 + i * 10000 + j * 100  # FIXED: Updated to match new SIGMA cell base
     universe = openmc.Universe(universe_id=universe_id, name=f'sigma_{i}_{j}', cells=cells)
 
     return universe
@@ -871,7 +906,7 @@ def build_irradiation_cell_uni(mat_dict, position=None, inputs_dict=None):
         i, j = position
         # Generate a unique universe ID based on position
         universe_base = 6000000  # Irradiation universes
-        universe_id = universe_base + i * 1000 + j * 10
+        universe_id = universe_base + i * 10000 + j * 100  # Standardized encoding
         irradiation_universe = openmc.Universe(universe_id=universe_id, name='irradiation_universe', cells=cells)
         irradiation_universe.name = f"irradiation_universe_{i}_{j}"
     else:

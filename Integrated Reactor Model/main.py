@@ -117,6 +117,41 @@ def main():
         run_parametric_study()
         return
 
+    # Check if we're in fast mode
+    is_fast_mode = inputs.get('fast_mode', False)
+
+    if is_fast_mode:
+        print("\n" + "="*60)
+        print("FAST MODE ENABLED")
+        print("="*60)
+        print("Creating minimal directory structure for results...")
+
+        # Get root directory and create minimal simulation_data structure
+        root_dir = os.path.dirname(os.path.abspath(__file__))
+        sim_dir = os.path.join(root_dir, 'simulation_data')
+        transport_dir = os.path.join(sim_dir, 'transport_data')
+
+        # Create directories
+        if os.path.exists(sim_dir):
+            shutil.rmtree(sim_dir)
+        os.makedirs(transport_dir)
+        print(f"Created: {sim_dir}")
+
+        # FAST MODE - Only run eigenvalue calculation
+        print("\nRunning OpenMC eigenvalue calculation...")
+        k_eff, k_std = run_eigenvalue(inputs_dict=inputs)
+
+        print(f"\nFast mode simulation completed successfully!")
+        print(f"k-effective = {k_eff:.6f} ± {k_std:.6f}")
+        print(f"Results saved to: {os.path.join(sim_dir, 'results.txt')}")
+
+        return
+
+    # STANDARD MODE - Full workflow
+    print("\n" + "="*60)
+    print("STANDARD MODE - Full Simulation Workflow")
+    print("="*60)
+
     # Clean up all __pycache__ directories first
     print("\nCleaning up __pycache__ directories...")
     cleanup_all_pycache()

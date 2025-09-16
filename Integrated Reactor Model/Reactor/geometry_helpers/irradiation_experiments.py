@@ -159,3 +159,33 @@ def get_scaled_z_planes(irradiation_type):
 
     config = get_experiment_config(irradiation_type)
     return config['z_planes'].copy()  # Return a copy to prevent modification
+
+
+def get_reference_axial_bounds(inputs_dict=None):
+    """Get the reference axial bounds from PWR/BWR experiments for height matching.
+
+    This function extracts the axial extent that PWR/BWR experiments use for their
+    sample regions, which can be used to match the gas experiment height when
+    match_GS_height is enabled.
+
+    Parameters
+    ----------
+    inputs_dict : dict, optional
+        Inputs dictionary (not used currently, but kept for consistency)
+
+    Returns
+    -------
+    tuple
+        (z_bottom, z_top, height) where:
+        - z_bottom: Bottom of sample region [cm]
+        - z_top: Top of sample region [cm]
+        - height: Total height of sample region [cm]
+    """
+    # Get z-planes from HTWL configuration
+    z_planes = get_scaled_z_planes('PWR_loop')  # Same for PWR and BWR
+
+    z_bottom = z_planes['capsule_bottom_top']  # -23.5 cm
+    z_top = z_planes['capsule_top_bot']        # -0.5 cm
+    height = z_top - z_bottom                  # 23.0 cm
+
+    return z_bottom, z_top, height

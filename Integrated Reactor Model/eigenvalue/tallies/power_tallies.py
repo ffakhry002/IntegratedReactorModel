@@ -10,7 +10,7 @@ This module provides functions for:
 import openmc
 import numpy as np
 from inputs import inputs
-from Reactor.geometry_helpers.utils import generate_cell_id
+from Reactor.geometry_helpers.utils import generate_cell_id, generate_filter_id
 
 def create_power_tallies(inputs_dict=None):
     """Create power tallies for the entire core and individual assemblies or fuel elements.
@@ -114,6 +114,7 @@ def create_assembly_tallies(tallies, n_axial_segments, half_height, assembly_wid
 
                 # Create mesh filter
                 mesh_filter = openmc.MeshFilter(mesh)
+                mesh_filter.id = generate_filter_id('mesh', position=(i, j), component='assembly')
 
                 # Create tally for this assembly
                 tally = openmc.Tally(name=f"assembly_power_{i}_{j}")
@@ -178,6 +179,7 @@ def create_pin_element_tallies(tallies, n_axial_segments, half_height, assembly_
 
                         # Create mesh filter
                         mesh_filter = openmc.MeshFilter(mesh)
+                        mesh_filter.id = generate_filter_id('mesh', position=(i, j), component='element', index=pin_i*100+pin_j)
 
                         # Create tally for this pin
                         tally = openmc.Tally(name=f"pin_power_{i}_{j}_{pin_i}_{pin_j}")
@@ -241,6 +243,7 @@ def create_plate_element_tallies(tallies, n_axial_segments, half_height, assembl
 
                     # Create mesh filter
                     mesh_filter = openmc.MeshFilter(mesh)
+                    mesh_filter.id = generate_filter_id('mesh', position=(i, j), component='element', index=plate_k)
 
                     # Create tally for this plate
                     tally = openmc.Tally(name=f"plate_power_{i}_{j}_{plate_k}")
