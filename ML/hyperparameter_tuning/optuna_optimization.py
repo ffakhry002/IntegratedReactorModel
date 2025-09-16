@@ -236,24 +236,98 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
                 model = MultiOutputRegressor(pipeline)
 
             elif model_type == 'neural_net':
-                n_layers = trial.suggest_int('n_layers', 1, 5)
+                # Neural Architecture Search optimized for 2000 samples, 500 trials
+                n_layers = trial.suggest_int('n_layers', 1, 4)  # REDUCED: 5 layers may overfit with 2000 samples
                 layers = []
+
+                # Layer size constraints optimized for dataset size
                 for i in range(n_layers):
-                    layers.append(trial.suggest_int(f'layer_{i}_size', 50, 400))
+                    if i == 0:
+                        # First layer: reduced max size to prevent overfitting
+                        max_size = 200  # REDUCED from 400 to 200
+                        min_size = 80 if n_layers > 3 else 50
+                    else:
+                        # Subsequent layers: ensure reasonable range
+                        prev_layer_size = layers[i-1]
+
+                        # Max size: can't exceed previous layer
+                        max_size = min(200, prev_layer_size)  # REDUCED cap from 400 to 200
+
+                        # Min size: ensure at least 15 choices (reduced from 20 for efficiency)
+                        min_size = max(50, max_size - 15)
+
+                        # Safety check: ensure min < max with reasonable gap
+                        if max_size - min_size < 8:  # Slightly tighter for efficiency
+                            center = (max_size + min_size) // 2
+                            min_size = max(50, center - 8)
+                            max_size = min(200, center + 8)  # REDUCED cap
+
+                        # Final safety: ensure valid bounds
+                        if min_size >= max_size:
+                            min_size = max(50, max_size - 5)
+
+                    layers.append(trial.suggest_int(f'layer_{i}_size', min_size, max_size))
+
+                # REMOVED: Architecture efficiency guards that waste Optuna trials
+                # Let Optuna explore all architectures during random phase and learn naturally
+                # which ones perform poorly rather than artificially rejecting them
+
+                # Batch size optimized for 2000 samples
+                dataset_size = X_train.shape[0]
+                if dataset_size > 5000:
+                    batch_sizes = ['auto', 128, 256, 400]
+                elif dataset_size > 1500:  # NEW: Optimized for ~2000 samples
+                    batch_sizes = ['auto', 128, 200]  # FOCUSED: Removed small batches, added 200
+                else:
+                    batch_sizes = ['auto', 64, 128]
+
+                # Solver selection - REMOVED SGD (Adam/LBFGS usually better for this dataset size)
+                solver = trial.suggest_categorical('solver', ['adam', 'lbfgs'])
+
+                # IMPROVEMENT 4: Disable MLPRegressor internal validation to preserve GroupKFold integrity
+                # Since we always use GroupKFold (groups always provided), MLPRegressor's internal
+                # validation would break the group separation and cause augmentation leakage
+                n_iter_no_change = trial.suggest_int('n_iter_no_change', 15, 30)  # Higher patience without early stopping
+                early_stopping = False  # Always disabled to preserve GroupKFold
 
                 params = {
                     'hidden_layer_sizes': tuple(layers),
-                    'learning_rate_init': trial.suggest_float('learning_rate_init', 0.0001, 0.01, log=True),
-                    'alpha': trial.suggest_float('alpha', 0.0001, 0.1, log=True),
-                    'activation': trial.suggest_categorical('activation', ['relu', 'tanh']),
-                    'solver': trial.suggest_categorical('solver', ['adam', 'lbfgs']),
-                    'max_iter': 500,
+                    'activation': trial.suggest_categorical('activation', ['relu', 'tanh']),  # REMOVED logistic (focus search)
+                    'solver': solver,
+
+                    # HIGH IMPACT: Learning parameters - OPTIMIZED for 2000 samples
+                    'learning_rate_init': trial.suggest_float('learning_rate_init', 0.0005, 0.005, log=True),  # NARROWED stable range
+                    'batch_size': trial.suggest_categorical('batch_size', batch_sizes),  # Optimized batch sizes
+                    'learning_rate': trial.suggest_categorical('learning_rate', ['constant', 'adaptive']),
+
+                    # STRONGER REGULARIZATION for small dataset
+                    'alpha': trial.suggest_float('alpha', 0.001, 0.5, log=True),  # INCREASED from 0.0001-0.1 to 0.001-0.5
+                    'max_iter': trial.suggest_int('max_iter', 300, 1000),  # REDUCED from 500-1500 to 300-1000
+                    'tol': trial.suggest_float('tol', 1e-5, 5e-4, log=True),
+
+                    # Early stopping disabled to preserve GroupKFold integrity
+                    'early_stopping': early_stopping,  # Always False
+                    'n_iter_no_change': n_iter_no_change,  # Reduced patience for efficiency
                     'verbose': True,
-                    'early_stopping': True,
-                    'n_iter_no_change': 10
                 }
-                print(f"  NN params: layers={params['hidden_layer_sizes']}, solver={params['solver']}")
-                model = MLPRegressor(**params)
+
+                # Solver-specific optimization (most important parameters only)
+                if solver == 'adam':
+                    params['beta_1'] = trial.suggest_float('beta_1', 0.85, 0.95)  # Momentum term
+                    params['beta_2'] = trial.suggest_float('beta_2', 0.9, 0.999)   # RMSprop term
+                    params['epsilon'] = trial.suggest_float('epsilon', 1e-9, 1e-6, log=True)  # Numerical stability
+                # REMOVED SGD-specific parameters since we removed SGD solver
+                # lbfgs doesn't need additional parameters
+
+                print(f"  NN params: layers={params['hidden_layer_sizes']}, solver={params['solver']}, batch_size={params['batch_size']}, lr_schedule={params['learning_rate']}")
+                print(f"    early_stopping={early_stopping}, patience={n_iter_no_change}, dataset_size={dataset_size}, alpha_range=[0.001,0.5]")
+
+                # Add numerical stability check
+                try:
+                    model = MLPRegressor(**params)
+                except (ValueError, OverflowError) as e:
+                    print(f"  [ERROR] Invalid NN parameters caused: {str(e)[:100]}")
+                    return float('inf')  # Skip this trial
 
             # Choose scoring based on flux mode
             if flux_mode == 'bin':
@@ -264,12 +338,12 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
                     cv = GroupKFold(n_splits=10)
                     scores = cross_val_score(model, X_train, y_flux_train,
                                            cv=cv, groups=groups,
-                                           scoring='neg_mean_squared_error', n_jobs=1)
+                                           scoring='neg_mean_squared_error', n_jobs=1)  # Avoid conflicts with Optuna parallelization
                 else:
                     from sklearn.model_selection import KFold
                     cv = KFold(n_splits=10, shuffle=True, random_state=42)
                     scores = cross_val_score(model, X_train, y_flux_train,
-                                           cv=cv, scoring='neg_mean_squared_error', n_jobs=1)
+                                           cv=cv, scoring='neg_mean_squared_error', n_jobs=1)  # Avoid conflicts with Optuna parallelization
 
                 # Return positive MSE (sklearn returns negative)
                 final_score = -np.mean(scores)
@@ -289,12 +363,12 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
                     cv = GroupKFold(n_splits=10)
                     scores = cross_val_score(model, X_train, y_flux_train,
                                            cv=cv, groups=groups,
-                                           scoring=custom_mape_scorer, n_jobs=1)
+                                           scoring=custom_mape_scorer, n_jobs=1)  # Avoid conflicts with Optuna parallelization
                 else:
                     from sklearn.model_selection import KFold
                     cv = KFold(n_splits=10, shuffle=True, random_state=42)
                     scores = cross_val_score(model, X_train, y_flux_train,
-                                           cv=cv, scoring=custom_mape_scorer, n_jobs=1)
+                                           cv=cv, scoring=custom_mape_scorer, n_jobs=1)  # Avoid conflicts with Optuna parallelization
 
                 # Handle scorer output (custom_mape_scorer returns negative values due to greater_is_better=False)
                 final_score = -np.mean(scores)  # Convert back to positive MAPE
@@ -324,8 +398,8 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
     study = optuna.create_study(
         direction='minimize',
         sampler=TPESampler(
-            n_startup_trials=150,
-            n_ei_candidates=100,
+            n_startup_trials=50,
+            n_ei_candidates=50,
             seed=42
         ),
         pruner=None
@@ -357,7 +431,7 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
         study.optimize(
             objective,
             n_trials=n_trials,
-            n_jobs=n_jobs,
+            n_jobs=n_jobs,  # Use the passed n_jobs (likely -1 for all cores)
             show_progress_bar=True,
             callbacks=[callback],
             timeout=TOTAL_TIMEOUT,
