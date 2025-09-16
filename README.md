@@ -1,0 +1,1 @@
+Making neutronic and thermal hydraulic integrated monte carlo code. Building training data using integrated tool to build an ML surrogate for predicting eigenvalue and energy discretized fluxes in research reactors. 
