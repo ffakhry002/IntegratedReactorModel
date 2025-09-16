@@ -238,29 +238,43 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
 
     # Al6061 Cladding (Standard and Enhanced)
     if (mat_list is None) or ('Al6061' in mat_list) or ('Al6061-Enhanced' in mat_list):
-        # Standard Al6061
+        # Standard Al6061 with MCNP isotopic composition
         al6061 = openmc.Material(name='Al6061')
-        al6061.weight_percent = {
-            'Fe': 0.35,
-            'Zn': 0.125,
-            'Cr': 0.195,
-            'Mn': 0.075,
-            'Mg': 1.000,
-            'Si': 0.600,
-            'Ti': 0.075,
-            'Cu': 0.275,
-            'Al': 97.305
+        al6061_isotopes = {
+            'Al27': 9.754920E-1,
+            'Mn55': 7.430790E-4,
+            'Mg24': 8.844734E-3,
+            'Mg25': 1.120036E-3,
+            'Mg26': 1.232230E-3,
+            'Si28': 5.361653E-3,
+            'Si29': 2.722494E-4,
+            'Si30': 1.794680E-4,
+            'Ti46': 7.029666E-5,
+            'Ti47': 6.337692E-5,
+            'Ti48': 6.282300E-4,
+            'Ti49': 4.609463E-5,
+            'Ti50': 4.418574E-5,
+            'Cr50': 5.707073E-5,
+            'Cr52': 1.100508E-3,
+            'Cr53': 1.247828E-4,
+            'Cr54': 3.105844E-5,
+            'Fe54': 1.993963E-4,
+            'Fe56': 3.130096E-3,
+            'Fe57': 7.229098E-5,
+            'Fe58': 9.616737E-6,
+            'Cu63': 8.146414E-4,
+            'Cu65': 3.630286E-4
         }
-        for element, wt in al6061.weight_percent.items():
-            al6061.add_element(element, wt, percent_type='wo')
+        for isotope, fraction in al6061_isotopes.items():
+            al6061.add_nuclide(isotope, fraction, percent_type='ao')
         al6061.set_density('g/cm3', 2.7)
         al6061.temperature = np.mean(TH_data['T_clad_middle_z'])
         material_list.append(al6061)
 
         # Enhanced Al6061 (same composition, different name for coloring)
         al6061_enhanced = openmc.Material(name='Al6061-Enhanced')
-        for element, wt in al6061.weight_percent.items():
-            al6061_enhanced.add_element(element, wt, percent_type='wo')
+        for isotope, fraction in al6061_isotopes.items():
+            al6061_enhanced.add_nuclide(isotope, fraction, percent_type='ao')
         al6061_enhanced.set_density('g/cm3', 2.7)
         al6061_enhanced.temperature = np.mean(TH_data['T_clad_middle_z'])
         material_list.append(al6061_enhanced)
@@ -542,7 +556,7 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
 
         # Use MCNP reference density (at ~9°C), not operating temperature
         # MCNP convention for consistency
-        co2.set_density('g/cm3', 1.9e-3)
+        co2.set_density('g/cm3', 0.0019)
 
         # Set temperature to autoclave operating temperature
         co2.temperature = 373.15  # 100°C
@@ -624,7 +638,7 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
 
         # Use MCNP reference density (at ~1°C), not operating temperature
         # MCNP convention for consistency
-        ht_helium.set_density('g/cm3', 1.78e-4)
+        ht_helium.set_density('g/cm3', 0.000178)
 
         # Set temperature to operating temperature
         ht_helium.temperature = 1073.15  # 800°C (sample region)
@@ -673,19 +687,19 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
         pwr_temp = 573.15  # 300°C
         pwr_pressure = 15.5e6  # 15.5 MPa
         pwr_water_density = PropsSI('D', 'T', pwr_temp, 'P', pwr_pressure, 'Water')  # kg/m³
-        
+
         # Account for 1400 ppm boron (same as HP_Borated_Water calculation)
         rho_boron = 2.34  # g/cm³ for elemental boron
         w_water = 0.9986  # mass fraction of water
         w_boron = 0.0014  # mass fraction of boron (1400 ppm)
-        
+
         # Calculate volumes per unit mass
         V_water = w_water / (pwr_water_density / 1000)  # cm³ of water per gram of mixture
         V_boron = w_boron / rho_boron  # cm³ of boron per gram of mixture
-        
+
         # Composite density = 1 / (total volume per unit mass)
         rho_composite = 1 / (V_water + V_boron)  # g/cm³
-        
+
         hp_water_mix.set_density('g/cm3', rho_composite)
         hp_water_mix.temperature = pwr_temp
 
@@ -831,7 +845,6 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
 
     materials = openmc.Materials(material_list)
     mat_dict = {mat.name: mat for mat in materials}
-
     return mat_dict, materials
 
 if __name__ == "__main__":
