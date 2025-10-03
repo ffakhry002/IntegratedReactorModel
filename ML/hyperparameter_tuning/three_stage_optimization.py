@@ -1837,13 +1837,16 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
         try:
             if torch.cuda.is_available():
                 if n_gpus > 1:
-                    # For multi-GPU with sklearn, set CUDA_VISIBLE_DEVICES
+                    # Set environment variable for PID-based GPU assignment
+                    os.environ['PYTORCH_N_GPUS'] = str(n_gpus)
+                    # Also set CUDA_VISIBLE_DEVICES to ensure both GPUs are visible
                     gpu_list = ','.join(str(i) for i in range(n_gpus))
                     os.environ['CUDA_VISIBLE_DEVICES'] = gpu_list
-                    fixed_params['device'] = 'cuda'  # PyTorch will auto-balance across visible GPUs
+                    fixed_params['device'] = None  # Auto-detect (will use PID % n_gpus)
                     print(f"\n   - GPU Mode: Using {n_gpus} GPUs for neural network training")
-                    print(f"   - CUDA_VISIBLE_DEVICES={gpu_list} (PyTorch auto-balances across GPUs)")
-                    print(f"   - Note: sklearn parallelization shares GPUs (not as efficient as Optuna round-robin)")
+                    print(f"   - CUDA_VISIBLE_DEVICES={gpu_list}")
+                    print(f"   - PID-based round-robin: Each worker process assigns itself to GPU based on PID % {n_gpus}")
+                    print(f"   - Workers will distribute: PID ending in even→GPU 0, odd→GPU 1")
                 else:
                     fixed_params['device'] = 'cuda'  # Use default GPU
                     print(f"\n   - GPU Mode: Using 1 GPU for neural network training")

@@ -116,7 +116,22 @@ class PyTorchRegressorWrapper(BaseEstimator, RegressorMixin):
         self.validation_fraction = validation_fraction
         # Auto-detect device: prefer GPU if available
         if device is None:
-            self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            if torch.cuda.is_available():
+                # Check for multi-GPU environment variable (for three-stage optimization)
+                import os
+                n_gpus_env = os.environ.get('PYTORCH_N_GPUS', None)
+                if n_gpus_env and int(n_gpus_env) > 1:
+                    # PID-based GPU assignment for three-stage optimization
+                    pid = os.getpid()
+                    n_gpus = int(n_gpus_env)
+                    gpu_id = pid % n_gpus
+                    self.device = f'cuda:{gpu_id}'
+                    if verbose:
+                        print(f"  [PID {pid}] Assigned to GPU {gpu_id} (PID % {n_gpus})")
+                else:
+                    self.device = 'cuda'
+            else:
+                self.device = 'cpu'
         else:
             self.device = device
         self.verbose = verbose
