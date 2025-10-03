@@ -1794,7 +1794,7 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
                     needs_wrapper = True
             else:
                 # Fallback: check if model type typically needs wrapper
-                native_multioutput = model_type in ['random_forest']  # Only RF has native support
+                native_multioutput = model_type in ['random_forest', 'neural_net']  # RF and NN have native support
                 if native_multioutput:
                     print(f"   - Multi-output: Native support detected for {model_type}")
                     needs_wrapper = False
