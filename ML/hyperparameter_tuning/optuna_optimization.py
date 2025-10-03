@@ -1,3 +1,8 @@
+# CRITICAL: Set multiprocessing method BEFORE any imports
+import os
+os.environ['LOKY_START_METHOD'] = 'spawn'  # Force joblib to use spawn (not threading!)
+os.environ['LOKY_PICKLER'] = 'cloudpickle'
+
 import optuna
 from optuna.samplers import TPESampler
 import numpy as np
@@ -14,7 +19,6 @@ import time
 from datetime import datetime
 import warnings
 import gc
-import os
 import signal
 from contextlib import contextmanager
 from sklearn.preprocessing import StandardScaler

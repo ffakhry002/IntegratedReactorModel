@@ -1,5 +1,9 @@
 ##### THIS IS CODE DUOS
 
+# CRITICAL: Set multiprocessing method BEFORE any imports
+import os
+os.environ['LOKY_START_METHOD'] = 'spawn'  # Force joblib to use spawn (not threading!)
+os.environ['LOKY_PICKLER'] = 'cloudpickle'
 import numpy as np
 from sklearn.model_selection import RandomizedSearchCV, GridSearchCV, GroupKFold, KFold
 from skopt import BayesSearchCV
