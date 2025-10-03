@@ -16,6 +16,18 @@ from typing import Dict, Tuple, List, Union, Optional, Any
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 
+# PyTorch multiprocessing fix for GPU + parallel optimization
+try:
+    import torch
+    if torch.cuda.is_available():
+        try:
+            import torch.multiprocessing
+            torch.multiprocessing.set_start_method('spawn', force=True)
+        except RuntimeError:
+            pass  # Already set
+except ImportError:
+    pass  # PyTorch not installed or not using neural nets
+
 # ============================================================================
 # CONFIGURATION
 # ============================================================================

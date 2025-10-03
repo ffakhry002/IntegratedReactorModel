@@ -20,6 +20,15 @@ from contextlib import contextmanager
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 
+# PyTorch multiprocessing fix for GPU + Optuna parallelization
+import torch
+if torch.cuda.is_available():
+    try:
+        import torch.multiprocessing
+        torch.multiprocessing.set_start_method('spawn', force=True)
+    except RuntimeError:
+        pass  # Already set
+
 # Global timeout settings
 TRIAL_TIMEOUT = 600*10  # 30 minutes per trial
 TOTAL_TIMEOUT = 30*60*60  # 30 hours total per model
