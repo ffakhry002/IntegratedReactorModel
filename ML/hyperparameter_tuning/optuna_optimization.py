@@ -236,97 +236,65 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
                 model = MultiOutputRegressor(pipeline)
 
             elif model_type == 'neural_net':
-                # Neural Architecture Search optimized for 2000 samples, 500 trials
-                n_layers = trial.suggest_int('n_layers', 1, 4)  # REDUCED: 5 layers may overfit with 2000 samples
-                layers = []
+                # PyTorch Neural Network with rectangular architecture
+                # Simplified hyperparameter space for rectangular (uniform width) architecture
 
-                # Layer size constraints optimized for dataset size
-                for i in range(n_layers):
-                    if i == 0:
-                        # First layer: reduced max size to prevent overfitting
-                        max_size = 200  # REDUCED from 400 to 200
-                        min_size = 80 if n_layers > 3 else 50
-                    else:
-                        # Subsequent layers: ensure reasonable range
-                        prev_layer_size = layers[i-1]
+                # Architecture parameters
+                depth = trial.suggest_int('depth', 1, 5)  # Number of hidden layers
+                width = trial.suggest_int('width', 50, 400)  # Neurons per layer (uniform)
 
-                        # Max size: can't exceed previous layer
-                        max_size = min(200, prev_layer_size)  # REDUCED cap from 400 to 200
+                # Activation function
+                activation = trial.suggest_categorical('activation', ['relu', 'tanh', 'sigmoid', 'elu'])
 
-                        # Min size: ensure at least 15 choices (reduced from 20 for efficiency)
-                        min_size = max(50, max_size - 15)
+                # Optimizer selection
+                optimizer = trial.suggest_categorical('optimizer', ['adam', 'sgd', 'adamw', 'rmsprop'])
 
-                        # Safety check: ensure min < max with reasonable gap
-                        if max_size - min_size < 8:  # Slightly tighter for efficiency
-                            center = (max_size + min_size) // 2
-                            min_size = max(50, center - 8)
-                            max_size = min(200, center + 8)  # REDUCED cap
+                # Learning rate
+                learning_rate = trial.suggest_float('learning_rate', 0.0001, 0.01, log=True)
 
-                        # Final safety: ensure valid bounds
-                        if min_size >= max_size:
-                            min_size = max(50, max_size - 5)
-
-                    layers.append(trial.suggest_int(f'layer_{i}_size', min_size, max_size))
-
-                # REMOVED: Architecture efficiency guards that waste Optuna trials
-                # Let Optuna explore all architectures during random phase and learn naturally
-                # which ones perform poorly rather than artificially rejecting them
-
-                # Batch size optimized for 2000 samples
+                # Batch size optimized for dataset size
                 dataset_size = X_train.shape[0]
                 if dataset_size > 5000:
-                    batch_sizes = ['auto', 128, 256, 400]
-                elif dataset_size > 1500:  # NEW: Optimized for ~2000 samples
-                    batch_sizes = ['auto', 128, 200]  # FOCUSED: Removed small batches, added 200
+                    batch_sizes = [64, 128, 256, 512]
+                elif dataset_size > 1500:  # Optimized for ~2000 samples
+                    batch_sizes = [64, 128, 256]
                 else:
-                    batch_sizes = ['auto', 64, 128]
+                    batch_sizes = [32, 64, 128]
 
-                # Solver selection - REMOVED SGD (Adam/LBFGS usually better for this dataset size)
-                solver = trial.suggest_categorical('solver', ['adam', 'lbfgs'])
+                batch_size = trial.suggest_categorical('batch_size', batch_sizes)
 
-                # IMPROVEMENT 4: Disable MLPRegressor internal validation to preserve GroupKFold integrity
-                # Since we always use GroupKFold (groups always provided), MLPRegressor's internal
-                # validation would break the group separation and cause augmentation leakage
-                n_iter_no_change = trial.suggest_int('n_iter_no_change', 15, 30)  # Higher patience without early stopping
-                early_stopping = False  # Always disabled to preserve GroupKFold
+                # Regularization (L2 penalty)
+                weight_decay = trial.suggest_float('weight_decay', 0.00001, 0.1, log=True)
+
+                # Training parameters
+                max_epochs = trial.suggest_int('max_epochs', 200, 1500)
+                patience = trial.suggest_int('patience', 10, 40)  # Early stopping patience
 
                 params = {
-                    'hidden_layer_sizes': tuple(layers),
-                    'activation': trial.suggest_categorical('activation', ['relu', 'tanh']),  # REMOVED logistic (focus search)
-                    'solver': solver,
-
-                    # HIGH IMPACT: Learning parameters - OPTIMIZED for 2000 samples
-                    'learning_rate_init': trial.suggest_float('learning_rate_init', 0.0005, 0.005, log=True),  # NARROWED stable range
-                    'batch_size': trial.suggest_categorical('batch_size', batch_sizes),  # Optimized batch sizes
-                    'learning_rate': trial.suggest_categorical('learning_rate', ['constant', 'adaptive']),
-
-                    # STRONGER REGULARIZATION for small dataset
-                    'alpha': trial.suggest_float('alpha', 0.001, 0.5, log=True),  # INCREASED from 0.0001-0.1 to 0.001-0.5
-                    'max_iter': trial.suggest_int('max_iter', 300, 1000),  # REDUCED from 500-1500 to 300-1000
-                    'tol': trial.suggest_float('tol', 1e-5, 5e-4, log=True),
-
-                    # Early stopping disabled to preserve GroupKFold integrity
-                    'early_stopping': early_stopping,  # Always False
-                    'n_iter_no_change': n_iter_no_change,  # Reduced patience for efficiency
-                    'verbose': True,
+                    'depth': depth,
+                    'width': width,
+                    'activation': activation,
+                    'optimizer': optimizer,
+                    'learning_rate': learning_rate,
+                    'batch_size': batch_size,
+                    'weight_decay': weight_decay,
+                    'max_epochs': max_epochs,
+                    'patience': patience,
+                    'device': None,  # Auto-detect GPU
+                    'verbose': False,  # Disable verbose for optuna trials
+                    'random_state': 42
                 }
 
-                # Solver-specific optimization (most important parameters only)
-                if solver == 'adam':
-                    params['beta_1'] = trial.suggest_float('beta_1', 0.85, 0.95)  # Momentum term
-                    params['beta_2'] = trial.suggest_float('beta_2', 0.9, 0.999)   # RMSprop term
-                    params['epsilon'] = trial.suggest_float('epsilon', 1e-9, 1e-6, log=True)  # Numerical stability
-                # REMOVED SGD-specific parameters since we removed SGD solver
-                # lbfgs doesn't need additional parameters
+                print(f"  PyTorch NN params: depth={depth}, width={width}, activation={activation}")
+                print(f"    optimizer={optimizer}, lr={learning_rate:.6f}, batch_size={batch_size}")
+                print(f"    weight_decay={weight_decay:.6f}, max_epochs={max_epochs}, patience={patience}")
 
-                print(f"  NN params: layers={params['hidden_layer_sizes']}, solver={params['solver']}, batch_size={params['batch_size']}, lr_schedule={params['learning_rate']}")
-                print(f"    early_stopping={early_stopping}, patience={n_iter_no_change}, dataset_size={dataset_size}, alpha_range=[0.001,0.5]")
-
-                # Add numerical stability check
+                # Create sklearn-compatible wrapper (already done in NeuralNetReactorModel)
+                from ML_models.neural_net_train import PyTorchRegressorWrapper
                 try:
-                    model = MLPRegressor(**params)
-                except (ValueError, OverflowError) as e:
-                    print(f"  [ERROR] Invalid NN parameters caused: {str(e)[:100]}")
+                    model = PyTorchRegressorWrapper(**params)
+                except (ValueError, RuntimeError) as e:
+                    print(f"  [ERROR] Invalid PyTorch NN parameters caused: {str(e)[:100]}")
                     return float('inf')  # Skip this trial
 
             # Choose scoring based on flux mode
@@ -595,24 +563,60 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
                 model = pipeline
 
             elif model_type == 'neural_net':
-                n_layers = trial.suggest_int('n_layers', 1, 5)
-                layers = []
-                for i in range(n_layers):
-                    layers.append(trial.suggest_int(f'layer_{i}_size', 50, 400))
+                # PyTorch Neural Network with rectangular architecture (k-eff)
+                # Same hyperparameter space as flux for consistency
+
+                # Architecture parameters
+                depth = trial.suggest_int('depth', 1, 5)
+                width = trial.suggest_int('width', 50, 400)
+
+                # Activation function
+                activation = trial.suggest_categorical('activation', ['relu', 'tanh', 'sigmoid', 'elu'])
+
+                # Optimizer selection
+                optimizer = trial.suggest_categorical('optimizer', ['adam', 'sgd', 'adamw', 'rmsprop'])
+
+                # Learning rate
+                learning_rate = trial.suggest_float('learning_rate', 0.0001, 0.01, log=True)
+
+                # Batch size optimized for dataset size
+                dataset_size = X_train.shape[0]
+                if dataset_size > 5000:
+                    batch_sizes = [64, 128, 256, 512]
+                elif dataset_size > 1500:
+                    batch_sizes = [64, 128, 256]
+                else:
+                    batch_sizes = [32, 64, 128]
+
+                batch_size = trial.suggest_categorical('batch_size', batch_sizes)
+
+                # Regularization
+                weight_decay = trial.suggest_float('weight_decay', 0.00001, 0.1, log=True)
+
+                # Training parameters
+                max_epochs = trial.suggest_int('max_epochs', 200, 1500)
+                patience = trial.suggest_int('patience', 10, 40)
 
                 params = {
-                    'hidden_layer_sizes': tuple(layers),
-                    'learning_rate_init': trial.suggest_float('learning_rate_init', 0.0001, 0.01, log=True),
-                    'alpha': trial.suggest_float('alpha', 0.0001, 0.1, log=True),
-                    'activation': trial.suggest_categorical('activation', ['relu', 'tanh']),
-                    'solver': trial.suggest_categorical('solver', ['adam', 'lbfgs']),
-                    'max_iter': 500,
-                    'verbose': True,
-                    'early_stopping': True,
-                    'n_iter_no_change': 10
+                    'depth': depth,
+                    'width': width,
+                    'activation': activation,
+                    'optimizer': optimizer,
+                    'learning_rate': learning_rate,
+                    'batch_size': batch_size,
+                    'weight_decay': weight_decay,
+                    'max_epochs': max_epochs,
+                    'patience': patience,
+                    'device': None,  # Auto-detect GPU
+                    'verbose': False,
+                    'random_state': 42
                 }
-                print(f"  NN params: layers={params['hidden_layer_sizes']}, solver={params['solver']}")
-                model = MLPRegressor(**params)
+
+                print(f"  PyTorch NN params: depth={depth}, width={width}, activation={activation}")
+                print(f"    optimizer={optimizer}, lr={learning_rate:.6f}, batch_size={batch_size}")
+
+                from ML_models.neural_net_train import PyTorchRegressorWrapper
+                model = PyTorchRegressorWrapper(**params)
 
             # Train and evaluate with CV - UPDATED FOR GROUPS
             print(f"  Starting cross-validation...")

@@ -1010,34 +1010,43 @@ class SVMParameterHandler(ModelParameterHandler):
         return search_spaces
 
 class NeuralNetParameterHandler(ModelParameterHandler):
-    """Parameter handler for Neural Network models"""
+    """Parameter handler for PyTorch Neural Network models with rectangular architecture"""
 
     def get_default_params(self) -> Dict[str, Any]:
         return {
-            'hidden_layer_sizes': (100,),
-            'learning_rate_init': 0.001,
-            'alpha': 0.001,
+            'depth': 2,
+            'width': 100,
+            'learning_rate': 0.001,
+            'weight_decay': 0.001,
             'activation': 'relu',
-            'solver': 'adam',
-            'random_state': 42,
-            'max_iter': 1000
+            'optimizer': 'adam',
+            'batch_size': 128,
+            'max_epochs': 1000,
+            'patience': 20,
+            'device': None,  # Auto-detect GPU
+            'random_state': 42
         }
 
     def get_fixed_params(self) -> Dict[str, Any]:
         """Fixed parameters that are not optimized during hyperparameter search"""
         return {
             'random_state': 42,
-            'max_iter': 1000
+            'device': None,  # Auto-detect GPU
+            'verbose': False
         }
 
     def get_random_distributions(self, needs_wrapper: bool) -> Dict[str, Any]:
         base_params = {
-            'hidden_layer_sizes': [(100,), (200,), (100,50), (200,100), (300,200,100)],
-            'learning_rate_init': uniform(0.0001, 0.0099),
-            'alpha': uniform(0.0001, 0.0999),
-            'activation': ['relu', 'tanh'],
-            'solver': ['adam', 'lbfgs']
-            # random_state and max_iter are fixed parameters
+            'depth': randint(1, 6),  # 1-5 hidden layers
+            'width': randint(50, 401),  # 50-400 neurons per layer
+            'learning_rate': loguniform(0.0001, 0.01),
+            'weight_decay': loguniform(0.00001, 0.1),
+            'activation': ['relu', 'tanh', 'sigmoid', 'elu'],
+            'optimizer': ['adam', 'sgd', 'adamw', 'rmsprop'],
+            'batch_size': [64, 128, 256],
+            'max_epochs': randint(200, 1501),
+            'patience': randint(10, 41)
+            # device, random_state, verbose are fixed parameters
         }
         if needs_wrapper:
             return {f'estimator__{k}': v for k, v in base_params.items()}
@@ -1047,22 +1056,34 @@ class NeuralNetParameterHandler(ModelParameterHandler):
         prefix = 'estimator__' if needs_wrapper else ''
         param_grid = {}
 
-        # Hidden layer sizes
-        layers = get_param_value(best_params, 'hidden_layer_sizes')
-        layer_variations = self._generate_layer_variations(layers)
-        param_grid[f'{prefix}hidden_layer_sizes'] = layer_variations[:5]
+        # Integer parameters
+        for param_name, min_val, max_val in [
+            ('depth', 1, 5),
+            ('width', 50, 400),
+            ('max_epochs', 200, 1500),
+            ('patience', 10, 40)
+        ]:
+            value = get_param_value(best_params, param_name)
+            param_grid[f'{prefix}{param_name}'] = create_focused_grid(
+                value, 'integer', min_val, max_val)
 
         # Continuous parameters
         for param_name, min_val, max_val in [
-            ('learning_rate_init', 0.0001, 0.01),
-            ('alpha', 0.0001, 0.1)
+            ('learning_rate', 0.0001, 0.01),
+            ('weight_decay', 0.00001, 0.1)
         ]:
             value = get_param_value(best_params, param_name)
             param_grid[f'{prefix}{param_name}'] = create_focused_grid(
                 value, 'continuous', min_val, max_val)
 
         # Categorical parameters
-        param_grid[f'{prefix}activation'] = [get_param_value(best_params, 'activation')]
+        activation = get_param_value(best_params, 'activation')
+        optimizer = get_param_value(best_params, 'optimizer')
+        batch_size = get_param_value(best_params, 'batch_size')
+
+        param_grid[f'{prefix}activation'] = [activation]
+        param_grid[f'{prefix}optimizer'] = [optimizer]
+        param_grid[f'{prefix}batch_size'] = [batch_size]
 
         return param_grid
 
@@ -1071,52 +1092,36 @@ class NeuralNetParameterHandler(ModelParameterHandler):
         search_spaces = {}
         bc = BoundsCalculator()
 
-        # Continuous parameters with log-uniform prior
+        # Integer parameters
         for param_name, min_val, max_val in [
-            ('learning_rate_init', 0.0001, 0.01),
-            ('alpha', 0.0001, 0.1)
+            ('depth', 1, 5),
+            ('width', 50, 400),
+            ('max_epochs', 200, 1500),
+            ('patience', 10, 40)
         ]:
             value = get_param_value(best_params, param_name)
-            lower, upper = bc.safe_bounds(value*0.5, value*2.0, min_val, max_val)
+            lower, upper = bc.get_safe_range_20_percent(value, 'integer', min_val, max_val, param_name)
+            search_spaces[f'{prefix}{param_name}'] = Integer(lower, upper)
+
+        # Continuous parameters with log-uniform prior
+        for param_name, min_val, max_val in [
+            ('learning_rate', 0.0001, 0.01),
+            ('weight_decay', 0.00001, 0.1)
+        ]:
+            value = get_param_value(best_params, param_name)
+            lower, upper = bc.get_safe_range_20_percent(value, 'continuous', min_val, max_val, param_name)
             search_spaces[f'{prefix}{param_name}'] = Real(lower, upper, prior='log-uniform')
 
         # Categorical parameters
-        layers = get_param_value(best_params, 'hidden_layer_sizes')
         activation = get_param_value(best_params, 'activation')
+        optimizer = get_param_value(best_params, 'optimizer')
+        batch_size = get_param_value(best_params, 'batch_size')
 
-        search_spaces[f'{prefix}hidden_layer_sizes'] = Categorical([layers])
         search_spaces[f'{prefix}activation'] = Categorical([activation])
+        search_spaces[f'{prefix}optimizer'] = Categorical([optimizer])
+        search_spaces[f'{prefix}batch_size'] = Categorical([batch_size])
 
         return search_spaces
-
-    def _generate_layer_variations(self, layers: Tuple[int, ...]) -> List[Tuple[int, ...]]:
-        """Generate variations of neural network architectures"""
-        layer_variations = []
-        if isinstance(layers, tuple):
-            base_layers = list(layers)
-            deltas = [-50, -25, 0, 25, 50]
-            for delta in deltas:
-                new_layers = tuple(max(50, min(400, l + delta)) for l in base_layers)
-                if new_layers not in layer_variations:
-                    layer_variations.append(new_layers)
-
-            # Add standard architectures if needed
-            standard_architectures = [(100,), (200,), (100,50), (200,100), (300,), (100,100), (200,200)]
-            for arch in standard_architectures:
-                if arch not in layer_variations and len(layer_variations) < 5:
-                    layer_variations.append(arch)
-        else:
-            layer_variations = [(100,), (200,), (100,50), (200,100), (300,)]
-
-        # Ensure we have enough variations
-        for size in [150, 250, 350]:
-            if len(layer_variations) >= 5:
-                break
-            arch = (size,)
-            if arch not in layer_variations:
-                layer_variations.append(arch)
-
-        return layer_variations
 
 # ============================================================================
 # PARAMETER HANDLER FACTORY
