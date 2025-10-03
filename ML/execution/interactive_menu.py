@@ -319,8 +319,16 @@ class InteractiveTrainer:
         try:
             import torch
 
+            # DEBUG: Print CUDA status
+            print(f"DEBUG: PyTorch version: {torch.__version__}")
+            print(f"DEBUG: torch.cuda.is_available() = {torch.cuda.is_available()}")
+            if hasattr(torch.version, 'cuda'):
+                print(f"DEBUG: CUDA version: {torch.version.cuda}")
+
             if not torch.cuda.is_available():
                 print("⚠️  No GPUs detected. Neural network will use CPU (slow).")
+                print("   This might be a CUDA initialization issue.")
+                print("   Training will still work but use CPU only.")
                 return 0
 
             gpu_count = torch.cuda.device_count()
@@ -356,10 +364,12 @@ class InteractiveTrainer:
 
         except ImportError:
             print("⚠️  PyTorch not found. Cannot detect GPUs.")
-            return 0
+            print("   Defaulting to auto-detection during training.")
+            return 1  # Will auto-detect during training
         except Exception as e:
             print(f"⚠️  Error detecting GPUs: {e}")
-            return 1
+            print("   Defaulting to auto-detection during training.")
+            return 1  # Will auto-detect during training
 
     def run(self):
         """Run the interactive training process.
