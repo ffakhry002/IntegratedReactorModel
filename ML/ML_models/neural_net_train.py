@@ -122,12 +122,13 @@ class PyTorchRegressorWrapper(BaseEstimator, RegressorMixin):
                 n_gpus_env = os.environ.get('PYTORCH_N_GPUS', None)
                 if n_gpus_env and int(n_gpus_env) > 1:
                     # PID-based GPU assignment for three-stage optimization
+                    # Use hash for better distribution (PIDs can be sequential/all odd)
                     pid = os.getpid()
                     n_gpus = int(n_gpus_env)
-                    gpu_id = pid % n_gpus
+                    gpu_id = hash(pid) % n_gpus
                     self.device = f'cuda:{gpu_id}'
                     if verbose:
-                        print(f"  [PID {pid}] Assigned to GPU {gpu_id} (PID % {n_gpus})")
+                        print(f"  [PID {pid}] Assigned to GPU {gpu_id} (hash(PID) % {n_gpus})")
                 else:
                     self.device = 'cuda'
             else:
