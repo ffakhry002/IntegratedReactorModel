@@ -1836,11 +1836,17 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
     if model_type == 'neural_net' and n_gpus >= 1:
         try:
             if torch.cuda.is_available():
-                fixed_params['device'] = 'cuda'  # Use default GPU (sklearn will spawn parallel processes)
-                print(f"\n   - GPU Mode: Using GPU for neural network training")
                 if n_gpus > 1:
-                    print(f"   - Note: Three-stage uses sklearn parallelization (all processes share GPUs)")
-                    print(f"   - For better multi-GPU utilization, use Optuna optimization")
+                    # For multi-GPU with sklearn, set CUDA_VISIBLE_DEVICES
+                    gpu_list = ','.join(str(i) for i in range(n_gpus))
+                    os.environ['CUDA_VISIBLE_DEVICES'] = gpu_list
+                    fixed_params['device'] = 'cuda'  # PyTorch will auto-balance across visible GPUs
+                    print(f"\n   - GPU Mode: Using {n_gpus} GPUs for neural network training")
+                    print(f"   - CUDA_VISIBLE_DEVICES={gpu_list} (PyTorch auto-balances across GPUs)")
+                    print(f"   - Note: sklearn parallelization shares GPUs (not as efficient as Optuna round-robin)")
+                else:
+                    fixed_params['device'] = 'cuda'  # Use default GPU
+                    print(f"\n   - GPU Mode: Using 1 GPU for neural network training")
         except:
             pass  # PyTorch not available, keep device=None
 

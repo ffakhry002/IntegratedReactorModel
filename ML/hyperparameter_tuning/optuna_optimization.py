@@ -450,16 +450,18 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
     print(f"{'='*60}\n")
 
     try:
-        study.optimize(
-            objective,
-            n_trials=n_trials,
-            n_jobs=n_jobs,  # Use the passed n_jobs (likely -1 for all cores)
-            show_progress_bar=True,
-            callbacks=[callback],
-            timeout=TOTAL_TIMEOUT,
-            catch=(Exception,),
-            gc_after_trial=True
-        )
+        # Force joblib to use loky backend with multiprocessing
+        with joblib.parallel_backend('loky', n_jobs=n_jobs):
+            study.optimize(
+                objective,
+                n_trials=n_trials,
+                n_jobs=n_jobs,  # Use the passed n_jobs (likely -1 for all cores)
+                show_progress_bar=True,
+                callbacks=[callback],
+                timeout=TOTAL_TIMEOUT,
+                catch=(Exception,),
+                gc_after_trial=True
+            )
         print(f"\nOptimization completed successfully!")
     except KeyboardInterrupt:
         print(f"\n[INTERRUPTED] Optimization interrupted by user")
@@ -825,16 +827,18 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
     print(f"{'='*60}\n")
 
     try:
-        study.optimize(
-            objective,
-            n_trials=n_trials,
-            n_jobs=n_jobs,
-            show_progress_bar=True,
-            callbacks=[callback],
-            timeout=TOTAL_TIMEOUT,
-            catch=(Exception,),
-            gc_after_trial=True
-        )
+        # Force joblib to use loky backend with multiprocessing
+        with joblib.parallel_backend('loky', n_jobs=n_jobs):
+            study.optimize(
+                objective,
+                n_trials=n_trials,
+                n_jobs=n_jobs,
+                show_progress_bar=True,
+                callbacks=[callback],
+                timeout=TOTAL_TIMEOUT,
+                catch=(Exception,),
+                gc_after_trial=True
+            )
         print(f"\nOptimization completed successfully!")
     except KeyboardInterrupt:
         print(f"\n[INTERRUPTED] Optimization interrupted by user")
