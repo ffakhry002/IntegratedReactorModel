@@ -69,7 +69,8 @@ class ModelTrainer:
                     n_jobs=config.n_jobs,
                     groups=groups_train,  # NEW: Pass groups
                     flux_mode=flux_mode,   # NEW: Pass flux mode
-                    encoding=encoding  # NEW: Pass encoding
+                    encoding=encoding,  # NEW: Pass encoding
+                    n_gpus=config.n_gpus  # NEW: Pass GPU count
                 )
             else:  # keff
                 best_params, study = optimize_keff_model(
@@ -78,7 +79,8 @@ class ModelTrainer:
                     n_trials=config.n_trials,
                     n_jobs=config.n_jobs,
                     groups=groups_train,  # NEW: Pass groups
-                    encoding=encoding  # NEW: Pass encoding
+                    encoding=encoding,  # NEW: Pass encoding
+                    n_gpus=config.n_gpus  # NEW: Pass GPU count
                 )
 
             # Check if optimization completed or timed out
@@ -100,7 +102,8 @@ class ModelTrainer:
                 n_jobs=config.n_jobs,
                 target_type=target,
                 use_log_flux=self.data_handler.use_log_flux if target == 'flux' else False,
-                groups=groups_train  # NEW: Pass groups
+                groups=groups_train,  # NEW: Pass groups
+                n_gpus=config.n_gpus  # NEW: Pass GPU count
             )
 
             # Check if optimization completed or timed out

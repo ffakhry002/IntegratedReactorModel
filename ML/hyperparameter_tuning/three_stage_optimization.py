@@ -1708,7 +1708,7 @@ def clean_optimization_parameters(params_dict: Dict[str, Any]) -> Dict[str, Any]
 # ============================================================================
 def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost',
                            n_jobs=-1, target_type='flux', use_log_flux=True, groups=None,
-                           n_random_iter=None, n_bayesian_iter=None, fast_mode=False):
+                           n_random_iter=None, n_bayesian_iter=None, fast_mode=False, n_gpus=1):
     """
     Three-stage hyperparameter optimization: Random → Grid → Bayesian
 
@@ -1827,6 +1827,19 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
 
     # Extract fixed parameters that should not be optimized
     fixed_params = handler.get_fixed_params()
+
+    # Update device parameter for neural_net if multiple GPUs requested
+    if model_type == 'neural_net' and n_gpus >= 1:
+        try:
+            if torch.cuda.is_available():
+                fixed_params['device'] = 'cuda'  # Use default GPU (sklearn will spawn parallel processes)
+                print(f"\n   - GPU Mode: Using GPU for neural network training")
+                if n_gpus > 1:
+                    print(f"   - Note: Three-stage uses sklearn parallelization (all processes share GPUs)")
+                    print(f"   - For better multi-GPU utilization, use Optuna optimization")
+        except:
+            pass  # PyTorch not available, keep device=None
+
     print(f"\nFixed Parameters (not optimized):")
     for param, value in fixed_params.items():
         print(f"   - {param}: {value}")

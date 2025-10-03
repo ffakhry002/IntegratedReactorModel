@@ -112,7 +112,7 @@ def mape_scorer_flux(y_true, y_pred, use_log_flux=True):
 
     return mape
 
-def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=250, n_jobs=10, use_log_flux=True, groups=None, flux_mode='total', encoding='categorical'):
+def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=250, n_jobs=10, use_log_flux=True, groups=None, flux_mode='total', encoding='categorical', n_gpus=1):
     """Optimize hyperparameters for flux prediction only - NOW USING MAPE or MSE based on mode"""
 
     print(f"\n{'='*60}")
@@ -279,6 +279,13 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
                 max_epochs = trial.suggest_int('max_epochs', 200, 1500)
                 patience = trial.suggest_int('patience', 10, 40)  # Early stopping patience
 
+                # GPU assignment: round-robin if multiple GPUs
+                if n_gpus > 1 and torch.cuda.is_available():
+                    gpu_id = trial.number % n_gpus
+                    device = f'cuda:{gpu_id}'
+                else:
+                    device = None  # Auto-detect (single GPU or CPU)
+
                 params = {
                     'depth': depth,
                     'width': width,
@@ -289,7 +296,7 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
                     'weight_decay': weight_decay,
                     'max_epochs': max_epochs,
                     'patience': patience,
-                    'device': None,  # Auto-detect GPU
+                    'device': device,  # Assigned GPU or auto-detect
                     'verbose': False,  # Disable verbose for optuna trials
                     'random_state': 42
                 }
@@ -297,6 +304,8 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
                 print(f"  PyTorch NN params: depth={depth}, width={width}, activation={activation}")
                 print(f"    optimizer={optimizer}, lr={learning_rate:.6f}, batch_size={batch_size}")
                 print(f"    weight_decay={weight_decay:.6f}, max_epochs={max_epochs}, patience={patience}")
+                if n_gpus > 1:
+                    print(f"    device={device} (trial {trial.number} assigned to GPU {gpu_id})")
 
                 # Create sklearn-compatible wrapper (already done in NeuralNetReactorModel)
                 from ML_models.neural_net_train import PyTorchRegressorWrapper
@@ -404,6 +413,38 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
                 print(f"\n[NEW BEST] Trial {trial.number}: MAPE = {study.best_value:.2f}%")
             print(f"Parameters: {trial.params}\n")
 
+    # DIAGNOSTIC: Print parallelization configuration
+    print(f"\n{'='*60}")
+    print(f"OPTUNA CONFIGURATION")
+    print(f"{'='*60}")
+    print(f"Parallelization setting (n_jobs): {n_jobs}")
+    if n_jobs == -1:
+        import multiprocessing
+        actual_cores = multiprocessing.cpu_count()
+        print(f"  → Will use ALL available cores: {actual_cores}")
+    elif n_jobs == 1:
+        print(f"  →   WARNING: Running SEQUENTIALLY (no parallelization)")
+        print(f"  → This will be SLOW! Consider using n_jobs > 1")
+    else:
+        print(f"  → Will use {n_jobs} parallel workers")
+
+    if torch.cuda.is_available():
+        gpu_count = torch.cuda.device_count()
+        if n_gpus > 1 and gpu_count >= n_gpus:
+            print(f"GPU Status: ✅ {n_gpus} GPUs (round-robin assignment)")
+            for i in range(n_gpus):
+                print(f"  GPU {i}: {torch.cuda.get_device_name(i)} (trials {i}, {i+n_gpus}, {i+2*n_gpus}...)")
+        else:
+            print(f"GPU Status: ✅ CUDA Available")
+            print(f"  GPU Count: {gpu_count}")
+            print(f"  GPU 0: {torch.cuda.get_device_name(0)}")
+    else:
+        print(f"GPU Status: ⚠️  No GPU detected (will use CPU)")
+
+    print(f"Total trials: {n_trials}")
+    print(f"Expected behavior: {n_jobs if n_jobs > 0 else 'ALL'} trials running simultaneously")
+    print(f"{'='*60}\n")
+
     try:
         study.optimize(
             objective,
@@ -455,7 +496,7 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
         print(f"{'='*60}\n")
         return {}, study
 
-def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=250, n_jobs=10, groups=None, encoding='categorical'):
+def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=250, n_jobs=10, groups=None, encoding='categorical', n_gpus=1):
     """Optimize hyperparameters for k-eff prediction only"""
 
     print(f"\n{'='*60}")
@@ -606,6 +647,13 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
                 max_epochs = trial.suggest_int('max_epochs', 200, 1500)
                 patience = trial.suggest_int('patience', 10, 40)
 
+                # GPU assignment: round-robin if multiple GPUs
+                if n_gpus > 1 and torch.cuda.is_available():
+                    gpu_id = trial.number % n_gpus
+                    device = f'cuda:{gpu_id}'
+                else:
+                    device = None  # Auto-detect (single GPU or CPU)
+
                 params = {
                     'depth': depth,
                     'width': width,
@@ -616,13 +664,15 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
                     'weight_decay': weight_decay,
                     'max_epochs': max_epochs,
                     'patience': patience,
-                    'device': None,  # Auto-detect GPU
+                    'device': device,  # Assigned GPU or auto-detect
                     'verbose': False,
                     'random_state': 42
                 }
 
                 print(f"  PyTorch NN params: depth={depth}, width={width}, activation={activation}")
                 print(f"    optimizer={optimizer}, lr={learning_rate:.6f}, batch_size={batch_size}")
+                if n_gpus > 1:
+                    print(f"    device={device} (trial {trial.number} assigned to GPU {gpu_id})")
 
                 from ML_models.neural_net_train import PyTorchRegressorWrapper
                 model = PyTorchRegressorWrapper(**params)
@@ -737,6 +787,38 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
         if study.best_trial.number == trial.number:
             print(f"\n[NEW BEST] Trial {trial.number}: {study.best_value:.6f}")
             print(f"Parameters: {trial.params}\n")
+
+    # DIAGNOSTIC: Print parallelization configuration
+    print(f"\n{'='*60}")
+    print(f"OPTUNA CONFIGURATION")
+    print(f"{'='*60}")
+    print(f"Parallelization setting (n_jobs): {n_jobs}")
+    if n_jobs == -1:
+        import multiprocessing
+        actual_cores = multiprocessing.cpu_count()
+        print(f"  → Will use ALL available cores: {actual_cores}")
+    elif n_jobs == 1:
+        print(f"  →   WARNING: Running SEQUENTIALLY (no parallelization)")
+        print(f"  → This will be SLOW! Consider using n_jobs > 1")
+    else:
+        print(f"  → Will use {n_jobs} parallel workers")
+
+    if torch.cuda.is_available():
+        gpu_count = torch.cuda.device_count()
+        if n_gpus > 1 and gpu_count >= n_gpus:
+            print(f"GPU Status: ✅ {n_gpus} GPUs (round-robin assignment)")
+            for i in range(n_gpus):
+                print(f"  GPU {i}: {torch.cuda.get_device_name(i)} (trials {i}, {i+n_gpus}, {i+2*n_gpus}...)")
+        else:
+            print(f"GPU Status: ✅ CUDA Available")
+            print(f"  GPU Count: {gpu_count}")
+            print(f"  GPU 0: {torch.cuda.get_device_name(0)}")
+    else:
+        print(f"GPU Status: ⚠️  No GPU detected (will use CPU)")
+
+    print(f"Total trials: {n_trials}")
+    print(f"Expected behavior: {n_jobs if n_jobs > 0 else 'ALL'} trials running simultaneously")
+    print(f"{'='*60}\n")
 
     try:
         study.optimize(
