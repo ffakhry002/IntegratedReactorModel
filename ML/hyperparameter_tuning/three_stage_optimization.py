@@ -1037,8 +1037,8 @@ class NeuralNetParameterHandler(ModelParameterHandler):
             'activation': 'relu',
             'optimizer': 'adam',
             'batch_size': 128,
-            'max_epochs': 1000,
-            'patience': 20,
+            'max_epochs': 1500,  # Fixed at 1500 (early stopping handles it)
+            'patience': 50,      # Fixed at 50
             'device': None,  # Auto-detect GPU
             'random_state': 42
         }
@@ -1048,7 +1048,9 @@ class NeuralNetParameterHandler(ModelParameterHandler):
         return {
             'random_state': 42,
             'device': None,  # Auto-detect GPU
-            'verbose': False
+            'verbose': False,
+            'max_epochs': 1500,  # Fixed (early stopping prevents overfitting)
+            'patience': 50       # Fixed (good balance for early stopping)
         }
 
     def get_random_distributions(self, needs_wrapper: bool) -> Dict[str, Any]:
@@ -1057,12 +1059,10 @@ class NeuralNetParameterHandler(ModelParameterHandler):
             'width': randint(50, 401),  # 50-400 neurons per layer
             'learning_rate': loguniform(0.0001, 0.01),
             'weight_decay': loguniform(0.00001, 0.1),
-            'activation': ['relu', 'tanh', 'sigmoid', 'elu'],
-            'optimizer': ['adam', 'sgd', 'adamw', 'rmsprop'],
-            'batch_size': [64, 128, 256],
-            'max_epochs': randint(200, 1501),
-            'patience': randint(10, 41)
-            # device, random_state, verbose are fixed parameters
+            'activation': ['relu', 'elu'],  # Streamlined: best performers only
+            'optimizer': ['adam', 'adamw', 'rmsprop'],  # Streamlined: removed sgd
+            'batch_size': [64, 128, 256]  # Optimize (affects GPU util & generalization)
+            # max_epochs=1500, patience=50 are fixed (early stopping handles it)
         }
         if needs_wrapper:
             return {f'estimator__{k}': v for k, v in base_params.items()}
@@ -1072,12 +1072,10 @@ class NeuralNetParameterHandler(ModelParameterHandler):
         prefix = 'estimator__' if needs_wrapper else ''
         param_grid = {}
 
-        # Integer parameters
+        # Integer parameters (streamlined: removed max_epochs, patience)
         for param_name, min_val, max_val in [
             ('depth', 1, 5),
-            ('width', 50, 400),
-            ('max_epochs', 200, 1500),
-            ('patience', 10, 40)
+            ('width', 50, 400)
         ]:
             value = get_param_value(best_params, param_name)
             param_grid[f'{prefix}{param_name}'] = create_focused_grid(
@@ -1100,6 +1098,7 @@ class NeuralNetParameterHandler(ModelParameterHandler):
         param_grid[f'{prefix}activation'] = [activation]
         param_grid[f'{prefix}optimizer'] = [optimizer]
         param_grid[f'{prefix}batch_size'] = [batch_size]
+        # max_epochs, patience are now fixed
 
         return param_grid
 
@@ -1108,12 +1107,10 @@ class NeuralNetParameterHandler(ModelParameterHandler):
         search_spaces = {}
         bc = BoundsCalculator()
 
-        # Integer parameters
+        # Integer parameters (streamlined: removed max_epochs, patience)
         for param_name, min_val, max_val in [
             ('depth', 1, 5),
-            ('width', 50, 400),
-            ('max_epochs', 200, 1500),
-            ('patience', 10, 40)
+            ('width', 50, 400)
         ]:
             value = get_param_value(best_params, param_name)
             lower, upper = bc.get_safe_range_20_percent(value, 'integer', min_val, max_val, param_name)
@@ -1136,6 +1133,7 @@ class NeuralNetParameterHandler(ModelParameterHandler):
         search_spaces[f'{prefix}activation'] = Categorical([activation])
         search_spaces[f'{prefix}optimizer'] = Categorical([optimizer])
         search_spaces[f'{prefix}batch_size'] = Categorical([batch_size])
+        # max_epochs, patience are now fixed
 
         return search_spaces
 

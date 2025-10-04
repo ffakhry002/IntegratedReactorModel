@@ -256,11 +256,11 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
                 depth = trial.suggest_int('depth', 1, 5)  # Number of hidden layers
                 width = trial.suggest_int('width', 50, 400)  # Neurons per layer (uniform)
 
-                # Activation function
-                activation = trial.suggest_categorical('activation', ['relu', 'tanh', 'sigmoid', 'elu'])
+                # Activation function (streamlined: best performers only)
+                activation = trial.suggest_categorical('activation', ['relu', 'elu'])
 
-                # Optimizer selection
-                optimizer = trial.suggest_categorical('optimizer', ['adam', 'sgd', 'adamw', 'rmsprop'])
+                # Optimizer selection (streamlined: removed sgd)
+                optimizer = trial.suggest_categorical('optimizer', ['adam', 'adamw', 'rmsprop'])
 
                 # Learning rate
                 learning_rate = trial.suggest_float('learning_rate', 0.0001, 0.01, log=True)
@@ -279,9 +279,9 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
                 # Regularization (L2 penalty)
                 weight_decay = trial.suggest_float('weight_decay', 0.00001, 0.1, log=True)
 
-                # Training parameters
-                max_epochs = trial.suggest_int('max_epochs', 200, 1500)
-                patience = trial.suggest_int('patience', 10, 40)  # Early stopping patience
+                # Training parameters (FIXED for consistency)
+                max_epochs = 1500  # Fixed (early stopping handles it)
+                patience = 50  # Fixed (good default)
 
                 # GPU assignment: round-robin if multiple GPUs
                 if n_gpus > 1 and torch.cuda.is_available():
@@ -626,11 +626,11 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
                 depth = trial.suggest_int('depth', 1, 5)
                 width = trial.suggest_int('width', 50, 400)
 
-                # Activation function
-                activation = trial.suggest_categorical('activation', ['relu', 'tanh', 'sigmoid', 'elu'])
+                # Activation function (streamlined: best performers only)
+                activation = trial.suggest_categorical('activation', ['relu', 'elu'])
 
-                # Optimizer selection
-                optimizer = trial.suggest_categorical('optimizer', ['adam', 'sgd', 'adamw', 'rmsprop'])
+                # Optimizer selection (streamlined: removed sgd)
+                optimizer = trial.suggest_categorical('optimizer', ['adam', 'adamw', 'rmsprop'])
 
                 # Learning rate
                 learning_rate = trial.suggest_float('learning_rate', 0.0001, 0.01, log=True)
@@ -649,9 +649,9 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
                 # Regularization
                 weight_decay = trial.suggest_float('weight_decay', 0.00001, 0.1, log=True)
 
-                # Training parameters
-                max_epochs = trial.suggest_int('max_epochs', 200, 1500)
-                patience = trial.suggest_int('patience', 10, 40)
+                # Training parameters (FIXED for consistency)
+                max_epochs = 1500  # Fixed (early stopping handles it)
+                patience = 50  # Fixed (good default)
 
                 # GPU assignment: round-robin if multiple GPUs
                 if n_gpus > 1 and torch.cuda.is_available():
