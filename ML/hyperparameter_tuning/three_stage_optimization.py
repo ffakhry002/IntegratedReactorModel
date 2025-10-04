@@ -1835,16 +1835,13 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
         try:
             if torch.cuda.is_available():
                 if n_gpus > 1:
-                    # Set environment variable for PID-based GPU assignment
-                    os.environ['PYTORCH_N_GPUS'] = str(n_gpus)
-                    # Also set CUDA_VISIBLE_DEVICES to ensure both GPUs are visible
-                    gpu_list = ','.join(str(i) for i in range(n_gpus))
-                    os.environ['CUDA_VISIBLE_DEVICES'] = gpu_list
-                    fixed_params['device'] = None  # Auto-detect (will use PID % n_gpus)
+                    # Pass n_gpus as parameter (NOT environment variable!)
+                    # With spawn multiprocessing, parameters work but os.environ doesn't propagate
+                    fixed_params['n_gpus'] = n_gpus  # Pass to wrapper
+                    fixed_params['device'] = None  # Auto-detect with n_gpus
                     print(f"\n   - GPU Mode: Using {n_gpus} GPUs for neural network training")
-                    print(f"   - CUDA_VISIBLE_DEVICES={gpu_list}")
-                    print(f"   - PID-based round-robin: Each worker process assigns itself to GPU based on PID % {n_gpus}")
-                    print(f"   - Workers will distribute: PID ending in even→GPU 0, odd→GPU 1")
+                    print(f"   - Multi-GPU: Passing n_gpus={n_gpus} as parameter to each worker")
+                    print(f"   - Assignment: Each worker uses random.seed(PID) for GPU selection")
                 else:
                     fixed_params['device'] = 'cuda'  # Use default GPU
                     print(f"\n   - GPU Mode: Using 1 GPU for neural network training")

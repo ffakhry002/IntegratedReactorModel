@@ -72,7 +72,7 @@ class PyTorchRegressorWrapper(BaseEstimator, RegressorMixin):
     def __init__(self, depth=2, width=100, activation='relu', learning_rate=0.001,
                  batch_size=128, max_epochs=1000, weight_decay=0.0001,
                  patience=20, optimizer='adam', validation_fraction=0.1,
-                 device=None, verbose=False, random_state=42):
+                 device=None, n_gpus=1, verbose=False, random_state=42):
         """Initialize PyTorch regressor wrapper.
 
         Parameters
@@ -114,24 +114,21 @@ class PyTorchRegressorWrapper(BaseEstimator, RegressorMixin):
         self.patience = patience
         self.optimizer = optimizer
         self.validation_fraction = validation_fraction
+        self.n_gpus = n_gpus  # Store for reference
+
         # Auto-detect device: prefer GPU if available
         if device is None:
             if torch.cuda.is_available():
-                # Check for multi-GPU environment variable (for three-stage optimization)
-                import os
-                n_gpus_env = os.environ.get('PYTORCH_N_GPUS', None)
-                if n_gpus_env and int(n_gpus_env) > 1:
-                    # GPU assignment for three-stage optimization
-                    # Use random assignment (PID-based methods fail when PIDs cluster)
+                if n_gpus > 1:
+                    # Multi-GPU assignment using random seed
+                    import os
                     import random
                     pid = os.getpid()
-                    n_gpus = int(n_gpus_env)
-                    # Seed with PID for deterministic but distributed assignment
                     random.seed(pid)
                     gpu_id = random.randint(0, n_gpus - 1)
                     self.device = f'cuda:{gpu_id}'
-                    if verbose:
-                        print(f"  [PID {pid}] Assigned to GPU {gpu_id} (random.seed(PID))")
+                    # Always print for debugging multi-GPU
+                    print(f"  [PID {pid}] Assigned to GPU {gpu_id} via random.seed({pid})")
                 else:
                     self.device = 'cuda'
             else:

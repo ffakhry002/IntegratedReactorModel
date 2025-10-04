@@ -1,8 +1,3 @@
-# CRITICAL: Set multiprocessing method BEFORE any imports
-import os
-os.environ['LOKY_START_METHOD'] = 'spawn'  # Force joblib to use spawn (not threading!)
-os.environ['LOKY_PICKLER'] = 'cloudpickle'
-
 import optuna
 from optuna.samplers import TPESampler
 import numpy as np
@@ -19,19 +14,11 @@ import time
 from datetime import datetime
 import warnings
 import gc
+import os
 import signal
 from contextlib import contextmanager
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
-
-# PyTorch multiprocessing fix for GPU + Optuna parallelization
-import torch
-if torch.cuda.is_available():
-    try:
-        import torch.multiprocessing
-        torch.multiprocessing.set_start_method('spawn', force=True)
-    except RuntimeError:
-        pass  # Already set
 
 # Global timeout settings
 TRIAL_TIMEOUT = 600*10  # 30 minutes per trial
@@ -116,7 +103,7 @@ def mape_scorer_flux(y_true, y_pred, use_log_flux=True):
 
     return mape
 
-def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=250, n_jobs=10, use_log_flux=True, groups=None, flux_mode='total', encoding='categorical', n_gpus=1):
+def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=250, n_jobs=10, use_log_flux=True, groups=None, flux_mode='total', encoding='categorical'):
     """Optimize hyperparameters for flux prediction only - NOW USING MAPE or MSE based on mode"""
 
     print(f"\n{'='*60}")
@@ -249,74 +236,97 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
                 model = MultiOutputRegressor(pipeline)
 
             elif model_type == 'neural_net':
-                # PyTorch Neural Network with rectangular architecture
-                # Simplified hyperparameter space for rectangular (uniform width) architecture
+                # Neural Architecture Search optimized for 2000 samples, 500 trials
+                n_layers = trial.suggest_int('n_layers', 1, 4)  # REDUCED: 5 layers may overfit with 2000 samples
+                layers = []
 
-                # Architecture parameters
-                depth = trial.suggest_int('depth', 1, 5)  # Number of hidden layers
-                width = trial.suggest_int('width', 50, 400)  # Neurons per layer (uniform)
+                # Layer size constraints optimized for dataset size
+                for i in range(n_layers):
+                    if i == 0:
+                        # First layer: reduced max size to prevent overfitting
+                        max_size = 200  # REDUCED from 400 to 200
+                        min_size = 80 if n_layers > 3 else 50
+                    else:
+                        # Subsequent layers: ensure reasonable range
+                        prev_layer_size = layers[i-1]
 
-                # Activation function (streamlined: best performers only)
-                activation = trial.suggest_categorical('activation', ['relu', 'elu'])
+                        # Max size: can't exceed previous layer
+                        max_size = min(200, prev_layer_size)  # REDUCED cap from 400 to 200
 
-                # Optimizer selection (streamlined: removed sgd)
-                optimizer = trial.suggest_categorical('optimizer', ['adam', 'adamw', 'rmsprop'])
+                        # Min size: ensure at least 15 choices (reduced from 20 for efficiency)
+                        min_size = max(50, max_size - 15)
 
-                # Learning rate
-                learning_rate = trial.suggest_float('learning_rate', 0.0001, 0.01, log=True)
+                        # Safety check: ensure min < max with reasonable gap
+                        if max_size - min_size < 8:  # Slightly tighter for efficiency
+                            center = (max_size + min_size) // 2
+                            min_size = max(50, center - 8)
+                            max_size = min(200, center + 8)  # REDUCED cap
 
-                # Batch size optimized for dataset size
+                        # Final safety: ensure valid bounds
+                        if min_size >= max_size:
+                            min_size = max(50, max_size - 5)
+
+                    layers.append(trial.suggest_int(f'layer_{i}_size', min_size, max_size))
+
+                # REMOVED: Architecture efficiency guards that waste Optuna trials
+                # Let Optuna explore all architectures during random phase and learn naturally
+                # which ones perform poorly rather than artificially rejecting them
+
+                # Batch size optimized for 2000 samples
                 dataset_size = X_train.shape[0]
                 if dataset_size > 5000:
-                    batch_sizes = [64, 128, 256, 512]
-                elif dataset_size > 1500:  # Optimized for ~2000 samples
-                    batch_sizes = [64, 128, 256]
+                    batch_sizes = ['auto', 128, 256, 400]
+                elif dataset_size > 1500:  # NEW: Optimized for ~2000 samples
+                    batch_sizes = ['auto', 128, 200]  # FOCUSED: Removed small batches, added 200
                 else:
-                    batch_sizes = [32, 64, 128]
+                    batch_sizes = ['auto', 64, 128]
 
-                batch_size = trial.suggest_categorical('batch_size', batch_sizes)
+                # Solver selection - REMOVED SGD (Adam/LBFGS usually better for this dataset size)
+                solver = trial.suggest_categorical('solver', ['adam', 'lbfgs'])
 
-                # Regularization (L2 penalty)
-                weight_decay = trial.suggest_float('weight_decay', 0.00001, 0.1, log=True)
-
-                # Training parameters (FIXED for consistency)
-                max_epochs = 1500  # Fixed (early stopping handles it)
-                patience = 50  # Fixed (good default)
-
-                # GPU assignment: round-robin if multiple GPUs
-                if n_gpus > 1 and torch.cuda.is_available():
-                    gpu_id = trial.number % n_gpus
-                    device = f'cuda:{gpu_id}'
-                else:
-                    device = None  # Auto-detect (single GPU or CPU)
+                # IMPROVEMENT 4: Disable MLPRegressor internal validation to preserve GroupKFold integrity
+                # Since we always use GroupKFold (groups always provided), MLPRegressor's internal
+                # validation would break the group separation and cause augmentation leakage
+                n_iter_no_change = trial.suggest_int('n_iter_no_change', 15, 30)  # Higher patience without early stopping
+                early_stopping = False  # Always disabled to preserve GroupKFold
 
                 params = {
-                    'depth': depth,
-                    'width': width,
-                    'activation': activation,
-                    'optimizer': optimizer,
-                    'learning_rate': learning_rate,
-                    'batch_size': batch_size,
-                    'weight_decay': weight_decay,
-                    'max_epochs': max_epochs,
-                    'patience': patience,
-                    'device': device,  # Assigned GPU or auto-detect
-                    'verbose': False,  # Disable verbose for optuna trials
-                    'random_state': 42
+                    'hidden_layer_sizes': tuple(layers),
+                    'activation': trial.suggest_categorical('activation', ['relu', 'tanh']),  # REMOVED logistic (focus search)
+                    'solver': solver,
+
+                    # HIGH IMPACT: Learning parameters - OPTIMIZED for 2000 samples
+                    'learning_rate_init': trial.suggest_float('learning_rate_init', 0.0005, 0.005, log=True),  # NARROWED stable range
+                    'batch_size': trial.suggest_categorical('batch_size', batch_sizes),  # Optimized batch sizes
+                    'learning_rate': trial.suggest_categorical('learning_rate', ['constant', 'adaptive']),
+
+                    # STRONGER REGULARIZATION for small dataset
+                    'alpha': trial.suggest_float('alpha', 0.001, 0.5, log=True),  # INCREASED from 0.0001-0.1 to 0.001-0.5
+                    'max_iter': trial.suggest_int('max_iter', 300, 1000),  # REDUCED from 500-1500 to 300-1000
+                    'tol': trial.suggest_float('tol', 1e-5, 5e-4, log=True),
+
+                    # Early stopping disabled to preserve GroupKFold integrity
+                    'early_stopping': early_stopping,  # Always False
+                    'n_iter_no_change': n_iter_no_change,  # Reduced patience for efficiency
+                    'verbose': True,
                 }
 
-                print(f"  PyTorch NN params: depth={depth}, width={width}, activation={activation}")
-                print(f"    optimizer={optimizer}, lr={learning_rate:.6f}, batch_size={batch_size}")
-                print(f"    weight_decay={weight_decay:.6f}, max_epochs={max_epochs}, patience={patience}")
-                if n_gpus > 1:
-                    print(f"    device={device} (trial {trial.number} assigned to GPU {gpu_id})")
+                # Solver-specific optimization (most important parameters only)
+                if solver == 'adam':
+                    params['beta_1'] = trial.suggest_float('beta_1', 0.85, 0.95)  # Momentum term
+                    params['beta_2'] = trial.suggest_float('beta_2', 0.9, 0.999)   # RMSprop term
+                    params['epsilon'] = trial.suggest_float('epsilon', 1e-9, 1e-6, log=True)  # Numerical stability
+                # REMOVED SGD-specific parameters since we removed SGD solver
+                # lbfgs doesn't need additional parameters
 
-                # Create sklearn-compatible wrapper (already done in NeuralNetReactorModel)
-                from ML_models.neural_net_train import PyTorchRegressorWrapper
+                print(f"  NN params: layers={params['hidden_layer_sizes']}, solver={params['solver']}, batch_size={params['batch_size']}, lr_schedule={params['learning_rate']}")
+                print(f"    early_stopping={early_stopping}, patience={n_iter_no_change}, dataset_size={dataset_size}, alpha_range=[0.001,0.5]")
+
+                # Add numerical stability check
                 try:
-                    model = PyTorchRegressorWrapper(**params)
-                except (ValueError, RuntimeError) as e:
-                    print(f"  [ERROR] Invalid PyTorch NN parameters caused: {str(e)[:100]}")
+                    model = MLPRegressor(**params)
+                except (ValueError, OverflowError) as e:
+                    print(f"  [ERROR] Invalid NN parameters caused: {str(e)[:100]}")
                     return float('inf')  # Skip this trial
 
             # Choose scoring based on flux mode
@@ -417,38 +427,6 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
                 print(f"\n[NEW BEST] Trial {trial.number}: MAPE = {study.best_value:.2f}%")
             print(f"Parameters: {trial.params}\n")
 
-    # DIAGNOSTIC: Print parallelization configuration
-    print(f"\n{'='*60}")
-    print(f"OPTUNA CONFIGURATION")
-    print(f"{'='*60}")
-    print(f"Parallelization setting (n_jobs): {n_jobs}")
-    if n_jobs == -1:
-        import multiprocessing
-        actual_cores = multiprocessing.cpu_count()
-        print(f"  → Will use ALL available cores: {actual_cores}")
-    elif n_jobs == 1:
-        print(f"  →   WARNING: Running SEQUENTIALLY (no parallelization)")
-        print(f"  → This will be SLOW! Consider using n_jobs > 1")
-    else:
-        print(f"  → Will use {n_jobs} parallel workers")
-
-    if torch.cuda.is_available():
-        gpu_count = torch.cuda.device_count()
-        if n_gpus > 1 and gpu_count >= n_gpus:
-            print(f"GPU Status: ✅ {n_gpus} GPUs (round-robin assignment)")
-            for i in range(n_gpus):
-                print(f"  GPU {i}: {torch.cuda.get_device_name(i)} (trials {i}, {i+n_gpus}, {i+2*n_gpus}...)")
-        else:
-            print(f"GPU Status: ✅ CUDA Available")
-            print(f"  GPU Count: {gpu_count}")
-            print(f"  GPU 0: {torch.cuda.get_device_name(0)}")
-    else:
-        print(f"GPU Status: ⚠️  No GPU detected (will use CPU)")
-
-    print(f"Total trials: {n_trials}")
-    print(f"Expected behavior: {n_jobs if n_jobs > 0 else 'ALL'} trials running simultaneously")
-    print(f"{'='*60}\n")
-
     try:
         study.optimize(
             objective,
@@ -500,7 +478,7 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
         print(f"{'='*60}\n")
         return {}, study
 
-def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=250, n_jobs=10, groups=None, encoding='categorical', n_gpus=1):
+def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=250, n_jobs=10, groups=None, encoding='categorical'):
     """Optimize hyperparameters for k-eff prediction only"""
 
     print(f"\n{'='*60}")
@@ -617,69 +595,24 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
                 model = pipeline
 
             elif model_type == 'neural_net':
-                # PyTorch Neural Network with rectangular architecture (k-eff)
-                # Same hyperparameter space as flux for consistency
-
-                # Architecture parameters
-                depth = trial.suggest_int('depth', 1, 5)
-                width = trial.suggest_int('width', 50, 400)
-
-                # Activation function (streamlined: best performers only)
-                activation = trial.suggest_categorical('activation', ['relu', 'elu'])
-
-                # Optimizer selection (streamlined: removed sgd)
-                optimizer = trial.suggest_categorical('optimizer', ['adam', 'adamw', 'rmsprop'])
-
-                # Learning rate
-                learning_rate = trial.suggest_float('learning_rate', 0.0001, 0.01, log=True)
-
-                # Batch size optimized for dataset size
-                dataset_size = X_train.shape[0]
-                if dataset_size > 5000:
-                    batch_sizes = [64, 128, 256, 512]
-                elif dataset_size > 1500:
-                    batch_sizes = [64, 128, 256]
-                else:
-                    batch_sizes = [32, 64, 128]
-
-                batch_size = trial.suggest_categorical('batch_size', batch_sizes)
-
-                # Regularization
-                weight_decay = trial.suggest_float('weight_decay', 0.00001, 0.1, log=True)
-
-                # Training parameters (FIXED for consistency)
-                max_epochs = 1500  # Fixed (early stopping handles it)
-                patience = 50  # Fixed (good default)
-
-                # GPU assignment: round-robin if multiple GPUs
-                if n_gpus > 1 and torch.cuda.is_available():
-                    gpu_id = trial.number % n_gpus
-                    device = f'cuda:{gpu_id}'
-                else:
-                    device = None  # Auto-detect (single GPU or CPU)
+                n_layers = trial.suggest_int('n_layers', 1, 5)
+                layers = []
+                for i in range(n_layers):
+                    layers.append(trial.suggest_int(f'layer_{i}_size', 50, 400))
 
                 params = {
-                    'depth': depth,
-                    'width': width,
-                    'activation': activation,
-                    'optimizer': optimizer,
-                    'learning_rate': learning_rate,
-                    'batch_size': batch_size,
-                    'weight_decay': weight_decay,
-                    'max_epochs': max_epochs,
-                    'patience': patience,
-                    'device': device,  # Assigned GPU or auto-detect
-                    'verbose': False,
-                    'random_state': 42
+                    'hidden_layer_sizes': tuple(layers),
+                    'learning_rate_init': trial.suggest_float('learning_rate_init', 0.0001, 0.01, log=True),
+                    'alpha': trial.suggest_float('alpha', 0.0001, 0.1, log=True),
+                    'activation': trial.suggest_categorical('activation', ['relu', 'tanh']),
+                    'solver': trial.suggest_categorical('solver', ['adam', 'lbfgs']),
+                    'max_iter': 500,
+                    'verbose': True,
+                    'early_stopping': True,
+                    'n_iter_no_change': 10
                 }
-
-                print(f"  PyTorch NN params: depth={depth}, width={width}, activation={activation}")
-                print(f"    optimizer={optimizer}, lr={learning_rate:.6f}, batch_size={batch_size}")
-                if n_gpus > 1:
-                    print(f"    device={device} (trial {trial.number} assigned to GPU {gpu_id})")
-
-                from ML_models.neural_net_train import PyTorchRegressorWrapper
-                model = PyTorchRegressorWrapper(**params)
+                print(f"  NN params: layers={params['hidden_layer_sizes']}, solver={params['solver']}")
+                model = MLPRegressor(**params)
 
             # Train and evaluate with CV - UPDATED FOR GROUPS
             print(f"  Starting cross-validation...")
@@ -791,38 +724,6 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
         if study.best_trial.number == trial.number:
             print(f"\n[NEW BEST] Trial {trial.number}: {study.best_value:.6f}")
             print(f"Parameters: {trial.params}\n")
-
-    # DIAGNOSTIC: Print parallelization configuration
-    print(f"\n{'='*60}")
-    print(f"OPTUNA CONFIGURATION")
-    print(f"{'='*60}")
-    print(f"Parallelization setting (n_jobs): {n_jobs}")
-    if n_jobs == -1:
-        import multiprocessing
-        actual_cores = multiprocessing.cpu_count()
-        print(f"  → Will use ALL available cores: {actual_cores}")
-    elif n_jobs == 1:
-        print(f"  →   WARNING: Running SEQUENTIALLY (no parallelization)")
-        print(f"  → This will be SLOW! Consider using n_jobs > 1")
-    else:
-        print(f"  → Will use {n_jobs} parallel workers")
-
-    if torch.cuda.is_available():
-        gpu_count = torch.cuda.device_count()
-        if n_gpus > 1 and gpu_count >= n_gpus:
-            print(f"GPU Status: ✅ {n_gpus} GPUs (round-robin assignment)")
-            for i in range(n_gpus):
-                print(f"  GPU {i}: {torch.cuda.get_device_name(i)} (trials {i}, {i+n_gpus}, {i+2*n_gpus}...)")
-        else:
-            print(f"GPU Status: ✅ CUDA Available")
-            print(f"  GPU Count: {gpu_count}")
-            print(f"  GPU 0: {torch.cuda.get_device_name(0)}")
-    else:
-        print(f"GPU Status: ⚠️  No GPU detected (will use CPU)")
-
-    print(f"Total trials: {n_trials}")
-    print(f"Expected behavior: {n_jobs if n_jobs > 0 else 'ALL'} trials running simultaneously")
-    print(f"{'='*60}\n")
 
     try:
         study.optimize(
