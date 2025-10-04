@@ -400,6 +400,10 @@ class InteractiveTrainer:
             n_trials = input("\nNumber of Optuna trials (default: 250): ").strip()
             self.config.n_trials = int(n_trials) if n_trials else 250
 
+        if 'raytune' in self.config.optimizations:
+            n_trials = input("\nNumber of Ray Tune trials (default: 100): ").strip()
+            self.config.n_trials = int(n_trials) if n_trials else 100
+
         self.config.n_jobs = self.get_parallel_settings()
         self.config.n_gpus = self.get_gpu_settings(self.config.models)
 
