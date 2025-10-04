@@ -12,12 +12,15 @@ import matplotlib.pyplot as plt
 from ray import tune
 from ray.tune import CLIReporter
 from ray.tune.schedulers import ASHAScheduler
+from ray.tune.search.optuna import OptunaSearch
+from optuna.samplers import TPESampler
+import optuna
 from sklearn.model_selection import GroupKFold, cross_val_score
 from sklearn.metrics import make_scorer
 import torch
 import pickle
 
-def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=100,
+def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=250,
                                 n_gpus=2, target_type='flux', use_log_flux=True):
     """
     Optimize neural network hyperparameters using Ray Tune
@@ -171,6 +174,18 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=100,
         reduction_factor=2 # Top 50% proceed to next fold
     )
 
+    # Intelligent search algorithm (Optuna's TPE)
+    n_startup = min(50, n_trials // 3)  # 50 random trials or 1/3 of total
+    search_alg = OptunaSearch(
+        sampler=TPESampler(
+            n_startup_trials=n_startup,  # Random exploration first
+            n_ei_candidates=50,           # Candidates for intelligent selection
+            seed=42
+        ),
+        metric="score",
+        mode="min"
+    )
+
     # Progress reporter
     reporter = CLIReporter(
         metric_columns=["score", "training_iteration"],
@@ -178,14 +193,21 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=100,
     )
 
     # Run optimization
-    print("Starting Ray Tune optimization...")
+    print("Starting Ray Tune optimization with Optuna TPE search...")
+    print(f"Resources: {n_gpus} GPUs, 8 CPUs per trial")
+    print(f"Parallelism: Up to {n_gpus * 2} trials simultaneously")
+    print(f"Search strategy: {n_startup} random trials, then intelligent TPE\n")
+
     analysis = tune.run(
         train_neural_net,
         config=config_space,
         num_samples=n_trials,
         scheduler=scheduler,
+        search_alg=search_alg,  # Intelligent search!
         progress_reporter=reporter,
-        resources_per_trial={"cpu": 1, "gpu": 1/n_gpus},  # Share GPUs across trials
+        resources_per_trial={"cpu": 8, "gpu": 1/n_gpus},  # 8 CPUs + shared GPU
+        metric="score",      # Specify metric for best_trial
+        mode="min",          # Minimize score
         raise_on_failed_trial=False,
         verbose=1
     )
@@ -230,9 +252,9 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=100,
 def _save_raytune_results(analysis, target_type, n_gpus):
     """Save Ray Tune results and create visualizations (similar to Optuna)"""
 
-    # Create outputs directory
+    # Create separate directory for each target type
     base_dir = os.path.dirname(os.path.dirname(__file__))
-    outputs_dir = os.path.join(base_dir, 'outputs', 'raytune_results')
+    outputs_dir = os.path.join(base_dir, 'outputs', 'raytune_results', target_type)
     os.makedirs(outputs_dir, exist_ok=True)
 
     # Save analysis object
@@ -244,6 +266,25 @@ def _save_raytune_results(analysis, target_type, n_gpus):
         print(f"Results saved to: {results_path}")
     except Exception as e:
         print(f"Could not save results: {e}")
+
+    # Try to get underlying Optuna study for native Optuna visualizations
+    try:
+        if hasattr(analysis, 'search_alg') and hasattr(analysis.search_alg, '_ot_study'):
+            optuna_study = analysis.search_alg._ot_study
+
+            # Save Optuna study
+            study_file = f"optuna_study_{target_type}.pkl"
+            study_path = os.path.join(outputs_dir, study_file)
+            with open(study_path, 'wb') as f:
+                pickle.dump(optuna_study, f)
+            print(f"Optuna study saved to: {study_path}")
+
+            # Create Optuna-style plots
+            _create_optuna_plots(optuna_study, plots_dir, target_type)
+        else:
+            print("  Optuna study not accessible (using non-Optuna search)")
+    except Exception as e:
+        print(f"  Could not save Optuna study or create Optuna plots: {e}")
 
     # Convert to DataFrame for visualization
     df = analysis.dataframe()
@@ -362,8 +403,8 @@ def _save_raytune_results(analysis, target_type, n_gpus):
         with open(summary_file, 'w') as f:
             f.write(f"Top 10 Hyperparameter Combinations - {target_type.upper()}\n")
             f.write("="*80 + "\n\n")
-            for idx, row in top_10.iterrows():
-                f.write(f"Rank {idx+1}:\n")
+            for rank, (idx, row) in enumerate(top_10.iterrows(), 1):
+                f.write(f"Rank {rank}:\n")
                 f.write(f"  Score: {row['score']:.4f}\n")
                 f.write(f"  depth={row['depth']}, width={row['width']}\n")
                 f.write(f"  learning_rate={row['learning_rate']:.6f}, weight_decay={row['weight_decay']:.6f}\n")
@@ -375,3 +416,51 @@ def _save_raytune_results(analysis, target_type, n_gpus):
         print(f"  Could not save top 10 summary: {e}")
 
     print(f"\nAll Ray Tune results saved to: {outputs_dir}\n")
+
+
+def _create_optuna_plots(study, plots_dir, target_type):
+    """Create Optuna's native visualization plots"""
+
+    print("\nCreating Optuna-style visualizations...")
+
+    # 1. Optimization History
+    try:
+        fig = optuna.visualization.plot_optimization_history(study)
+        fig.write_image(os.path.join(plots_dir, f'optuna_history_{target_type}.png'))
+        print(f"  Saved: optuna_history_{target_type}.png")
+    except Exception as e:
+        print(f"  Could not create optimization history: {e}")
+
+    # 2. Parameter Importances
+    try:
+        fig = optuna.visualization.plot_param_importances(study)
+        fig.write_image(os.path.join(plots_dir, f'optuna_importances_{target_type}.png'))
+        print(f"  Saved: optuna_importances_{target_type}.png")
+    except Exception as e:
+        print(f"  Could not create parameter importances: {e}")
+
+    # 3. Parallel Coordinate Plot
+    try:
+        fig = optuna.visualization.plot_parallel_coordinate(study)
+        fig.write_image(os.path.join(plots_dir, f'optuna_parallel_{target_type}.png'))
+        print(f"  Saved: optuna_parallel_{target_type}.png")
+    except Exception as e:
+        print(f"  Could not create parallel coordinate: {e}")
+
+    # 4. Slice Plot
+    try:
+        fig = optuna.visualization.plot_slice(study)
+        fig.write_image(os.path.join(plots_dir, f'optuna_slice_{target_type}.png'))
+        print(f"  Saved: optuna_slice_{target_type}.png")
+    except Exception as e:
+        print(f"  Could not create slice plot: {e}")
+
+    # 5. Contour Plot (for key parameter pairs)
+    try:
+        fig = optuna.visualization.plot_contour(study, params=['depth', 'width'])
+        fig.write_image(os.path.join(plots_dir, f'optuna_contour_depth_width_{target_type}.png'))
+        print(f"  Saved: optuna_contour_depth_width_{target_type}.png")
+    except Exception as e:
+        print(f"  Could not create contour plot: {e}")
+
+    print("  Optuna visualizations complete!")
