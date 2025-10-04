@@ -1037,9 +1037,11 @@ class NeuralNetParameterHandler(ModelParameterHandler):
             'activation': 'relu',
             'optimizer': 'adam',
             'batch_size': 128,
+            'dropout_rate': 0.1,
+            'use_batch_norm': False,
             'validation_fraction': 0.1,  # Internal validation for early stopping
             'max_epochs': 1500,  # Ceiling (early stopping usually stops earlier)
-            'patience': 50,       # Save best model before it gets worse
+            'patience': 50,  # Save best model before it gets worse
             'device': None,  # Auto-detect GPU
             'random_state': 42
         }
@@ -1063,7 +1065,9 @@ class NeuralNetParameterHandler(ModelParameterHandler):
             'weight_decay': loguniform(0.00001, 0.1),
             'activation': ['relu', 'elu'],  # Streamlined: best performers only
             'optimizer': ['adam', 'adamw', 'rmsprop'],  # Streamlined: removed sgd
-            'batch_size': [64, 128, 256]  # Optimize (affects GPU util & generalization)
+            'batch_size': [64, 128, 256],  # Optimize (affects GPU util & generalization)
+            'dropout_rate': uniform(0.0, 0.5),  # NEW: Dropout for regularization
+            'use_batch_norm': [True, False]  # NEW: Batch normalization
             # validation_fraction=0.1, max_epochs=1500, patience=50 are fixed
         }
         if needs_wrapper:
@@ -1092,15 +1096,22 @@ class NeuralNetParameterHandler(ModelParameterHandler):
             param_grid[f'{prefix}{param_name}'] = create_focused_grid(
                 value, 'continuous', min_val, max_val)
 
+        # Continuous parameter: dropout_rate
+        dropout_rate = get_param_value(best_params, 'dropout_rate')
+        bc = BoundsCalculator()
+        lower, upper = bc.get_safe_range_20_percent(dropout_rate, 'continuous', 0.0, 0.5, 'dropout_rate')
+        param_grid[f'{prefix}dropout_rate'] = create_focused_grid(dropout_rate, 'continuous', lower, upper)
+
         # Categorical parameters
         activation = get_param_value(best_params, 'activation')
         optimizer = get_param_value(best_params, 'optimizer')
         batch_size = get_param_value(best_params, 'batch_size')
+        use_batch_norm = get_param_value(best_params, 'use_batch_norm')
 
         param_grid[f'{prefix}activation'] = [activation]
         param_grid[f'{prefix}optimizer'] = [optimizer]
         param_grid[f'{prefix}batch_size'] = [batch_size]
-        # max_epochs, patience are now fixed
+        param_grid[f'{prefix}use_batch_norm'] = [use_batch_norm]
 
         return param_grid
 
@@ -1127,15 +1138,21 @@ class NeuralNetParameterHandler(ModelParameterHandler):
             lower, upper = bc.get_safe_range_20_percent(value, 'continuous', min_val, max_val, param_name)
             search_spaces[f'{prefix}{param_name}'] = Real(lower, upper, prior='log-uniform')
 
+        # Dropout (uniform prior)
+        dropout_rate = get_param_value(best_params, 'dropout_rate')
+        lower, upper = bc.get_safe_range_20_percent(dropout_rate, 'continuous', 0.0, 0.5, 'dropout_rate')
+        search_spaces[f'{prefix}dropout_rate'] = Real(lower, upper, prior='uniform')
+
         # Categorical parameters
         activation = get_param_value(best_params, 'activation')
         optimizer = get_param_value(best_params, 'optimizer')
         batch_size = get_param_value(best_params, 'batch_size')
+        use_batch_norm = get_param_value(best_params, 'use_batch_norm')
 
         search_spaces[f'{prefix}activation'] = Categorical([activation])
         search_spaces[f'{prefix}optimizer'] = Categorical([optimizer])
         search_spaces[f'{prefix}batch_size'] = Categorical([batch_size])
-        # max_epochs, patience are now fixed
+        search_spaces[f'{prefix}use_batch_norm'] = Categorical([use_batch_norm])
 
         return search_spaces
 
@@ -1832,23 +1849,15 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
     # Extract fixed parameters that should not be optimized
     fixed_params = handler.get_fixed_params()
 
-    # Update device parameter for neural_net if multiple GPUs requested
-    if model_type == 'neural_net' and n_gpus >= 1:
+    # Update device parameter for neural_net
+    if model_type == 'neural_net':
         try:
             if torch.cuda.is_available():
-                if n_gpus > 1:
-                    # Pass n_gpus as parameter (NOT environment variable!)
-                    # With spawn multiprocessing, parameters work but os.environ doesn't propagate
-                    fixed_params['n_gpus'] = n_gpus  # Pass to wrapper
-                    fixed_params['device'] = None  # Auto-detect with n_gpus
-                    print(f"\n   - GPU Mode: Using {n_gpus} GPUs for neural network training")
-                    print(f"   - Multi-GPU: Passing n_gpus={n_gpus} as parameter to each worker")
-                    print(f"   - Assignment: Each worker uses random.seed(PID) for GPU selection")
-                else:
-                    fixed_params['device'] = 'cuda'  # Use default GPU
-                    print(f"\n   - GPU Mode: Using 1 GPU for neural network training")
+                fixed_params['device'] = 'cuda'  # Will use CUDA_VISIBLE_DEVICES from environment
+                print(f"\n   - GPU Mode: Neural network will use available GPUs")
+                print(f"   - Ray Tune will handle GPU assignment")
         except:
-            pass  # PyTorch not available, keep device=None
+            pass  # PyTorch not available
 
     print(f"\nFixed Parameters (not optimized):")
     for param, value in fixed_params.items():

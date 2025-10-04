@@ -241,8 +241,9 @@ class InteractiveTrainer:
         print("Select optimization methods to use:")
 
         optimizations = {
-            'optuna': 'Optuna (Bayesian optimization - RECOMMENDED)',
+            'optuna': 'Optuna (Bayesian optimization)',
             'three_stage': 'Three-Stage (Random → Grid → Bayesian)',
+            'raytune': 'Ray Tune (Neural Net Only - RECOMMENDED for GPU)',
             'none': 'No optimization (use default parameters)'
         }
 

@@ -12,7 +12,8 @@ import warnings
 class PyTorchRectangularNet(nn.Module):
     """PyTorch neural network with rectangular (uniform width) architecture."""
 
-    def __init__(self, input_dim, output_dim, depth=2, width=100, activation='relu'):
+    def __init__(self, input_dim, output_dim, depth=2, width=100, activation='relu',
+                 dropout_rate=0.0, use_batch_norm=False):
         """Initialize rectangular neural network.
 
         Parameters
@@ -27,6 +28,10 @@ class PyTorchRectangularNet(nn.Module):
             Number of neurons in each hidden layer (uniform across all layers)
         activation : str
             Activation function ('relu', 'tanh', 'sigmoid', 'elu')
+        dropout_rate : float
+            Dropout probability (0.0 = no dropout)
+        use_batch_norm : bool
+            Whether to use batch normalization
         """
         super(PyTorchRectangularNet, self).__init__()
 
@@ -39,20 +44,30 @@ class PyTorchRectangularNet(nn.Module):
             'leaky_relu': nn.LeakyReLU()
         }
         self.activation = activation_map.get(activation.lower(), nn.ReLU())
+        self.dropout_rate = dropout_rate
+        self.use_batch_norm = use_batch_norm
 
         # Build network layers
         layers = []
 
         # Input layer
         layers.append(nn.Linear(input_dim, width))
+        if use_batch_norm:
+            layers.append(nn.BatchNorm1d(width))
         layers.append(self.activation)
+        if dropout_rate > 0:
+            layers.append(nn.Dropout(dropout_rate))
 
         # Hidden layers (depth - 1 additional layers, all with same width)
         for _ in range(depth - 1):
             layers.append(nn.Linear(width, width))
+            if use_batch_norm:
+                layers.append(nn.BatchNorm1d(width))
             layers.append(self.activation)
+            if dropout_rate > 0:
+                layers.append(nn.Dropout(dropout_rate))
 
-        # Output layer (no activation)
+        # Output layer (no activation, no dropout)
         layers.append(nn.Linear(width, output_dim))
 
         self.network = nn.Sequential(*layers)
@@ -72,7 +87,8 @@ class PyTorchRegressorWrapper(BaseEstimator, RegressorMixin):
     def __init__(self, depth=2, width=100, activation='relu', learning_rate=0.001,
                  batch_size=128, max_epochs=1000, weight_decay=0.0001,
                  patience=20, optimizer='adam', validation_fraction=0.1,
-                 device=None, n_gpus=1, verbose=False, random_state=42):
+                 dropout_rate=0.0, use_batch_norm=False,
+                 device=None, verbose=False, random_state=42):
         """Initialize PyTorch regressor wrapper.
 
         Parameters
@@ -114,26 +130,28 @@ class PyTorchRegressorWrapper(BaseEstimator, RegressorMixin):
         self.patience = patience
         self.optimizer = optimizer
         self.validation_fraction = validation_fraction
-        self.n_gpus = n_gpus  # Store for later
-        self.device = device  # Store, but assign lazily in fit()
+        self.dropout_rate = dropout_rate
+        self.use_batch_norm = use_batch_norm
         self.verbose = verbose
         self.random_state = random_state
+
+        # Device assignment (simple and clean)
+        if device is None:
+            self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        else:
+            self.device = device
 
         self.model = None
         self.input_dim = None
         self.output_dim = None
 
     def _set_random_seed(self):
-        """Set random seeds for reproducibility (with PID variation for workers)."""
-        import os
-        # Add PID to seed for worker diversity in parallel CV
-        pid = os.getpid()
-        seed = self.random_state + (pid % 10000)  # Vary by PID but keep deterministic
-        torch.manual_seed(seed)
-        np.random.seed(seed)
+        """Set random seeds for reproducibility."""
+        torch.manual_seed(self.random_state)
+        np.random.seed(self.random_state)
         if torch.cuda.is_available():
-            torch.cuda.manual_seed(seed)
-            torch.cuda.manual_seed_all(seed)
+            torch.cuda.manual_seed(self.random_state)
+            torch.cuda.manual_seed_all(self.random_state)
 
     def _create_optimizer(self, model):
         """Create optimizer based on specified type."""
@@ -154,7 +172,7 @@ class PyTorchRegressorWrapper(BaseEstimator, RegressorMixin):
             return optimizer_class(model.parameters(), lr=self.learning_rate,
                                  weight_decay=self.weight_decay)
 
-    def fit(self, X, y):
+    def fit(self, X, y, groups=None):
         """Fit the neural network.
 
         Parameters
@@ -163,6 +181,8 @@ class PyTorchRegressorWrapper(BaseEstimator, RegressorMixin):
             Training data
         y : array-like of shape (n_samples,) or (n_samples, n_outputs)
             Target values
+        groups : array-like, optional
+            Group labels for group-aware validation split (prevents data leakage)
 
         Returns
         -------
@@ -170,23 +190,6 @@ class PyTorchRegressorWrapper(BaseEstimator, RegressorMixin):
             Fitted estimator
         """
         self._set_random_seed()
-
-        # Lazy device assignment (happens in worker process, not parent!)
-        if self.device is None:
-            if torch.cuda.is_available():
-                if self.n_gpus > 1:
-                    # Multi-GPU assignment in worker process
-                    import os
-                    import random
-                    pid = os.getpid()
-                    random.seed(pid)
-                    gpu_id = random.randint(0, self.n_gpus - 1)
-                    self.device = f'cuda:{gpu_id}'
-                    print(f"  [Worker PID {pid}] Assigned to GPU {gpu_id}")
-                else:
-                    self.device = 'cuda'
-            else:
-                self.device = 'cpu'
 
         # Convert to numpy arrays
         X = np.asarray(X, dtype=np.float32)
@@ -207,16 +210,26 @@ class PyTorchRegressorWrapper(BaseEstimator, RegressorMixin):
         use_validation = n_val > 0
 
         if use_validation:
-            # Shuffle indices for train/val split
-            indices = np.arange(n_samples)
-            np.random.seed(self.random_state)
-            np.random.shuffle(indices)
+            if groups is not None:
+                # Group-aware split (prevents data leakage from augmentations!)
+                from sklearn.model_selection import GroupShuffleSplit
+                gss = GroupShuffleSplit(n_splits=1, test_size=self.validation_fraction,
+                                       random_state=self.random_state)
+                train_indices, val_indices = next(gss.split(X, y, groups))
 
-            val_indices = indices[:n_val]
-            train_indices = indices[n_val:]
+                X_train, y_train = X[train_indices], y[train_indices]
+                X_val, y_val = X[val_indices], y[val_indices]
+            else:
+                # Random split (no groups provided)
+                indices = np.arange(n_samples)
+                np.random.seed(self.random_state)
+                np.random.shuffle(indices)
 
-            X_train, y_train = X[train_indices], y[train_indices]
-            X_val, y_val = X[val_indices], y[val_indices]
+                val_indices = indices[:n_val]
+                train_indices = indices[n_val:]
+
+                X_train, y_train = X[train_indices], y[train_indices]
+                X_val, y_val = X[val_indices], y[val_indices]
         else:
             # No validation split - use all data for training
             X_train, y_train = X, y
@@ -245,7 +258,9 @@ class PyTorchRegressorWrapper(BaseEstimator, RegressorMixin):
             output_dim=self.output_dim,
             depth=self.depth,
             width=self.width,
-            activation=self.activation
+            activation=self.activation,
+            dropout_rate=self.dropout_rate,
+            use_batch_norm=self.use_batch_norm
         )
         # Only move to device if not CPU (avoid Mac segfault)
         if self.device != 'cpu':
@@ -424,7 +439,7 @@ class NeuralNetReactorModel(ReactorModelBase):
             self.flux_scaler = StandardScaler()
             self.keff_scaler = StandardScaler()
 
-    def fit_flux(self, X_train, y_flux):
+    def fit_flux(self, X_train, y_flux, groups=None):
         """Train flux model only.
 
         Parameters
@@ -433,6 +448,8 @@ class NeuralNetReactorModel(ReactorModelBase):
             Training feature data
         y_flux : numpy.ndarray
             Training flux target data
+        groups : numpy.ndarray, optional
+            Group labels for group-aware validation split
 
         Returns
         -------
@@ -448,10 +465,10 @@ class NeuralNetReactorModel(ReactorModelBase):
             X_scaled = X_train
 
         self.flux_model = PyTorchRegressorWrapper(**self.params)
-        self.flux_model.fit(X_scaled, y_flux)
+        self.flux_model.fit(X_scaled, y_flux, groups=groups)  # Pass groups!
         return self
 
-    def fit_keff(self, X_train, y_keff):
+    def fit_keff(self, X_train, y_keff, groups=None):
         """Train k-eff model only.
 
         Parameters
@@ -460,6 +477,8 @@ class NeuralNetReactorModel(ReactorModelBase):
             Training feature data
         y_keff : numpy.ndarray
             Training k-effective target data
+        groups : numpy.ndarray, optional
+            Group labels for group-aware validation split
 
         Returns
         -------
@@ -472,7 +491,7 @@ class NeuralNetReactorModel(ReactorModelBase):
             X_scaled = X_train
 
         self.keff_model = PyTorchRegressorWrapper(**self.params)
-        self.keff_model.fit(X_scaled, y_keff.ravel())
+        self.keff_model.fit(X_scaled, y_keff.ravel(), groups=groups)  # Pass groups!
         return self
 
     def predict_flux(self, X_test):

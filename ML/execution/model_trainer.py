@@ -2,6 +2,7 @@ import numpy as np
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 from hyperparameter_tuning.optuna_optimization import optimize_flux_model, optimize_keff_model
 from hyperparameter_tuning.three_stage_optimization import three_stage_optimization
+from hyperparameter_tuning.raytune_neural_net import optimize_neural_net_raytune
 from ML_models.xgboost_train import XGBoostReactorModel
 from ML_models.random_forest_train import RandomForestReactorModel
 from ML_models.svm_train import SVMReactorModel
@@ -112,6 +113,23 @@ class ModelTrainer:
                 best_params = self._get_default_params(model_type)
             else:
                 print(f" Optimization complete!")
+
+        elif config.optimization == 'raytune':
+            print(f"Starting Ray Tune optimization...")
+            # Ray Tune optimization (neural_net only!)
+            if model_type == 'neural_net':
+                best_params, analysis = optimize_neural_net_raytune(
+                    X_train, y_train,
+                    groups=groups_train,
+                    n_trials=config.n_trials if hasattr(config, 'n_trials') else 100,
+                    n_gpus=config.n_gpus,
+                    target_type=target,
+                    use_log_flux=self.data_handler.use_log_flux if target == 'flux' else False
+                )
+                print(f" Ray Tune complete!")
+            else:
+                print(f"  Ray Tune only supports neural_net. Using default parameters.")
+                best_params = self._get_default_params(model_type)
 
         else:  # No optimization
             best_params = self._get_default_params(model_type)
