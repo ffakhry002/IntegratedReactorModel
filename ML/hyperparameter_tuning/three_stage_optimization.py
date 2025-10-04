@@ -1037,8 +1037,9 @@ class NeuralNetParameterHandler(ModelParameterHandler):
             'activation': 'relu',
             'optimizer': 'adam',
             'batch_size': 128,
-            'max_epochs': 1500,  # Fixed at 1500 (early stopping handles it)
-            'patience': 50,      # Fixed at 50
+            'validation_fraction': 0.1,  # Internal validation for early stopping
+            'max_epochs': 1500,  # Ceiling (early stopping usually stops earlier)
+            'patience': 50       # Save best model before it gets worse
             'device': None,  # Auto-detect GPU
             'random_state': 42
         }
@@ -1049,8 +1050,9 @@ class NeuralNetParameterHandler(ModelParameterHandler):
             'random_state': 42,
             'device': None,  # Auto-detect GPU
             'verbose': False,
-            'max_epochs': 1500,  # Fixed (early stopping prevents overfitting)
-            'patience': 50       # Fixed (good balance for early stopping)
+            'validation_fraction': 0.1,  # Internal validation for early stopping
+            'max_epochs': 1500,  # Ceiling (early stopping usually stops earlier)
+            'patience': 50       # Save best model before it gets worse
         }
 
     def get_random_distributions(self, needs_wrapper: bool) -> Dict[str, Any]:
@@ -1062,7 +1064,7 @@ class NeuralNetParameterHandler(ModelParameterHandler):
             'activation': ['relu', 'elu'],  # Streamlined: best performers only
             'optimizer': ['adam', 'adamw', 'rmsprop'],  # Streamlined: removed sgd
             'batch_size': [64, 128, 256]  # Optimize (affects GPU util & generalization)
-            # max_epochs=1500, patience=50 are fixed (early stopping handles it)
+            # validation_fraction=0.1, max_epochs=1500, patience=50 are fixed
         }
         if needs_wrapper:
             return {f'estimator__{k}': v for k, v in base_params.items()}

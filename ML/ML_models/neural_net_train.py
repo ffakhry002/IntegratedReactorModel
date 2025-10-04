@@ -124,12 +124,16 @@ class PyTorchRegressorWrapper(BaseEstimator, RegressorMixin):
         self.output_dim = None
 
     def _set_random_seed(self):
-        """Set random seeds for reproducibility."""
-        torch.manual_seed(self.random_state)
-        np.random.seed(self.random_state)
+        """Set random seeds for reproducibility (with PID variation for workers)."""
+        import os
+        # Add PID to seed for worker diversity in parallel CV
+        pid = os.getpid()
+        seed = self.random_state + (pid % 10000)  # Vary by PID but keep deterministic
+        torch.manual_seed(seed)
+        np.random.seed(seed)
         if torch.cuda.is_available():
-            torch.cuda.manual_seed(self.random_state)
-            torch.cuda.manual_seed_all(self.random_state)
+            torch.cuda.manual_seed(seed)
+            torch.cuda.manual_seed_all(seed)
 
     def _create_optimizer(self, model):
         """Create optimizer based on specified type."""
@@ -195,20 +199,28 @@ class PyTorchRegressorWrapper(BaseEstimator, RegressorMixin):
         self.input_dim = X.shape[1]
         self.output_dim = y.shape[1]
 
-        # Split into train/validation
+        # Split into train/validation (skip if validation_fraction=0)
         n_samples = X.shape[0]
         n_val = int(n_samples * self.validation_fraction)
 
-        # Shuffle indices for train/val split
-        indices = np.arange(n_samples)
-        np.random.seed(self.random_state)
-        np.random.shuffle(indices)
+        # Check if using internal validation
+        use_validation = n_val > 0
 
-        val_indices = indices[:n_val]
-        train_indices = indices[n_val:]
+        if use_validation:
+            # Shuffle indices for train/val split
+            indices = np.arange(n_samples)
+            np.random.seed(self.random_state)
+            np.random.shuffle(indices)
 
-        X_train, y_train = X[train_indices], y[train_indices]
-        X_val, y_val = X[val_indices], y[val_indices]
+            val_indices = indices[:n_val]
+            train_indices = indices[n_val:]
+
+            X_train, y_train = X[train_indices], y[train_indices]
+            X_val, y_val = X[val_indices], y[val_indices]
+        else:
+            # No validation split - use all data for training
+            X_train, y_train = X, y
+            train_indices = np.arange(n_samples)
 
         # Create data loaders
         train_dataset = TensorDataset(
@@ -218,12 +230,14 @@ class PyTorchRegressorWrapper(BaseEstimator, RegressorMixin):
         train_loader = DataLoader(train_dataset, batch_size=self.batch_size,
                                  shuffle=True, drop_last=False, num_workers=0)
 
-        val_dataset = TensorDataset(
-            torch.FloatTensor(X_val),
-            torch.FloatTensor(y_val)
-        )
-        val_loader = DataLoader(val_dataset, batch_size=self.batch_size,
-                               shuffle=False, num_workers=0)
+        # Only create validation loader if using validation
+        if use_validation:
+            val_dataset = TensorDataset(
+                torch.FloatTensor(X_val),
+                torch.FloatTensor(y_val)
+            )
+            val_loader = DataLoader(val_dataset, batch_size=self.batch_size,
+                                   shuffle=False, num_workers=0)
 
         # Create model
         self.model = PyTorchRectangularNet(
@@ -269,42 +283,47 @@ class PyTorchRegressorWrapper(BaseEstimator, RegressorMixin):
 
             train_loss /= len(train_indices)
 
-            # Validation phase
-            self.model.eval()
-            val_loss = 0.0
+            # Validation phase (only if using internal validation)
+            if use_validation:
+                self.model.eval()
+                val_loss = 0.0
 
-            with torch.no_grad():
-                for batch_X, batch_y in val_loader:
-                    # Skip .to(device) for CPU to avoid Mac segfault
-                    if self.device != 'cpu':
-                        batch_X = batch_X.to(self.device)
-                        batch_y = batch_y.to(self.device)
+                with torch.no_grad():
+                    for batch_X, batch_y in val_loader:
+                        # Skip .to(device) for CPU to avoid Mac segfault
+                        if self.device != 'cpu':
+                            batch_X = batch_X.to(self.device)
+                            batch_y = batch_y.to(self.device)
 
-                    predictions = self.model(batch_X)
-                    loss = criterion(predictions, batch_y)
-                    val_loss += loss.item() * batch_X.size(0)
+                        predictions = self.model(batch_X)
+                        loss = criterion(predictions, batch_y)
+                        val_loss += loss.item() * batch_X.size(0)
 
-            val_loss /= len(val_indices)
+                val_loss /= len(val_indices)
 
-            # Early stopping check
-            if val_loss < best_val_loss:
-                best_val_loss = val_loss
-                patience_counter = 0
-                # Save best model state
-                self.best_model_state = {k: v.cpu() for k, v in self.model.state_dict().items()}
+                # Early stopping check
+                if val_loss < best_val_loss:
+                    best_val_loss = val_loss
+                    patience_counter = 0
+                    # Save best model state
+                    self.best_model_state = {k: v.cpu() for k, v in self.model.state_dict().items()}
+                else:
+                    patience_counter += 1
+
+                # Verbose output
+                if self.verbose and (epoch % 50 == 0 or epoch == self.max_epochs - 1):
+                    print(f"  Epoch {epoch+1}/{self.max_epochs} - "
+                          f"Train Loss: {train_loss:.6f}, Val Loss: {val_loss:.6f}")
+
+                # Early stopping (only if patience is set)
+                if self.patience is not None and patience_counter >= self.patience:
+                    if self.verbose:
+                        print(f"  Early stopping at epoch {epoch+1}")
+                    break
             else:
-                patience_counter += 1
-
-            # Verbose output
-            if self.verbose and (epoch % 50 == 0 or epoch == self.max_epochs - 1):
-                print(f"  Epoch {epoch+1}/{self.max_epochs} - "
-                      f"Train Loss: {train_loss:.6f}, Val Loss: {val_loss:.6f}")
-
-            # Early stopping
-            if patience_counter >= self.patience:
-                if self.verbose:
-                    print(f"  Early stopping at epoch {epoch+1}")
-                break
+                # No validation - just print training loss if verbose
+                if self.verbose and (epoch % 50 == 0 or epoch == self.max_epochs - 1):
+                    print(f"  Epoch {epoch+1}/{self.max_epochs} - Train Loss: {train_loss:.6f}")
 
         # Restore best model
         if hasattr(self, 'best_model_state'):
