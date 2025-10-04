@@ -80,26 +80,18 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
         "random_state": 42
     }
 
-    # Trial counter (shared across workers)
-    import multiprocessing
-    trial_counter = multiprocessing.Value('i', 0)
-    trial_lock = multiprocessing.Lock()
-
     # Define training function
     def train_neural_net(config, X=X_train, y=y_train, groups=groups):
         """Train function called by Ray Tune"""
         from ML_models.neural_net_train import PyTorchRegressorWrapper
 
-        # Get sequential trial number
-        with trial_lock:
-            trial_counter.value += 1
-            trial_num = trial_counter.value
-
-        # Get trial ID for progress tracking
+        # Get trial name for progress tracking (unique per trial)
         trial_name = tune.get_trial_name()
+        # Extract trial number from name (format: train_neural_net_00001_...)
+        trial_num = trial_name.split('_')[-1][:5] if '_' in trial_name else "?"
 
         print(f"\n{'='*60}")
-        print(f"TRIAL {trial_num}/{n_trials}: {trial_name}")
+        print(f"TRIAL {trial_num}: {trial_name}")
         print(f"{'='*60}")
         print(f"Hyperparameters:")
         print(f"  Architecture: depth={config['depth']}, width={config['width']}")
@@ -138,7 +130,7 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
 
             # Enumerate to enable ASHA early stopping
             for fold_idx, (train_idx, test_idx) in enumerate(cv.split(X, y, groups)):
-                print(f"  Trial {trial_num} - Fold {fold_idx + 1}/5...")
+                print(f"  Fold {fold_idx + 1}/5...")
 
                 X_train_fold, X_test_fold = X[train_idx], X[test_idx]
                 y_train_fold, y_test_fold = y[train_idx], y[test_idx]
@@ -167,7 +159,7 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
                 print(f"    ✓ Fold {fold_idx + 1} score: {cv_scores[-1]:.4f} | Running avg: {current_mean:.4f}")
                 tune.report({"score": current_mean, "training_iteration": fold_idx + 1})
 
-            print(f"   Trial {trial_num} complete! Final score: {current_mean:.4f}")
+            print(f"  ✅ Trial {trial_num} complete! Final score: {current_mean:.4f}")
 
             scores = np.array(cv_scores)
         else:
