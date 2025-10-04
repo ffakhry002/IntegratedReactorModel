@@ -241,8 +241,9 @@ class InteractiveTrainer:
         print("Select optimization methods to use:")
 
         optimizations = {
-            'optuna': 'Optuna (Bayesian optimization - RECOMMENDED)',
+            'optuna': 'Optuna (Bayesian optimization)',
             'three_stage': 'Three-Stage (Random → Grid → Bayesian)',
+            'raytune': 'Ray Tune (Neural Net Only - RECOMMENDED for GPU)',
             'none': 'No optimization (use default parameters)'
         }
 
@@ -295,6 +296,82 @@ class InteractiveTrainer:
         else:
             return 1
 
+    def get_gpu_settings(self, models):
+        """Get GPU settings for neural network training.
+
+        Parameters
+        ----------
+        models : list
+            List of selected models
+
+        Returns
+        -------
+        int
+            Number of GPUs to use (0 if no GPU, 1+ for GPU count)
+        """
+        # Only ask if neural_net is in the models
+        if 'neural_net' not in models:
+            return 1  # Default, won't be used
+
+        print("\n" + "-"*40)
+        print("GPU CONFIGURATION")
+        print("-"*40)
+
+        try:
+            import torch
+
+            # DEBUG: Print CUDA status
+            print(f"DEBUG: PyTorch version: {torch.__version__}")
+            print(f"DEBUG: torch.cuda.is_available() = {torch.cuda.is_available()}")
+            if hasattr(torch.version, 'cuda'):
+                print(f"DEBUG: CUDA version: {torch.version.cuda}")
+
+            if not torch.cuda.is_available():
+                print("⚠️  No GPUs detected. Neural network will use CPU (slow).")
+                print("   This might be a CUDA initialization issue.")
+                print("   Training will still work but use CPU only.")
+                return 0
+
+            gpu_count = torch.cuda.device_count()
+            print(f"Detected {gpu_count} GPU(s):")
+            for i in range(gpu_count):
+                gpu_name = torch.cuda.get_device_name(i)
+                gpu_mem = torch.cuda.get_device_properties(i).total_memory / 1e9
+                print(f"  GPU {i}: {gpu_name} ({gpu_mem:.1f} GB)")
+
+            if gpu_count == 1:
+                print("\n✅ Using 1 GPU for neural network training.")
+                return 1
+
+            # Multiple GPUs available - ask user
+            print(f"\nMultiple GPUs detected!")
+            print(f"  1 GPU  = Simple, safe (recommended)")
+            print(f"  {gpu_count} GPUs = 2x speed, distribute trials across GPUs")
+
+            while True:
+                response = input(f"\nHow many GPUs to use? (1-{gpu_count}, default: 1): ").strip()
+                if response == '':
+                    print("✅ Using 1 GPU (default)")
+                    return 1
+                try:
+                    n_gpus = int(response)
+                    if 1 <= n_gpus <= gpu_count:
+                        if n_gpus > 1:
+                            print(f"✅ Using {n_gpus} GPUs (round-robin trial assignment)")
+                        return n_gpus
+                    print(f"Please enter a number between 1 and {gpu_count}")
+                except ValueError:
+                    print("Please enter a valid number")
+
+        except ImportError:
+            print("⚠️  PyTorch not found. Cannot detect GPUs.")
+            print("   Defaulting to auto-detection during training.")
+            return 1  # Will auto-detect during training
+        except Exception as e:
+            print(f"⚠️  Error detecting GPUs: {e}")
+            print("   Defaulting to auto-detection during training.")
+            return 1  # Will auto-detect during training
+
     def run(self):
         """Run the interactive training process.
 
@@ -324,6 +401,7 @@ class InteractiveTrainer:
             self.config.n_trials = int(n_trials) if n_trials else 250
 
         self.config.n_jobs = self.get_parallel_settings()
+        self.config.n_gpus = self.get_gpu_settings(self.config.models)
 
         # Data file selection
         print("\n" + "-"*40)

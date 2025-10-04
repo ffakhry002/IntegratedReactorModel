@@ -18,5 +18,6 @@ class TrainingConfig:
         self.optimization = 'optuna'
         self.n_trials = 250
         self.n_jobs = -1
+        self.n_gpus = 1  # Number of GPUs to use for neural network training
         self.test_size = 0.15
         self.random_state = 42

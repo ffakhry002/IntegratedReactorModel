@@ -2,6 +2,7 @@ import numpy as np
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 from hyperparameter_tuning.optuna_optimization import optimize_flux_model, optimize_keff_model
 from hyperparameter_tuning.three_stage_optimization import three_stage_optimization
+from hyperparameter_tuning.raytune_neural_net import optimize_neural_net_raytune
 from ML_models.xgboost_train import XGBoostReactorModel
 from ML_models.random_forest_train import RandomForestReactorModel
 from ML_models.svm_train import SVMReactorModel
@@ -69,7 +70,8 @@ class ModelTrainer:
                     n_jobs=config.n_jobs,
                     groups=groups_train,  # NEW: Pass groups
                     flux_mode=flux_mode,   # NEW: Pass flux mode
-                    encoding=encoding  # NEW: Pass encoding
+                    encoding=encoding,  # NEW: Pass encoding
+                    n_gpus=config.n_gpus  # NEW: Pass GPU count
                 )
             else:  # keff
                 best_params, study = optimize_keff_model(
@@ -78,7 +80,8 @@ class ModelTrainer:
                     n_trials=config.n_trials,
                     n_jobs=config.n_jobs,
                     groups=groups_train,  # NEW: Pass groups
-                    encoding=encoding  # NEW: Pass encoding
+                    encoding=encoding,  # NEW: Pass encoding
+                    n_gpus=config.n_gpus  # NEW: Pass GPU count
                 )
 
             # Check if optimization completed or timed out
@@ -87,9 +90,6 @@ class ModelTrainer:
                 best_params = self._get_default_params(model_type)
             else:
                 print(f" Optimization complete!")
-                # Transform neural network parameters if needed
-                if model_type == 'neural_net' and 'n_layers' in best_params:
-                    best_params = self._transform_nn_params(best_params)
                 print(f"  Best parameters found: {best_params}")
 
         elif config.optimization == 'three_stage':
@@ -103,7 +103,8 @@ class ModelTrainer:
                 n_jobs=config.n_jobs,
                 target_type=target,
                 use_log_flux=self.data_handler.use_log_flux if target == 'flux' else False,
-                groups=groups_train  # NEW: Pass groups
+                groups=groups_train,  # NEW: Pass groups
+                n_gpus=config.n_gpus  # NEW: Pass GPU count
             )
 
             # Check if optimization completed or timed out
@@ -112,9 +113,23 @@ class ModelTrainer:
                 best_params = self._get_default_params(model_type)
             else:
                 print(f" Optimization complete!")
-                # Transform neural network parameters if needed
-                if model_type == 'neural_net' and 'n_layers' in best_params:
-                    best_params = self._transform_nn_params(best_params)
+
+        elif config.optimization == 'raytune':
+            print(f"Starting Ray Tune optimization...")
+            # Ray Tune optimization (neural_net only!)
+            if model_type == 'neural_net':
+                best_params, analysis = optimize_neural_net_raytune(
+                    X_train, y_train,
+                    groups=groups_train,
+                    n_trials=config.n_trials if hasattr(config, 'n_trials') else 100,
+                    n_gpus=config.n_gpus,
+                    target_type=target,
+                    use_log_flux=self.data_handler.use_log_flux if target == 'flux' else False
+                )
+                print(f" Ray Tune complete!")
+            else:
+                print(f"  Ray Tune only supports neural_net. Using default parameters.")
+                best_params = self._get_default_params(model_type)
 
         else:  # No optimization
             best_params = self._get_default_params(model_type)
@@ -147,30 +162,14 @@ class ModelTrainer:
         return model, metrics, best_params
 
     def _transform_nn_params(self, params):
-        """Transform Optuna neural network parameters to MLPRegressor format"""
-        transformed = {}
+        """Transform neural network parameters to PyTorch format.
 
-        # Extract n_layers if present
-        if 'n_layers' in params:
-            n_layers = params['n_layers']
-            # Build the hidden_layer_sizes tuple
-            layers = []
-            for i in range(n_layers):
-                layer_key = f'layer_{i}_size'
-                if layer_key in params:
-                    layers.append(params[layer_key])
-
-            transformed['hidden_layer_sizes'] = tuple(layers)
-
-            # Copy other parameters (excluding layer-specific ones)
-            for key, value in params.items():
-                if not key.startswith('layer_') and key != 'n_layers':
-                    transformed[key] = value
-        else:
-            # If no n_layers, params are already in correct format
-            transformed = params.copy()
-
-        return transformed
+        PyTorch models use rectangular architecture, so no transformation needed
+        for depth/width parameters. This is mainly for backward compatibility.
+        """
+        # PyTorch models already use the correct parameter names
+        # (depth, width, etc.) so just return a copy
+        return params.copy()
 
     def _get_model_class(self, model_type, target):
         """Get appropriate model class for three-stage optimization"""
@@ -178,7 +177,7 @@ class ModelTrainer:
         import xgboost as xgb
         from sklearn.ensemble import RandomForestRegressor
         from sklearn.svm import SVR
-        from sklearn.neural_network import MLPRegressor
+        from ML_models.neural_net_train import PyTorchRegressorWrapper
 
         if target == 'flux':
             # Multi-output for flux - return lambdas that accept **kwargs
@@ -192,7 +191,8 @@ class ModelTrainer:
                 # The optimization stages will handle Pipeline + MultiOutputRegressor wrapping
                 return SVR
             else:  # neural_net
-                return lambda **kwargs: MultiOutputRegressor(MLPRegressor(**kwargs))
+                # PyTorch wrapper already handles multi-output natively
+                return PyTorchRegressorWrapper
         else:  # keff - single output
             if model_type == 'xgboost':
                 return xgb.XGBRegressor
@@ -201,7 +201,7 @@ class ModelTrainer:
             elif model_type == 'svm':
                 return SVR
             else:  # neural_net
-                return MLPRegressor
+                return PyTorchRegressorWrapper
 
     def _get_default_params(self, model_type):
         """Get default parameters for each model type - updated with better defaults"""
@@ -237,15 +237,18 @@ class ModelTrainer:
                 'verbose': True
             },
             'neural_net': {
-                'hidden_layer_sizes': (100, 50),
+                'depth': 2,
+                'width': 100,
                 'activation': 'relu',
-                'solver': 'adam',
-                'alpha': 0.001,
-                'learning_rate_init': 0.001,
-                'max_iter': 1000,
-                'early_stopping': True,
-                'n_iter_no_change': 20,
-                'verbose': True
+                'optimizer': 'adam',
+                'learning_rate': 0.001,
+                'weight_decay': 0.001,
+                'batch_size': 128,
+                'max_epochs': 1000,
+                'patience': 20,
+                'device': None,  # Auto-detect GPU
+                'verbose': False,
+                'random_state': 42
             }
         }
         return defaults.get(model_type, {})
