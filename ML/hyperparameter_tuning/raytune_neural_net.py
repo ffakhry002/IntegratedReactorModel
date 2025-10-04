@@ -20,7 +20,7 @@ from sklearn.metrics import make_scorer
 import torch
 import pickle
 
-def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=250,
+def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
                                 n_gpus=2, target_type='flux', use_log_flux=True):
     """
     Optimize neural network hyperparameters using Ray Tune
@@ -166,24 +166,22 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=250,
             tune.report({"score": mean_score})  # Dictionary format for API compatibility
 
     # ASHA scheduler for early stopping (kills bad trials after 1-2 folds!)
+    # Don't pass metric/mode here - will pass to tune.run() instead
     scheduler = ASHAScheduler(
-        metric="score",
-        mode="min",
         max_t=5,           # 5 CV folds per trial
         grace_period=1,    # Can stop after just 1 fold if clearly bad
         reduction_factor=2 # Top 50% proceed to next fold
     )
 
     # Intelligent search algorithm (Optuna's TPE)
+    # Don't pass metric/mode here - will pass to tune.run() instead
     n_startup = min(50, n_trials // 3)  # 50 random trials or 1/3 of total
     search_alg = OptunaSearch(
         sampler=TPESampler(
             n_startup_trials=n_startup,  # Random exploration first
             n_ei_candidates=50,           # Candidates for intelligent selection
             seed=42
-        ),
-        metric="score",
-        mode="min"
+        )
     )
 
     # Progress reporter
@@ -202,16 +200,18 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=250,
         train_neural_net,
         config=config_space,
         num_samples=n_trials,
-        scheduler=scheduler,  # Already has metric="score", mode="min"
-        search_alg=search_alg,  # Already has metric="score", mode="min"
+        scheduler=scheduler,
+        search_alg=search_alg,
         progress_reporter=reporter,
         resources_per_trial={"cpu": 8, "gpu": 1/n_gpus},  # 8 CPUs + shared GPU
+        metric="score",      # Needed for analysis.best_trial
+        mode="min",          # Needed for analysis.best_trial
         raise_on_failed_trial=False,
         verbose=1
     )
 
-    # Get best result
-    best_trial = analysis.best_trial
+    # Get best result (use explicit method since scheduler already has metric/mode)
+    best_trial = analysis.get_best_trial(metric="score", mode="min")
     best_params = best_trial.config
     best_score = best_trial.last_result["score"]
 
