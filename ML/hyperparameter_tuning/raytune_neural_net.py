@@ -202,12 +202,10 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=250,
         train_neural_net,
         config=config_space,
         num_samples=n_trials,
-        scheduler=scheduler,
-        search_alg=search_alg,  # Intelligent search!
+        scheduler=scheduler,  # Already has metric="score", mode="min"
+        search_alg=search_alg,  # Already has metric="score", mode="min"
         progress_reporter=reporter,
         resources_per_trial={"cpu": 8, "gpu": 1/n_gpus},  # 8 CPUs + shared GPU
-        metric="score",      # Specify metric for best_trial
-        mode="min",          # Minimize score
         raise_on_failed_trial=False,
         verbose=1
     )
