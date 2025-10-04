@@ -1039,7 +1039,7 @@ class NeuralNetParameterHandler(ModelParameterHandler):
             'batch_size': 128,
             'validation_fraction': 0.1,  # Internal validation for early stopping
             'max_epochs': 1500,  # Ceiling (early stopping usually stops earlier)
-            'patience': 50       # Save best model before it gets worse
+            'patience': 50,       # Save best model before it gets worse
             'device': None,  # Auto-detect GPU
             'random_state': 42
         }
