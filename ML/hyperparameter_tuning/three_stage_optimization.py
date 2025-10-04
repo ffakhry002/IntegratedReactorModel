@@ -1235,10 +1235,10 @@ def setup_cross_validation(X_train: np.ndarray, y_train: np.ndarray,
         if n_unique_groups < 2:
             raise ValueError(f"GroupKFold requires at least 2 unique groups, got {n_unique_groups}")
 
-        n_splits = min(10, n_unique_groups)
+        n_splits = min(5, n_unique_groups)  # Changed from 10 to 5 folds
         n_splits = max(2, n_splits)
 
-        if n_splits < 10:
+        if n_splits < 5:
             print(f"   - WARNING: Only {n_unique_groups} unique groups available, using {n_splits}-fold CV")
 
         cv = GroupKFold(n_splits=n_splits)
@@ -1265,8 +1265,8 @@ def setup_cross_validation(X_train: np.ndarray, y_train: np.ndarray,
             print(f"   - Test samples per config: {len(test_idx) / test_configs:.1f}")
             break
     else:
-        cv = 10
-        n_splits = 10
+        cv = 5
+        n_splits = 5
         print(f"   - WARNING: No groups provided - may have CV leakage!")
         print(f"   - Using regular {cv}-fold cross-validation")
 
