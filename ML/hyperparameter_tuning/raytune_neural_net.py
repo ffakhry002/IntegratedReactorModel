@@ -80,10 +80,33 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
         "random_state": 42
     }
 
+    # Trial counter (shared across workers)
+    import multiprocessing
+    trial_counter = multiprocessing.Value('i', 0)
+    trial_lock = multiprocessing.Lock()
+
     # Define training function
     def train_neural_net(config, X=X_train, y=y_train, groups=groups):
         """Train function called by Ray Tune"""
         from ML_models.neural_net_train import PyTorchRegressorWrapper
+
+        # Get sequential trial number
+        with trial_lock:
+            trial_counter.value += 1
+            trial_num = trial_counter.value
+
+        # Get trial ID for progress tracking
+        trial_name = tune.get_trial_name()
+
+        print(f"\n{'='*60}")
+        print(f"TRIAL {trial_num}/{n_trials}: {trial_name}")
+        print(f"{'='*60}")
+        print(f"Hyperparameters:")
+        print(f"  Architecture: depth={config['depth']}, width={config['width']}")
+        print(f"  Training: lr={config['learning_rate']:.6f}, optimizer={config['optimizer']}")
+        print(f"  Regularization: weight_decay={config['weight_decay']:.6f}, dropout={config['dropout_rate']:.3f}")
+        print(f"  Other: activation={config['activation']}, batch_size={config['batch_size']}, batch_norm={config['use_batch_norm']}")
+        print(f"{'='*60}")
 
         # Use CUDA - Ray Tune handles GPU assignment via CUDA_VISIBLE_DEVICES
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -115,6 +138,8 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
 
             # Enumerate to enable ASHA early stopping
             for fold_idx, (train_idx, test_idx) in enumerate(cv.split(X, y, groups)):
+                print(f"  Trial {trial_num} - Fold {fold_idx + 1}/5...")
+
                 X_train_fold, X_test_fold = X[train_idx], X[test_idx]
                 y_train_fold, y_test_fold = y[train_idx], y[test_idx]
                 groups_train_fold = groups[train_idx]
@@ -139,7 +164,10 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
 
                 # Report after each fold for ASHA early stopping
                 current_mean = float(np.mean(cv_scores))
+                print(f"    ✓ Fold {fold_idx + 1} score: {cv_scores[-1]:.4f} | Running avg: {current_mean:.4f}")
                 tune.report({"score": current_mean, "training_iteration": fold_idx + 1})
+
+            print(f"   Trial {trial_num} complete! Final score: {current_mean:.4f}")
 
             scores = np.array(cv_scores)
         else:
