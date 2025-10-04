@@ -1,9 +1,5 @@
 ##### THIS IS CODE DUOS
 
-# CRITICAL: Set multiprocessing method BEFORE any imports
-import os
-os.environ['LOKY_START_METHOD'] = 'spawn'  # Force joblib to use spawn (not threading!)
-os.environ['LOKY_PICKLER'] = 'cloudpickle'
 import numpy as np
 from sklearn.model_selection import RandomizedSearchCV, GridSearchCV, GroupKFold, KFold
 from skopt import BayesSearchCV
@@ -19,18 +15,6 @@ import platform
 from typing import Dict, Tuple, List, Union, Optional, Any
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
-
-# PyTorch multiprocessing fix for GPU + parallel optimization
-try:
-    import torch
-    if torch.cuda.is_available():
-        try:
-            import torch.multiprocessing
-            torch.multiprocessing.set_start_method('spawn', force=True)
-        except RuntimeError:
-            pass  # Already set
-except ImportError:
-    pass  # PyTorch not installed or not using neural nets
 
 # ============================================================================
 # CONFIGURATION
@@ -1026,49 +1010,34 @@ class SVMParameterHandler(ModelParameterHandler):
         return search_spaces
 
 class NeuralNetParameterHandler(ModelParameterHandler):
-    """Parameter handler for PyTorch Neural Network models with rectangular architecture"""
+    """Parameter handler for Neural Network models"""
 
     def get_default_params(self) -> Dict[str, Any]:
         return {
-            'depth': 2,
-            'width': 100,
-            'learning_rate': 0.001,
-            'weight_decay': 0.001,
+            'hidden_layer_sizes': (100,),
+            'learning_rate_init': 0.001,
+            'alpha': 0.001,
             'activation': 'relu',
-            'optimizer': 'adam',
-            'batch_size': 128,
-            'dropout_rate': 0.1,
-            'use_batch_norm': False,
-            'validation_fraction': 0.1,  # Internal validation for early stopping
-            'max_epochs': 1500,  # Ceiling (early stopping usually stops earlier)
-            'patience': 50,  # Save best model before it gets worse
-            'device': None,  # Auto-detect GPU
-            'random_state': 42
+            'solver': 'adam',
+            'random_state': 42,
+            'max_iter': 1000
         }
 
     def get_fixed_params(self) -> Dict[str, Any]:
         """Fixed parameters that are not optimized during hyperparameter search"""
         return {
             'random_state': 42,
-            'device': None,  # Auto-detect GPU
-            'verbose': False,
-            'validation_fraction': 0.1,  # Internal validation for early stopping
-            'max_epochs': 1500,  # Ceiling (early stopping usually stops earlier)
-            'patience': 50       # Save best model before it gets worse
+            'max_iter': 1000
         }
 
     def get_random_distributions(self, needs_wrapper: bool) -> Dict[str, Any]:
         base_params = {
-            'depth': randint(1, 6),  # 1-5 hidden layers
-            'width': randint(50, 401),  # 50-400 neurons per layer
-            'learning_rate': loguniform(0.0001, 0.01),
-            'weight_decay': loguniform(0.00001, 0.1),
-            'activation': ['relu', 'elu'],  # Streamlined: best performers only
-            'optimizer': ['adam', 'adamw', 'rmsprop'],  # Streamlined: removed sgd
-            'batch_size': [64, 128, 256],  # Optimize (affects GPU util & generalization)
-            'dropout_rate': uniform(0.0, 0.5),  # NEW: Dropout for regularization
-            'use_batch_norm': [True, False]  # NEW: Batch normalization
-            # validation_fraction=0.1, max_epochs=1500, patience=50 are fixed
+            'hidden_layer_sizes': [(100,), (200,), (100,50), (200,100), (300,200,100)],
+            'learning_rate_init': uniform(0.0001, 0.0099),
+            'alpha': uniform(0.0001, 0.0999),
+            'activation': ['relu', 'tanh'],
+            'solver': ['adam', 'lbfgs']
+            # random_state and max_iter are fixed parameters
         }
         if needs_wrapper:
             return {f'estimator__{k}': v for k, v in base_params.items()}
@@ -1078,40 +1047,22 @@ class NeuralNetParameterHandler(ModelParameterHandler):
         prefix = 'estimator__' if needs_wrapper else ''
         param_grid = {}
 
-        # Integer parameters (streamlined: removed max_epochs, patience)
-        for param_name, min_val, max_val in [
-            ('depth', 1, 5),
-            ('width', 50, 400)
-        ]:
-            value = get_param_value(best_params, param_name)
-            param_grid[f'{prefix}{param_name}'] = create_focused_grid(
-                value, 'integer', min_val, max_val)
+        # Hidden layer sizes
+        layers = get_param_value(best_params, 'hidden_layer_sizes')
+        layer_variations = self._generate_layer_variations(layers)
+        param_grid[f'{prefix}hidden_layer_sizes'] = layer_variations[:5]
 
         # Continuous parameters
         for param_name, min_val, max_val in [
-            ('learning_rate', 0.0001, 0.01),
-            ('weight_decay', 0.00001, 0.1)
+            ('learning_rate_init', 0.0001, 0.01),
+            ('alpha', 0.0001, 0.1)
         ]:
             value = get_param_value(best_params, param_name)
             param_grid[f'{prefix}{param_name}'] = create_focused_grid(
                 value, 'continuous', min_val, max_val)
 
-        # Continuous parameter: dropout_rate
-        dropout_rate = get_param_value(best_params, 'dropout_rate')
-        bc = BoundsCalculator()
-        lower, upper = bc.get_safe_range_20_percent(dropout_rate, 'continuous', 0.0, 0.5, 'dropout_rate')
-        param_grid[f'{prefix}dropout_rate'] = create_focused_grid(dropout_rate, 'continuous', lower, upper)
-
         # Categorical parameters
-        activation = get_param_value(best_params, 'activation')
-        optimizer = get_param_value(best_params, 'optimizer')
-        batch_size = get_param_value(best_params, 'batch_size')
-        use_batch_norm = get_param_value(best_params, 'use_batch_norm')
-
-        param_grid[f'{prefix}activation'] = [activation]
-        param_grid[f'{prefix}optimizer'] = [optimizer]
-        param_grid[f'{prefix}batch_size'] = [batch_size]
-        param_grid[f'{prefix}use_batch_norm'] = [use_batch_norm]
+        param_grid[f'{prefix}activation'] = [get_param_value(best_params, 'activation')]
 
         return param_grid
 
@@ -1120,41 +1071,52 @@ class NeuralNetParameterHandler(ModelParameterHandler):
         search_spaces = {}
         bc = BoundsCalculator()
 
-        # Integer parameters (streamlined: removed max_epochs, patience)
-        for param_name, min_val, max_val in [
-            ('depth', 1, 5),
-            ('width', 50, 400)
-        ]:
-            value = get_param_value(best_params, param_name)
-            lower, upper = bc.get_safe_range_20_percent(value, 'integer', min_val, max_val, param_name)
-            search_spaces[f'{prefix}{param_name}'] = Integer(lower, upper)
-
         # Continuous parameters with log-uniform prior
         for param_name, min_val, max_val in [
-            ('learning_rate', 0.0001, 0.01),
-            ('weight_decay', 0.00001, 0.1)
+            ('learning_rate_init', 0.0001, 0.01),
+            ('alpha', 0.0001, 0.1)
         ]:
             value = get_param_value(best_params, param_name)
-            lower, upper = bc.get_safe_range_20_percent(value, 'continuous', min_val, max_val, param_name)
+            lower, upper = bc.safe_bounds(value*0.5, value*2.0, min_val, max_val)
             search_spaces[f'{prefix}{param_name}'] = Real(lower, upper, prior='log-uniform')
 
-        # Dropout (uniform prior)
-        dropout_rate = get_param_value(best_params, 'dropout_rate')
-        lower, upper = bc.get_safe_range_20_percent(dropout_rate, 'continuous', 0.0, 0.5, 'dropout_rate')
-        search_spaces[f'{prefix}dropout_rate'] = Real(lower, upper, prior='uniform')
-
         # Categorical parameters
+        layers = get_param_value(best_params, 'hidden_layer_sizes')
         activation = get_param_value(best_params, 'activation')
-        optimizer = get_param_value(best_params, 'optimizer')
-        batch_size = get_param_value(best_params, 'batch_size')
-        use_batch_norm = get_param_value(best_params, 'use_batch_norm')
 
+        search_spaces[f'{prefix}hidden_layer_sizes'] = Categorical([layers])
         search_spaces[f'{prefix}activation'] = Categorical([activation])
-        search_spaces[f'{prefix}optimizer'] = Categorical([optimizer])
-        search_spaces[f'{prefix}batch_size'] = Categorical([batch_size])
-        search_spaces[f'{prefix}use_batch_norm'] = Categorical([use_batch_norm])
 
         return search_spaces
+
+    def _generate_layer_variations(self, layers: Tuple[int, ...]) -> List[Tuple[int, ...]]:
+        """Generate variations of neural network architectures"""
+        layer_variations = []
+        if isinstance(layers, tuple):
+            base_layers = list(layers)
+            deltas = [-50, -25, 0, 25, 50]
+            for delta in deltas:
+                new_layers = tuple(max(50, min(400, l + delta)) for l in base_layers)
+                if new_layers not in layer_variations:
+                    layer_variations.append(new_layers)
+
+            # Add standard architectures if needed
+            standard_architectures = [(100,), (200,), (100,50), (200,100), (300,), (100,100), (200,200)]
+            for arch in standard_architectures:
+                if arch not in layer_variations and len(layer_variations) < 5:
+                    layer_variations.append(arch)
+        else:
+            layer_variations = [(100,), (200,), (100,50), (200,100), (300,)]
+
+        # Ensure we have enough variations
+        for size in [150, 250, 350]:
+            if len(layer_variations) >= 5:
+                break
+            arch = (size,)
+            if arch not in layer_variations:
+                layer_variations.append(arch)
+
+        return layer_variations
 
 # ============================================================================
 # PARAMETER HANDLER FACTORY
@@ -1252,10 +1214,10 @@ def setup_cross_validation(X_train: np.ndarray, y_train: np.ndarray,
         if n_unique_groups < 2:
             raise ValueError(f"GroupKFold requires at least 2 unique groups, got {n_unique_groups}")
 
-        n_splits = min(5, n_unique_groups)  # Changed from 10 to 5 folds
+        n_splits = min(10, n_unique_groups)
         n_splits = max(2, n_splits)
 
-        if n_splits < 5:
+        if n_splits < 10:
             print(f"   - WARNING: Only {n_unique_groups} unique groups available, using {n_splits}-fold CV")
 
         cv = GroupKFold(n_splits=n_splits)
@@ -1282,8 +1244,8 @@ def setup_cross_validation(X_train: np.ndarray, y_train: np.ndarray,
             print(f"   - Test samples per config: {len(test_idx) / test_configs:.1f}")
             break
     else:
-        cv = 5
-        n_splits = 5
+        cv = 10
+        n_splits = 10
         print(f"   - WARNING: No groups provided - may have CV leakage!")
         print(f"   - Using regular {cv}-fold cross-validation")
 
@@ -1729,7 +1691,7 @@ def clean_optimization_parameters(params_dict: Dict[str, Any]) -> Dict[str, Any]
 # ============================================================================
 def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost',
                            n_jobs=-1, target_type='flux', use_log_flux=True, groups=None,
-                           n_random_iter=None, n_bayesian_iter=None, fast_mode=False, n_gpus=1):
+                           n_random_iter=None, n_bayesian_iter=None, fast_mode=False):
     """
     Three-stage hyperparameter optimization: Random → Grid → Bayesian
 
@@ -1811,7 +1773,7 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
                     needs_wrapper = True
             else:
                 # Fallback: check if model type typically needs wrapper
-                native_multioutput = model_type in ['random_forest', 'neural_net']  # RF and NN have native support
+                native_multioutput = model_type in ['random_forest']  # Only RF has native support
                 if native_multioutput:
                     print(f"   - Multi-output: Native support detected for {model_type}")
                     needs_wrapper = False
@@ -1848,17 +1810,6 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
 
     # Extract fixed parameters that should not be optimized
     fixed_params = handler.get_fixed_params()
-
-    # Update device parameter for neural_net
-    if model_type == 'neural_net':
-        try:
-            if torch.cuda.is_available():
-                fixed_params['device'] = 'cuda'  # Will use CUDA_VISIBLE_DEVICES from environment
-                print(f"\n   - GPU Mode: Neural network will use available GPUs")
-                print(f"   - Ray Tune will handle GPU assignment")
-        except:
-            pass  # PyTorch not available
-
     print(f"\nFixed Parameters (not optimized):")
     for param, value in fixed_params.items():
         print(f"   - {param}: {value}")
