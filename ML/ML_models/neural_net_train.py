@@ -114,27 +114,8 @@ class PyTorchRegressorWrapper(BaseEstimator, RegressorMixin):
         self.patience = patience
         self.optimizer = optimizer
         self.validation_fraction = validation_fraction
-        self.n_gpus = n_gpus  # Store for reference
-
-        # Auto-detect device: prefer GPU if available
-        if device is None:
-            if torch.cuda.is_available():
-                if n_gpus > 1:
-                    # Multi-GPU assignment using random seed
-                    import os
-                    import random
-                    pid = os.getpid()
-                    random.seed(pid)
-                    gpu_id = random.randint(0, n_gpus - 1)
-                    self.device = f'cuda:{gpu_id}'
-                    # Always print for debugging multi-GPU
-                    print(f"  [PID {pid}] Assigned to GPU {gpu_id} via random.seed({pid})")
-                else:
-                    self.device = 'cuda'
-            else:
-                self.device = 'cpu'
-        else:
-            self.device = device
+        self.n_gpus = n_gpus  # Store for later
+        self.device = device  # Store, but assign lazily in fit()
         self.verbose = verbose
         self.random_state = random_state
 
@@ -185,6 +166,23 @@ class PyTorchRegressorWrapper(BaseEstimator, RegressorMixin):
             Fitted estimator
         """
         self._set_random_seed()
+
+        # Lazy device assignment (happens in worker process, not parent!)
+        if self.device is None:
+            if torch.cuda.is_available():
+                if self.n_gpus > 1:
+                    # Multi-GPU assignment in worker process
+                    import os
+                    import random
+                    pid = os.getpid()
+                    random.seed(pid)
+                    gpu_id = random.randint(0, self.n_gpus - 1)
+                    self.device = f'cuda:{gpu_id}'
+                    print(f"  [Worker PID {pid}] Assigned to GPU {gpu_id}")
+                else:
+                    self.device = 'cuda'
+            else:
+                self.device = 'cpu'
 
         # Convert to numpy arrays
         X = np.asarray(X, dtype=np.float32)
