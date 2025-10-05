@@ -516,7 +516,11 @@ class InteractiveTrainer:
 
                         # Split data
                         print("Splitting data...")
-                        data_splits = self.data_handler.split_data(X, y_flux, y_keff, groups)
+                        data_splits = self.data_handler.split_data(
+                            X, y_flux, y_keff, groups,
+                            test_size=self.config.test_size,
+                            random_state=self.config.random_state
+                        )
 
                         # Update training info
                         if 'n_samples' not in all_results['training_info']:

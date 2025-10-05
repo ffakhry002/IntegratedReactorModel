@@ -59,6 +59,7 @@ class ModelTrainer:
 
         # Get best hyperparameters
         optimization_start = time.time()
+        best_cv_score = None  # Track CV score from optimization
 
         if config.optimization == 'optuna':
             print(f"Starting Optuna optimization...")
@@ -68,10 +69,10 @@ class ModelTrainer:
                     model_type=model_type,
                     n_trials=config.n_trials,
                     n_jobs=config.n_jobs,
-                    groups=groups_train,  # NEW: Pass groups
-                    flux_mode=flux_mode,   # NEW: Pass flux mode
-                    encoding=encoding,  # NEW: Pass encoding
-                    n_gpus=config.n_gpus  # NEW: Pass GPU count
+                    groups=groups_train,
+                    flux_mode=flux_mode,
+                    encoding=encoding
+                    # Note: n_gpus not needed - Optuna uses sklearn MLP (CPU-only)
                 )
             else:  # keff
                 best_params, study = optimize_keff_model(
@@ -79,9 +80,9 @@ class ModelTrainer:
                     model_type=model_type,
                     n_trials=config.n_trials,
                     n_jobs=config.n_jobs,
-                    groups=groups_train,  # NEW: Pass groups
-                    encoding=encoding,  # NEW: Pass encoding
-                    n_gpus=config.n_gpus  # NEW: Pass GPU count
+                    groups=groups_train,
+                    encoding=encoding
+                    # Note: n_gpus not needed - Optuna uses sklearn MLP (CPU-only)
                 )
 
             # Check if optimization completed or timed out
@@ -91,6 +92,10 @@ class ModelTrainer:
             else:
                 print(f" Optimization complete!")
                 print(f"  Best parameters found: {best_params}")
+                # Capture CV score from Optuna
+                if study is not None:
+                    best_cv_score = study.best_value
+                    print(f"  Best CV MAPE: {best_cv_score:.2f}%")
 
         elif config.optimization == 'three_stage':
             print(f"Starting three-stage optimization...")
@@ -113,6 +118,10 @@ class ModelTrainer:
                 best_params = self._get_default_params(model_type)
             else:
                 print(f" Optimization complete!")
+                # Capture CV score from Three-Stage
+                if search is not None and hasattr(search, 'best_score_'):
+                    best_cv_score = abs(search.best_score_)  # Negative MSE, so take abs
+                    print(f"  Best CV score: {best_cv_score:.6f}")
 
         elif config.optimization == 'raytune':
             print(f"Starting Ray Tune optimization...")
@@ -127,6 +136,13 @@ class ModelTrainer:
                     use_log_flux=self.data_handler.use_log_flux if target == 'flux' else False
                 )
                 print(f" Ray Tune complete!")
+                # Capture CV score from Ray Tune
+                if analysis is not None:
+                    best_trial = analysis.best_trial
+                    if best_trial is not None:
+                        best_cv_score = best_trial.last_result.get('mape', None)
+                        if best_cv_score is not None:
+                            print(f"  Best CV MAPE: {best_cv_score:.2f}%")
             else:
                 print(f"  Ray Tune only supports neural_net. Using default parameters.")
                 best_params = self._get_default_params(model_type)
@@ -148,13 +164,33 @@ class ModelTrainer:
         print(f"  Final model training took {training_time:.1f} seconds")
 
         # Evaluate
-        print(f"\n Evaluating on test set...")
-        eval_start = time.time()
+        # Check if we have a test set (test_size > 0) or if using CV only (test_size = 0)
+        if X_test is not None and len(X_test) > 0:
+            print(f"\n Evaluating on test set...")
+            eval_start = time.time()
+            metrics = self._evaluate_model(model, X_test, y_test, target)
+            eval_time = time.time() - eval_start
+            print(f"  Evaluation took {eval_time:.1f} seconds")
+        else:
+            # No test set - model was validated via CV during hyperparameter optimization
+            print(f"\n Model validated via cross-validation during hyperparameter optimization")
+            print(f"  Model trained on {len(X_train)} configurations")
+            if best_cv_score is not None:
+                print(f"  Best CV MAPE: {best_cv_score:.2f}%")
+            print(f"  No held-out test set (test_size=0.0)")
+            print(f"  For evaluation on external test data, use test.py with external test configs")
 
-        metrics = self._evaluate_model(model, X_test, y_test, target)
-
-        eval_time = time.time() - eval_start
-        print(f"  Evaluation took {eval_time:.1f} seconds")
+            # Create metrics with CV score
+            metrics = {
+                'mse': None,
+                'rmse': None,
+                'mae': None,
+                'r2': None,
+                'mape': best_cv_score,  # Use CV MAPE
+                'relative_error': best_cv_score / 100 if best_cv_score else None,
+                'cv_score': best_cv_score,
+                'note': 'Model validated via CV. Use test.py for external test evaluation.'
+            }
 
         total_time = time.time() - optimization_start
         print(f"\n Total time for {model_type} {target}: {total_time/60:.1f} minutes")
