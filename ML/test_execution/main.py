@@ -206,7 +206,15 @@ def run_testing(outputs_dir=None):
         """
         print("\n" + "-"*40)
         print(f"Results for: {model_type_desc}")
-        output_file = input("Output Excel filename (press Enter for timestamp): ").strip()
+
+        # Handle non-interactive environments (SLURM batch jobs)
+        try:
+            output_file = input("Output Excel filename (press Enter for timestamp): ").strip()
+        except EOFError:
+            # Non-interactive environment - use timestamp automatically
+            output_file = ""
+            print("Non-interactive mode detected - using timestamp for filename")
+
         if not output_file:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             output_file = f"{model_type_desc.lower().replace(' ', '_')}_{timestamp}.xlsx"
