@@ -21,7 +21,7 @@ import torch
 import pickle
 
 def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
-                                n_gpus=2, target_type='flux', use_log_flux=True):
+                                n_gpus=2, target_type='flux', use_log_flux=True, encoding='physics'):
     """
     Optimize neural network hyperparameters using Ray Tune
 
@@ -41,6 +41,8 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
         'flux' or 'keff'
     use_log_flux : bool
         Whether flux data is log-transformed
+    encoding : str
+        Encoding type for consistent naming (default: 'physics')
 
     Returns
     -------
@@ -61,17 +63,33 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
         print(f"Unique configs: {len(np.unique(groups))}")
     print(f"{'='*60}\n")
 
-    # Define search space
+    # Define search space - NOW WITH ARCHITECTURE DIVERSITY!
     config_space = {
-        "depth": tune.randint(1, 6),  # 1-5 hidden layers
-        "width": tune.randint(50, 401),  # 50-400 neurons
+        # Architecture parameters
+        "architecture_type": tune.choice([
+            'rectangular', 'pyramidal', 'funnel',
+            'hourglass', 'expanding', 'bottleneck'
+        ]),
+        "depth": tune.randint(2, 7),  # 2-6 hidden layers
+        "base_width": tune.randint(50, 451),  # 50-450 neurons (base for calculating layer widths)
+
+        # Activation strategy
+        "activation_strategy": tune.choice([
+            'uniform',        # Same activation for all layers
+            'mixed',          # Alternating activations
+            'progressive',    # Gradual transition
+            'deep_relu'       # ReLU early, ELU deep
+        ]),
+        "primary_activation": tune.choice(['relu', 'elu', 'gelu', 'selu']),
+
+        # Training parameters
         "learning_rate": tune.loguniform(1e-4, 1e-2),
         "weight_decay": tune.loguniform(1e-5, 0.1),
-        "activation": tune.choice(['relu', 'elu']),
         "optimizer": tune.choice(['adam', 'adamw', 'rmsprop']),
         "batch_size": tune.choice([64, 128, 256]),
-        "dropout_rate": tune.uniform(0.0, 0.5),  # NEW: Dropout for regularization
-        "use_batch_norm": tune.choice([True, False]),  # NEW: Batch normalization
+        "dropout_rate": tune.uniform(0.0, 0.5),
+        "use_batch_norm": tune.choice([True, False]),
+
         # Fixed params
         "max_epochs": 1500,
         "patience": 50,
@@ -83,26 +101,50 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
     # Define training function
     def train_neural_net(config, X=X_train, y=y_train, groups=groups):
         """Train function called by Ray Tune"""
-        from ML_models.neural_net_train import PyTorchRegressorWrapper
+        from ML_models.neural_net_train import PyTorchFlexibleRegressorWrapper
+        from ML_models.neural_architectures import create_heterogeneous_activations
+
+        # Determine activation configuration
+        if config['activation_strategy'] == 'uniform':
+            activations = config['primary_activation']
+        else:
+            # Create heterogeneous activation pattern
+            activations = create_heterogeneous_activations(
+                config['depth'],
+                pattern=config['activation_strategy']
+            )
+            # Replace default activations with primary_activation if it's not relu
+            if config['primary_activation'] != 'relu' and config['activation_strategy'] != 'progressive':
+                # For mixed/deep_relu patterns, use primary_activation instead of relu
+                activations = [config['primary_activation'] if act == 'relu' else act
+                              for act in activations]
 
         print(f"\n{'='*60}")
         print(f"NEW TRIAL STARTING")
         print(f"{'='*60}")
-        print(f"Hyperparameters:")
-        print(f"  Architecture: depth={config['depth']}, width={config['width']}")
-        print(f"  Training: lr={config['learning_rate']:.6f}, optimizer={config['optimizer']}")
-        print(f"  Regularization: weight_decay={config['weight_decay']:.6f}, dropout={config['dropout_rate']:.3f}")
-        print(f"  Other: activation={config['activation']}, batch_size={config['batch_size']}, batch_norm={config['use_batch_norm']}")
+        print(f"Architecture:")
+        print(f"  Type: {config['architecture_type']}, Depth: {config['depth']}, Base Width: {config['base_width']}")
+        print(f"  Activation Strategy: {config['activation_strategy']}")
+        if isinstance(activations, list):
+            print(f"  Layer Activations: {' → '.join(activations)}")
+        else:
+            print(f"  Activation: {activations}")
+        print(f"Training:")
+        print(f"  Learning Rate: {config['learning_rate']:.6f}, Optimizer: {config['optimizer']}")
+        print(f"  Weight Decay: {config['weight_decay']:.6f}, Batch Size: {config['batch_size']}")
+        print(f"Regularization:")
+        print(f"  Dropout: {config['dropout_rate']:.3f}, Batch Norm: {config['use_batch_norm']}")
         print(f"{'='*60}")
 
         # Use CUDA - Ray Tune handles GPU assignment via CUDA_VISIBLE_DEVICES
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-        # Create model with Ray-assigned device
-        model = PyTorchRegressorWrapper(
+        # Create model with flexible architecture
+        model = PyTorchFlexibleRegressorWrapper(
+            architecture_type=config["architecture_type"],
+            base_width=config["base_width"],
             depth=config["depth"],
-            width=config["width"],
-            activation=config["activation"],
+            activations=activations,
             optimizer=config["optimizer"],
             learning_rate=config["learning_rate"],
             weight_decay=config["weight_decay"],
@@ -190,7 +232,7 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
 
     # Intelligent search algorithm (Optuna's TPE)
     # Don't pass metric/mode here - will pass to tune.run() instead
-    n_startup = min(50, n_trials // 3)  # 50 random trials or 1/3 of total
+    n_startup = min(50, n_trials // 4)  # 50 random trials or 1/3 of total
     search_alg = OptunaSearch(
         sampler=TPESampler(
             n_startup_trials=n_startup,  # Random exploration first
@@ -241,28 +283,45 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
     print(f"{'='*60}\n")
 
     # Save results and create visualizations
-    _save_raytune_results(analysis, target_type, n_gpus)
+    _save_raytune_results(analysis, target_type, n_gpus, encoding)
+
+    # Reconstruct activations configuration for return params
+    if best_params['activation_strategy'] == 'uniform':
+        best_activations = best_params['primary_activation']
+    else:
+        from ML_models.neural_architectures import create_heterogeneous_activations
+        best_activations = create_heterogeneous_activations(
+            best_params['depth'],
+            pattern=best_params['activation_strategy']
+        )
+        if best_params['primary_activation'] != 'relu' and best_params['activation_strategy'] != 'progressive':
+            best_activations = [best_params['primary_activation'] if act == 'relu' else act
+                              for act in best_activations]
 
     # Return only the hyperparameters (not fixed params)
     return_params = {
+        'architecture_type': best_params['architecture_type'],
+        'base_width': best_params['base_width'],
         'depth': best_params['depth'],
-        'width': best_params['width'],
+        'activations': best_activations,
         'learning_rate': best_params['learning_rate'],
         'weight_decay': best_params['weight_decay'],
-        'activation': best_params['activation'],
         'optimizer': best_params['optimizer'],
         'batch_size': best_params['batch_size'],
         'dropout_rate': best_params['dropout_rate'],
         'use_batch_norm': best_params['use_batch_norm'],
         'max_epochs': best_params['max_epochs'],
         'patience': best_params['patience'],
-        'device': None  # Will auto-detect during final training
+        'device': None,  # Will auto-detect during final training
+        # Keep backward compatibility
+        'width': best_params['base_width'],  # For compatibility with old code
+        'activation': best_params['primary_activation']
     }
 
     return return_params, analysis
 
 
-def _save_raytune_results(analysis, target_type, n_gpus):
+def _save_raytune_results(analysis, target_type, n_gpus, encoding='physics'):
     """Save Ray Tune results and create visualizations (similar to Optuna)"""
 
     # Create separate directory for each target type
@@ -285,12 +344,19 @@ def _save_raytune_results(analysis, target_type, n_gpus):
         if hasattr(analysis, 'search_alg') and hasattr(analysis.search_alg, '_ot_study'):
             optuna_study = analysis.search_alg._ot_study
 
-            # Save Optuna study
-            study_file = f"optuna_study_{target_type}.pkl"
-            study_path = os.path.join(outputs_dir, study_file)
-            with open(study_path, 'wb') as f:
-                pickle.dump(optuna_study, f)
-            print(f"Optuna study saved to: {study_path}")
+            # Save Optuna study to CONSISTENT location (same as other models)
+            optuna_studies_dir = os.path.join(base_dir, 'outputs', 'optuna_studies')
+            os.makedirs(optuna_studies_dir, exist_ok=True)
+
+            # Use consistent naming: neural_net_raytune_{target}_{encoding}_study.pkl
+            study_filename = f"neural_net_raytune_{target_type}_{encoding}_study.pkl"
+            study_path = os.path.join(optuna_studies_dir, study_filename)
+
+            import joblib
+            joblib.dump(optuna_study, study_path)
+            print(f"\nOptuna study saved to: {study_path}")
+            print(f"You can load it later for visualization using:")
+            print(f"  study = joblib.load('{study_path}')")
 
             # Create Optuna-style plots
             _create_optuna_plots(optuna_study, plots_dir, target_type)

@@ -133,7 +133,8 @@ class ModelTrainer:
                     n_trials=config.n_trials if hasattr(config, 'n_trials') else 100,
                     n_gpus=config.n_gpus,
                     target_type=target,
-                    use_log_flux=self.data_handler.use_log_flux if target == 'flux' else False
+                    use_log_flux=self.data_handler.use_log_flux if target == 'flux' else False,
+                    encoding=encoding
                 )
                 print(f" Ray Tune complete!")
                 # Capture CV score from Ray Tune

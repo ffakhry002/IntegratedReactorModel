@@ -6,6 +6,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.base import BaseEstimator, RegressorMixin
 import numpy as np
 from .base_model import ReactorModelBase
+from .neural_architectures import FlexibleNeuralNet
 import warnings
 
 
@@ -589,3 +590,318 @@ class NeuralNetReactorModel(ReactorModelBase):
                 self.flux_scaler = data['scaler']
             else:
                 self.keff_scaler = data['scaler']
+
+
+class PyTorchFlexibleRegressorWrapper(BaseEstimator, RegressorMixin):
+    """Sklearn-compatible wrapper for flexible PyTorch neural network architectures.
+
+    Supports:
+    - Multiple architecture types (rectangular, pyramidal, funnel, hourglass, etc.)
+    - Heterogeneous activation functions per layer
+    - GPU training with Ray Tune integration
+    """
+
+    def __init__(self, architecture_type='rectangular', base_width=100, depth=2,
+                 activations='relu', learning_rate=0.001, batch_size=128,
+                 max_epochs=1000, weight_decay=0.0001, patience=20,
+                 optimizer='adam', validation_fraction=0.1, dropout_rate=0.0,
+                 use_batch_norm=False, device=None, verbose=False, random_state=42,
+                 width_multipliers=None):
+        """Initialize flexible PyTorch regressor wrapper.
+
+        Parameters
+        ----------
+        architecture_type : str
+            Architecture pattern: 'rectangular', 'pyramidal', 'funnel',
+            'hourglass', 'expanding', 'bottleneck', 'custom'
+        base_width : int
+            Base width for calculating layer widths
+        depth : int
+            Number of hidden layers
+        activations : str or List[str]
+            Single activation for all layers, or list of activations per layer
+        learning_rate : float
+            Learning rate for optimizer
+        batch_size : int
+            Batch size for training
+        max_epochs : int
+            Maximum number of training epochs
+        weight_decay : float
+            L2 regularization strength
+        patience : int
+            Early stopping patience (epochs without improvement)
+        optimizer : str
+            Optimizer type ('adam', 'sgd', 'adamw', 'rmsprop')
+        validation_fraction : float
+            Fraction of training data to use for validation
+        dropout_rate : float
+            Dropout probability
+        use_batch_norm : bool
+            Whether to use batch normalization
+        device : str
+            Device to use ('cuda' or 'cpu')
+        verbose : bool
+            Whether to print training progress
+        random_state : int
+            Random seed for reproducibility
+        width_multipliers : List[float], optional
+            Custom width multipliers for 'custom' architecture
+        """
+        self.architecture_type = architecture_type
+        self.base_width = base_width
+        self.depth = depth
+        self.activations = activations
+        self.learning_rate = learning_rate
+        self.batch_size = batch_size
+        self.max_epochs = max_epochs
+        self.weight_decay = weight_decay
+        self.patience = patience
+        self.optimizer = optimizer
+        self.validation_fraction = validation_fraction
+        self.dropout_rate = dropout_rate
+        self.use_batch_norm = use_batch_norm
+        self.verbose = verbose
+        self.random_state = random_state
+        self.width_multipliers = width_multipliers
+
+        # Device assignment
+        if device is None:
+            self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        else:
+            self.device = device
+
+        self.model = None
+        self.input_dim = None
+        self.output_dim = None
+
+    def _set_random_seed(self):
+        """Set random seeds for reproducibility."""
+        torch.manual_seed(self.random_state)
+        np.random.seed(self.random_state)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed(self.random_state)
+            torch.cuda.manual_seed_all(self.random_state)
+
+    def _create_optimizer(self, model):
+        """Create optimizer based on specified type."""
+        optimizer_map = {
+            'adam': optim.Adam,
+            'sgd': optim.SGD,
+            'adamw': optim.AdamW,
+            'rmsprop': optim.RMSprop
+        }
+
+        optimizer_class = optimizer_map.get(self.optimizer.lower(), optim.Adam)
+
+        if self.optimizer.lower() == 'sgd':
+            return optimizer_class(model.parameters(), lr=self.learning_rate,
+                                 weight_decay=self.weight_decay, momentum=0.9)
+        else:
+            return optimizer_class(model.parameters(), lr=self.learning_rate,
+                                 weight_decay=self.weight_decay)
+
+    def fit(self, X, y, groups=None):
+        """Fit the neural network.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Training data
+        y : array-like of shape (n_samples,) or (n_samples, n_outputs)
+            Target values
+        groups : array-like, optional
+            Group labels for group-aware validation split
+
+        Returns
+        -------
+        self
+            Fitted estimator
+        """
+        self._set_random_seed()
+
+        # Convert to numpy arrays
+        X = np.asarray(X, dtype=np.float32)
+        y = np.asarray(y, dtype=np.float32)
+
+        # Handle target shape
+        if len(y.shape) == 1:
+            y = y.reshape(-1, 1)
+
+        self.input_dim = X.shape[1]
+        self.output_dim = y.shape[1]
+
+        # Split into train/validation
+        n_samples = X.shape[0]
+        n_val = int(n_samples * self.validation_fraction)
+        use_validation = n_val > 0
+
+        if use_validation:
+            if groups is not None:
+                from sklearn.model_selection import GroupShuffleSplit
+                gss = GroupShuffleSplit(n_splits=1, test_size=self.validation_fraction,
+                                       random_state=self.random_state)
+                train_indices, val_indices = next(gss.split(X, y, groups))
+                X_train, y_train = X[train_indices], y[train_indices]
+                X_val, y_val = X[val_indices], y[val_indices]
+            else:
+                indices = np.arange(n_samples)
+                np.random.seed(self.random_state)
+                np.random.shuffle(indices)
+                val_indices = indices[:n_val]
+                train_indices = indices[n_val:]
+                X_train, y_train = X[train_indices], y[train_indices]
+                X_val, y_val = X[val_indices], y[val_indices]
+        else:
+            X_train, y_train = X, y
+            train_indices = np.arange(n_samples)
+
+        # Create data loaders
+        train_dataset = TensorDataset(
+            torch.FloatTensor(X_train),
+            torch.FloatTensor(y_train)
+        )
+        train_loader = DataLoader(train_dataset, batch_size=self.batch_size,
+                                 shuffle=True, drop_last=False, num_workers=0)
+
+        if use_validation:
+            val_dataset = TensorDataset(
+                torch.FloatTensor(X_val),
+                torch.FloatTensor(y_val)
+            )
+            val_loader = DataLoader(val_dataset, batch_size=self.batch_size,
+                                   shuffle=False, num_workers=0)
+
+        # Create flexible architecture model
+        self.model = FlexibleNeuralNet(
+            input_dim=self.input_dim,
+            output_dim=self.output_dim,
+            architecture_type=self.architecture_type,
+            base_width=self.base_width,
+            depth=self.depth,
+            activations=self.activations,
+            dropout_rate=self.dropout_rate,
+            use_batch_norm=self.use_batch_norm,
+            width_multipliers=self.width_multipliers
+        )
+
+        # Print architecture info if verbose
+        if self.verbose:
+            arch_info = self.model.get_architecture_info()
+            print(f"\nFlexible Neural Network Architecture:")
+            print(f"  Type: {arch_info['architecture_type']}")
+            print(f"  Depth: {arch_info['depth']}")
+            print(f"  Layer widths: {arch_info['layer_widths']}")
+            print(f"  Activations: {' → '.join(arch_info['activations'])}")
+            print(f"  Total parameters: {arch_info['total_params']:,}\n")
+
+        # Move to device
+        if self.device != 'cpu':
+            self.model = self.model.to(self.device)
+
+        # Create optimizer and loss function
+        optimizer = self._create_optimizer(self.model)
+        criterion = nn.MSELoss()
+
+        # Training loop with early stopping
+        best_val_loss = float('inf')
+        patience_counter = 0
+
+        for epoch in range(self.max_epochs):
+            # Training phase
+            self.model.train()
+            train_loss = 0.0
+
+            for batch_X, batch_y in train_loader:
+                if self.device != 'cpu':
+                    batch_X = batch_X.to(self.device)
+                    batch_y = batch_y.to(self.device)
+
+                optimizer.zero_grad()
+                predictions = self.model(batch_X)
+                loss = criterion(predictions, batch_y)
+                loss.backward()
+                optimizer.step()
+
+                train_loss += loss.item() * batch_X.size(0)
+
+            train_loss /= len(train_indices)
+
+            # Validation phase
+            if use_validation:
+                self.model.eval()
+                val_loss = 0.0
+
+                with torch.no_grad():
+                    for batch_X, batch_y in val_loader:
+                        if self.device != 'cpu':
+                            batch_X = batch_X.to(self.device)
+                            batch_y = batch_y.to(self.device)
+
+                        predictions = self.model(batch_X)
+                        loss = criterion(predictions, batch_y)
+                        val_loss += loss.item() * batch_X.size(0)
+
+                val_loss /= len(val_indices)
+
+                # Early stopping check
+                if val_loss < best_val_loss:
+                    best_val_loss = val_loss
+                    patience_counter = 0
+                    self.best_model_state = {k: v.cpu() for k, v in self.model.state_dict().items()}
+                else:
+                    patience_counter += 1
+
+                if self.verbose and (epoch % 50 == 0 or epoch == self.max_epochs - 1):
+                    print(f"  Epoch {epoch+1}/{self.max_epochs} - "
+                          f"Train Loss: {train_loss:.6f}, Val Loss: {val_loss:.6f}")
+
+                if self.patience is not None and patience_counter >= self.patience:
+                    if self.verbose:
+                        print(f"  Early stopping at epoch {epoch+1}")
+                    break
+            else:
+                if self.verbose and (epoch % 50 == 0 or epoch == self.max_epochs - 1):
+                    print(f"  Epoch {epoch+1}/{self.max_epochs} - Train Loss: {train_loss:.6f}")
+
+        # Restore best model
+        if hasattr(self, 'best_model_state'):
+            if self.device != 'cpu':
+                self.model.load_state_dict({k: v.to(self.device)
+                                           for k, v in self.best_model_state.items()})
+            else:
+                self.model.load_state_dict(self.best_model_state)
+
+        return self
+
+    def predict(self, X):
+        """Predict using the neural network.
+
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Input data
+
+        Returns
+        -------
+        y_pred : array-like of shape (n_samples,) or (n_samples, n_outputs)
+            Predicted values
+        """
+        if self.model is None:
+            raise ValueError("Model not fitted yet")
+
+        X = np.asarray(X, dtype=np.float32)
+
+        self.model.eval()
+        with torch.no_grad():
+            X_tensor = torch.FloatTensor(X)
+            if self.device != 'cpu':
+                X_tensor = X_tensor.to(self.device)
+            predictions = self.model(X_tensor)
+            if self.device != 'cpu':
+                predictions = predictions.cpu()
+            predictions = predictions.numpy()
+
+        if self.output_dim == 1:
+            return predictions.ravel()
+        else:
+            return predictions
