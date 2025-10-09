@@ -1691,7 +1691,7 @@ def clean_optimization_parameters(params_dict: Dict[str, Any]) -> Dict[str, Any]
 # ============================================================================
 def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost',
                            n_jobs=-1, target_type='flux', use_log_flux=True, groups=None,
-                           n_random_iter=None, n_bayesian_iter=None, fast_mode=False):
+                           n_random_iter=None, n_bayesian_iter=None, fast_mode=False, n_gpus=0):
     """
     Three-stage hyperparameter optimization: Random → Grid → Bayesian
 
@@ -1707,6 +1707,7 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
         n_random_iter: Number of random search iterations
         n_bayesian_iter: Number of Bayesian search iterations
         fast_mode: If True, uses reduced iteration counts for quick testing
+        n_gpus: Number of GPUs to use (unused for XGBoost and SVM, included for compatibility)
 
     Returns:
         tuple: (best_params, None)
