@@ -3,8 +3,8 @@ base_inputs = {
     ###########################################
     # Parametric Study Configuration
     ###########################################
-    "parametric_study": False,        # Toggle for parametric study mode
-    "fast_mode": False,              # Toggle for fast mode
+    "parametric_study": True,        # Toggle for parametric study mode
+    "fast_mode": True,              # Toggle for fast mode
 
     ###########################################
     # Core Configuration
@@ -98,7 +98,7 @@ base_inputs = {
 
     # Complexity
     "irradiation_cell_complexity": "Complex", # Simple: smeared channels, Complex: MCNP provided positions
-    "match_GS_height": False,
+    "match_GS_height": True,
 
     # Complex fills
     "PWR_sample_fill": "mgo", # PWR loop sample fill

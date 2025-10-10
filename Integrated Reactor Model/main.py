@@ -131,7 +131,7 @@ def main():
         sim_dir = os.path.join(root_dir, 'simulation_data')
         transport_dir = os.path.join(sim_dir, 'transport_data')
 
-        # Create directories
+        # Create directories (remove old ones if they exist)
         if os.path.exists(sim_dir):
             shutil.rmtree(sim_dir)
         os.makedirs(transport_dir)
