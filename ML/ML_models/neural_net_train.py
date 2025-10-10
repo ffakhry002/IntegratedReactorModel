@@ -465,7 +465,14 @@ class NeuralNetReactorModel(ReactorModelBase):
         else:
             X_scaled = X_train
 
-        self.flux_model = PyTorchRegressorWrapper(**self.params)
+        # Choose appropriate wrapper based on parameters
+        if 'architecture_type' in self.params or 'base_width' in self.params:
+            # New flexible architecture parameters present
+            self.flux_model = PyTorchFlexibleRegressorWrapper(**self.params)
+        else:
+            # Old rectangular architecture parameters (backward compatibility)
+            self.flux_model = PyTorchRegressorWrapper(**self.params)
+
         self.flux_model.fit(X_scaled, y_flux, groups=groups)  # Pass groups!
         return self
 
@@ -491,7 +498,14 @@ class NeuralNetReactorModel(ReactorModelBase):
         else:
             X_scaled = X_train
 
-        self.keff_model = PyTorchRegressorWrapper(**self.params)
+        # Choose appropriate wrapper based on parameters
+        if 'architecture_type' in self.params or 'base_width' in self.params:
+            # New flexible architecture parameters present
+            self.keff_model = PyTorchFlexibleRegressorWrapper(**self.params)
+        else:
+            # Old rectangular architecture parameters (backward compatibility)
+            self.keff_model = PyTorchRegressorWrapper(**self.params)
+
         self.keff_model.fit(X_scaled, y_keff.ravel(), groups=groups)  # Pass groups!
         return self
 
