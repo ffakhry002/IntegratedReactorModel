@@ -3,7 +3,7 @@ base_inputs = {
     ###########################################
     # Parametric Study Configuration
     ###########################################
-    "parametric_study": True,        # Toggle for parametric study mode
+    "parametric_study": False,        # Toggle for parametric study mode
     "fast_mode": False,              # Toggle for fast mode
 
     ###########################################
