@@ -329,6 +329,18 @@ def run_single_parametric_case(run_num, run_dict, param_dir, log_file):
     # Check if we're in fast mode
     is_fast_mode = modified_inputs.get('fast_mode', False)
 
+    # Clean up transport data from previous run ONLY if in fast mode (if not the first run)
+    if is_fast_mode and run_num > 1:
+        prev_run_dir = os.path.join(param_dir, f"run_{run_num - 1}")
+        prev_transport_dir = os.path.join(prev_run_dir, 'transport_data')
+        if os.path.exists(prev_transport_dir):
+            print(f"Fast mode: Cleaning up transport data from run {run_num - 1}...")
+            try:
+                shutil.rmtree(prev_transport_dir)
+                print(f"  ✓ Removed transport data from previous run")
+            except Exception as e:
+                print(f"  ⚠ Warning: Could not remove transport data: {e}")
+
     if is_fast_mode:
         print("FAST MODE: Skipping directory creation, plotting, and thermal hydraulics")
         print("  Only running eigenvalue calculation for maximum speed")
@@ -633,6 +645,23 @@ def run_parametric_study():
             print(f"Critical error in run {i}: {e}")
             # Log the critical error but continue with next run
             log_run_results(log_file, i, run_dict, {}, None, None, False, f"Critical error: {e}")
+
+    # Clean up transport data from the last run ONLY if it was in fast mode
+    if len(all_runs) > 0:
+        last_run_dict = all_runs[-1]
+        # Check if the last run was in fast mode
+        last_run_fast_mode = last_run_dict.get('fast_mode', inputs.get('fast_mode', False))
+
+        if last_run_fast_mode:
+            last_run_dir = os.path.join(param_dir, f"run_{len(all_runs)}")
+            last_transport_dir = os.path.join(last_run_dir, 'transport_data')
+            if os.path.exists(last_transport_dir):
+                print(f"\nFast mode: Cleaning up transport data from final run...")
+                try:
+                    shutil.rmtree(last_transport_dir)
+                    print(f"  ✓ Removed transport data from run {len(all_runs)}")
+                except Exception as e:
+                    print(f"  ⚠ Warning: Could not remove transport data: {e}")
 
     # Final summary
     with open(log_file, 'a') as f:
