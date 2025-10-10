@@ -906,10 +906,10 @@ def main():
         relevant_studies = {}
         for key, path in study_files.items():
             # Parse the full key to check relevance
-            # Keys are like: svm_flux_total_categorical, svm_keff_physics, random_forest_flux_thermal_only_physics
+            # Keys are like: svm_flux_total_categorical, svm_keff_physics, random_forest_flux_thermal_only_physics, neural_net_raytune_flux_physics
 
-            # Handle model names that contain underscores (like random_forest)
-            known_models = ['svm', 'xgboost', 'random_forest']
+            # Handle model names that contain underscores (like random_forest, neural_net_raytune)
+            known_models = ['neural_net_raytune', 'random_forest', 'svm', 'xgboost']  # Longest names first
             model_name = None
             target_type = None
 
@@ -980,10 +980,10 @@ def main():
                     study = joblib.load(study_path)
 
                     # Use the key to determine proper target naming and directory
-                    # Keys are like: svm_flux_total, svm_flux_thermal_only, svm_keff, random_forest_flux_thermal_only
+                    # Keys are like: svm_flux_total, svm_flux_thermal_only, svm_keff, random_forest_flux_thermal_only, neural_net_raytune_flux_physics
 
                     # Parse model name and target using the same logic as filtering
-                    known_models = ['svm', 'xgboost', 'random_forest']
+                    known_models = ['neural_net_raytune', 'random_forest', 'svm', 'xgboost']  # Longest names first
                     model_name = None
                     target_remainder = None
 

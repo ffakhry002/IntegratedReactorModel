@@ -197,6 +197,14 @@ class ReactorModelTester:
 
     def _parse_model_info_from_filename(self, parts, filepath):
         """Parse model information from filename without loading the actual model"""
+        # CRITICAL FIX: Handle compound model names like 'neural_net' and 'random_forest'
+        if len(parts) >= 2 and parts[0] == 'neural' and parts[1] == 'net':
+            # Combine 'neural' and 'net' into 'neural_net'
+            parts = ['neural_net'] + parts[2:]
+        elif len(parts) >= 2 and parts[0] == 'random' and parts[1] == 'forest':
+            # Combine 'random' and 'forest' into 'random_forest'
+            parts = ['random_forest'] + parts[2:]
+
         # Check if flux mode is in filename
         flux_mode = 'total'
         if len(parts) >= 3 and parts[1] == 'flux':

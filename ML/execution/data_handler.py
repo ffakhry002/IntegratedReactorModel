@@ -274,7 +274,25 @@ class DataHandler:
 
     def split_data(self, X, y_flux, y_keff, groups=None, test_size=0.15, random_state=42):
         """Split data into train/test sets"""
-        if groups is not None:
+
+        # Handle test_size=0.0: use all data for training
+        if test_size == 0.0:
+            X_train = X
+            X_test = np.array([])
+            y_flux_train = y_flux
+            y_flux_test = np.array([]).reshape(0, y_flux.shape[1] if len(y_flux.shape) > 1 else 0)
+            y_keff_train = y_keff
+            y_keff_test = np.array([])
+            groups_train = groups
+            groups_test = None
+
+            print(f"  Using all data for training (test_size=0.0)")
+            if groups is not None:
+                print(f"  Unique configs in train: {len(np.unique(groups_train))}")
+            print(f"  Training samples: {X_train.shape[0]}")
+            print(f"  Test samples: 0 (no holdout set)")
+
+        elif groups is not None:
             # Use GroupShuffleSplit to ensure augmentations stay together
             from sklearn.model_selection import GroupShuffleSplit
 
@@ -293,6 +311,8 @@ class DataHandler:
             print(f"  Using GroupShuffleSplit to prevent augmentation leakage")
             print(f"  Unique configs in train: {len(np.unique(groups_train))}")
             print(f"  Unique configs in test: {len(np.unique(groups_test))}")
+            print(f"  Training samples: {X_train.shape[0]}")
+            print(f"  Test samples: {X_test.shape[0]}")
         else:
             # Fallback to regular split
             X_train, X_test, y_flux_train, y_flux_test, y_keff_train, y_keff_test = \
@@ -302,8 +322,8 @@ class DataHandler:
             groups_train = None
             groups_test = None
 
-        print(f"  Training samples: {X_train.shape[0]}")
-        print(f"  Test samples: {X_test.shape[0]}")
+            print(f"  Training samples: {X_train.shape[0]}")
+            print(f"  Test samples: {X_test.shape[0]}")
 
         return {
             'X_train': X_train,

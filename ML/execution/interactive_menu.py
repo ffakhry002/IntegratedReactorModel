@@ -400,6 +400,10 @@ class InteractiveTrainer:
             n_trials = input("\nNumber of Optuna trials (default: 250): ").strip()
             self.config.n_trials = int(n_trials) if n_trials else 250
 
+        if 'raytune' in self.config.optimizations:
+            n_trials = input("\nNumber of Ray Tune trials (default: 100): ").strip()
+            self.config.n_trials = int(n_trials) if n_trials else 100
+
         self.config.n_jobs = self.get_parallel_settings()
         self.config.n_gpus = self.get_gpu_settings(self.config.models)
 
@@ -512,7 +516,11 @@ class InteractiveTrainer:
 
                         # Split data
                         print("Splitting data...")
-                        data_splits = self.data_handler.split_data(X, y_flux, y_keff, groups)
+                        data_splits = self.data_handler.split_data(
+                            X, y_flux, y_keff, groups,
+                            test_size=self.config.test_size,
+                            random_state=self.config.random_state
+                        )
 
                         # Update training info
                         if 'n_samples' not in all_results['training_info']:

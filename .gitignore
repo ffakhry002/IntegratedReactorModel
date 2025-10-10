@@ -4,7 +4,8 @@ __pycache__/
 *$py.class
 *.so
 .Python
-
+.DS_Store
+Integrated Reactor Model/.DS_Store
 # Virtual Environment
 venv/
 ENV/

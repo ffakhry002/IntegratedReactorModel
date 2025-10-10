@@ -12,13 +12,16 @@ import matplotlib.pyplot as plt
 from ray import tune
 from ray.tune import CLIReporter
 from ray.tune.schedulers import ASHAScheduler
+from ray.tune.search.optuna import OptunaSearch
+from optuna.samplers import TPESampler
+import optuna
 from sklearn.model_selection import GroupKFold, cross_val_score
 from sklearn.metrics import make_scorer
 import torch
 import pickle
 
-def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=100,
-                                n_gpus=2, target_type='flux', use_log_flux=True):
+def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
+                                n_gpus=2, target_type='flux', use_log_flux=True, encoding='physics'):
     """
     Optimize neural network hyperparameters using Ray Tune
 
@@ -38,6 +41,8 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=100,
         'flux' or 'keff'
     use_log_flux : bool
         Whether flux data is log-transformed
+    encoding : str
+        Encoding type for consistent naming (default: 'physics')
 
     Returns
     -------
@@ -58,17 +63,33 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=100,
         print(f"Unique configs: {len(np.unique(groups))}")
     print(f"{'='*60}\n")
 
-    # Define search space
+    # Define search space - NOW WITH ARCHITECTURE DIVERSITY!
     config_space = {
-        "depth": tune.randint(1, 6),  # 1-5 hidden layers
-        "width": tune.randint(50, 401),  # 50-400 neurons
+        # Architecture parameters
+        "architecture_type": tune.choice([
+            'rectangular', 'pyramidal', 'funnel',
+            'hourglass', 'expanding', 'bottleneck'
+        ]),
+        "depth": tune.randint(2, 7),  # 2-6 hidden layers
+        "base_width": tune.randint(50, 451),  # 50-450 neurons (base for calculating layer widths)
+
+        # Activation strategy
+        "activation_strategy": tune.choice([
+            'uniform',        # Same activation for all layers
+            'mixed',          # Alternating activations
+            'progressive',    # Gradual transition
+            'deep_relu'       # ReLU early, ELU deep
+        ]),
+        "primary_activation": tune.choice(['relu', 'elu', 'gelu', 'selu']),
+
+        # Training parameters
         "learning_rate": tune.loguniform(1e-4, 1e-2),
         "weight_decay": tune.loguniform(1e-5, 0.1),
-        "activation": tune.choice(['relu', 'elu']),
         "optimizer": tune.choice(['adam', 'adamw', 'rmsprop']),
         "batch_size": tune.choice([64, 128, 256]),
-        "dropout_rate": tune.uniform(0.0, 0.5),  # NEW: Dropout for regularization
-        "use_batch_norm": tune.choice([True, False]),  # NEW: Batch normalization
+        "dropout_rate": tune.uniform(0.0, 0.5),
+        "use_batch_norm": tune.choice([True, False]),
+
         # Fixed params
         "max_epochs": 1500,
         "patience": 50,
@@ -80,16 +101,50 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=100,
     # Define training function
     def train_neural_net(config, X=X_train, y=y_train, groups=groups):
         """Train function called by Ray Tune"""
-        from ML_models.neural_net_train import PyTorchRegressorWrapper
+        from ML_models.neural_net_train import PyTorchFlexibleRegressorWrapper
+        from ML_models.neural_architectures import create_heterogeneous_activations
+
+        # Determine activation configuration
+        if config['activation_strategy'] == 'uniform':
+            activations = config['primary_activation']
+        else:
+            # Create heterogeneous activation pattern
+            activations = create_heterogeneous_activations(
+                config['depth'],
+                pattern=config['activation_strategy']
+            )
+            # Replace default activations with primary_activation if it's not relu
+            if config['primary_activation'] != 'relu' and config['activation_strategy'] != 'progressive':
+                # For mixed/deep_relu patterns, use primary_activation instead of relu
+                activations = [config['primary_activation'] if act == 'relu' else act
+                              for act in activations]
+
+        print(f"\n{'='*60}")
+        print(f"NEW TRIAL STARTING")
+        print(f"{'='*60}")
+        print(f"Architecture:")
+        print(f"  Type: {config['architecture_type']}, Depth: {config['depth']}, Base Width: {config['base_width']}")
+        print(f"  Activation Strategy: {config['activation_strategy']}")
+        if isinstance(activations, list):
+            print(f"  Layer Activations: {' → '.join(activations)}")
+        else:
+            print(f"  Activation: {activations}")
+        print(f"Training:")
+        print(f"  Learning Rate: {config['learning_rate']:.6f}, Optimizer: {config['optimizer']}")
+        print(f"  Weight Decay: {config['weight_decay']:.6f}, Batch Size: {config['batch_size']}")
+        print(f"Regularization:")
+        print(f"  Dropout: {config['dropout_rate']:.3f}, Batch Norm: {config['use_batch_norm']}")
+        print(f"{'='*60}")
 
         # Use CUDA - Ray Tune handles GPU assignment via CUDA_VISIBLE_DEVICES
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-        # Create model with Ray-assigned device
-        model = PyTorchRegressorWrapper(
+        # Create model with flexible architecture
+        model = PyTorchFlexibleRegressorWrapper(
+            architecture_type=config["architecture_type"],
+            base_width=config["base_width"],
             depth=config["depth"],
-            width=config["width"],
-            activation=config["activation"],
+            activations=activations,
             optimizer=config["optimizer"],
             learning_rate=config["learning_rate"],
             weight_decay=config["weight_decay"],
@@ -112,6 +167,8 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=100,
 
             # Enumerate to enable ASHA early stopping
             for fold_idx, (train_idx, test_idx) in enumerate(cv.split(X, y, groups)):
+                print(f"  Fold {fold_idx + 1}/5...")
+
                 X_train_fold, X_test_fold = X[train_idx], X[test_idx]
                 y_train_fold, y_test_fold = y[train_idx], y[test_idx]
                 groups_train_fold = groups[train_idx]
@@ -136,7 +193,10 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=100,
 
                 # Report after each fold for ASHA early stopping
                 current_mean = float(np.mean(cv_scores))
+                print(f"    ✓ Fold {fold_idx + 1} score: {cv_scores[-1]:.4f} | Running avg: {current_mean:.4f}")
                 tune.report({"score": current_mean, "training_iteration": fold_idx + 1})
+
+            print(f"  Trial complete! Final score: {current_mean:.4f}")
 
             scores = np.array(cv_scores)
         else:
@@ -163,12 +223,22 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=100,
             tune.report({"score": mean_score})  # Dictionary format for API compatibility
 
     # ASHA scheduler for early stopping (kills bad trials after 1-2 folds!)
+    # Don't pass metric/mode here - will pass to tune.run() instead
     scheduler = ASHAScheduler(
-        metric="score",
-        mode="min",
         max_t=5,           # 5 CV folds per trial
         grace_period=1,    # Can stop after just 1 fold if clearly bad
         reduction_factor=2 # Top 50% proceed to next fold
+    )
+
+    # Intelligent search algorithm (Optuna's TPE)
+    # Don't pass metric/mode here - will pass to tune.run() instead
+    n_startup = min(50, n_trials // 4)  # 50 random trials or 1/3 of total
+    search_alg = OptunaSearch(
+        sampler=TPESampler(
+            n_startup_trials=n_startup,  # Random exploration first
+            n_ei_candidates=50,           # Candidates for intelligent selection
+            seed=42
+        )
     )
 
     # Progress reporter
@@ -178,20 +248,27 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=100,
     )
 
     # Run optimization
-    print("Starting Ray Tune optimization...")
+    print("Starting Ray Tune optimization with Optuna TPE search...")
+    print(f"Resources: {n_gpus} GPUs, 8 CPUs per trial")
+    print(f"Parallelism: Up to {n_gpus * 2} trials simultaneously")
+    print(f"Search strategy: {n_startup} random trials, then intelligent TPE\n")
+
     analysis = tune.run(
         train_neural_net,
         config=config_space,
         num_samples=n_trials,
         scheduler=scheduler,
+        search_alg=search_alg,
         progress_reporter=reporter,
-        resources_per_trial={"cpu": 1, "gpu": 1/n_gpus},  # Share GPUs across trials
+        resources_per_trial={"cpu": 8, "gpu": 1/n_gpus},  # 8 CPUs + shared GPU
+        metric="score",      # Needed for analysis.best_trial
+        mode="min",          # Needed for analysis.best_trial
         raise_on_failed_trial=False,
         verbose=1
     )
 
-    # Get best result
-    best_trial = analysis.best_trial
+    # Get best result (use explicit method since scheduler already has metric/mode)
+    best_trial = analysis.get_best_trial(metric="score", mode="min")
     best_params = best_trial.config
     best_score = best_trial.last_result["score"]
 
@@ -206,33 +283,50 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=100,
     print(f"{'='*60}\n")
 
     # Save results and create visualizations
-    _save_raytune_results(analysis, target_type, n_gpus)
+    _save_raytune_results(analysis, target_type, n_gpus, encoding)
+
+    # Reconstruct activations configuration for return params
+    if best_params['activation_strategy'] == 'uniform':
+        best_activations = best_params['primary_activation']
+    else:
+        from ML_models.neural_architectures import create_heterogeneous_activations
+        best_activations = create_heterogeneous_activations(
+            best_params['depth'],
+            pattern=best_params['activation_strategy']
+        )
+        if best_params['primary_activation'] != 'relu' and best_params['activation_strategy'] != 'progressive':
+            best_activations = [best_params['primary_activation'] if act == 'relu' else act
+                              for act in best_activations]
 
     # Return only the hyperparameters (not fixed params)
     return_params = {
+        'architecture_type': best_params['architecture_type'],
+        'base_width': best_params['base_width'],
         'depth': best_params['depth'],
-        'width': best_params['width'],
+        'activations': best_activations,
         'learning_rate': best_params['learning_rate'],
         'weight_decay': best_params['weight_decay'],
-        'activation': best_params['activation'],
         'optimizer': best_params['optimizer'],
         'batch_size': best_params['batch_size'],
         'dropout_rate': best_params['dropout_rate'],
         'use_batch_norm': best_params['use_batch_norm'],
         'max_epochs': best_params['max_epochs'],
         'patience': best_params['patience'],
-        'device': None  # Will auto-detect during final training
+        'device': None,  # Will auto-detect during final training
+        # Keep backward compatibility
+        'width': best_params['base_width'],  # For compatibility with old code
+        'activation': best_params['primary_activation']
     }
 
     return return_params, analysis
 
 
-def _save_raytune_results(analysis, target_type, n_gpus):
+def _save_raytune_results(analysis, target_type, n_gpus, encoding='physics'):
     """Save Ray Tune results and create visualizations (similar to Optuna)"""
 
-    # Create outputs directory
+    # Create separate directory for each target type
     base_dir = os.path.dirname(os.path.dirname(__file__))
-    outputs_dir = os.path.join(base_dir, 'outputs', 'raytune_results')
+    outputs_dir = os.path.join(base_dir, 'outputs', 'raytune_results', target_type)
     os.makedirs(outputs_dir, exist_ok=True)
 
     # Save analysis object
@@ -244,6 +338,32 @@ def _save_raytune_results(analysis, target_type, n_gpus):
         print(f"Results saved to: {results_path}")
     except Exception as e:
         print(f"Could not save results: {e}")
+
+    # Try to get underlying Optuna study for native Optuna visualizations
+    try:
+        if hasattr(analysis, 'search_alg') and hasattr(analysis.search_alg, '_ot_study'):
+            optuna_study = analysis.search_alg._ot_study
+
+            # Save Optuna study to CONSISTENT location (same as other models)
+            optuna_studies_dir = os.path.join(base_dir, 'outputs', 'optuna_studies')
+            os.makedirs(optuna_studies_dir, exist_ok=True)
+
+            # Use consistent naming: neural_net_raytune_{target}_{encoding}_study.pkl
+            study_filename = f"neural_net_raytune_{target_type}_{encoding}_study.pkl"
+            study_path = os.path.join(optuna_studies_dir, study_filename)
+
+            import joblib
+            joblib.dump(optuna_study, study_path)
+            print(f"\nOptuna study saved to: {study_path}")
+            print(f"You can load it later for visualization using:")
+            print(f"  study = joblib.load('{study_path}')")
+
+            # Create Optuna-style plots
+            _create_optuna_plots(optuna_study, plots_dir, target_type)
+        else:
+            print("  Optuna study not accessible (using non-Optuna search)")
+    except Exception as e:
+        print(f"  Could not save Optuna study or create Optuna plots: {e}")
 
     # Convert to DataFrame for visualization
     df = analysis.dataframe()
@@ -362,8 +482,8 @@ def _save_raytune_results(analysis, target_type, n_gpus):
         with open(summary_file, 'w') as f:
             f.write(f"Top 10 Hyperparameter Combinations - {target_type.upper()}\n")
             f.write("="*80 + "\n\n")
-            for idx, row in top_10.iterrows():
-                f.write(f"Rank {idx+1}:\n")
+            for rank, (idx, row) in enumerate(top_10.iterrows(), 1):
+                f.write(f"Rank {rank}:\n")
                 f.write(f"  Score: {row['score']:.4f}\n")
                 f.write(f"  depth={row['depth']}, width={row['width']}\n")
                 f.write(f"  learning_rate={row['learning_rate']:.6f}, weight_decay={row['weight_decay']:.6f}\n")
@@ -375,3 +495,51 @@ def _save_raytune_results(analysis, target_type, n_gpus):
         print(f"  Could not save top 10 summary: {e}")
 
     print(f"\nAll Ray Tune results saved to: {outputs_dir}\n")
+
+
+def _create_optuna_plots(study, plots_dir, target_type):
+    """Create Optuna's native visualization plots"""
+
+    print("\nCreating Optuna-style visualizations...")
+
+    # 1. Optimization History
+    try:
+        fig = optuna.visualization.plot_optimization_history(study)
+        fig.write_image(os.path.join(plots_dir, f'optuna_history_{target_type}.png'))
+        print(f"  Saved: optuna_history_{target_type}.png")
+    except Exception as e:
+        print(f"  Could not create optimization history: {e}")
+
+    # 2. Parameter Importances
+    try:
+        fig = optuna.visualization.plot_param_importances(study)
+        fig.write_image(os.path.join(plots_dir, f'optuna_importances_{target_type}.png'))
+        print(f"  Saved: optuna_importances_{target_type}.png")
+    except Exception as e:
+        print(f"  Could not create parameter importances: {e}")
+
+    # 3. Parallel Coordinate Plot
+    try:
+        fig = optuna.visualization.plot_parallel_coordinate(study)
+        fig.write_image(os.path.join(plots_dir, f'optuna_parallel_{target_type}.png'))
+        print(f"  Saved: optuna_parallel_{target_type}.png")
+    except Exception as e:
+        print(f"  Could not create parallel coordinate: {e}")
+
+    # 4. Slice Plot
+    try:
+        fig = optuna.visualization.plot_slice(study)
+        fig.write_image(os.path.join(plots_dir, f'optuna_slice_{target_type}.png'))
+        print(f"  Saved: optuna_slice_{target_type}.png")
+    except Exception as e:
+        print(f"  Could not create slice plot: {e}")
+
+    # 5. Contour Plot (for key parameter pairs)
+    try:
+        fig = optuna.visualization.plot_contour(study, params=['depth', 'width'])
+        fig.write_image(os.path.join(plots_dir, f'optuna_contour_depth_width_{target_type}.png'))
+        print(f"  Saved: optuna_contour_depth_width_{target_type}.png")
+    except Exception as e:
+        print(f"  Could not create contour plot: {e}")
+
+    print("  Optuna visualizations complete!")

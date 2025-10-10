@@ -4,6 +4,30 @@ from datetime import datetime
 class ResultsManager:
     """Manage training results and summaries"""
 
+    @staticmethod
+    def _get_comparable_metric(result):
+        """Get a comparable metric for model ranking.
+
+        When test_size=0.0 (CV-only validation), MSE is None.
+        In that case, use MAPE (CV score) instead. Both are "lower is better".
+
+        Parameters
+        ----------
+        result : dict
+            Result dictionary with 'metrics' key
+
+        Returns
+        -------
+        float
+            Comparable metric value (MSE if available, otherwise MAPE)
+        """
+        mse = result['metrics']['mse']
+        if mse is not None:
+            return mse
+        # Fall back to MAPE when MSE is None (CV-only validation)
+        mape = result['metrics'].get('mape', float('inf'))
+        return mape if mape is not None else float('inf')
+
     def initialize_results(self, config, data_splits):
         """Initialize results dictionary with training configuration.
 
@@ -135,10 +159,15 @@ class ResultsManager:
                     # Find best model
                     if target_results:
                         best_model = min(target_results.items(),
-                                       key=lambda x: x[1]['metrics']['mse'])
+                                       key=lambda x: self._get_comparable_metric(x[1]))
                         f.write(f"Best Model: {best_model[0]}\n")
-                        f.write(f"Best MSE: {best_model[1]['metrics']['mse']:.6f}\n")
-                        f.write(f"Best R²: {best_model[1]['metrics']['r2']:.4f}\n\n")
+                        # Handle CV-only validation (MSE may be None)
+                        if best_model[1]['metrics']['mse'] is not None:
+                            f.write(f"Best MSE: {best_model[1]['metrics']['mse']:.6f}\n")
+                            f.write(f"Best R²: {best_model[1]['metrics']['r2']:.4f}\n\n")
+                        else:
+                            f.write(f"Best CV MAPE: {best_model[1]['metrics']['mape']:.2f}%\n")
+                            f.write(f"(Validated via CV only, no test set)\n\n")
 
                     # All models
                     f.write("All Models:\n")
@@ -148,11 +177,20 @@ class ResultsManager:
 
                     for model_name, result in sorted(target_results.items()):
                         metrics = result['metrics']
-                        f.write(f"{model_name:<20} "
-                               f"{metrics['mse']:<12.6f} "
-                               f"{metrics['rmse']:<12.6f} "
-                               f"{metrics['r2']:<8.4f} "
-                               f"{metrics['relative_error']:<10.4%}\n")
+                        if metrics['mse'] is not None:
+                            f.write(f"{model_name:<20} "
+                                   f"{metrics['mse']:<12.6f} "
+                                   f"{metrics['rmse']:<12.6f} "
+                                   f"{metrics['r2']:<8.4f} "
+                                   f"{metrics['relative_error']:<10.4%}\n")
+                        else:
+                            # CV-only validation
+                            mape = metrics.get('mape', 0.0)
+                            f.write(f"{model_name:<20} "
+                                   f"{'CV':<12} "
+                                   f"{mape:<12.2f}% "
+                                   f"{'N/A':<8} "
+                                   f"{'N/A':<10}\n")
 
                     # Best parameters
                     f.write("\nBest Parameters:\n")
@@ -189,11 +227,16 @@ class ResultsManager:
             target_results = results.get(f'{target}_results', {})
             if target_results:
                 best_model = min(target_results.items(),
-                               key=lambda x: x[1]['metrics']['mse'])
+                               key=lambda x: self._get_comparable_metric(x[1]))
                 print(f"\n{target.upper()} Prediction:")
                 print(f"  Best Model: {best_model[0]}")
-                print(f"  MSE: {best_model[1]['metrics']['mse']:.6f}")
-                print(f"  R²: {best_model[1]['metrics']['r2']:.4f}")
+                # Handle CV-only validation
+                if best_model[1]['metrics']['mse'] is not None:
+                    print(f"  MSE: {best_model[1]['metrics']['mse']:.6f}")
+                    print(f"  R²: {best_model[1]['metrics']['r2']:.4f}")
+                else:
+                    print(f"  CV MAPE: {best_model[1]['metrics']['mape']:.2f}%")
+                    print(f"  (Validated via CV only)")
 
     def save_text_summary_multi_encoding(self, results, filepath, duration):
         """Save human-readable summary for multi-encoding results.
@@ -252,10 +295,14 @@ class ResultsManager:
 
                     # Find best model
                     best_model = min(results[flux_key].items(),
-                                key=lambda x: x[1]['metrics']['mse'])
+                                key=lambda x: self._get_comparable_metric(x[1]))
                     f.write(f"Best Model: {best_model[0]}\n")
-                    f.write(f"Best MSE: {best_model[1]['metrics']['mse']:.6f}\n")
-                    f.write(f"Best R²: {best_model[1]['metrics']['r2']:.4f}\n\n")
+                    if best_model[1]['metrics']['mse'] is not None:
+                        f.write(f"Best MSE: {best_model[1]['metrics']['mse']:.6f}\n")
+                        f.write(f"Best R²: {best_model[1]['metrics']['r2']:.4f}\n\n")
+                    else:
+                        f.write(f"Best CV MAPE: {best_model[1]['metrics']['mape']:.2f}%\n")
+                        f.write(f"(Validated via CV only)\n\n")
 
                     # All models table
                     f.write(f"{'Model':<20} {'MSE':<12} {'RMSE':<12} {'R²':<8} {'Rel Error':<10}\n")
@@ -263,11 +310,20 @@ class ResultsManager:
 
                     for model_name, result in sorted(results[flux_key].items()):
                         metrics = result['metrics']
-                        f.write(f"{model_name:<20} "
-                            f"{metrics['mse']:<12.6f} "
-                            f"{metrics['rmse']:<12.6f} "
-                            f"{metrics['r2']:<8.4f} "
-                            f"{metrics['relative_error']:<10.4%}\n")
+                        if metrics['mse'] is not None:
+                            f.write(f"{model_name:<20} "
+                                f"{metrics['mse']:<12.6f} "
+                                f"{metrics['rmse']:<12.6f} "
+                                f"{metrics['r2']:<8.4f} "
+                                f"{metrics['relative_error']:<10.4%}\n")
+                        else:
+                            # CV-only validation
+                            mape = metrics.get('mape', 0.0)
+                            f.write(f"{model_name:<20} "
+                                f"{'CV':<12} "
+                                f"{mape:<12.2f}% "
+                                f"{'N/A':<8} "
+                                f"{'N/A':<10}\n")
 
                 # K-eff results
                 keff_key = f'{encoding}_keff_results'
@@ -277,10 +333,14 @@ class ResultsManager:
 
                     # Find best model
                     best_model = min(results[keff_key].items(),
-                                key=lambda x: x[1]['metrics']['mse'])
+                                key=lambda x: self._get_comparable_metric(x[1]))
                     f.write(f"Best Model: {best_model[0]}\n")
-                    f.write(f"Best MSE: {best_model[1]['metrics']['mse']:.6f}\n")
-                    f.write(f"Best R²: {best_model[1]['metrics']['r2']:.4f}\n\n")
+                    if best_model[1]['metrics']['mse'] is not None:
+                        f.write(f"Best MSE: {best_model[1]['metrics']['mse']:.6f}\n")
+                        f.write(f"Best R²: {best_model[1]['metrics']['r2']:.4f}\n\n")
+                    else:
+                        f.write(f"Best CV MAPE: {best_model[1]['metrics']['mape']:.2f}%\n")
+                        f.write(f"(Validated via CV only)\n\n")
 
                     # All models table
                     f.write(f"{'Model':<20} {'MSE':<12} {'RMSE':<12} {'R²':<8} {'Rel Error':<10}\n")
@@ -288,11 +348,20 @@ class ResultsManager:
 
                     for model_name, result in sorted(results[keff_key].items()):
                         metrics = result['metrics']
-                        f.write(f"{model_name:<20} "
-                            f"{metrics['mse']:<12.6f} "
-                            f"{metrics['rmse']:<12.6f} "
-                            f"{metrics['r2']:<8.4f} "
-                            f"{metrics['relative_error']:<10.4%}\n")
+                        if metrics['mse'] is not None:
+                            f.write(f"{model_name:<20} "
+                                f"{metrics['mse']:<12.6f} "
+                                f"{metrics['rmse']:<12.6f} "
+                                f"{metrics['r2']:<8.4f} "
+                                f"{metrics['relative_error']:<10.4%}\n")
+                        else:
+                            # CV-only validation
+                            mape = metrics.get('mape', 0.0)
+                            f.write(f"{model_name:<20} "
+                                f"{'CV':<12} "
+                                f"{mape:<12.2f}% "
+                                f"{'N/A':<8} "
+                                f"{'N/A':<10}\n")
 
             # Overall best models
             f.write("\n" + "="*80 + "\n")
@@ -309,26 +378,36 @@ class ResultsManager:
                 flux_key = f'{encoding}_flux_results'
                 if flux_key in results and results[flux_key]:
                     for model_name, result in results[flux_key].items():
-                        if result['metrics']['mse'] < best_flux_mse:
-                            best_flux_mse = result['metrics']['mse']
+                        metric = self._get_comparable_metric(result)
+                        if metric < best_flux_mse:
+                            best_flux_mse = metric
                             best_flux = (model_name, encoding, result)
 
                 keff_key = f'{encoding}_keff_results'
                 if keff_key in results and results[keff_key]:
                     for model_name, result in results[keff_key].items():
-                        if result['metrics']['mse'] < best_keff_mse:
-                            best_keff_mse = result['metrics']['mse']
+                        metric = self._get_comparable_metric(result)
+                        if metric < best_keff_mse:
+                            best_keff_mse = metric
                             best_keff = (model_name, encoding, result)
 
             if best_flux:
                 f.write(f"\nBest Flux Model: {best_flux[0]} with {best_flux[1]} encoding\n")
-                f.write(f"  MSE: {best_flux[2]['metrics']['mse']:.6f}\n")
-                f.write(f"  R²: {best_flux[2]['metrics']['r2']:.4f}\n")
+                if best_flux[2]['metrics']['mse'] is not None:
+                    f.write(f"  MSE: {best_flux[2]['metrics']['mse']:.6f}\n")
+                    f.write(f"  R²: {best_flux[2]['metrics']['r2']:.4f}\n")
+                else:
+                    f.write(f"  CV MAPE: {best_flux[2]['metrics']['mape']:.2f}%\n")
+                    f.write(f"  (Validated via CV only)\n")
 
             if best_keff:
                 f.write(f"\nBest K-eff Model: {best_keff[0]} with {best_keff[1]} encoding\n")
-                f.write(f"  MSE: {best_keff[2]['metrics']['mse']:.6f}\n")
-                f.write(f"  R²: {best_keff[2]['metrics']['r2']:.4f}\n")
+                if best_keff[2]['metrics']['mse'] is not None:
+                    f.write(f"  MSE: {best_keff[2]['metrics']['mse']:.6f}\n")
+                    f.write(f"  R²: {best_keff[2]['metrics']['r2']:.4f}\n")
+                else:
+                    f.write(f"  CV MAPE: {best_keff[2]['metrics']['mape']:.2f}%\n")
+                    f.write(f"  (Validated via CV only)\n")
 
             f.write("\n" + "="*80 + "\n")
             f.write("END OF SUMMARY\n")
@@ -360,18 +439,24 @@ class ResultsManager:
                 result_key = f'{encoding}_{target}_results'
                 if result_key in results and results[result_key]:
                     for model_name, result in results[result_key].items():
-                        if result['metrics']['mse'] < best_mse:
-                            best_mse = result['metrics']['mse']
+                        metric = self._get_comparable_metric(result)
+                        if metric < best_mse:
+                            best_mse = metric
                             best_model = model_name
                             best_encoding = encoding
                             best_r2 = result['metrics']['r2']
+                            best_mape = result['metrics'].get('mape')
 
             if best_model:
                 print(f"\n{target.upper()} Prediction:")
                 print(f"  Best Model: {best_model}")
                 print(f"  Best Encoding: {best_encoding}")
-                print(f"  MSE: {best_mse:.6f}")
-                print(f"  R²: {best_r2:.4f}")
+                if best_r2 is not None:
+                    print(f"  MSE: {best_mse:.6f}")
+                    print(f"  R²: {best_r2:.4f}")
+                else:
+                    print(f"  CV MAPE: {best_mape:.2f}%")
+                    print(f"  (Validated via CV only)")
 
     def save_text_summary_complete(self, results, filepath, duration):
         """Save comprehensive summary for all combinations.
@@ -425,30 +510,42 @@ class ResultsManager:
                     flux_key = f'{encoding}_{optimization}_flux_results'
                     if flux_key in results and results[flux_key]:
                         for model_name, result in results[flux_key].items():
-                            if result['metrics']['mse'] < best_flux_mse:
-                                best_flux_mse = result['metrics']['mse']
+                            # Handle None values when test_size=0.0 (CV-only validation)
+                            mse = result['metrics']['mse']
+                            if mse is not None and mse < best_flux_mse:
+                                best_flux_mse = mse
                                 best_flux = (model_name, encoding, optimization, result)
 
                     keff_key = f'{encoding}_{optimization}_keff_results'
                     if keff_key in results and results[keff_key]:
                         for model_name, result in results[keff_key].items():
-                            if result['metrics']['mse'] < best_keff_mse:
-                                best_keff_mse = result['metrics']['mse']
+                            # Handle None values when test_size=0.0 (CV-only validation)
+                            mse = result['metrics']['mse']
+                            if mse is not None and mse < best_keff_mse:
+                                best_keff_mse = mse
                                 best_keff = (model_name, encoding, optimization, result)
 
             if best_flux:
                 f.write(f"Best Flux Model: {best_flux[0]}\n")
                 f.write(f"  Encoding: {best_flux[1]}\n")
                 f.write(f"  Optimization: {best_flux[2]}\n")
-                f.write(f"  MSE: {best_flux[3]['metrics']['mse']:.6f}\n")
-                f.write(f"  R²: {best_flux[3]['metrics']['r2']:.4f}\n\n")
+                if best_flux[3]['metrics']['mse'] is not None:
+                    f.write(f"  MSE: {best_flux[3]['metrics']['mse']:.6f}\n")
+                    f.write(f"  R²: {best_flux[3]['metrics']['r2']:.4f}\n\n")
+                else:
+                    f.write(f"  CV MAPE: {best_flux[3]['metrics']['mape']:.2f}%\n")
+                    f.write(f"  (Validated via CV only)\n\n")
 
             if best_keff:
                 f.write(f"Best K-eff Model: {best_keff[0]}\n")
                 f.write(f"  Encoding: {best_keff[1]}\n")
                 f.write(f"  Optimization: {best_keff[2]}\n")
-                f.write(f"  MSE: {best_keff[3]['metrics']['mse']:.6f}\n")
-                f.write(f"  R²: {best_keff[3]['metrics']['r2']:.4f}\n\n")
+                if best_keff[3]['metrics']['mse'] is not None:
+                    f.write(f"  MSE: {best_keff[3]['metrics']['mse']:.6f}\n")
+                    f.write(f"  R²: {best_keff[3]['metrics']['r2']:.4f}\n\n")
+                else:
+                    f.write(f"  CV MAPE: {best_keff[3]['metrics']['mape']:.2f}%\n")
+                    f.write(f"  (Validated via CV only)\n\n")
 
             # Results by optimization method
             for optimization in info['optimizations']:
@@ -469,10 +566,18 @@ class ResultsManager:
 
                         for model_name, result in sorted(results[flux_key].items()):
                             metrics = result['metrics']
-                            f.write(f"{model_name:<20} "
-                                f"{metrics['mse']:<12.6f} "
-                                f"{metrics['rmse']:<12.6f} "
-                                f"{metrics['r2']:<8.4f}\n")
+                            if metrics['mse'] is not None:
+                                f.write(f"{model_name:<20} "
+                                    f"{metrics['mse']:<12.6f} "
+                                    f"{metrics['rmse']:<12.6f} "
+                                    f"{metrics['r2']:<8.4f}\n")
+                            else:
+                                # CV-only validation
+                                mape = metrics.get('mape', 0.0)
+                                f.write(f"{model_name:<20} "
+                                    f"{'CV MAPE':<12} "
+                                    f"{mape:<12.2f}% "
+                                    f"{'N/A':<8}\n")
 
                     # K-eff results
                     keff_key = f'{encoding}_{optimization}_keff_results'
@@ -483,10 +588,18 @@ class ResultsManager:
 
                         for model_name, result in sorted(results[keff_key].items()):
                             metrics = result['metrics']
-                            f.write(f"{model_name:<20} "
-                                f"{metrics['mse']:<12.6f} "
-                                f"{metrics['rmse']:<12.6f} "
-                                f"{metrics['r2']:<8.4f}\n")
+                            if metrics['mse'] is not None:
+                                f.write(f"{model_name:<20} "
+                                    f"{metrics['mse']:<12.6f} "
+                                    f"{metrics['rmse']:<12.6f} "
+                                    f"{metrics['r2']:<8.4f}\n")
+                            else:
+                                # CV-only validation
+                                mape = metrics.get('mape', 0.0)
+                                f.write(f"{model_name:<20} "
+                                    f"{'CV MAPE':<12} "
+                                    f"{mape:<12.2f}% "
+                                    f"{'N/A':<8}\n")
 
     def print_best_models_complete(self, results):
         """Print best models across all combinations.
@@ -517,17 +630,23 @@ class ResultsManager:
                     result_key = f'{encoding}_{optimization}_{target}_results'
                     if result_key in results and results[result_key]:
                         for model_name, result in results[result_key].items():
-                            if result['metrics']['mse'] < best_mse:
-                                best_mse = result['metrics']['mse']
+                            metric = self._get_comparable_metric(result)
+                            if metric < best_mse:
+                                best_mse = metric
                                 best_model = model_name
                                 best_encoding = encoding
                                 best_optimization = optimization
                                 best_r2 = result['metrics']['r2']
+                                best_mape = result['metrics'].get('mape')
 
             if best_model:
                 print(f"\n{target.upper()} Prediction:")
                 print(f"  Best Model: {best_model}")
                 print(f"  Encoding: {best_encoding}")
                 print(f"  Optimization: {best_optimization}")
-                print(f"  MSE: {best_mse:.6f}")
-                print(f"  R²: {best_r2:.4f}")
+                if best_r2 is not None:
+                    print(f"  MSE: {best_mse:.6f}")
+                    print(f"  R²: {best_r2:.4f}")
+                else:
+                    print(f"  CV MAPE: {best_mape:.2f}%")
+                    print(f"  (Validated via CV only)")
