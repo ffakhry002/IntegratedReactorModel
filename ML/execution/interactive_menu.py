@@ -395,23 +395,13 @@ class InteractiveTrainer:
         print("RAY TUNE GPU UTILIZATION")
         print("-"*40)
         print("How many trials should run simultaneously per GPU?")
-        print("  2 = Conservative (safe for large models)")
-        print("  4 = Moderate (good for medium models)")
-        print("  6-8 = Aggressive (if GPU memory usage is low)")
-        print("\nTip: Start with 2, then increase if GPU memory < 50% during run")
-
         while True:
-            response = input(f"\nTrials per GPU (1-8, default: 2): ").strip()
+            response = input(f"\nTrials per GPU (default: 2): ").strip()
             if response == '':
                 print("✅ Using 2 trials per GPU (default)")
                 return 2
             try:
                 trials_per_gpu = int(response)
-                if 1 <= trials_per_gpu <= 8:
-                    total_parallel = n_gpus * trials_per_gpu
-                    print(f"✅ {trials_per_gpu} trials per GPU = {total_parallel} total parallel trials")
-                    return trials_per_gpu
-                print("Please enter a number between 1 and 8")
             except ValueError:
                 print("Please enter a valid number")
 

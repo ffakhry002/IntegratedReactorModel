@@ -266,11 +266,19 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
 
     # Debug: Check what Ray actually sees
     available_resources = ray.available_resources()
+    cluster_resources = ray.cluster_resources()
     print(f"Ray sees: {available_resources.get('GPU', 0)} GPUs, {available_resources.get('CPU', 0)} CPUs")
+    print(f"Ray available resources: {available_resources}")
+    print(f"Ray cluster resources: {cluster_resources}")
+    print(f"CUDA_VISIBLE_DEVICES: {os.environ.get('CUDA_VISIBLE_DEVICES', 'not set')}")
 
     if available_resources.get('GPU', 0) < n_gpus:
         print(f"WARNING: Ray only sees {available_resources.get('GPU', 0)} GPUs but expected {n_gpus}")
-        print(f"Check CUDA_VISIBLE_DEVICES: {os.environ.get('CUDA_VISIBLE_DEVICES', 'not set')}")
+
+    # Additional GPU debugging
+    import torch
+    print(f"PyTorch sees {torch.cuda.device_count()} GPUs")
+    print(f"Current PyTorch device: {torch.cuda.current_device() if torch.cuda.is_available() else 'CPU'}")
 
     # Calculate GPU fraction per trial
     gpu_fraction = 1.0 / (n_gpus * trials_per_gpu)
@@ -289,7 +297,7 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
         scheduler=scheduler,
         search_alg=search_alg,
         progress_reporter=reporter,
-        resources_per_trial={"cpu": 8, "gpu": gpu_fraction},  # 8 CPUs + shared GPU
+        resources_per_trial={"cpu": 1, "gpu": gpu_fraction},  # 1 CPU + shared GPU
         metric="score",      # Needed for analysis.best_trial
         mode="min",          # Needed for analysis.best_trial
         raise_on_failed_trial=False,
