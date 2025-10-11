@@ -402,7 +402,10 @@ class InteractiveTrainer:
                 return 2
             try:
                 trials_per_gpu = int(response)
+                print(f"✅ Using {trials_per_gpu} trials per GPU")
+                return trials_per_gpu
             except ValueError:
+                print("you inputted", response)
                 print("Please enter a valid number")
 
     def run(self):

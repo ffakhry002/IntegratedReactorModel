@@ -285,10 +285,12 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
 
     # Run optimization
     print("Starting Ray Tune optimization with Optuna TPE search...")
-    print(f"Resources: {n_gpus} GPUs, 8 CPUs per trial")
+    print(f"Resources: {n_gpus} GPUs, 0.25 CPUs per trial")
     print(f"GPU allocation: {gpu_fraction:.4f} GPU per trial")
     print(f"Parallelism: Up to {n_gpus * trials_per_gpu} trials simultaneously")
-    print(f"Search strategy: {n_startup} random trials, then intelligent TPE\n")
+    print(f"CPU usage: {n_gpus * trials_per_gpu * 0.25} CPUs total (out of 48 available)")
+    print(f"Search strategy: {n_startup} random trials, then intelligent TPE")
+    print(f"Ray distribution: Forcing auto-placement across all GPUs\n")
 
     analysis = tune.run(
         train_neural_net,
@@ -297,11 +299,14 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
         scheduler=scheduler,
         search_alg=search_alg,
         progress_reporter=reporter,
-        resources_per_trial={"cpu": 1, "gpu": gpu_fraction},  # 1 CPU + shared GPU
+        resources_per_trial={"cpu": 0.25, "gpu": gpu_fraction},  # 0.25 CPU + shared GPU
         metric="score",      # Needed for analysis.best_trial
         mode="min",          # Needed for analysis.best_trial
         raise_on_failed_trial=False,
-        verbose=1
+        verbose=1,
+        # Force Ray to distribute trials across GPUs
+        placement_group_factory=None,  # Let Ray auto-place across all GPUs
+        local_dir=None  # Don't save locally, reduces I/O overhead
     )
 
     # Get best result (use explicit method since scheduler already has metric/mode)
