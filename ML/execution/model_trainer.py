@@ -132,6 +132,7 @@ class ModelTrainer:
                     groups=groups_train,
                     n_trials=config.n_trials if hasattr(config, 'n_trials') else 100,
                     n_gpus=config.n_gpus,
+                    trials_per_gpu=config.trials_per_gpu if hasattr(config, 'trials_per_gpu') else 2,
                     target_type=target,
                     use_log_flux=self.data_handler.use_log_flux if target == 'flux' else False,
                     encoding=encoding

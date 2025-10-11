@@ -372,6 +372,49 @@ class InteractiveTrainer:
             print("   Defaulting to auto-detection during training.")
             return 1  # Will auto-detect during training
 
+    def get_trials_per_gpu(self, n_gpus, optimizations):
+        """Get trials per GPU setting for Ray Tune.
+
+        Parameters
+        ----------
+        n_gpus : int
+            Number of GPUs being used
+        optimizations : list
+            List of selected optimization methods
+
+        Returns
+        -------
+        int
+            Number of trials to run per GPU (default: 2)
+        """
+        # Only ask if Ray Tune is selected
+        if 'raytune' not in optimizations:
+            return 2  # Default, won't be used
+
+        print("\n" + "-"*40)
+        print("RAY TUNE GPU UTILIZATION")
+        print("-"*40)
+        print("How many trials should run simultaneously per GPU?")
+        print("  2 = Conservative (safe for large models)")
+        print("  4 = Moderate (good for medium models)")
+        print("  6-8 = Aggressive (if GPU memory usage is low)")
+        print("\nTip: Start with 2, then increase if GPU memory < 50% during run")
+
+        while True:
+            response = input(f"\nTrials per GPU (1-8, default: 2): ").strip()
+            if response == '':
+                print("✅ Using 2 trials per GPU (default)")
+                return 2
+            try:
+                trials_per_gpu = int(response)
+                if 1 <= trials_per_gpu <= 8:
+                    total_parallel = n_gpus * trials_per_gpu
+                    print(f"✅ {trials_per_gpu} trials per GPU = {total_parallel} total parallel trials")
+                    return trials_per_gpu
+                print("Please enter a number between 1 and 8")
+            except ValueError:
+                print("Please enter a valid number")
+
     def run(self):
         """Run the interactive training process.
 
@@ -406,6 +449,7 @@ class InteractiveTrainer:
 
         self.config.n_jobs = self.get_parallel_settings()
         self.config.n_gpus = self.get_gpu_settings(self.config.models)
+        self.config.trials_per_gpu = self.get_trials_per_gpu(self.config.n_gpus, self.config.optimizations)
 
         # Data file selection
         print("\n" + "-"*40)

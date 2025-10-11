@@ -21,7 +21,7 @@ import torch
 import pickle
 
 def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
-                                n_gpus=2, target_type='flux', use_log_flux=True, encoding='physics'):
+                                n_gpus=4, trials_per_gpu=2, target_type='flux', use_log_flux=True, encoding='physics'):
     """
     Optimize neural network hyperparameters using Ray Tune
 
@@ -37,6 +37,9 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
         Number of hyperparameter combinations to try
     n_gpus : int
         Number of GPUs to use
+    trials_per_gpu : int
+        Number of trials to run simultaneously per GPU (default: 2)
+        Increase if GPU memory usage is low. Typical values: 2-8
     target_type : str
         'flux' or 'keff'
     use_log_flux : bool
@@ -58,6 +61,8 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
     print(f"Target: {target_type.upper()}")
     print(f"Trials: {n_trials}")
     print(f"GPUs: {n_gpus}")
+    print(f"Trials per GPU: {trials_per_gpu}")
+    print(f"Max parallel trials: {n_gpus * trials_per_gpu}")
     if groups is not None:
         print(f"Using GroupKFold (preventing augmentation leakage)")
         print(f"Unique configs: {len(np.unique(groups))}")
@@ -247,10 +252,20 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
         max_report_frequency=30
     )
 
+    # Initialize Ray with explicit GPU count
+    import ray
+    if not ray.is_initialized():
+        ray.init(num_gpus=n_gpus, ignore_reinit_error=True)
+        print(f"Ray initialized with {n_gpus} GPUs")
+
+    # Calculate GPU fraction per trial
+    gpu_fraction = 1.0 / (n_gpus * trials_per_gpu)
+
     # Run optimization
     print("Starting Ray Tune optimization with Optuna TPE search...")
     print(f"Resources: {n_gpus} GPUs, 8 CPUs per trial")
-    print(f"Parallelism: Up to {n_gpus * 2} trials simultaneously")
+    print(f"GPU allocation: {gpu_fraction:.4f} GPU per trial")
+    print(f"Parallelism: Up to {n_gpus * trials_per_gpu} trials simultaneously")
     print(f"Search strategy: {n_startup} random trials, then intelligent TPE\n")
 
     analysis = tune.run(
@@ -260,7 +275,7 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
         scheduler=scheduler,
         search_alg=search_alg,
         progress_reporter=reporter,
-        resources_per_trial={"cpu": 8, "gpu": 1/n_gpus},  # 8 CPUs + shared GPU
+        resources_per_trial={"cpu": 8, "gpu": gpu_fraction},  # 8 CPUs + shared GPU
         metric="score",      # Needed for analysis.best_trial
         mode="min",          # Needed for analysis.best_trial
         raise_on_failed_trial=False,
