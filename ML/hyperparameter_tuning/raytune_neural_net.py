@@ -254,9 +254,23 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
 
     # Initialize Ray with explicit GPU count
     import ray
-    if not ray.is_initialized():
-        ray.init(num_gpus=n_gpus, ignore_reinit_error=True)
-        print(f"Ray initialized with {n_gpus} GPUs")
+
+    # Shutdown any existing Ray instance first
+    if ray.is_initialized():
+        print("Shutting down existing Ray instance...")
+        ray.shutdown()
+
+    # Initialize Ray with explicit resources
+    print(f"Initializing Ray with {n_gpus} GPUs...")
+    ray.init(num_gpus=n_gpus, num_cpus=48, ignore_reinit_error=True)
+
+    # Debug: Check what Ray actually sees
+    available_resources = ray.available_resources()
+    print(f"Ray sees: {available_resources.get('GPU', 0)} GPUs, {available_resources.get('CPU', 0)} CPUs")
+
+    if available_resources.get('GPU', 0) < n_gpus:
+        print(f"WARNING: Ray only sees {available_resources.get('GPU', 0)} GPUs but expected {n_gpus}")
+        print(f"Check CUDA_VISIBLE_DEVICES: {os.environ.get('CUDA_VISIBLE_DEVICES', 'not set')}")
 
     # Calculate GPU fraction per trial
     gpu_fraction = 1.0 / (n_gpus * trials_per_gpu)
