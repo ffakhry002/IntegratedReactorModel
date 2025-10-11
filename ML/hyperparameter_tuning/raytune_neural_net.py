@@ -141,8 +141,25 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
         print(f"  Dropout: {config['dropout_rate']:.3f}, Batch Norm: {config['use_batch_norm']}")
         print(f"{'='*60}")
 
-        # Use CUDA - Ray Tune handles GPU assignment via CUDA_VISIBLE_DEVICES
-        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        # Force GPU distribution across available devices
+        import ray
+
+        # Get GPU assignment from Ray (if available)
+        try:
+            # Try to get assigned GPU from Ray
+            assigned_gpus = ray.get_gpu_ids()
+            if assigned_gpus:
+                device = f'cuda:{assigned_gpus[0]}'
+                print(f"  Ray assigned GPU: {assigned_gpus[0]}")
+            else:
+                # Fallback: distribute manually based on trial number
+                trial_id = hash(str(config)) % 4  # Simple hash to distribute across 4 GPUs
+                device = f'cuda:{trial_id}' if torch.cuda.is_available() else 'cpu'
+                print(f"  Manual GPU assignment: GPU {trial_id}")
+        except:
+            # Ultimate fallback
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            print(f"  Fallback device: {device}")
 
         # Create model with flexible architecture
         model = PyTorchFlexibleRegressorWrapper(
@@ -290,7 +307,7 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
     print(f"Parallelism: Up to {n_gpus * trials_per_gpu} trials simultaneously")
     print(f"CPU usage: {n_gpus * trials_per_gpu * 0.25} CPUs total (out of 48 available)")
     print(f"Search strategy: {n_startup} random trials, then intelligent TPE")
-    print(f"Ray distribution: Forcing auto-placement across all GPUs\n")
+    print(f"GPU distribution: Using Ray assignment + manual fallback\n")
 
     analysis = tune.run(
         train_neural_net,
@@ -304,8 +321,6 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
         mode="min",          # Needed for analysis.best_trial
         raise_on_failed_trial=False,
         verbose=1,
-        # Force Ray to distribute trials across GPUs
-        placement_group_factory=None,  # Let Ray auto-place across all GPUs
         local_dir=None  # Don't save locally, reduces I/O overhead
     )
 
