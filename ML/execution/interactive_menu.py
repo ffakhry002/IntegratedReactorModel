@@ -233,7 +233,7 @@ class InteractiveTrainer:
         Returns
         -------
         list
-            List of selected optimization methods ('optuna', 'three_stage', 'none')
+            List of selected optimization methods ('optuna', 'three_stage', 'raytune', 'three_stage_neural_net', 'none')
         """
         print("\n" + "-"*40)
         print("HYPERPARAMETER OPTIMIZATION SELECTION")
@@ -242,8 +242,9 @@ class InteractiveTrainer:
 
         optimizations = {
             'optuna': 'Optuna (Bayesian optimization)',
-            'three_stage': 'Three-Stage (Random → Grid → Bayesian)',
-            'raytune': 'Ray Tune (Neural Net Only - RECOMMENDED for GPU)',
+            'three_stage': 'Three-Stage (Random → Grid → Bayesian) [sklearn models]',
+            'raytune': 'Ray Tune (Neural Net Only - GPU)',
+            'three_stage_neural_net': 'Three-Stage Neural Net (Neural Net Only - AGGRESSIVE GPU FLOODING)',
             'none': 'No optimization (use default parameters)'
         }
 
@@ -372,6 +373,24 @@ class InteractiveTrainer:
             print("   Defaulting to auto-detection during training.")
             return 1  # Will auto-detect during training
 
+    def get_trials_per_gpu(self, n_gpus, optimizations):
+        """Get trials per GPU setting for Ray Tune.
+
+        Parameters
+        ----------
+        n_gpus : int
+            Number of GPUs being used
+        optimizations : list
+            List of selected optimization methods
+
+        Returns
+        -------
+        int
+            Number of trials to run per GPU (default: 2)
+        """
+        # Always use default - no user input needed
+        return 2
+
     def run(self):
         """Run the interactive training process.
 
@@ -404,8 +423,14 @@ class InteractiveTrainer:
             n_trials = input("\nNumber of Ray Tune trials (default: 100): ").strip()
             self.config.n_trials = int(n_trials) if n_trials else 100
 
+        if 'three_stage_neural_net' in self.config.optimizations:
+            # Use default configuration (no user input needed)
+            self.config.random_iter = 2000
+            self.config.bayesian_iter = 100
+
         self.config.n_jobs = self.get_parallel_settings()
         self.config.n_gpus = self.get_gpu_settings(self.config.models)
+        self.config.trials_per_gpu = self.get_trials_per_gpu(self.config.n_gpus, self.config.optimizations)
 
         # Data file selection
         print("\n" + "-"*40)
@@ -435,6 +460,20 @@ class InteractiveTrainer:
         print(f"Optimizations: {', '.join(self.config.optimizations)}")
         if 'optuna' in self.config.optimizations:
             print(f"Optuna trials: {self.config.n_trials}")
+        if 'raytune' in self.config.optimizations:
+            print(f"Ray Tune trials: {self.config.n_trials if hasattr(self.config, 'n_trials') else 100}")
+            if hasattr(self.config, 'n_gpus'):
+                print(f"  GPUs: {self.config.n_gpus}")
+            if hasattr(self.config, 'trials_per_gpu'):
+                print(f"  Trials per GPU: {self.config.trials_per_gpu}")
+        if 'three_stage_neural_net' in self.config.optimizations:
+            print(f"Three-Stage Neural Net:")
+            print(f"  Random search: {self.config.random_iter} iterations")
+            print(f"  Bayesian: {self.config.bayesian_iter} iterations")
+            if hasattr(self.config, 'n_gpus'):
+                print(f"  GPUs: {self.config.n_gpus}")
+            parallel_processes = self.config.n_jobs * 2 if self.config.n_jobs != -1 else 96
+            print(f"  Parallel processes: {parallel_processes}")
         print(f"Parallel cores: {'All' if self.config.n_jobs == -1 else self.config.n_jobs}")
         print(f"Data file: {data_file}")
         print(f"Total training jobs: {total_jobs}")

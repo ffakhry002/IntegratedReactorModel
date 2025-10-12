@@ -3,6 +3,7 @@ from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
 from hyperparameter_tuning.optuna_optimization import optimize_flux_model, optimize_keff_model
 from hyperparameter_tuning.three_stage_optimization import three_stage_optimization
 from hyperparameter_tuning.raytune_neural_net import optimize_neural_net_raytune
+from hyperparameter_tuning.three_stage_neural_net_gpu import three_stage_neural_net_optimization
 from ML_models.xgboost_train import XGBoostReactorModel
 from ML_models.random_forest_train import RandomForestReactorModel
 from ML_models.svm_train import SVMReactorModel
@@ -146,6 +147,61 @@ class ModelTrainer:
                             print(f"  Best CV MAPE: {best_cv_score:.2f}%")
             else:
                 print(f"  Ray Tune only supports neural_net. Using default parameters.")
+                best_params = self._get_default_params(model_type)
+
+        elif config.optimization == 'three_stage_neural_net':
+            print(f"Starting Three-Stage Neural Net GPU optimization...")
+            # Three-Stage Neural Net optimization (neural_net only!)
+            if model_type == 'neural_net':
+                # Get configuration parameters
+                random_iter = config.random_iter if hasattr(config, 'random_iter') else 2000
+                bayesian_iter = config.bayesian_iter if hasattr(config, 'bayesian_iter') else 100
+
+                # Update the GPU configuration in the three_stage module
+                from hyperparameter_tuning.three_stage_neural_net_gpu import config as gpu_config
+
+                # Set system resources
+                if hasattr(config, 'n_jobs'):
+                    if config.n_jobs == -1:
+                        import multiprocessing
+                        n_cpus = multiprocessing.cpu_count()
+                    else:
+                        n_cpus = config.n_jobs
+                else:
+                    n_cpus = 48  # Default
+
+                n_gpus = config.n_gpus if hasattr(config, 'n_gpus') else 4
+
+                # Update GPU optimization config
+                gpu_config.n_cpus = n_cpus
+                gpu_config.n_gpus = n_gpus
+                gpu_config.n_parallel_processes = n_cpus * 2  # 2 processes per CPU
+                gpu_config.random_n_iter = random_iter
+                gpu_config.bayesian_n_iter = bayesian_iter
+
+                print(f"\n  System Configuration:")
+                print(f"    CPUs: {n_cpus}")
+                print(f"    GPUs: {n_gpus}")
+                print(f"    Parallel processes: {gpu_config.n_parallel_processes}")
+                print(f"    Random search: {random_iter} iterations")
+                print(f"    Bayesian: {bayesian_iter} iterations\n")
+
+                best_params, history = three_stage_neural_net_optimization(
+                    X_train, y_train,
+                    groups=groups_train,
+                    target_type=target,
+                    use_log_flux=self.data_handler.use_log_flux if target == 'flux' else False,
+                    save_results=True
+                )
+                print(f" Three-Stage Neural Net GPU optimization complete!")
+
+                # Capture CV score from optimization history
+                if history is not None and 'final_best_score' in history:
+                    best_cv_score = history['final_best_score']
+                    print(f"  Best CV score: {best_cv_score:.4f}")
+                    print(f"  Best stage: {history.get('best_stage', 'Unknown')}")
+            else:
+                print(f"  Three-Stage Neural Net only supports neural_net. Using default parameters.")
                 best_params = self._get_default_params(model_type)
 
         else:  # No optimization

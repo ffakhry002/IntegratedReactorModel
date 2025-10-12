@@ -260,7 +260,8 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
         scheduler=scheduler,
         search_alg=search_alg,
         progress_reporter=reporter,
-        resources_per_trial={"cpu": 8, "gpu": 1/n_gpus},  # 8 CPUs + shared GPU
+        resources_per_trial={"cpu": 0.25, "gpu": 1/48},  # 8 CPUs + shared GPU
+        max_concurrent_trials=48*4,
         metric="score",      # Needed for analysis.best_trial
         mode="min",          # Needed for analysis.best_trial
         raise_on_failed_trial=False,
