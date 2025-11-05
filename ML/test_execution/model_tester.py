@@ -403,6 +403,33 @@ class ReactorModelTester:
                     'flux_mode': model_info.get('flux_mode', 'total')  # NEW: Add flux mode to results
                 }
 
+                # NEW: Add vehicle type information for fill mode
+                # Extract vehicle types from lattice labels and add to result
+                vehicle_types = []
+                irr_labels = []
+                for pos in position_order:
+                    i, j = pos
+                    label = lattice[i, j]
+                    irr_labels.append(label)
+                    if label.endswith('P'):
+                        vehicle_types.append('P')
+                    elif label.endswith('B'):
+                        vehicle_types.append('B')
+                    elif label.endswith('G'):
+                        vehicle_types.append('G')
+                    else:
+                        vehicle_types.append('V')  # V for vacuum (no suffix)
+
+                # Add vehicle pattern as comma-separated string
+                result['vehicle_pattern'] = ','.join(vehicle_types)
+
+                # Add irradiation labels (e.g., 'I_1P,I_2B,I_3G,I_4P')
+                result['irr_labels'] = ','.join(irr_labels)
+
+                # Add individual vehicle type columns
+                for idx, (pos, v_type) in enumerate(zip(position_order, vehicle_types), 1):
+                    result[f'I_{idx}_vehicle'] = v_type
+
                 if model_info['model_type'] == 'flux':
                     # Check if model needs scaling (for backward compatibility with raw models)
                     if model_wrapper is None:

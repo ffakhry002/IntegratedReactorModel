@@ -147,6 +147,15 @@ class ExcelReporter:
             if flux_mode != 'total' and 'flux_mode' in df.columns:
                 base_columns.append('flux_mode')
 
+            # Add vehicle type information columns if present (for fill mode)
+            if 'vehicle_pattern' in df.columns:
+                base_columns.append('vehicle_pattern')
+            if 'irr_labels' in df.columns:
+                base_columns.append('irr_labels')
+            for i in range(1, 5):
+                if f'I_{i}_vehicle' in df.columns:
+                    base_columns.append(f'I_{i}_vehicle')
+
             keff_columns = []
             if has_keff:
                 keff_columns = ['keff_real', 'keff_predicted', 'keff_rel_error']
