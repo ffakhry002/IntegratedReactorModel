@@ -222,12 +222,12 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
             mean_score = float(np.mean(scores))
             tune.report({"score": mean_score})  # Dictionary format for API compatibility
 
-    # ASHA scheduler for early stopping (kills bad trials after 1-2 folds!)
-    # Don't pass metric/mode here - will pass to tune.run() instead
+    # ASHA scheduler - RELAXED for maximum GPU flooding
+    # More lenient settings to keep 192 trials running
     scheduler = ASHAScheduler(
         max_t=5,           # 5 CV folds per trial
-        grace_period=1,    # Can stop after just 1 fold if clearly bad
-        reduction_factor=2 # Top 50% proceed to next fold
+        grace_period=3,    # Must complete 3 folds before stopping (was 1)
+        reduction_factor=4 # Top 75% proceed (was 2 = 50%)
     )
 
     # Intelligent search algorithm (Optuna's TPE)
@@ -238,7 +238,8 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
             n_startup_trials=n_startup,  # Random exploration first
             n_ei_candidates=50,           # Candidates for intelligent selection
             seed=42
-        )
+        ),
+        max_concurrent=192  # Allow 192 concurrent trials (48 per GPU × 4 GPUs)
     )
 
     # Progress reporter
@@ -253,6 +254,11 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
     print(f"Parallelism: Up to {n_gpus * 2} trials simultaneously")
     print(f"Search strategy: {n_startup} random trials, then intelligent TPE\n")
 
+    # Initialize Ray explicitly to ensure proper resource allocation
+    import ray
+    if not ray.is_initialized():
+        ray.init(num_cpus=48, num_gpus=n_gpus, ignore_reinit_error=True, object_store_memory=10*1024*1024*1024)
+
     analysis = tune.run(
         train_neural_net,
         config=config_space,
@@ -260,8 +266,8 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
         scheduler=scheduler,
         search_alg=search_alg,
         progress_reporter=reporter,
-        resources_per_trial={"cpu": 0.25, "gpu": 1/48},  # 8 CPUs + shared GPU
-        max_concurrent_trials=48*4,
+        resources_per_trial={"cpu": 0.25, "gpu": 1/48},  # 0.25 CPU, 1/48 GPU per trial
+        max_concurrent_trials=192,  # Force 192 concurrent (was max_concurrent)
         metric="score",      # Needed for analysis.best_trial
         mode="min",          # Needed for analysis.best_trial
         raise_on_failed_trial=False,

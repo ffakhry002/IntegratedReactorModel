@@ -150,29 +150,83 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
         material_list.append(du)
 
     # U10Mo Fuel (Standard and Enhanced)
+    # Material 31 - 19.75wt%, 20at% enriched U10Mo, rho=17.2 g/cc (reference composition)
     if (mat_list is None) or ('U10Mo' in mat_list) or ('U10Mo-Enhanced' in mat_list):
-        # Create standard enrichment fuel
+        # Reference isotopic fractions at 19.75% enrichment (from MCNP)
+        ref_enrichment = 19.75  # Reference enrichment in %
+        ref_u234 = 2.06E-3
+        ref_u235 = 1.565E-1
+        ref_u236 = 3.636E-3
+        ref_u238 = 6.221E-1
+
+        # Calculate total uranium fraction (constant regardless of enrichment)
+        total_u = ref_u234 + ref_u235 + ref_u236 + ref_u238  # = 0.78236
+
+        # Molybdenum isotope fractions (constant)
+        mo_fractions = {
+            'Mo92': 3.191E-2,
+            'Mo94': 1.992E-2,
+            'Mo95': 3.43E-2,
+            'Mo96': 3.59E-2,
+            'Mo97': 2.06E-2,
+            'Mo98': 5.211E-2,
+            'Mo100': 2.08E-2
+        }
+
+        def scale_uranium_isotopes(target_enrichment):
+            """Scale uranium isotopes based on target enrichment.
+
+            Parameters
+            ----------
+            target_enrichment : float
+                Target U235 enrichment in %
+
+            Returns
+            -------
+            dict
+                Dictionary of uranium isotope fractions
+            """
+            # Convert enrichment to fraction
+            enrich_frac = target_enrichment / 100.0
+            ref_enrich_frac = ref_enrichment / 100.0
+
+            # Scale U235 based on enrichment
+            u235 = total_u * enrich_frac
+
+            # Scale U234 (typically ~1% of U235 for LEU, scales with enrichment)
+            u234_ratio = ref_u234 / ref_u235  # Ratio at reference enrichment
+            u234 = u235 * u234_ratio
+
+            # Scale U236 (scales roughly proportionally with enrichment for reprocessed fuel)
+            u236_ratio = ref_u236 / ref_u235
+            u236 = u235 * u236_ratio
+
+            # U238 makes up the remainder
+            u238 = total_u - u235 - u234 - u236
+
+            return {'U234': u234, 'U235': u235, 'U236': u236, 'U238': u238}
+
+        # Standard enrichment U10Mo
         if 'n%' in inputs_dict:
             enrichment = float(inputs_dict['n%'])
         else:
             if inputs_dict['fuel_type'] == 'U10Mo':
                 raise Exception("must use 'n%' parameter to define enrichment")
             else:
-                enrichment = 19.75  # arbitrary; only get here when plotting
+                enrichment = 19.75  # Default to reference enrichment
 
-        # Standard enrichment U10Mo
-        u_enriched = openmc.Material(name='u_enriched')
-        u_enriched.add_element('U', 0.90, enrichment=enrichment)  # 90 wt% U
-        mo = openmc.Material(name='Mo')
-        mo.add_element('Mo', 1.0)  # Pure Mo
+        u10mo = openmc.Material(name='U10Mo')
 
-        u10mo = openmc.Material.mix_materials(
-            [u_enriched, mo],
-            [0.90, 0.10],  # 90wt% U, 10wt% Mo
-            'wo',
-            name='U10Mo'
-        )
-        u10mo.set_density('g/cm3', 17.0)
+        # Add scaled uranium isotopes
+        u_isotopes = scale_uranium_isotopes(enrichment)
+        for isotope, fraction in u_isotopes.items():
+            u10mo.add_nuclide(isotope, fraction, percent_type='ao')
+
+        # Add molybdenum isotopes (constant)
+        for isotope, fraction in mo_fractions.items():
+            u10mo.add_nuclide(isotope, fraction, percent_type='ao')
+
+        u10mo.set_density('g/cm3', 17.2)
         u10mo.temperature = np.mean(TH_data['T_fuel_avg_z'])
         u10mo.depletable = True  # Mark as depletable
         material_list.append(u10mo)
@@ -180,16 +234,19 @@ def make_materials(th_system=None, mat_list=None, inputs_dict=None):
         # Create enhanced enrichment U10Mo if n%E is specified
         if 'n%E' in inputs_dict:
             enrichment_enhanced = float(inputs_dict['n%E'])
-            u_enriched_enhanced = openmc.Material(name='u_enriched_enhanced')
-            u_enriched_enhanced.add_element('U', 0.90, enrichment=enrichment_enhanced)
 
-            u10mo_enhanced = openmc.Material.mix_materials(
-                [u_enriched_enhanced, mo],
-                [0.90, 0.10],
-                'wo',
-                name='U10Mo-Enhanced'
-            )
-            u10mo_enhanced.set_density('g/cm3', 17.0)
+            u10mo_enhanced = openmc.Material(name='U10Mo-Enhanced')
+
+            # Add scaled uranium isotopes for enhanced enrichment
+            u_isotopes_enhanced = scale_uranium_isotopes(enrichment_enhanced)
+            for isotope, fraction in u_isotopes_enhanced.items():
+                u10mo_enhanced.add_nuclide(isotope, fraction, percent_type='ao')
+
+            # Add molybdenum isotopes (constant)
+            for isotope, fraction in mo_fractions.items():
+                u10mo_enhanced.add_nuclide(isotope, fraction, percent_type='ao')
+
+            u10mo_enhanced.set_density('g/cm3', 17.2)
             u10mo_enhanced.temperature = np.mean(TH_data['T_fuel_avg_z'])
             u10mo_enhanced.depletable = True  # Mark as depletable
             material_list.append(u10mo_enhanced)

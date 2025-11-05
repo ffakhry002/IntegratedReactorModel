@@ -182,6 +182,12 @@ def worker_evaluate_config(args):
     config_params, X_train, y_train, groups, target_type, use_log_flux, gpu_id, trial_id = args
 
     try:
+        # Ensure Python path includes parent directories
+        import sys
+        current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if current_dir not in sys.path:
+            sys.path.insert(0, current_dir)
+
         # Set GPU for this worker
         os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_id)
         device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
@@ -263,13 +269,16 @@ def worker_evaluate_config(args):
         }
 
     except Exception as e:
+        import traceback
+        error_msg = f"{str(e)}\n{traceback.format_exc()}"
+        print(f"ERROR in trial {trial_id} on GPU {gpu_id}: {error_msg}")
         return {
             'trial_id': trial_id,
             'params': config_params,
             'score': float('inf'),
             'std': 0.0,
             'success': False,
-            'error': str(e),
+            'error': error_msg,
             'gpu_id': gpu_id
         }
 
@@ -355,8 +364,21 @@ def random_search_stage(X_train, y_train, groups, target_type, use_log_flux):
 
     # Find best result
     successful_results = [r for r in results if r['success']]
+    failed_results = [r for r in results if not r['success']]
+
     if not successful_results:
-        raise RuntimeError("All random search trials failed!")
+        print(f"\n{'='*70}")
+        print(f"ERROR: All {len(results)} random search trials failed!")
+        print(f"{'='*70}")
+
+        # Show first 5 error examples
+        print("\nFirst 5 error examples:")
+        for i, result in enumerate(failed_results[:5], 1):
+            print(f"\nError {i} (Trial {result['trial_id']}, GPU {result['gpu_id']}):")
+            print(result.get('error', 'No error message'))
+
+        print(f"\n{'='*70}\n")
+        raise RuntimeError(f"All {len(results)} random search trials failed! See errors above.")
 
     best_result = min(successful_results, key=lambda x: x['score'])
 
@@ -595,6 +617,13 @@ def three_stage_neural_net_optimization(X_train, y_train, groups=None,
     optimization_history : dict
         Full optimization history
     """
+
+    # Ensure multiprocessing is set up correctly
+    import torch.multiprocessing as mp
+    try:
+        mp.set_start_method('spawn', force=True)
+    except RuntimeError:
+        pass  # Already set
 
     print(f"\n{'='*70}")
     print(f"THREE-STAGE NEURAL NETWORK OPTIMIZATION")
