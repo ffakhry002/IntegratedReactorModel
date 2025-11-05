@@ -36,8 +36,16 @@ def create_parametric_directory():
     str
         Path to the created parametric study directory
     """
+    # Get RUN_GROUP from environment to make unique directories
+    run_group = os.environ.get('RUN_GROUP', None)
+    
     current_date = datetime.now().strftime("%Y%m%d_%H%M%S")
-    param_dir_name = f"parametric_simulation_{current_date}"
+    
+    # Add run_group to directory name to make it unique per job
+    if run_group:
+        param_dir_name = f"parametric_simulation_{current_date}_group{run_group}"
+    else:
+        param_dir_name = f"parametric_simulation_{current_date}"
 
     # Get the root directory (parent of eigenvalue where this script is located)
     script_dir = parent_dir  # Use the parent_dir we already calculated

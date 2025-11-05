@@ -3,8 +3,8 @@ base_inputs = {
     ###########################################
     # Parametric Study Configuration
     ###########################################
-    "parametric_study": False,        # Toggle for parametric study mode
-    "fast_mode": False,              # Toggle for fast mode
+    "parametric_study": True,        # Toggle for parametric study mode
+    "fast_mode": True,              # Toggle for fast mode
 
     ###########################################
     # Core Configuration
@@ -14,8 +14,8 @@ base_inputs = {
         ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
         ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
         ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
-        ['F', 'F', 'F', 'I_1G', 'I_2G', 'F', 'F', 'F'],
-        ['F', 'F', 'F', 'I_3G', 'I_4G', 'F', 'F', 'F'],
+        ['F', 'F', 'F', 'I_1P', 'I_2B', 'F', 'F', 'F'],
+        ['F', 'F', 'F', 'I_3', 'I_4G', 'F', 'F', 'F'],
         ['F', 'F', 'F', 'F', 'F', 'F', 'F', 'F'],
         ['C', 'F', 'F', 'F', 'F', 'F', 'F', 'C'],
         ['C', 'C', 'F', 'F', 'F', 'F', 'C', 'C'],
@@ -66,7 +66,7 @@ base_inputs = {
     # Material Choices
     "coolant_type": 'Light Water',     # Coolant: 'Light Water' or 'Heavy Water'
     "clad_type": 'Al6061',             # Cladding: 'Al6061', 'Zirc2', or 'Zirc4'
-    "fuel_type": 'U3Si2',             # Fuel: 'U3Si2', 'UO2', or 'U10Mo'
+    "fuel_type": 'U10Mo',             # Fuel: 'U3Si2', 'UO2', or 'U10Mo'
     "reflector_material": "mgo", # Reflector material
     "bioshield_material": "Concrete",  # Bioshield material
 
@@ -101,9 +101,9 @@ base_inputs = {
     "match_GS_height": True,
 
     # Complex fills
-    "PWR_sample_fill": "mgo", # PWR loop sample fill
-    "BWR_sample_fill": "Concrete", # BWR loop sample fill
-    "Gas_capsule_fill": "Vacuum", # Gas capsule sample fill
+    "PWR_sample_fill": "Zircaloy", # PWR loop sample fill
+    "BWR_sample_fill": "Zircaloy", # BWR loop sample fill
+    "Gas_capsule_fill": "Zircaloy", # Gas capsule sample fill
 
     # Loop Diameters
     "PWR_loop_diameter": 0.9, # PWR loop diameter [% cell width]
@@ -114,9 +114,9 @@ base_inputs = {
     # OpenMC Transport Parameters
     ###########################################
     # Standard Transport Settings
-    "batches": int(100),                   # Number of active batches
-    "inactive": int(20),                   # Number of inactive batches
-    "particles": int(10000),            # Particles per batch
+    "batches": int(200),                   # Number of active batches
+    "inactive": int(40),                   # Number of inactive batches
+    "particles": int(100000),            # Particles per batch
     "energy_structure": 'log1001',    # Energy group structure ['log1001', 'log501', 'scale238', 'three_group']
 
     # Energy Group Boundaries
@@ -166,7 +166,7 @@ base_inputs = {
     # Miscellaneous Settings
     ###########################################
     "outputs_folder": "local_outputs",  # Base output directory
-    "dpi": 3000,                        # Plot resolution (dots per inch)
+    "dpi": 30,                        # Plot resolution (dots per inch)
     "verbosity": 7,
 }
 
@@ -230,7 +230,6 @@ def apply_fast_mode_overrides(inputs_dict):
         return inputs_dict
 
     print("FAST MODE ENABLED - Applying optimizations...")
-    print("THIS IS BASE INPUTS FAST MODE")
 
     # Core fast mode changes for maximum speed
     fast_overrides = {
@@ -247,8 +246,6 @@ def apply_fast_mode_overrides(inputs_dict):
         "deplete_assembly_enhanced": False,
         "deplete_element": False,
         "deplete_element_enhanced": False,
-
-        "verbosity": 7,
 
     }
 
@@ -270,5 +267,5 @@ inputs = {
     "num_assemblies": 48  # Automatically calculated from core_lattice
 }
 
-# # Apply fast mode optimizations if enabled
-# inputs = apply_fast_mode_overrides(inputs)
+# Apply fast mode optimizations if enabled
+inputs = apply_fast_mode_overrides(inputs)

@@ -114,9 +114,9 @@ base_inputs = {
     # OpenMC Transport Parameters
     ###########################################
     # Standard Transport Settings
-    "batches": int(200),                   # Number of active batches
-    "inactive": int(40),                   # Number of inactive batches
-    "particles": int(100000),            # Particles per batch
+    "batches": int(250),                   # Number of active batches
+    "inactive": int(50),                   # Number of inactive batches
+    "particles": int(250000),            # Particles per batch
     "energy_structure": 'log1001',    # Energy group structure ['log1001', 'log501', 'scale238', 'three_group']
 
     # Energy Group Boundaries
