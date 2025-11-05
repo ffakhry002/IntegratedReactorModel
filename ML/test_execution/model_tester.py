@@ -477,8 +477,8 @@ class ReactorModelTester:
                                 pred_val = label_to_flux_pred[label]
                                 actual_val = flux_actual[label]
 
-                                # Extract position number from label (e.g., 'I_3' -> 3)
-                                label_num = int(label.split('_')[1])
+                                # Extract position number from label (e.g., 'I_3' -> 3, 'I_3P' -> 3)
+                                label_num = int(label.split('_')[1].rstrip('PBG'))
 
                                 result[f'I_{label_num}_real'] = actual_val
                                 result[f'I_{label_num}_predicted'] = pred_val
@@ -674,8 +674,8 @@ class ReactorModelTester:
                                     # No energy group data - ERROR OUT as requested
                                     raise ValueError(f"No energy group data available for {label}. Cannot calculate {energy_group} flux without energy group percentages.")
 
-                                # Extract label number
-                                label_num = int(label.split('_')[1])
+                                # Extract label number (handles both I_1 and I_1P formats)
+                                label_num = int(label.split('_')[1].rstrip('PBG'))
 
                                 result[f'I_{label_num}_{energy_group}_real'] = actual_val
                                 result[f'I_{label_num}_{energy_group}_predicted'] = pred_val

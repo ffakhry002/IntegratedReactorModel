@@ -180,9 +180,9 @@ def create_cell_position_heatmap_with_positions(df, output_dir, models, encoding
 
                     # For each irradiation position
                     for label, (row, col) in pos_map.items():
-                        # Extract the number from label (e.g., 'I_1' -> 1)
+                        # Extract the number from label (e.g., 'I_1' -> 1, 'I_1P' -> 1)
                         try:
-                            irr_num = int(label.split('_')[1])
+                            irr_num = int(label.split('_')[1].rstrip('PBG'))
                         except:
                             continue
 
@@ -318,7 +318,8 @@ def create_averaged_spatial_error_heatmap(df, output_dir, models, encodings, opt
 
             for label, (row, col) in pos_map.items():
                 try:
-                    irr_num = int(label.split('_')[1])
+                    # Extract numeric part (handles both I_1 and I_1P formats)
+                    irr_num = int(label.split('_')[1].rstrip('PBG'))
                 except:
                     continue
 

@@ -479,6 +479,17 @@ class ModelTrainer:
             flux_scale = 1e14
             flux_mode = 'total'
 
+        # Capture irradiation and NCI modes from encoding module (physics encoding only)
+        irradiation_mode = 'vacuum'  # Fallback default
+        nci_mode = 'single'          # Fallback default
+        if encoding == 'physics':
+            try:
+                from ML_models.encodings.encoding_methods import IRRADIATION_MODE, NCI_MODE
+                irradiation_mode = IRRADIATION_MODE
+                nci_mode = NCI_MODE
+            except:
+                pass  # Use fallback defaults if import fails
+
         # Use the model's own save_model method
         saved_path = model.save_model(
             filepath=filepath,
@@ -487,15 +498,20 @@ class ModelTrainer:
             optimization_method=optimization,
             flux_scale=flux_scale,
             use_log_flux=use_log_flux,
-            flux_mode=flux_mode,  # NEW
+            flux_mode=flux_mode,
+            irradiation_mode=irradiation_mode,  # NEW
+            nci_mode=nci_mode,  # NEW
             **metadata  # Pass any additional metadata
         )
 
-        print(f"\n Model saved:")
+        print(f"\n✓ Model saved:")
         print(f"  Path: {saved_path}")
-        print(f"  Flux metadata:")
+        print(f"  Metadata:")
         print(f"    - use_log_flux: {use_log_flux}")
         print(f"    - flux_scale: {flux_scale}")
         print(f"    - flux_mode: {flux_mode}")
+        if encoding == 'physics':
+            print(f"    - irradiation_mode: {irradiation_mode}")
+            print(f"    - nci_mode: {nci_mode}")
 
         return saved_path

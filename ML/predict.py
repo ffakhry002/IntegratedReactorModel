@@ -475,7 +475,8 @@ class PredictionRunner:
                     if not error and flux_values:
                         for label, value in flux_values.items():
                             if label.startswith('I_'):
-                                label_num = int(label.split('_')[1])
+                                # Extract numeric part (handles both I_1 and I_1P formats)
+                                label_num = int(label.split('_')[1].rstrip('PBG'))
                                 results[idx][f'I_{label_num}_{flux_type}'] = value
 
         self._clear_model_cache()
@@ -500,7 +501,8 @@ class PredictionRunner:
         # Calculate percentages if all three energy groups are present
         if choices.get('predict_thermal') and choices.get('predict_epithermal') and choices.get('predict_fast'):
             for label in irr_labels:
-                label_num = int(label.split('_')[1])
+                # Extract numeric part (handles both I_1 and I_1P formats)
+                label_num = int(label.split('_')[1].rstrip('PBG'))
 
                 thermal_key = f'I_{label_num}_thermal'
                 epithermal_key = f'I_{label_num}_epithermal'
@@ -524,7 +526,8 @@ class PredictionRunner:
             if choices.get(f'predict_{flux_type}', False):
                 values = []
                 for label in irr_labels:
-                    label_num = int(label.split('_')[1])
+                    # Extract numeric part (handles both I_1 and I_1P formats)
+                    label_num = int(label.split('_')[1].rstrip('PBG'))
                     key = f'I_{label_num}_{flux_type}'
                     if key in result:
                         values.append(result[key])
@@ -536,7 +539,8 @@ class PredictionRunner:
         if 'I_1_total_flux' in result:  # Check if we calculated total flux
             total_values = []
             for label in irr_labels:
-                label_num = int(label.split('_')[1])
+                # Extract numeric part (handles both I_1 and I_1P formats)
+                label_num = int(label.split('_')[1].rstrip('PBG'))
                 key = f'I_{label_num}_total_flux'
                 if key in result:
                     total_values.append(result[key])
@@ -670,7 +674,8 @@ class PredictionRunner:
             for key in result.keys():
                 if key.startswith('I_') and '_' in key:
                     try:
-                        pos_num = int(key.split('_')[1])
+                        # Extract numeric part (handles both I_1 and I_1P formats)
+                        pos_num = int(key.split('_')[1].rstrip('PBG'))
                         max_irr_pos = max(max_irr_pos, pos_num)
                     except:
                         pass

@@ -308,8 +308,9 @@ class SymmetryGroupDiagnostic:
 
             # Map flux values through the transformation
             for member_label, canonical_label in position_mapping.items():
-                member_label_num = int(member_label.split('_')[1])
-                canonical_label_num = int(canonical_label.split('_')[1])
+                # Extract numeric part (handles both I_1 and I_1P formats)
+                member_label_num = int(member_label.split('_')[1].rstrip('PBG'))
+                canonical_label_num = int(canonical_label.split('_')[1].rstrip('PBG'))
 
                 for flux_type in flux_types:
                     member_col = f'I_{member_label_num}_{flux_type}'

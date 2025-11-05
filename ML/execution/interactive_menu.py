@@ -499,7 +499,7 @@ class InteractiveTrainer:
                     'optimizations': self.config.optimizations,
                     'targets': self.config.targets,
                     'models': self.config.models,
-                    'flux_mode': self.flux_mode if 'flux' in self.config.targets else None  # NEW
+                    'flux_mode': self.flux_mode if 'flux' in self.config.targets else None
                 }
             }
 

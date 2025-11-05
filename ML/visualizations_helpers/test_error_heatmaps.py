@@ -214,7 +214,8 @@ def _create_single_core_heatmap(test_row, config_id, ax, position_maps, energy_g
     # Fill in error values for each irradiation position
     for label, (row, col) in pos_map.items():
         try:
-            irr_num = int(label.split('_')[1])
+            # Extract numeric part (handles both I_1 and I_1P formats)
+            irr_num = int(label.split('_')[1].rstrip('PBG'))
         except:
             continue
 

@@ -77,7 +77,8 @@ def parse_reactor_data(filename: str) -> Tuple[List[np.ndarray], List[Dict], Lis
         energy_dict = {}  # NEW: Store energy percentages
 
         # Pattern to match flux line with energy groups
-        flux_pattern = r'(I_\d+) Flux ([\d.]+e[+-]\d+) \[([\d.]+)% thermal, ([\d.]+)% epithermal, ([\d.]+)% fast\]'
+        # Updated to handle both I_1 (vacuum) and I_1P/I_1B/I_1G (fill) formats
+        flux_pattern = r'(I_\d+[PBG]?) Flux ([\d.]+e[+-]\d+) \[([\d.]+)% thermal, ([\d.]+)% epithermal, ([\d.]+)% fast\]'
         flux_matches = re.findall(flux_pattern, run)
 
         for irr_pos, flux_val, thermal, epithermal, fast in flux_matches:
@@ -523,15 +524,20 @@ def rotate_flux_values(original_lattice, rotated_lattice, flux_dict, irr_positio
 
         # Verify the label is at the expected position
         if rotated_lattice[new_i, new_j] == label:
-            new_flux[label] = flux_dict[label]
+            # Safety check: ensure label is in flux_dict before accessing
+            if label in flux_dict:
+                new_flux[label] = flux_dict[label]
+            else:
+                print(f"Warning: Label {label} found in lattice but not in flux_dict")
         else:
             # This shouldn't happen if rotation is correct
-            print(f"Warning: Label {label} not found at expected position after rotation")
+            print(f"Warning: Label {label} not found at expected position ({new_i},{new_j}) after rotation")
             # Search for the label
             for ri in range(n):
                 for rj in range(n):
                     if rotated_lattice[ri, rj] == label:
-                        new_flux[label] = flux_dict[label]
+                        if label in flux_dict:
+                            new_flux[label] = flux_dict[label]
                         break
 
     return new_flux
@@ -571,13 +577,17 @@ def flip_flux_values(original_lattice, flipped_lattice, flux_dict, irr_positions
 
         # Verify and map
         if flipped_lattice[new_i, new_j] == label:
-            new_flux[label] = flux_dict[label]
+            if label in flux_dict:
+                new_flux[label] = flux_dict[label]
+            else:
+                print(f"Warning: Label {label} found in lattice but not in flux_dict")
         else:
             # Search for the label
             for ri in range(n):
                 for rj in range(n):
                     if flipped_lattice[ri, rj] == label:
-                        new_flux[label] = flux_dict[label]
+                        if label in flux_dict:
+                            new_flux[label] = flux_dict[label]
                         break
 
     return new_flux
@@ -609,14 +619,18 @@ def transpose_flux_values(original_lattice, transposed_lattice, flux_dict, irr_p
         new_i, new_j = j, i  # Transpose swaps indices
 
         if transposed_lattice[new_i, new_j] == label:
-            new_flux[label] = flux_dict[label]
+            if label in flux_dict:
+                new_flux[label] = flux_dict[label]
+            else:
+                print(f"Warning: Label {label} found in lattice but not in flux_dict")
         else:
             # Search for the label
             n = original_lattice.shape[0]
             for ri in range(n):
                 for rj in range(n):
                     if transposed_lattice[ri, rj] == label:
-                        new_flux[label] = flux_dict[label]
+                        if label in flux_dict:
+                            new_flux[label] = flux_dict[label]
                         break
 
     return new_flux
@@ -652,13 +666,17 @@ def anti_diagonal_flux_values(original_lattice, anti_diag_lattice, flux_dict, ir
         new_i, new_j = n - 1 - j, n - 1 - i
 
         if anti_diag_lattice[new_i, new_j] == label:
-            new_flux[label] = flux_dict[label]
+            if label in flux_dict:
+                new_flux[label] = flux_dict[label]
+            else:
+                print(f"Warning: Label {label} found in lattice but not in flux_dict")
         else:
             # Search for the label
             for ri in range(n):
                 for rj in range(n):
                     if anti_diag_lattice[ri, rj] == label:
-                        new_flux[label] = flux_dict[label]
+                        if label in flux_dict:
+                            new_flux[label] = flux_dict[label]
                         break
 
     return new_flux
@@ -739,11 +757,9 @@ def get_sorted_flux_values(lattice, flux_dict, irr_positions):
                 break
 
     # Extract values in sorted label order
-    flux_values = []
-    for i in range(1, 5):  # I_1 through I_4
-        label = f'I_{i}'
-        if label in label_to_flux:
-            flux_values.append(label_to_flux[label])
+    # Sort labels to handle both vacuum (I_1) and fill (I_1P, I_2B) modes
+    sorted_labels = sorted(label_to_flux.keys())
+    flux_values = [label_to_flux[label] for label in sorted_labels]
 
     return flux_values
 
@@ -862,11 +878,14 @@ def validate_irradiation_positions(lattice: np.ndarray, flux_dict: Dict) -> Tupl
     # Sort labels to ensure consistent ordering
     irr_labels.sort()
 
-    # Check if we have the expected I_1 through I_4
-    expected_labels = [f'I_{i}' for i in range(1, 5)]
+    # Check if we have the expected I_1 through I_4 (or with P/B/G suffix for fill mode)
+    expected_labels_vacuum = [f'I_{i}' for i in range(1, 5)]
 
-    if irr_labels != expected_labels:
-        warnings.append(f"Non-standard irradiation labels: {irr_labels} (expected {expected_labels})")
+    # Check if this is fill mode (labels have P/B/G suffix)
+    is_fill_mode = any(label.endswith(('P', 'B', 'G')) for label in irr_labels)
+
+    if not is_fill_mode and irr_labels != expected_labels_vacuum:
+        warnings.append(f"Non-standard irradiation labels: {irr_labels} (expected {expected_labels_vacuum})")
 
     # Normalize the flux dictionary
     normalized_flux = {}
@@ -883,8 +902,10 @@ def validate_irradiation_positions(lattice: np.ndarray, flux_dict: Dict) -> Tupl
     if missing_flux:
         warnings.append(f"Missing flux values for: {missing_flux}")
 
-    # If we have non-standard labels, remap them
-    if len(irr_labels) != 4 or irr_labels != expected_labels:
+    # IMPORTANT: For fill mode (I_1P, I_2B, etc.), preserve the original labels!
+    # Only remap in vacuum mode if labels are truly non-standard
+    if not is_fill_mode and len(irr_labels) != 4:
+        # Only remap if we don't have exactly 4 positions in vacuum mode
         remapped_flux = {}
         for idx, label in enumerate(sorted(irr_labels)):
             new_label = f'I_{idx + 1}'

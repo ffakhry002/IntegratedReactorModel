@@ -76,6 +76,7 @@ class DataHandler:
                 augmentation_groups.append(group_id)
 
                 # Encode using selected method - now returns position order
+                # Note: Physics encoding uses module-level IRRADIATION_MODE and NCI_MODE toggles
                 if encoding_method == 'one_hot':
                     feature_vec, irr_positions, position_order = self.encodings.one_hot_encoding(aug_lattice)
                 elif encoding_method == 'categorical':

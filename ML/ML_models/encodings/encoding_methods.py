@@ -3,10 +3,23 @@ from typing import List, Tuple, Dict
 import networkx as nx
 from scipy.spatial import distance_matrix
 
+# =============================================================================
+# MANUAL CONFIGURATION TOGGLES - Change these to switch modes
+# =============================================================================
+IRRADIATION_MODE = 'fill'  # Options: 'vacuum' or 'fill'
+                             # 'vacuum': I_1, I_2, I_3, I_4 (original)
+                             # 'fill': I_1P, I_1B, I_1G, etc. (variable fill)
+
+NCI_MODE = 'separate'          # Options: 'single' or 'separate'
+                             # 'single': One NCI per position (standard)
+                             # 'separate': NCI_P, NCI_B, NCI_G per position
+                             # (only applies when IRRADIATION_MODE = 'fill')
+# =============================================================================
+
 class ReactorEncodings:
 
     @staticmethod
-    def one_hot_encoding(lattice: np.ndarray) -> Tuple[np.ndarray, List[Tuple], List[Tuple]]:
+    def one_hot_encoding(lattice: np.ndarray, irradiation_mode: str = 'vacuum') -> Tuple[np.ndarray, List[Tuple], List[Tuple]]:
         """One-hot encoding with position features.
 
         Method 1: One-hot encoding with position features
@@ -58,7 +71,7 @@ class ReactorEncodings:
         return np.array(feature_vec), irr_positions, position_order
 
     @staticmethod
-    def categorical_encoding(lattice: np.ndarray) -> Tuple[np.ndarray, List[Tuple], List[Tuple]]:
+    def categorical_encoding(lattice: np.ndarray, irradiation_mode: str = 'vacuum') -> Tuple[np.ndarray, List[Tuple], List[Tuple]]:
         """Simple categorical encoding.
 
         Method 2: Simple categorical encoding
@@ -110,22 +123,34 @@ class ReactorEncodings:
         return np.array(feature_vec), irr_positions, position_order
 
     @staticmethod
-    def physics_based_encoding(lattice: np.ndarray) -> Tuple[np.ndarray, List[Tuple], List[Tuple]]:
+    def physics_based_encoding(lattice: np.ndarray, irradiation_mode: str = None,
+                               nci_mode: str = None) -> Tuple[np.ndarray, List[Tuple], List[Tuple]]:
         """Physics-based encoding with global and local features.
 
         Method 3: Physics-based encoding with global and local features
-        FIXED: No label-specific features, only spatial physics
+        Supports both vacuum (I_1, I_2) and fill (I_1P, I_1B, I_1G) modes.
 
-        Returns feature vector with:
+        Vacuum mode features:
         - 2 global features (avg distance, symmetry balance)
-        - 4 local features per irradiation position (fuel density, coolant contact, edge distance, center distance)
-        - 1 NCI value per irradiation position
-        Total: 2 + 4*(4+1) = 22 features for 4 positions
+        - 4 local features per position (fuel density, coolant contact, edge distance, center distance)
+        - 1 NCI value per position
+        Total: 2 + 4*4 + 4 = 22 features for 4 positions
+
+        Fill mode features:
+        - 5 global features (avg distance, symmetry balance, fraction_P, fraction_B, fraction_G)
+        - 5 local features per position (fuel density, coolant contact, edge distance, center distance, vehicle_type)
+        - 1 NCI per position (single mode) OR 3 NCI per position (separate mode)
+        Total (single NCI): 5 + 4*5 + 4 = 29 features for 4 positions
+        Total (separate NCI): 5 + 4*5 + 4*3 = 37 features for 4 positions
 
         Parameters
         ----------
         lattice : np.ndarray
             2D array representing the reactor core layout
+        irradiation_mode : str
+            'vacuum' for I_1, I_2 format or 'fill' for I_1P, I_1B, I_1G format
+        nci_mode : str
+            'single' for one NCI per position or 'separate' for NCI_P, NCI_B, NCI_G
 
         Returns
         -------
@@ -133,28 +158,42 @@ class ReactorEncodings:
             (features, irr_positions, position_order) where features is the encoded array,
             irr_positions is list of irradiation positions, and position_order is sorted positions
         """
+        # Use module-level toggles if not explicitly provided
+        if irradiation_mode is None:
+            irradiation_mode = IRRADIATION_MODE
+        if nci_mode is None:
+            nci_mode = NCI_MODE
+
         irr_positions = []
+        irr_positions_with_labels = []  # Store (i, j, label) for fill mode
 
         for i in range(lattice.shape[0]):
             for j in range(lattice.shape[1]):
                 if lattice[i, j].startswith('I'):
                     irr_positions.append((i, j))
+                    irr_positions_with_labels.append((i, j, lattice[i, j]))
 
         position_order = sorted(irr_positions)
+        position_order_with_labels = sorted(irr_positions_with_labels, key=lambda x: (x[0], x[1]))
 
         # Global features based on positions only
-        global_features = ReactorEncodings._compute_global_features(irr_positions)
+        global_features = ReactorEncodings._compute_global_features(
+            irr_positions, position_order_with_labels, irradiation_mode)
 
         # Local features for each irradiation position in spatial order
         local_features = []
-        for pos in position_order:
-            i, j = pos
-            local_feat = ReactorEncodings._compute_local_features(lattice, i, j)
-            # NO LABEL-SPECIFIC FEATURES - just spatial physics
+        for pos_data in position_order_with_labels:
+            i, j = pos_data[0], pos_data[1]
+            label = pos_data[2] if len(pos_data) > 2 else None
+            local_feat = ReactorEncodings._compute_local_features(
+                lattice, i, j, label, irradiation_mode)
             local_features.extend(local_feat)
 
         # Add NCI features for each position
-        nci_features = ReactorEncodings._compute_nci_for_positions(position_order)
+        if irradiation_mode == 'fill' and nci_mode == 'separate':
+            nci_features = ReactorEncodings._compute_nci_separate(position_order_with_labels)
+        else:
+            nci_features = ReactorEncodings._compute_nci_for_positions(position_order)
 
         # Combine all features
         feature_vec = np.concatenate([global_features, local_features, nci_features])
@@ -162,13 +201,18 @@ class ReactorEncodings:
         return feature_vec, irr_positions, position_order
 
     @staticmethod
-    def _compute_global_features(positions: List[Tuple]) -> np.ndarray:
+    def _compute_global_features(positions: List[Tuple], positions_with_labels: List[Tuple],
+                                 irradiation_mode: str) -> np.ndarray:
         """Compute global configuration features using paper's coordinate system.
 
         Parameters
         ----------
         positions : List[Tuple]
             List of (row, col) tuples for irradiation positions
+        positions_with_labels : List[Tuple]
+            List of (row, col, label) tuples for irradiation positions with labels
+        irradiation_mode : str
+            'vacuum' or 'fill'
 
         Returns
         -------
@@ -193,10 +237,26 @@ class ReactorEncodings:
         symmetry_balance = np.linalg.norm(center_of_mass - center)
         symmetry_balance_norm = symmetry_balance / max_possible_dist
 
-        return np.array([avg_distance_norm, symmetry_balance_norm])
+        # For vacuum mode, return just these 2 features
+        if irradiation_mode == 'vacuum':
+            return np.array([avg_distance_norm, symmetry_balance_norm])
+
+        # For fill mode, add vehicle type fractions
+        total_positions = len(positions_with_labels)
+        count_P = sum(1 for pos in positions_with_labels if pos[2].endswith('P'))
+        count_B = sum(1 for pos in positions_with_labels if pos[2].endswith('B'))
+        count_G = sum(1 for pos in positions_with_labels if pos[2].endswith('G'))
+
+        fraction_P = count_P / total_positions if total_positions > 0 else 0.0
+        fraction_B = count_B / total_positions if total_positions > 0 else 0.0
+        fraction_G = count_G / total_positions if total_positions > 0 else 0.0
+
+        return np.array([avg_distance_norm, symmetry_balance_norm,
+                        fraction_P, fraction_B, fraction_G])
 
     @staticmethod
-    def _compute_local_features(lattice: np.ndarray, i: int, j: int) -> List[float]:
+    def _compute_local_features(lattice: np.ndarray, i: int, j: int, label: str = None,
+                                irradiation_mode: str = 'vacuum') -> List[float]:
         """Compute local features for a specific position using paper's definitions.
 
         Parameters
@@ -207,6 +267,10 @@ class ReactorEncodings:
             Row position
         j : int
             Column position
+        label : str, optional
+            Position label (e.g., 'I_1P', 'I_2B') for fill mode
+        irradiation_mode : str
+            'vacuum' or 'fill'
 
         Returns
         -------
@@ -252,10 +316,7 @@ class ReactorEncodings:
             coolant_contact_norm = coolant_count / 2.0
 
         # 3. Edge distance with special handling for corner positions
-        # Check if in one of the four corner positions
-
         edge_dist = min(i, j, 7-i, 7-j)
-
         edge_dist_norm = edge_dist / 3.5  # Max is 3.5
 
         # 4. Distance to core center
@@ -264,7 +325,21 @@ class ReactorEncodings:
         max_dist = np.sqrt(2) * 4
         center_dist_norm = center_dist / max_dist
 
-        return [local_fuel_density, coolant_contact_norm, edge_dist_norm, center_dist_norm]
+        # For vacuum mode, return 4 features
+        if irradiation_mode == 'vacuum':
+            return [local_fuel_density, coolant_contact_norm, edge_dist_norm, center_dist_norm]
+
+        # For fill mode, add vehicle type as 5th feature
+        vehicle_type = 0.0  # Default to P
+        if label:
+            if label.endswith('P'):
+                vehicle_type = 0.0
+            elif label.endswith('B'):
+                vehicle_type = 0.5
+            elif label.endswith('G'):
+                vehicle_type = 1.0
+
+        return [local_fuel_density, coolant_contact_norm, edge_dist_norm, center_dist_norm, vehicle_type]
 
 
     @staticmethod
@@ -317,7 +392,71 @@ class ReactorEncodings:
         return nci_values
 
     @staticmethod
-    def spatial_convolution_encoding(lattice: np.ndarray) -> Tuple[np.ndarray, List[Tuple], List[Tuple]]:
+    def _compute_nci_separate(positions_with_labels: List[Tuple], lambda_decay: float = 1.5) -> List[float]:
+        """Compute separate NCI values by vehicle type (P, B, G) for each irradiation position.
+
+        For each position, computes three NCI values:
+        - NCI_P: competition from P-type vehicles
+        - NCI_B: competition from B-type vehicles
+        - NCI_G: competition from G-type vehicles
+
+        Parameters
+        ----------
+        positions_with_labels : List[Tuple]
+            List of (row, col, label) tuples for irradiation positions
+        lambda_decay : float, optional
+            Decay parameter, by default 1.5
+
+        Returns
+        -------
+        List[float]
+            List of NCI values: [NCI_P_pos1, NCI_B_pos1, NCI_G_pos1, NCI_P_pos2, ...]
+        """
+        # Convert to continuous coordinates (center of cells)
+        continuous_positions = [(i + 0.5, j + 0.5, label) for i, j, label in positions_with_labels]
+
+        # Distance thresholds
+        threshold_low = np.sqrt(4.9)   # ~2.21
+        threshold_high = np.sqrt(5.1)  # ~2.26
+
+        nci_values = []
+        for i, pos_i in enumerate(continuous_positions):
+            # Three separate NCI values for this position
+            nci_P = 0.0
+            nci_B = 0.0
+            nci_G = 0.0
+
+            for j, pos_j in enumerate(continuous_positions):
+                if i != j:
+                    # Euclidean distance
+                    dist = np.sqrt((pos_i[0] - pos_j[0])**2 + (pos_i[1] - pos_j[1])**2)
+
+                    # Calculate contribution based on distance
+                    contribution = 0.0
+                    if dist < threshold_low:
+                        # Close distance: exponential decay
+                        contribution = np.exp(-dist / lambda_decay)
+                    elif threshold_low <= dist <= threshold_high:
+                        # Medium distance: constant small contribution
+                        contribution = 0.1
+                    # else: dist > threshold_high, contributes 0 (no addition)
+
+                    # Add to appropriate NCI based on vehicle type
+                    label_j = pos_j[2]
+                    if label_j.endswith('P'):
+                        nci_P += contribution
+                    elif label_j.endswith('B'):
+                        nci_B += contribution
+                    elif label_j.endswith('G'):
+                        nci_G += contribution
+
+            # Append all three NCI values for this position
+            nci_values.extend([nci_P, nci_B, nci_G])
+
+        return nci_values
+
+    @staticmethod
+    def spatial_convolution_encoding(lattice: np.ndarray, irradiation_mode: str = 'vacuum') -> Tuple[np.ndarray, List[Tuple], List[Tuple]]:
         """Spatial convolution-like encoding.
 
         Method 4: Spatial convolution-like encoding
@@ -369,7 +508,7 @@ class ReactorEncodings:
         return np.array(feature_vec), irr_positions, position_order
 
     @staticmethod
-    def graph_based_encoding(lattice: np.ndarray) -> Tuple[np.ndarray, List[Tuple], List[Tuple]]:
+    def graph_based_encoding(lattice: np.ndarray, irradiation_mode: str = 'vacuum') -> Tuple[np.ndarray, List[Tuple], List[Tuple]]:
         """Graph-based encoding.
 
         Method 5: Graph-based encoding

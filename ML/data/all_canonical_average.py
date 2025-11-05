@@ -122,6 +122,9 @@ class D4SymmetryAverager:
         """
         Get canonical form of irradiation positions and the mapping
         Returns: (canonical_positions, transform_type, position_mapping)
+
+        For fill mode (I_1P, I_2B, etc.), includes vehicle types in the canonical key
+        to distinguish configs with same geometry but different vehicle assignments
         """
         transformations = [
             'identity', 'rot90', 'rot180', 'rot270',
@@ -140,8 +143,21 @@ class D4SymmetryAverager:
             # Sort positions to create canonical representation
             sorted_positions = sorted(transformed.keys())
 
-            # Create tuple for comparison
-            candidate = (tuple(sorted_positions), transform, transformed)
+            # Extract vehicle types at sorted positions for fill mode
+            # This ensures configs with same geometry but different fills are separate
+            vehicle_pattern = []
+            for pos in sorted_positions:
+                label = transformed[pos]
+                # Extract suffix (P/B/G) if present, otherwise empty string
+                if label.endswith(('P', 'B', 'G')):
+                    vehicle_pattern.append(label[-1])  # Last character (P, B, or G)
+                else:
+                    vehicle_pattern.append('')  # Vacuum mode - no suffix
+
+            # Create tuple for comparison: (positions, vehicle_pattern)
+            # This makes [I_1P, I_2P, I_3P, I_4P] different from [I_1B, I_2B, I_3B, I_4B]
+            canonical_key = (tuple(sorted_positions), tuple(vehicle_pattern))
+            candidate = (canonical_key, transform, transformed)
             candidates.append(candidate)
 
         # Select lexicographically smallest as canonical
@@ -228,8 +244,9 @@ class D4SymmetryAverager:
                 # Transform to canonical position
                 canonical_pos = self.apply_d4_transformation(original_pos, transform)
 
-                # Get the position number from THIS config's label
-                pos_num = int(label.split('_')[1])
+                # Get the position number from THIS config's label (strip P/B/G suffix if present)
+                num_part = label.split('_')[1].rstrip('PBG')
+                pos_num = int(num_part)
 
                 # Collect flux values from THIS position in THIS config
                 # and store them under the CANONICAL position
@@ -271,7 +288,10 @@ class D4SymmetryAverager:
             # Find what label this position has in the canonical config
             if canonical_pos in canonical_pos_to_label:
                 canonical_label = canonical_pos_to_label[canonical_pos]
-                canonical_num = int(canonical_label.split('_')[1])
+                # Extract numeric part (handles both I_1 and I_1P formats)
+                # I_1 -> '1', I_1P -> '1P' -> strip P/B/G -> '1'
+                num_part = canonical_label.split('_')[1].rstrip('PBG')
+                canonical_num = int(num_part)
 
                 # Average all flux types for this position
                 for flux_type in ['thermal', 'epithermal', 'fast', 'total_flux']:

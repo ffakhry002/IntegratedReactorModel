@@ -1,6 +1,7 @@
 """
 Feature importance plots for physics-based encoding
 Shows both individual features and aggregated local features
+Supports variable feature counts (vacuum/fill modes with different NCI options)
 """
 
 import matplotlib.pyplot as plt
@@ -9,6 +10,12 @@ import pandas as pd
 import os
 import joblib
 from sklearn.inspection import permutation_importance
+from .feature_importance_utils import (
+    detect_physics_mode,
+    reorder_importances_for_plot,
+    get_aggregated_features,
+    get_feature_colors
+)
 
 def create_feature_importance_plots(df, output_dir, models, target_type='flux', energy_group=None):
     """Create feature importance plots for each model type for a specific target.
@@ -200,7 +207,7 @@ def extract_feature_importances(model_data, model_type, target):
     return None
 
 def create_full_feature_plot(importances, model_type, target, output_dir):
-    """Create a plot showing all 22 individual features.
+    """Create a plot showing all individual features (supports 22, 29, or 37 features).
 
     Parameters
     ----------
@@ -217,84 +224,28 @@ def create_full_feature_plot(importances, model_type, target, output_dir):
     -------
     None
     """
+    # Detect mode from feature count
+    n_features = len(importances)
+    irradiation_mode, nci_mode, is_valid = detect_physics_mode(n_features)
 
-    # Correct structure: Global(2), Local(16), NCI(4) = 22 features
-    # Local features: 4 per position (fuel density, coolant contact, edge distance, center distance)
+    if not is_valid:
+        print(f"  Warning: Unexpected feature count {n_features} for physics encoding")
+        print(f"  Expected: 22 (vacuum), 29 (fill+single NCI), or 37 (fill+separate NCI)")
+        return
 
-    # Extract importances in logical order for visualization
-    reordered_importances = [
-        # Global features (0-1)
-        importances[0],  # Global: Avg Distance
-        importances[1],  # Global: Symmetry
-        # Fuel Density for all positions (2,6,10,14)
-        importances[2],   # Pos1: Fuel Density
-        importances[6],   # Pos2: Fuel Density
-        importances[10],  # Pos3: Fuel Density
-        importances[14],  # Pos4: Fuel Density
-        # Coolant Contact for all positions (3,7,11,15)
-        importances[3],   # Pos1: Coolant Contact
-        importances[7],   # Pos2: Coolant Contact
-        importances[11],  # Pos3: Coolant Contact
-        importances[15],  # Pos4: Coolant Contact
-        # Edge Distance for all positions (4,8,12,16)
-        importances[4],   # Pos1: Edge Distance
-        importances[8],   # Pos2: Edge Distance
-        importances[12],  # Pos3: Edge Distance
-        importances[16],  # Pos4: Edge Distance
-        # Center Distance for all positions (5,9,13,17)
-        importances[5],   # Pos1: Center Distance
-        importances[9],   # Pos2: Center Distance
-        importances[13],  # Pos3: Center Distance
-        importances[17],  # Pos4: Center Distance
-        # NCI for all positions (18,19,20,21)
-        importances[18],  # Pos1: NCI
-        importances[19],  # Pos2: NCI
-        importances[20],  # Pos3: NCI
-        importances[21],  # Pos4: NCI
-    ]
+    # Reorder importances for better visualization
+    reordered_importances, feature_names = reorder_importances_for_plot(
+        importances, irradiation_mode, nci_mode)
 
-    # Define feature names in new order
-    feature_names = [
-        'Global: Avg Distance',
-        'Global: Symmetry',
-        'Pos1: Fuel Density',
-        'Pos2: Fuel Density',
-        'Pos3: Fuel Density',
-        'Pos4: Fuel Density',
-        'Pos1: Coolant Contact',
-        'Pos2: Coolant Contact',
-        'Pos3: Coolant Contact',
-        'Pos4: Coolant Contact',
-        'Pos1: Edge Distance',
-        'Pos2: Edge Distance',
-        'Pos3: Edge Distance',
-        'Pos4: Edge Distance',
-        'Pos1: Center Distance',
-        'Pos2: Center Distance',
-        'Pos3: Center Distance',
-        'Pos4: Center Distance',
-        'Pos1: NCI',
-        'Pos2: NCI',
-        'Pos3: NCI',
-        'Pos4: NCI'
-    ]
+    # Get colors
+    colors, _ = get_feature_colors(irradiation_mode, nci_mode)
 
-    # Create figure
-    plt.figure(figsize=(12, 10))
+    # Create figure (adjust height based on feature count)
+    fig_height = 10 + (n_features - 22) * 0.2  # Scale height with feature count
+    plt.figure(figsize=(12, fig_height))
 
     # Create bar plot
     y_pos = np.arange(len(feature_names))
-
-    # Color scheme: Blue for global, then different shades for each local feature type
-    colors = (
-        ['#1f77b4'] * 2 +      # Blue for global features
-        ['#ff7f0e'] * 4 +      # Orange for fuel density
-        ['#2ca02c'] * 4 +      # Green for coolant contact
-        ['#d62728'] * 4 +      # Red for edge distance
-        ['#9467bd'] * 4 +      # Purple for center distance
-        ['#8c564b'] * 4        # Brown for NCI
-    )
-
     bars = plt.barh(y_pos, reordered_importances, color=colors, alpha=0.8)
 
     # Add value labels on bars
@@ -305,28 +256,45 @@ def create_full_feature_plot(importances, model_type, target, output_dir):
     # Customize plot
     plt.yticks(y_pos, feature_names)
     plt.xlabel('Feature Importance', fontsize=12)
-    plt.title(f'{model_type.upper()} Feature Importance - {target.upper()} (Grouped by Feature Type)',
+
+    mode_str = f"{irradiation_mode.capitalize()}"
+    if irradiation_mode == 'fill':
+        mode_str += f" + {nci_mode.capitalize()} NCI"
+
+    plt.title(f'{model_type.upper()} Feature Importance - {target.upper()} ({mode_str}, {n_features} features)',
               fontsize=14, fontweight='bold')
     plt.grid(True, alpha=0.3, axis='x')
 
-    # Add legend with new color scheme
+    # Add legend
     from matplotlib.patches import Patch
-    legend_elements = [
-        Patch(facecolor='#1f77b4', label='Global Features'),
-        Patch(facecolor='#ff7f0e', label='Local: Fuel Density'),
-        Patch(facecolor='#2ca02c', label='Local: Coolant Contact'),
-        Patch(facecolor='#d62728', label='Local: Edge Distance'),
-        Patch(facecolor='#9467bd', label='Local: Center Distance'),
-        Patch(facecolor='#8c564b', label='Neutron Competition Index (NCI)')
-    ]
-    plt.legend(handles=legend_elements, loc='lower right')
+    legend_elements = [Patch(facecolor='#1f77b4', label='Global Features')]
 
-    # Add vertical separators between feature groups
-    plt.axhline(y=1.5, color='gray', linestyle='--', alpha=0.5)  # After global
-    plt.axhline(y=5.5, color='gray', linestyle='--', alpha=0.5)  # After fuel density
-    plt.axhline(y=9.5, color='gray', linestyle='--', alpha=0.5)  # After coolant contact
-    plt.axhline(y=13.5, color='gray', linestyle='--', alpha=0.5) # After edge distance
-    plt.axhline(y=17.5, color='gray', linestyle='--', alpha=0.5) # After center distance
+    if irradiation_mode == 'fill':
+        legend_elements.extend([
+            Patch(facecolor='#ff7f0e', label='Local: Fuel Density'),
+            Patch(facecolor='#2ca02c', label='Local: Coolant Contact'),
+            Patch(facecolor='#d62728', label='Local: Edge Distance'),
+            Patch(facecolor='#9467bd', label='Local: Center Distance'),
+            Patch(facecolor='#e377c2', label='Local: Vehicle Type')
+        ])
+        if nci_mode == 'separate':
+            legend_elements.extend([
+                Patch(facecolor='#17becf', label='NCI from P vehicles'),
+                Patch(facecolor='#bcbd22', label='NCI from B vehicles'),
+                Patch(facecolor='#7f7f7f', label='NCI from G vehicles')
+            ])
+        else:
+            legend_elements.append(Patch(facecolor='#8c564b', label='NCI'))
+    else:
+        legend_elements.extend([
+            Patch(facecolor='#ff7f0e', label='Local: Fuel Density'),
+            Patch(facecolor='#2ca02c', label='Local: Coolant Contact'),
+            Patch(facecolor='#d62728', label='Local: Edge Distance'),
+            Patch(facecolor='#9467bd', label='Local: Center Distance'),
+            Patch(facecolor='#8c564b', label='NCI')
+        ])
+
+    plt.legend(handles=legend_elements, loc='lower right', fontsize=9)
 
     plt.tight_layout()
 
@@ -340,42 +308,28 @@ def create_full_feature_plot(importances, model_type, target, output_dir):
 def create_aggregated_feature_plot(importances, model_type, target, output_dir):
     """Create a plot showing global features and averaged local features"""
 
-    # Extract global features
-    global_importances = [importances[0], importances[1]]  # Avg distance, symmetry
+    # Detect mode from feature count
+    n_features = len(importances)
+    irradiation_mode, nci_mode, is_valid = detect_physics_mode(n_features)
 
-    # Calculate averaged local features (4 features × 4 positions)
-    local_fuel_density = np.mean([importances[2], importances[6], importances[10], importances[14]])
-    local_coolant_contact = np.mean([importances[3], importances[7], importances[11], importances[15]])
-    local_edge_distance = np.mean([importances[4], importances[8], importances[12], importances[16]])
-    local_center_distance = np.mean([importances[5], importances[9], importances[13], importances[17]])
+    if not is_valid:
+        print(f"  Warning: Unexpected feature count {n_features} for aggregated plot")
+        return
 
-    # Calculate averaged NCI features
-    local_nci = np.mean([importances[18], importances[19], importances[20], importances[21]])
+    # Get aggregated features
+    aggregated_importances, feature_names = get_aggregated_features(
+        importances, irradiation_mode, nci_mode)
 
-    # Combine for plotting
-    aggregated_importances = np.concatenate([
-        global_importances,
-        [local_fuel_density, local_coolant_contact, local_edge_distance, local_center_distance, local_nci]
-    ])
-
-    feature_names = [
-        'Global: Avg Distance',
-        'Global: Symmetry',
-        'Local: Fuel Density (avg)',
-        'Local: Coolant Contact (avg)',
-        'Local: Edge Distance (avg)',
-        'Local: Center Distance (avg)',
-        'Local: NCI (avg)'
-    ]
+    # Get colors
+    _, agg_colors = get_feature_colors(irradiation_mode, nci_mode)
 
     # Create figure
-    plt.figure(figsize=(10, 6))
+    fig_height = 6 + len(feature_names) * 0.1
+    plt.figure(figsize=(10, fig_height))
 
     # Create bar plot
     y_pos = np.arange(len(feature_names))
-    colors = ['#1f77b4'] * 2 + ['#ff7f0e'] * 4 + ['#8c564b'] * 1  # Blue for global, orange for local, brown for NCI
-
-    bars = plt.barh(y_pos, aggregated_importances, color=colors, alpha=0.8)
+    bars = plt.barh(y_pos, aggregated_importances, color=agg_colors, alpha=0.8)
 
     # Add value labels
     for bar, importance in zip(bars, aggregated_importances):
@@ -385,7 +339,12 @@ def create_aggregated_feature_plot(importances, model_type, target, output_dir):
     # Customize plot
     plt.yticks(y_pos, feature_names)
     plt.xlabel('Feature Importance', fontsize=12)
-    plt.title(f'{model_type.upper()} Feature Importance - {target.upper()} (Aggregated)',
+
+    mode_str = f"{irradiation_mode.capitalize()}"
+    if irradiation_mode == 'fill':
+        mode_str += f" + {nci_mode.capitalize()} NCI"
+
+    plt.title(f'{model_type.upper()} Feature Importance - {target.upper()} (Aggregated, {mode_str})',
               fontsize=14, fontweight='bold')
     plt.grid(True, alpha=0.3, axis='x')
 
@@ -396,7 +355,7 @@ def create_aggregated_feature_plot(importances, model_type, target, output_dir):
         Patch(facecolor='#ff7f0e', label='Local Features (averaged)'),
         Patch(facecolor='#8c564b', label='NCI (averaged)')
     ]
-    plt.legend(handles=legend_elements, loc='lower right')
+    plt.legend(handles=legend_elements, loc='lower right', fontsize=9)
 
     # Add note about averaging
     plt.figtext(0.5, 0.02, 'Note: Local and NCI features are averaged across all 4 positions',
