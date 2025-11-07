@@ -36,13 +36,13 @@ import itertools
 @dataclass
 class GPUOptimizationConfig:
     """Configuration for GPU-optimized three-stage optimization"""
-    n_cpus: int = 48
-    n_gpus: int = 4
-    processes_per_cpu: int = 2
-    n_parallel_processes: int = 96  # 48 * 2
+    n_cpus: int = 32
+    n_gpus: int = 3
+    processes_per_cpu: int = 1
+    n_parallel_processes: int = 32  # 48 * 2
 
     # Stage 1: Random Search
-    random_n_iter: int = 10000
+    random_n_iter: int = 2000
 
     # Stage 2: Grid Search (will be calculated based on param grid)
     grid_n_values_per_param: int = 5
@@ -55,8 +55,8 @@ class GPUOptimizationConfig:
     n_cv_folds: int = 5
 
     # Timeout settings
-    single_trial_timeout: int = 600  # 10 minutes per trial
-    stage_timeout: int = 7200  # 2 hours per stage
+    single_trial_timeout: int = 600000000  # 10 minutes per trial
+    stage_timeout: int = 7200000000  # 2 hours per stage
 
     # Fixed parameters for neural network
     max_epochs: int = 1500

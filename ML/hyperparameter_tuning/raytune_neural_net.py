@@ -20,6 +20,8 @@ from sklearn.model_selection import GroupKFold, cross_val_score
 from sklearn.metrics import make_scorer
 import torch
 import pickle
+import ray
+import json
 
 def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
                                 n_gpus=2, target_type='flux', use_log_flux=True, encoding='physics'):
@@ -64,32 +66,33 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
         print(f"Unique configs: {len(np.unique(groups))}")
     print(f"{'='*60}\n")
 
-    # Define search space - NOW WITH ARCHITECTURE DIVERSITY!
+    # Define search space - Simplified for faster convergence
     config_space = {
         # Architecture parameters
         "architecture_type": tune.choice([
             'rectangular', 'pyramidal', 'funnel',
-            'hourglass', 'expanding', 'bottleneck'
+            'hourglass',  # 'expanding', 'bottleneck'  # Commented out
         ]),
-        "depth": tune.randint(2, 7),  # 2-6 hidden layers
-        "base_width": tune.randint(50, 451),  # 50-450 neurons (base for calculating layer widths)
+        "depth": tune.randint(2, 8),  # 2-7 hidden layers
+        "base_width": tune.randint(50, 601),  # 50-600 neurons (base for calculating layer widths)
 
-        # Activation strategy
-        "activation_strategy": tune.choice([
-            'uniform',        # Same activation for all layers
-            'mixed',          # Alternating activations
-            'progressive',    # Gradual transition
-            'deep_relu'       # ReLU early, ELU deep
-        ]),
-        "primary_activation": tune.choice(['relu', 'elu', 'gelu', 'selu']),
+        # Activation - SIMPLIFIED: Just uniform activations
+        "activation": tune.choice(['relu', 'elu', 'gelu']),  # Just uniform activations
+        # "activation_strategy": tune.choice([  # COMMENTED OUT - using uniform only
+        #     'uniform',        # Same activation for all layers
+        #     'mixed',          # Alternating activations
+        #     'progressive',    # Gradual transition
+        #     'deep_relu'       # ReLU early, ELU deep
+        # ]),
+        # "primary_activation": tune.choice(['relu', 'elu', 'gelu', 'selu']),  # COMMENTED OUT
 
         # Training parameters
         "learning_rate": tune.loguniform(1e-4, 1e-2),
         "weight_decay": tune.loguniform(1e-5, 0.1),
         "optimizer": tune.choice(['adam', 'adamw', 'rmsprop']),
-        "batch_size": tune.choice([64, 128, 256]),
+        "batch_size": tune.choice([128, 256, 512]),
         "dropout_rate": tune.uniform(0.0, 0.5),
-        "use_batch_norm": tune.choice([True, False]),
+        "use_batch_norm": True,  # FIXED at True (not optimized)
 
         # Fixed params
         "max_epochs": 1500,
@@ -104,66 +107,31 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
         """Train function called by Ray Tune"""
         from ML_models.neural_net_train import PyTorchFlexibleRegressorWrapper
         from ML_models.neural_architectures import create_heterogeneous_activations
+        import torch
+        import gc  # For memory management
 
-        # Determine activation configuration
-        if config['activation_strategy'] == 'uniform':
-            activations = config['primary_activation']
-        else:
-            # Create heterogeneous activation pattern
-            activations = create_heterogeneous_activations(
-                config['depth'],
-                pattern=config['activation_strategy']
-            )
-            # Replace default activations with primary_activation if it's not relu
-            if config['primary_activation'] != 'relu' and config['activation_strategy'] != 'progressive':
-                # For mixed/deep_relu patterns, use primary_activation instead of relu
-                activations = [config['primary_activation'] if act == 'relu' else act
-                              for act in activations]
+        # SIMPLIFIED: Use uniform activation across all layers
+        activations = config['activation']
 
         print(f"\n{'='*60}")
         print(f"NEW TRIAL STARTING")
         print(f"{'='*60}")
         print(f"Architecture:")
         print(f"  Type: {config['architecture_type']}, Depth: {config['depth']}, Base Width: {config['base_width']}")
-        print(f"  Activation Strategy: {config['activation_strategy']}")
-        if isinstance(activations, list):
-            print(f"  Layer Activations: {' → '.join(activations)}")
-        else:
-            print(f"  Activation: {activations}")
+        print(f"  Activation: {activations} (uniform across all layers)")
         print(f"Training:")
         print(f"  Learning Rate: {config['learning_rate']:.6f}, Optimizer: {config['optimizer']}")
         print(f"  Weight Decay: {config['weight_decay']:.6f}, Batch Size: {config['batch_size']}")
         print(f"Regularization:")
-        print(f"  Dropout: {config['dropout_rate']:.3f}, Batch Norm: {config['use_batch_norm']}")
+        print(f"  Dropout: {config['dropout_rate']:.3f}, Batch Norm: True (fixed)")
         print(f"{'='*60}")
 
         # Use CUDA - Ray Tune handles GPU assignment via CUDA_VISIBLE_DEVICES
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-        # Create model with flexible architecture
-        model = PyTorchFlexibleRegressorWrapper(
-            architecture_type=config["architecture_type"],
-            base_width=config["base_width"],
-            depth=config["depth"],
-            activations=activations,
-            optimizer=config["optimizer"],
-            learning_rate=config["learning_rate"],
-            weight_decay=config["weight_decay"],
-            batch_size=config["batch_size"],
-            dropout_rate=config["dropout_rate"],
-            use_batch_norm=config["use_batch_norm"],
-            max_epochs=config["max_epochs"],
-            patience=config["patience"],
-            validation_fraction=config["validation_fraction"],
-            device=device,  # Ray-assigned GPU
-            verbose=config["verbose"],
-            random_state=config["random_state"]
-        )
-
-        # Cross-validation with GroupKFold
+        # Cross-validation with GroupKFold - CREATE NEW MODEL FOR EACH FOLD
         if groups is not None:
             cv = GroupKFold(n_splits=5)
-            # Create custom CV that passes groups to fit()
             cv_scores = []
 
             # Enumerate to enable ASHA early stopping
@@ -173,6 +141,26 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
                 X_train_fold, X_test_fold = X[train_idx], X[test_idx]
                 y_train_fold, y_test_fold = y[train_idx], y[test_idx]
                 groups_train_fold = groups[train_idx]
+
+                # CRITICAL: Create NEW model for each fold to prevent memory accumulation
+                model = PyTorchFlexibleRegressorWrapper(
+                    architecture_type=config["architecture_type"],
+                    base_width=config["base_width"],
+                    depth=config["depth"],
+                    activations=activations,
+                    optimizer=config["optimizer"],
+                    learning_rate=config["learning_rate"],
+                    weight_decay=config["weight_decay"],
+                    batch_size=config["batch_size"],
+                    dropout_rate=config["dropout_rate"],
+                    use_batch_norm=True,  # FIXED at True
+                    max_epochs=config["max_epochs"],
+                    patience=config["patience"],
+                    validation_fraction=config["validation_fraction"],
+                    device=device,  # Ray-assigned GPU
+                    verbose=config["verbose"],
+                    random_state=config["random_state"]
+                )
 
                 # Fit with groups for internal validation (zero leakage!)
                 model.fit(X_train_fold, y_train_fold, groups=groups_train_fold)
@@ -192,17 +180,47 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
                     mse = mean_squared_error(y_test_fold, predictions)
                     cv_scores.append(mse)
 
-                # Report after each fold for ASHA early stopping
+                # Calculate current mean
                 current_mean = float(np.mean(cv_scores))
                 print(f"    ✓ Fold {fold_idx + 1} score: {cv_scores[-1]:.4f} | Running avg: {current_mean:.4f}")
+
+                # CRITICAL: CLEAN UP MEMORY AFTER EACH FOLD
+                del model, X_train_fold, X_test_fold, y_train_fold, y_test_fold, predictions, groups_train_fold
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()  # Clear GPU memory
+                gc.collect()  # Clear CPU memory
+
+                # Report after cleanup
                 tune.report({"score": current_mean, "training_iteration": fold_idx + 1})
 
             print(f"  Trial complete! Final score: {current_mean:.4f}")
 
             scores = np.array(cv_scores)
         else:
-            # No groups - use standard CV
+            # No groups - use standard CV (WARNING: May have data leakage!)
+            print("  WARNING: No groups provided - using standard 5-fold CV")
             cv = 5
+
+            # Create model once for standard cross_val_score
+            model = PyTorchFlexibleRegressorWrapper(
+                architecture_type=config["architecture_type"],
+                base_width=config["base_width"],
+                depth=config["depth"],
+                activations=activations,
+                optimizer=config["optimizer"],
+                learning_rate=config["learning_rate"],
+                weight_decay=config["weight_decay"],
+                batch_size=config["batch_size"],
+                dropout_rate=config["dropout_rate"],
+                use_batch_norm=True,  # FIXED at True
+                max_epochs=config["max_epochs"],
+                patience=config["patience"],
+                validation_fraction=config["validation_fraction"],
+                device=device,
+                verbose=config["verbose"],
+                random_state=config["random_state"]
+            )
+
             if target_type == 'flux':
                 def mape_scorer(y_true, y_pred):
                     if use_log_flux:
@@ -221,6 +239,13 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
             # Convert back to positive for consistency
             scores = -scores  # Now positive MAPE/MSE
             mean_score = float(np.mean(scores))
+
+            # CRITICAL: CLEAN UP MEMORY
+            del model
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            gc.collect()
+
             tune.report({"score": mean_score})  # Dictionary format for API compatibility
 
     # ASHA scheduler - RELAXED for maximum GPU flooding
@@ -254,15 +279,35 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
     print(f"Search strategy: {n_startup} random trials, then intelligent TPE")
 
     # Initialize Ray explicitly to ensure proper resource allocation
-    import ray
     if not ray.is_initialized():
-        ray.init(num_cpus=32, num_gpus=n_gpus, ignore_reinit_error=True, object_store_memory=10*1024*1024*1024)
+        ray.init(
+            num_cpus=32,
+            num_gpus=n_gpus,
+            ignore_reinit_error=True,
+            object_store_memory=50*1024*1024*1024,  # 50 GB object store
+            _memory=500*1024*1024*1024,  # Reserve 500 GB for workers
+            _system_config={
+                "automatic_object_spilling_enabled": True,  # Spill to disk if RAM full
+                "object_spilling_config": json.dumps({
+                    "type": "filesystem",
+                    "params": {"directory_path": "/tmp/ray_spill"}
+                })
+            }
+        )
 
     # Solution 3: Use PlacementGroupFactory for fractional resource allocation
     # This allows Ray Tune to properly pack multiple trials on same GPU
     resources_per_trial = PlacementGroupFactory([
-        {"CPU": 0.5, "GPU": 3/64}  # 1/3 CPU, 1/32 GPU per trial
+        {"CPU": 1, "GPU": 3/32}  # 1 CPU, 3/32 GPU per trial
     ])
+
+    print(f"\nResource Allocation (PlacementGroupFactory):")
+    print(f"  CPU per trial: 1.0")
+    print(f"  GPU per trial: {3/32:.5f} (3/32)")
+    print(f"  Expected trials per GPU: ~{int(32/3)} trials")
+    print(f"  Max concurrent trials: 32")
+    print(f"  Memory management: Enabled (GC + CUDA cache clearing after each fold)")
+    print(f"  Object store spilling: Enabled → /tmp/ray_spill\n")
 
     analysis = tune.run(
         train_neural_net,
@@ -272,7 +317,7 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
         search_alg=search_alg,
         progress_reporter=reporter,
         resources_per_trial=resources_per_trial,  # Use PlacementGroupFactory
-        max_concurrent_trials=64,
+        max_concurrent_trials=32,
         metric="score",      # Needed for analysis.best_trial
         mode="min",          # Needed for analysis.best_trial
         raise_on_failed_trial=False,
@@ -297,37 +342,27 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
     # Save results and create visualizations
     _save_raytune_results(analysis, target_type, n_gpus, encoding)
 
-    # Reconstruct activations configuration for return params
-    if best_params['activation_strategy'] == 'uniform':
-        best_activations = best_params['primary_activation']
-    else:
-        from ML_models.neural_architectures import create_heterogeneous_activations
-        best_activations = create_heterogeneous_activations(
-            best_params['depth'],
-            pattern=best_params['activation_strategy']
-        )
-        if best_params['primary_activation'] != 'relu' and best_params['activation_strategy'] != 'progressive':
-            best_activations = [best_params['primary_activation'] if act == 'relu' else act
-                              for act in best_activations]
+    # SIMPLIFIED: Use uniform activation (no complex strategies)
+    best_activations = best_params['activation']
 
     # Return only the hyperparameters (not fixed params)
     return_params = {
         'architecture_type': best_params['architecture_type'],
         'base_width': best_params['base_width'],
         'depth': best_params['depth'],
-        'activations': best_activations,
+        'activations': best_activations,  # Uniform activation for all layers
         'learning_rate': best_params['learning_rate'],
         'weight_decay': best_params['weight_decay'],
         'optimizer': best_params['optimizer'],
         'batch_size': best_params['batch_size'],
         'dropout_rate': best_params['dropout_rate'],
-        'use_batch_norm': best_params['use_batch_norm'],
+        'use_batch_norm': True,  # FIXED at True
         'max_epochs': best_params['max_epochs'],
         'patience': best_params['patience'],
         'device': None,  # Will auto-detect during final training
         # Keep backward compatibility
         'width': best_params['base_width'],  # For compatibility with old code
-        'activation': best_params['primary_activation']
+        'activation': best_params['activation']
     }
 
     return return_params, analysis
