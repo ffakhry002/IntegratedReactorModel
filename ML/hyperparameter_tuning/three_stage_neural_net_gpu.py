@@ -42,7 +42,7 @@ class GPUOptimizationConfig:
     n_parallel_processes: int = 96  # 48 * 2
 
     # Stage 1: Random Search
-    random_n_iter: int = 2000
+    random_n_iter: int = 10000
 
     # Stage 2: Grid Search (will be calculated based on param grid)
     grid_n_values_per_param: int = 5

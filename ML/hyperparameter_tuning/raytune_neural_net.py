@@ -232,14 +232,14 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
 
     # Intelligent search algorithm (Optuna's TPE)
     # Don't pass metric/mode here - will pass to tune.run() instead
-    n_startup = min(50, n_trials // 4)  # 50 random trials or 1/3 of total
+    n_startup = n_trials // 5  # 50 random trials or 1/3 of total
     search_alg = OptunaSearch(
         sampler=TPESampler(
             n_startup_trials=n_startup,  # Random exploration first
-            n_ei_candidates=50,           # Candidates for intelligent selection
+            n_ei_candidates=150,           # Candidates for intelligent selection
             seed=42
         ),
-        max_concurrent=192  # Allow 192 concurrent trials (48 per GPU × 4 GPUs)
+        max_concurrent=96  # Allow 192 concurrent trials (48 per GPU × 4 GPUs)
     )
 
     # Progress reporter
@@ -257,7 +257,7 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
     # Initialize Ray explicitly to ensure proper resource allocation
     import ray
     if not ray.is_initialized():
-        ray.init(num_cpus=48, num_gpus=n_gpus, ignore_reinit_error=True, object_store_memory=10*1024*1024*1024)
+        ray.init(num_cpus=32, num_gpus=n_gpus, ignore_reinit_error=True, object_store_memory=10*1024*1024*1024)
 
     analysis = tune.run(
         train_neural_net,
@@ -266,8 +266,8 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
         scheduler=scheduler,
         search_alg=search_alg,
         progress_reporter=reporter,
-        resources_per_trial={"cpu": 0.25, "gpu": 1/48},  # 0.25 CPU, 1/48 GPU per trial
-        max_concurrent_trials=192,  # Force 192 concurrent (was max_concurrent)
+        resources_per_trial={"cpu": 1/3, "gpu": 1/32},  # 0.25 CPU, 1/48 GPU per trial
+        max_concurrent_trials=96,  # Force 192 concurrent (was max_concurrent)
         metric="score",      # Needed for analysis.best_trial
         mode="min",          # Needed for analysis.best_trial
         raise_on_failed_trial=False,
