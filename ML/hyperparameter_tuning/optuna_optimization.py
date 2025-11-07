@@ -245,10 +245,11 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
                     'C': trial.suggest_float('C', 1.0, 1000.0),
                     'epsilon': trial.suggest_float('epsilon', 0.00005, 0.1, log=True),
                     'kernel': kernel,
-                    'max_iter': 200000,
-                    'tol': trial.suggest_float('tol', 1e-4, 1e-2, log=True),
+                    'max_iter': 100000,  # CHANGED: Half of 200000
+                    'tol': 1e-3,  # FIXED: Not optimized during hyperparameter search (0.001)
                     'shrinking': False,
-                    'gamma': trial.suggest_float('gamma', 0.00001, 0.1, log=True),
+                    'gamma': trial.suggest_float('gamma', 0.0001, 0.1, log=True),  # CHANGED: Range [0.0001, 0.1]
+                    'cache_size': 50000,  # FIXED: Large cache for better performance
                     'verbose': True,
                 }
 
@@ -504,7 +505,14 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
             print(f"Could not save study: {str(e)}")
 
         print(f"{'='*60}\n")
-        return study.best_params, study
+
+        # SPECIAL: For SVM, override tolerance to stricter value for final model
+        best_params = study.best_params.copy()
+        if model_type == 'svm' and 'tol' in best_params:
+            best_params['tol'] = 1e-4  # Stricter tolerance for final model (was 1e-3 during optimization)
+            print(f"NOTE: SVM tolerance overridden to {best_params['tol']} for final model (was 1e-3 during optimization)\n")
+
+        return best_params, study
     else:
         print(f"No trials completed. Returning default parameters.")
         print(f"{'='*60}\n")
@@ -612,17 +620,18 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
                     'C': trial.suggest_float('C', 1.0, 1000.0),
                     'epsilon': trial.suggest_float('epsilon', 0.00005, 0.1, log=True),
                     'kernel': kernel,
-                    'max_iter': 200000,
-                    'tol': trial.suggest_float('tol', 1e-4, 1e-2, log=True),
+                    'max_iter': 100000,  # CHANGED: Half of 200000
+                    'tol': 1e-3,  # FIXED: Not optimized during hyperparameter search (0.001)
                     'shrinking': False,
+                    'cache_size': 50000,  # FIXED: Large cache for better performance
                     'verbose': True,
                 }
 
                 # Kernel-specific parameters matching flux optimization
                 if kernel == 'rbf':
-                    params['gamma'] = trial.suggest_float('gamma', 0.00001, 0.1, log=True)
+                    params['gamma'] = trial.suggest_float('gamma', 0.0001, 0.1, log=True)  # CHANGED: Range [0.0001, 0.1]
                 elif kernel == 'poly':
-                    params['gamma'] = trial.suggest_float('gamma', 0.00001, 0.1, log=True)
+                    params['gamma'] = trial.suggest_float('gamma', 0.0001, 0.1, log=True)  # CHANGED: Range [0.0001, 0.1]
                     params['degree'] = trial.suggest_int('degree', 2, 5)
                     params['coef0'] = trial.suggest_float('coef0', 1, 10)
 
@@ -809,7 +818,14 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
             print(f"Could not save study: {str(e)}")
 
         print(f"{'='*60}\n")
-        return study.best_params, study
+
+        # SPECIAL: For SVM, override tolerance to stricter value for final model
+        best_params = study.best_params.copy()
+        if model_type == 'svm' and 'tol' in best_params:
+            best_params['tol'] = 1e-4  # Stricter tolerance for final model (was 1e-3 during optimization)
+            print(f"NOTE: SVM tolerance overridden to {best_params['tol']} for final model (was 1e-3 during optimization)\n")
+
+        return best_params, study
     else:
         print(f"No trials completed. Returning default parameters.")
         print(f"{'='*60}\n")

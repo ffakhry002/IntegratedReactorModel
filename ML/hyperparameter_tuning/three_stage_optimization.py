@@ -862,12 +862,19 @@ class SVMParameterHandler(ModelParameterHandler):
             'epsilon': 0.01,
             'kernel': 'rbf',
             'shrinking': True,      # Matches Optuna for better performance
-            'max_iter': -1       # Matches Optuna
+            'max_iter': 100000,     # Half of original 200000
+            'tol': 1e-4,            # Final model tolerance (0.0001)
+            'cache_size': 50000     # Large cache for better performance
         }
 
     def get_fixed_params(self) -> Dict[str, Any]:
         """Fixed parameters that are not optimized during hyperparameter search"""
-        return {}
+        return {
+            'tol': 1e-3,            # Tolerance during optimization (0.001)
+            'max_iter': 100000,     # Half of original 200000
+            'shrinking': True,      # Fixed for consistency
+            'cache_size': 50000     # Large cache for better performance
+        }
 
     def get_random_distributions(self, needs_wrapper: bool) -> Dict[str, Any]:
         base_params = {
@@ -875,12 +882,10 @@ class SVMParameterHandler(ModelParameterHandler):
             'epsilon': loguniform(0.00005, 0.1),
             # 'kernel': ['rbf', 'poly'],
             'kernel': ['rbf'],
-            'gamma': loguniform(0.00001, 0.1),
+            'gamma': loguniform(0.0001, 0.1),  # CHANGED: Range [0.0001, 0.1]
             # 'degree': randint(3, 5),  # Now allow up to degree 5 with scaling
             # 'coef0': uniform(1.0, 9.0),
-            'shrinking': [True],     # Keep False for consistency with Optuna
-            'max_iter': [-1],     # Fixed like Optuna
-            # random_state is a fixed parameter
+            # tol, max_iter, shrinking, cache_size are now in fixed_params
         }
         # For SVM, always return clean parameters since we create Pipeline with svr__ prefix
         return base_params
@@ -893,7 +898,7 @@ class SVMParameterHandler(ModelParameterHandler):
         base_grid = {}
         for param_name, param_type, min_val, max_val in [
             ('C', 'continuous', 1.0, 1000.0),
-            ('gamma', 'continuous', 0.00001, 0.1),
+            ('gamma', 'continuous', 0.0001, 0.1),  # CHANGED: Range [0.0001, 0.1]
             ('epsilon', 'continuous', 0.00005, 0.1)
         ]:
             value = get_param_value(best_params, param_name)
@@ -933,7 +938,7 @@ class SVMParameterHandler(ModelParameterHandler):
         # Continuous parameters with log-uniform prior
         log_params = [
             ('C', 1.0, 1000.0),
-            ('gamma', 0.00001, 0.1),
+            ('gamma', 0.0001, 0.1),  # CHANGED: Range [0.0001, 0.1]
             ('epsilon', 0.00005, 0.1)
         ]
 
@@ -953,7 +958,7 @@ class SVMParameterHandler(ModelParameterHandler):
                     if param_name == 'epsilon':
                         lower, upper = 0.00005, 0.01  # Safe epsilon range
                     elif param_name == 'gamma':
-                        lower, upper = 0.00001, 0.01  # Safe gamma range
+                        lower, upper = 0.0001, 0.01  # Safe gamma range (CHANGED min from 0.00001 to 0.0001)
                     elif param_name == 'C':
                         lower, upper = 1.0, 1000.0     # Safe C range
                     else:
@@ -983,7 +988,7 @@ class SVMParameterHandler(ModelParameterHandler):
                 if param_name == 'C':
                     search_spaces[f'{prefix}{param_name}'] = Real(1.0, 1000.0, prior='log-uniform')
                 elif param_name == 'gamma':
-                    search_spaces[f'{prefix}{param_name}'] = Real(0.00001, 0.1, prior='log-uniform')
+                    search_spaces[f'{prefix}{param_name}'] = Real(0.0001, 0.1, prior='log-uniform')  # CHANGED: Range [0.0001, 0.1]
                 elif param_name == 'epsilon':
                     search_spaces[f'{prefix}{param_name}'] = Real(0.00005, 0.1, prior='log-uniform')
 
@@ -1246,10 +1251,10 @@ def setup_cross_validation(X_train: np.ndarray, y_train: np.ndarray,
         if n_unique_groups < 2:
             raise ValueError(f"GroupKFold requires at least 2 unique groups, got {n_unique_groups}")
 
-        n_splits = min(10, n_unique_groups)
+        n_splits = min(5, n_unique_groups)
         n_splits = max(2, n_splits)
 
-        if n_splits < 10:
+        if n_splits < 5:
             print(f"   - WARNING: Only {n_unique_groups} unique groups available, using {n_splits}-fold CV")
 
         cv = GroupKFold(n_splits=n_splits)
@@ -1276,8 +1281,8 @@ def setup_cross_validation(X_train: np.ndarray, y_train: np.ndarray,
             print(f"   - Test samples per config: {len(test_idx) / test_configs:.1f}")
             break
     else:
-        cv = 10
-        n_splits = 10
+        cv = 5
+        n_splits = 5
         print(f"   - WARNING: No groups provided - may have CV leakage!")
         print(f"   - Using regular {cv}-fold cross-validation")
 
@@ -1948,6 +1953,10 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
             if param not in clean_params:
                 clean_params[param] = value
 
+        # SPECIAL: For SVM, override tolerance to stricter value for final model
+        if model_type == 'svm':
+            clean_params['tol'] = 1e-4  # Stricter tolerance for final model (was 1e-3 during optimization)
+
         print(f"\nOptimal parameters (fixed parameters were used throughout optimization):")
         optimized_params = {k: v for k, v in clean_params.items() if k not in fixed_params}
         fixed_params_used = {k: v for k, v in clean_params.items() if k in fixed_params}
@@ -1968,6 +1977,10 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
         for param, value in default_params.items():
             if param not in final_params:
                 final_params[param] = value
+
+        # SPECIAL: For SVM, override tolerance to stricter value for final model
+        if model_type == 'svm':
+            final_params['tol'] = 1e-4  # Stricter tolerance for final model (was 1e-3 during optimization)
 
         print(f"\nOptimal parameters (fixed parameters were used throughout optimization):")
         optimized_params = {k: v for k, v in final_params.items() if k not in fixed_params}

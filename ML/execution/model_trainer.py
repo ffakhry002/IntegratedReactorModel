@@ -334,9 +334,9 @@ class ModelTrainer:
                 'C': 10.0,
                 'gamma': 0.005,
                 'epsilon': 0.01,   # CRITICAL FIX: Reduced from 0.1 - large epsilon causes trivial solutions
-                'cache_size': 1000,
+                'cache_size': 50000,  # Large cache for better performance
                 'max_iter': 100000,
-                'tol': 1e-4,
+                'tol': 1e-4,       # Final model tolerance (0.0001, stricter than optimization tol=1e-3)
                 'shrinking': False,
                 'verbose': True
             },
