@@ -1,6 +1,6 @@
 import numpy as np
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
-from hyperparameter_tuning.optuna_optimization import optimize_flux_model, optimize_keff_model
+from hyperparameter_tuning.optuna_optimization import optimize_flux_model, optimize_keff_model, get_model_specific_jobs
 from hyperparameter_tuning.three_stage_optimization import three_stage_optimization
 from hyperparameter_tuning.raytune_neural_net import optimize_neural_net_raytune
 from hyperparameter_tuning.three_stage_neural_net_gpu import three_stage_neural_net_optimization
@@ -64,12 +64,17 @@ class ModelTrainer:
 
         if config.optimization == 'optuna':
             print(f"Starting Optuna optimization...")
+
+            # NEW: Get model-specific job allocation
+            n_jobs, cores_per_trial = get_model_specific_jobs(model_type, config)
+
             if target == 'flux':
                 best_params, study = optimize_flux_model(
                     X_train, y_train,
                     model_type=model_type,
                     n_trials=config.n_trials,
-                    n_jobs=config.n_jobs,
+                    n_jobs=n_jobs,              # Use model-specific n_jobs
+                    cores_per_trial=cores_per_trial,  # NEW parameter
                     groups=groups_train,
                     flux_mode=flux_mode,
                     encoding=encoding
@@ -80,7 +85,8 @@ class ModelTrainer:
                     X_train, y_train,
                     model_type=model_type,
                     n_trials=config.n_trials,
-                    n_jobs=config.n_jobs,
+                    n_jobs=n_jobs,              # Use model-specific n_jobs
+                    cores_per_trial=cores_per_trial,  # NEW parameter
                     groups=groups_train,
                     encoding=encoding
                     # Note: n_gpus not needed - Optuna uses sklearn MLP (CPU-only)
@@ -100,13 +106,18 @@ class ModelTrainer:
 
         elif config.optimization == 'three_stage':
             print(f"Starting three-stage optimization...")
+
+            # NEW: Get model-specific job allocation
+            n_jobs, cores_per_trial = get_model_specific_jobs(model_type, config)
+
             # Three-stage optimization
             model_class = self._get_model_class(model_type, target)
             best_params, search = three_stage_optimization(
                 X_train, y_train,
                 model_class,
                 model_type=model_type,
-                n_jobs=config.n_jobs,
+                n_jobs=n_jobs,              # Use model-specific n_jobs
+                cores_per_trial=cores_per_trial,  # NEW parameter
                 target_type=target,
                 use_log_flux=self.data_handler.use_log_flux if target == 'flux' else False,
                 groups=groups_train,  # NEW: Pass groups

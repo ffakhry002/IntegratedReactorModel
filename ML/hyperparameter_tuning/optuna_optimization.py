@@ -62,6 +62,28 @@ def timeout(duration):
         # Disable the alarm
         signal.alarm(0)
 
+def get_model_specific_jobs(model_type, config):
+    """Get n_jobs and cores_per_trial based on model type
+
+    Parameters
+    ----------
+    model_type : str
+        Type of model ('xgboost', 'svm', etc.)
+    config : TrainingConfig
+        Configuration object with job settings
+
+    Returns
+    -------
+    tuple : (n_jobs, cores_per_trial)
+        Number of parallel trials and cores per trial
+    """
+    if model_type == 'xgboost':
+        return config.n_jobs_xgb, config.cores_per_xgb_trial
+    elif model_type == 'svm':
+        return config.n_jobs_svm, 1  # SVM doesn't benefit from cores_per_trial
+    else:
+        return config.n_jobs, 1
+
 # Custom MAPE scorer for flux models
 def mape_scorer_flux(y_true, y_pred, use_log_flux=True):
     """Custom MAPE scorer that handles log-transformed flux data"""
@@ -103,8 +125,16 @@ def mape_scorer_flux(y_true, y_pred, use_log_flux=True):
 
     return mape
 
-def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=250, n_jobs=10, use_log_flux=True, groups=None, flux_mode='total', encoding='categorical'):
-    """Optimize hyperparameters for flux prediction only - NOW USING MAPE or MSE based on mode"""
+def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=250, n_jobs=10, cores_per_trial=1, use_log_flux=True, groups=None, flux_mode='total', encoding='categorical'):
+    """Optimize hyperparameters for flux prediction only - NOW USING MAPE or MSE based on mode
+
+    Parameters
+    ----------
+    ...
+    cores_per_trial : int
+        Number of cores each trial should use internally (for XGBoost)
+    ...
+    """
 
     print(f"\n{'='*60}")
     print(f"Starting {model_type.upper()} optimization for FLUX")
@@ -119,6 +149,8 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
         print(f"Optimization metric: MAPE (Mean Absolute Percentage Error)")
     print(f"Total trials: {n_trials}, Timeout per trial: {TRIAL_TIMEOUT}s")
     print(f"Total timeout: {TOTAL_TIMEOUT}s")
+    print(f"Parallel trials (n_jobs): {n_jobs}")
+    print(f"Cores per trial: {cores_per_trial}")
 
     # NEW: Check if groups provided
     if groups is not None:
@@ -182,9 +214,9 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
                     'reg_lambda': trial.suggest_float('reg_lambda', 0.0, 10.0),
                     'gamma': trial.suggest_float('gamma', 0.0001, 0.1, log=True),
                     'min_child_weight': trial.suggest_int('min_child_weight', 1, 20),
-                    'n_jobs': 1,
+                    'n_jobs': cores_per_trial,  # CHANGED: Use cores_per_trial instead of 1
                     'verbosity': 1,
-                    'tree_method': 'exact'
+                    'tree_method': 'hist'  # CHANGED: 'hist' is faster and parallelizes better than 'exact'
                 }
 
                 print(f"  XGBoost params: n_estimators={params['n_estimators']}, max_depth={params['max_depth']}")
@@ -478,14 +510,24 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
         print(f"{'='*60}\n")
         return {}, study
 
-def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=250, n_jobs=10, groups=None, encoding='categorical'):
-    """Optimize hyperparameters for k-eff prediction only"""
+def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=250, n_jobs=10, cores_per_trial=1, groups=None, encoding='categorical'):
+    """Optimize hyperparameters for k-eff prediction only
+
+    Parameters
+    ----------
+    ...
+    cores_per_trial : int
+        Number of cores each trial should use internally (for XGBoost)
+    ...
+    """
 
     print(f"\n{'='*60}")
     print(f"Starting {model_type.upper()} optimization for K-EFF")
     print(f"Encoding: {encoding}")
     print(f"Total trials: {n_trials}, Timeout per trial: {TRIAL_TIMEOUT}s")
     print(f"Total timeout: {TOTAL_TIMEOUT}s")
+    print(f"Parallel trials (n_jobs): {n_jobs}")
+    print(f"Cores per trial: {cores_per_trial}")
 
     # NEW: Check if groups provided
     if groups is not None:
@@ -538,9 +580,9 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
                     'reg_lambda': trial.suggest_float('reg_lambda', 0.0, 10.0),
                     'gamma': trial.suggest_float('gamma', 0.0001, 0.1, log=True),
                     'min_child_weight': trial.suggest_int('min_child_weight', 1, 20),
-                    'n_jobs': 1,
+                    'n_jobs': cores_per_trial,  # CHANGED: Use cores_per_trial instead of 1
                     'verbosity': 1,
-                    'tree_method': 'exact'
+                    'tree_method': 'hist'  # CHANGED: 'hist' is faster and parallelizes better than 'exact'
                 }
                 print(f"  XGBoost params: n_estimators={params['n_estimators']}, max_depth={params['max_depth']}")
                 model = xgb.XGBRegressor(**params)

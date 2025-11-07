@@ -655,6 +655,16 @@ class ModelParameterHandler(ABC):
 class XGBoostParameterHandler(ModelParameterHandler):
     """Parameter handler for XGBoost models"""
 
+    def __init__(self, cores_per_trial=1):
+        """Initialize with cores per trial
+
+        Parameters
+        ----------
+        cores_per_trial : int
+            Number of cores each XGBoost model should use
+        """
+        self.cores_per_trial = cores_per_trial
+
     def get_default_params(self) -> Dict[str, Any]:
         return {
             'n_estimators': 300,
@@ -668,7 +678,9 @@ class XGBoostParameterHandler(ModelParameterHandler):
             'reg_lambda': 1.0,
             'gamma': 0.0,
             'min_child_weight': 1,
-            'random_state': 42
+            'random_state': 42,
+            'n_jobs': self.cores_per_trial,  # NEW
+            'tree_method': 'hist'  # NEW
         }
 
     def get_fixed_params(self) -> Dict[str, Any]:
@@ -679,7 +691,9 @@ class XGBoostParameterHandler(ModelParameterHandler):
             'reg_lambda': 1.0,
             'gamma': 0.0,
             'min_child_weight': 1,
-            'random_state': 42
+            'random_state': 42,
+            'n_jobs': self.cores_per_trial,  # NEW
+            'tree_method': 'hist'  # NEW
         }
 
     def get_random_distributions(self, needs_wrapper: bool) -> Dict[str, Any]:
@@ -1132,12 +1146,30 @@ class ParameterHandlerFactory:
     }
 
     @classmethod
-    def create_handler(cls, model_type: str) -> ModelParameterHandler:
-        """Create appropriate parameter handler for model type"""
+    def create_handler(cls, model_type: str, cores_per_trial: int = 1) -> ModelParameterHandler:
+        """Create appropriate parameter handler for model type
+
+        Parameters
+        ----------
+        model_type : str
+            Type of model ('xgboost', 'random_forest', 'svm', 'neural_net')
+        cores_per_trial : int
+            Number of cores each trial uses internally (for XGBoost)
+
+        Returns
+        -------
+        ModelParameterHandler
+            Parameter handler for the specified model type
+        """
         handler_class = cls._handlers.get(model_type)
         if handler_class is None:
             raise ValueError(f"Unknown model type: {model_type}")
-        return handler_class()
+
+        # Pass cores_per_trial to XGBoost handler
+        if model_type == 'xgboost':
+            return handler_class(cores_per_trial=cores_per_trial)
+        else:
+            return handler_class()
 
 # ============================================================================
 # SCORING FUNCTIONS
@@ -1690,7 +1722,7 @@ def clean_optimization_parameters(params_dict: Dict[str, Any]) -> Dict[str, Any]
 # MAIN OPTIMIZATION FUNCTION
 # ============================================================================
 def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost',
-                           n_jobs=-1, target_type='flux', use_log_flux=True, groups=None,
+                           n_jobs=-1, cores_per_trial=1, target_type='flux', use_log_flux=True, groups=None,
                            n_random_iter=None, n_bayesian_iter=None, fast_mode=False, n_gpus=0):
     """
     Three-stage hyperparameter optimization: Random → Grid → Bayesian
@@ -1700,7 +1732,8 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
         y_train: Training targets
         model_class: Model class to optimize
         model_type: Type of model ('xgboost', 'random_forest', 'svm', 'neural_net')
-        n_jobs: Number of parallel jobs
+        n_jobs: Number of parallel trials
+        cores_per_trial: Number of cores each trial uses internally (for XGBoost)
         target_type: 'flux' or 'keff' - determines optimization metric
         use_log_flux: Whether flux data is log-transformed
         groups: Array indicating which samples belong to same original config
@@ -1729,6 +1762,8 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
     print(f"Optimization metric: {'MAPE' if target_type == 'flux' else 'MSE'}")
     print(f"Random search iterations: {actual_random_iter}")
     print(f"Bayesian search iterations: {actual_bayesian_iter}")
+    print(f"Parallel trials (n_jobs): {n_jobs}")
+    print(f"Cores per trial: {cores_per_trial}")
     print(f"Stage timeout: {config.stage_timeout}s, Total timeout: {config.total_timeout}s")
     print(f"{'='*60}")
 
@@ -1807,7 +1842,7 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
         print(f"   - Using MSE scoring")
 
     # Get parameter handler
-    handler = ParameterHandlerFactory.create_handler(model_type)
+    handler = ParameterHandlerFactory.create_handler(model_type, cores_per_trial)
 
     # Extract fixed parameters that should not be optimized
     fixed_params = handler.get_fixed_params()
@@ -1901,7 +1936,7 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
         print(f"\nFinal best MSE: {abs(best_score_so_far):.10f}")
 
     # Prepare final parameters - fixed params were used throughout optimization
-    handler = ParameterHandlerFactory.create_handler(model_type)
+    handler = ParameterHandlerFactory.create_handler(model_type, cores_per_trial)
     default_params = handler.get_default_params()
 
     # Clean up parameters for final model and ensure complete parameter set

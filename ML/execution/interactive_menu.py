@@ -429,6 +429,19 @@ class InteractiveTrainer:
             self.config.bayesian_iter = 100
 
         self.config.n_jobs = self.get_parallel_settings()
+
+        # Calculate model-specific job allocation based on n_jobs
+        if self.config.n_jobs == -1:
+            import multiprocessing
+            total_cores = multiprocessing.cpu_count()
+        else:
+            total_cores = self.config.n_jobs
+
+        # NEW: Model-specific job allocation
+        self.config.n_jobs_xgb = max(1, total_cores // 8)  # n_cores/8 parallel trials
+        self.config.cores_per_xgb_trial = 8                 # 8 cores per trial
+        self.config.n_jobs_svm = -1                         # All cores for SVM
+
         self.config.n_gpus = self.get_gpu_settings(self.config.models)
         self.config.trials_per_gpu = self.get_trials_per_gpu(self.config.n_gpus, self.config.optimizations)
 
@@ -475,6 +488,16 @@ class InteractiveTrainer:
             parallel_processes = self.config.n_jobs * 2 if self.config.n_jobs != -1 else 96
             print(f"  Parallel processes: {parallel_processes}")
         print(f"Parallel cores: {'All' if self.config.n_jobs == -1 else self.config.n_jobs}")
+
+        # NEW: Show model-specific core allocation
+        if 'xgboost' in self.config.models:
+            print(f"  XGBoost allocation: {self.config.n_jobs_xgb} parallel trials × {self.config.cores_per_xgb_trial} cores = {self.config.n_jobs_xgb * self.config.cores_per_xgb_trial} cores total")
+        if 'svm' in self.config.models:
+            print(f"  SVM allocation: All cores (n_jobs=-1)")
+        if 'random_forest' in self.config.models or 'neural_net' in self.config.models:
+            other_models = [m for m in self.config.models if m in ['random_forest', 'neural_net']]
+            print(f"  {', '.join(other_models)} allocation: {self.config.n_jobs} cores (default)")
+
         print(f"Data file: {data_file}")
         print(f"Total training jobs: {total_jobs}")
 
