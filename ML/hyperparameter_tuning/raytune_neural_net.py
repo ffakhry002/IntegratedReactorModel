@@ -13,6 +13,7 @@ from ray import tune
 from ray.tune import CLIReporter
 from ray.tune.schedulers import ASHAScheduler
 from ray.tune.search.optuna import OptunaSearch
+from ray.tune.execution.placement_groups import PlacementGroupFactory
 from optuna.samplers import TPESampler
 import optuna
 from sklearn.model_selection import GroupKFold, cross_val_score
@@ -238,8 +239,7 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
             n_startup_trials=n_startup,  # Random exploration first
             n_ei_candidates=150,           # Candidates for intelligent selection
             seed=42
-        ),
-        max_concurrent=96  # Allow 192 concurrent trials (48 per GPU × 4 GPUs)
+        )
     )
 
     # Progress reporter
@@ -250,14 +250,19 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
 
     # Run optimization
     print("Starting Ray Tune optimization with Optuna TPE search...")
-    print(f"Resources: {n_gpus} GPUs, 8 CPUs per trial")
-    print(f"Parallelism: Up to {n_gpus * 2} trials simultaneously")
-    print(f"Search strategy: {n_startup} random trials, then intelligent TPE\n")
+    print(f"Resources: {n_gpus} GPUs available")
+    print(f"Search strategy: {n_startup} random trials, then intelligent TPE")
 
     # Initialize Ray explicitly to ensure proper resource allocation
     import ray
     if not ray.is_initialized():
         ray.init(num_cpus=32, num_gpus=n_gpus, ignore_reinit_error=True, object_store_memory=10*1024*1024*1024)
+
+    # Solution 3: Use PlacementGroupFactory for fractional resource allocation
+    # This allows Ray Tune to properly pack multiple trials on same GPU
+    resources_per_trial = PlacementGroupFactory([
+        {"CPU": 0.5, "GPU": 3/64}  # 1/3 CPU, 1/32 GPU per trial
+    ])
 
     analysis = tune.run(
         train_neural_net,
@@ -266,8 +271,8 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
         scheduler=scheduler,
         search_alg=search_alg,
         progress_reporter=reporter,
-        resources_per_trial={"cpu": 1/3, "gpu": 1/32},  # 0.25 CPU, 1/48 GPU per trial
-        max_concurrent_trials=96,  # Force 192 concurrent (was max_concurrent)
+        resources_per_trial=resources_per_trial,  # Use PlacementGroupFactory
+        max_concurrent_trials=64,
         metric="score",      # Needed for analysis.best_trial
         mode="min",          # Needed for analysis.best_trial
         raise_on_failed_trial=False,
