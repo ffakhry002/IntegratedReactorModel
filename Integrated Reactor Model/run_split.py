@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """
-Split runs into 10 groups based on their euclidean_geometric index.
+Split runs into groups based on their base description (ignoring permutation suffix).
 """
+import re
 
 # Read the input file
 input_file = 'run_dictionaries_expanded.py'
-output_file = 'run_dictionaries.py'
+output_file = 'run_dictionaries_final.py'
 
 with open(input_file, 'r') as f:
     content = f.read()
@@ -36,26 +37,26 @@ for line in content.split('\n'):
             current_run = []
             in_run = False
 
-# Filter out the default run and get only euclidean runs
-euclidean_runs = []
-
+# Filter out the default run
+filtered_runs = []
 for run in runs:
-    if 'euclidean_geometric' in run:
-        euclidean_runs.append(run)
+    if 'Default inputs' not in run:
+        filtered_runs.append(run)
 
-print(f"Found {len(euclidean_runs)} euclidean runs")
+print(f"Found {len(filtered_runs)} runs (excluding default)")
 
 # Split into 25 groups
 n_groups = 25
-runs_per_group = len(euclidean_runs) // n_groups
-remainder = len(euclidean_runs) % n_groups
+runs_per_group = len(filtered_runs) // n_groups
+remainder = len(filtered_runs) % n_groups
 
 # Generate output file
 with open(output_file, 'w') as f:
     f.write('"""\n')
     f.write('Run dictionaries split into 25 groups.\n')
     f.write('"""\n')
-    f.write('import numpy as np\n\n')
+    f.write('import numpy as np\n')
+    f.write('import os\n\n')
     
     for i in range(n_groups):
         start_idx = i * runs_per_group + min(i, remainder)
@@ -63,7 +64,7 @@ with open(output_file, 'w') as f:
         
         f.write(f'runs_{i+1} = [\n')
         
-        for j, run in enumerate(euclidean_runs[start_idx:end_idx]):
+        for j, run in enumerate(filtered_runs[start_idx:end_idx]):
             # Strip leading comma and whitespace from the run if present
             run = run.strip()
             if run.startswith(','):
@@ -83,10 +84,25 @@ with open(output_file, 'w') as f:
         
         f.write(']\n\n')
     
-    # Add the all_runs assignment at the end
-    f.write('# Change this to runs_1, runs_2, etc. to select which group to run\n')
-    f.write('all_runs = runs_1\n')
+    # Add the environment variable selector at the end
+    f.write('# Dynamically select based on environment variable\n')
+    f.write("run_group = int(os.environ.get('RUN_GROUP', '1'))\n\n")
+    
+    f.write('# List of all run groups\n')
+    f.write('all_runs_list = [')
+    for i in range(n_groups):
+        if i > 0:
+            f.write(', ')
+        f.write(f'runs_{i+1}')
+    f.write(']\n\n')
+    
+    f.write('# Select the appropriate group\n')
+    f.write('all_runs = all_runs_list[run_group - 1]\n\n')
+    
+    f.write('print(f"RUN_GROUP environment variable set to: {run_group}")\n')
+    f.write('print(f"Using runs_{run_group} with {len(all_runs)} configurations")\n')
 
-print(f"Split {len(euclidean_runs)} runs into {n_groups} groups")
+print(f"Split {len(filtered_runs)} runs into {n_groups} groups")
 print(f"Output written to: {output_file}")
-print(f"Runs per group: {[runs_per_group + (1 if i < remainder else 0) for i in range(n_groups)]}")
+group_sizes = [runs_per_group + (1 if i < remainder else 0) for i in range(n_groups)]
+print(f"Runs per group: {group_sizes}")

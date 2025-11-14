@@ -252,8 +252,8 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
     # More lenient settings to keep 192 trials running
     scheduler = ASHAScheduler(
         max_t=5,           # 5 CV folds per trial
-        grace_period=3,    # Must complete 3 folds before stopping (was 1)
-        reduction_factor=4 # Top 75% proceed (was 2 = 50%)
+        grace_period=2,    # Must complete 3 folds before stopping (was 1)
+        reduction_factor=2 # Top 75% proceed (was 2 = 50%)
     )
 
     # Intelligent search algorithm (Optuna's TPE)

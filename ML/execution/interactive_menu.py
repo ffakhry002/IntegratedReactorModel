@@ -440,7 +440,7 @@ class InteractiveTrainer:
         # NEW: Model-specific job allocation
         self.config.n_jobs_xgb = max(1, total_cores // 8)  # n_cores/8 parallel trials
         self.config.cores_per_xgb_trial = 8                 # 8 cores per trial
-        self.config.n_jobs_svm = -1                         # All cores for SVM
+        self.config.n_jobs_svm = 56                         # All cores for SVM
 
         self.config.n_gpus = self.get_gpu_settings(self.config.models)
         self.config.trials_per_gpu = self.get_trials_per_gpu(self.config.n_gpus, self.config.optimizations)
