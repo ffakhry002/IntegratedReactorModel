@@ -10,6 +10,7 @@ import numpy as np
 import joblib
 import glob
 import pandas as pd
+from tqdm import tqdm
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from utils.txt_to_data import parse_reactor_data
@@ -894,7 +895,7 @@ class ReactorModelTester:
         # PERFORMANCE FIX: Pre-calculate training set membership for all configs (with caching)
         print("\nChecking which configurations were in training set...")
         in_training_flags = []
-        for i, lattice in enumerate(lattices):
+        for lattice in tqdm(lattices, desc="Checking configs", unit="config"):
             in_training = self.is_in_training_set(lattice)
             in_training_flags.append(in_training)
             if in_training:
@@ -907,23 +908,26 @@ class ReactorModelTester:
 
             # PERFORMANCE: Process by model, not by config
             for model_idx, model_info in enumerate(total_flux_models, 1):
-                print(f"\n  Model {model_idx}/{len(total_flux_models)}: {model_info['model_class']} ({model_info['encoding']}, {model_info['optimization_method']})")
+                model_desc = f"{model_info['model_class']} ({model_info['encoding']}, {model_info['optimization_method']})"
+                print(f"\n  Model {model_idx}/{len(total_flux_models)}: {model_desc}")
 
                 # Load model ONCE per model (not per config!)
                 self.available_models = [model_info]
 
-                for i, (lattice, flux, keff, desc, energy_group) in enumerate(zip(lattices, flux_data, k_effectives, descriptions, energy_groups)):
-                    print(f"\r    Testing configuration {i+1}/{len(lattices)}...", end='', flush=True)
-
+                for i, (lattice, flux, keff, desc, energy_group) in tqdm(
+                    enumerate(zip(lattices, flux_data, k_effectives, descriptions, energy_groups)),
+                    total=len(lattices),
+                    desc=f"    {model_info['model_class']}",
+                    unit="config",
+                    leave=False
+                ):
                     # Optionally show detailed match information
                     if show_match_details and in_training_flags[i]:
                         match_found, train_idx, transform = self.find_matching_training_config(lattice)
-                        print(f"\n      Config {i+1} matches training config {train_idx+1} with transform: {transform}")
+                        tqdm.write(f"      Config {i+1} matches training config {train_idx+1} with transform: {transform}")
 
                     results = self.test_single_configuration(lattice, flux, keff, i, desc, in_training_flags[i], energy_group)
                     all_results.extend(results)
-
-                print()  # Newline after progress
 
             # Save intermediate results if we have bin models coming up
             if bin_flux_models and save_intermediate_results:
@@ -938,17 +942,20 @@ class ReactorModelTester:
 
             # PERFORMANCE: Process by model, not by config
             for model_idx, model_info in enumerate(energy_flux_models, 1):
-                print(f"\n  Model {model_idx}/{len(energy_flux_models)}: {model_info['model_class']} ({model_info['encoding']}, {model_info['optimization_method']})")
+                model_desc = f"{model_info['model_class']} ({model_info['encoding']}, {model_info['optimization_method']})"
+                print(f"\n  Model {model_idx}/{len(energy_flux_models)}: {model_desc}")
 
                 self.available_models = [model_info]
 
-                for i, (lattice, flux, keff, desc, energy_group) in enumerate(zip(lattices, flux_data, k_effectives, descriptions, energy_groups)):
-                    print(f"\r    Testing configuration {i+1}/{len(lattices)}...", end='', flush=True)
-
+                for i, (lattice, flux, keff, desc, energy_group) in tqdm(
+                    enumerate(zip(lattices, flux_data, k_effectives, descriptions, energy_groups)),
+                    total=len(lattices),
+                    desc=f"    {model_info['model_class']}",
+                    unit="config",
+                    leave=False
+                ):
                     results = self.test_single_configuration(lattice, flux, keff, i, desc, in_training_flags[i], energy_group)
                     all_results.extend(results)
-
-                print()  # Newline after progress
 
         # Process bin flux models
         if bin_flux_models:
@@ -968,17 +975,20 @@ class ReactorModelTester:
 
             # PERFORMANCE: Process by model, not by config
             for model_idx, model_info in enumerate(bin_flux_models, 1):
-                print(f"\n  Model {model_idx}/{len(bin_flux_models)}: {model_info['model_class']} ({model_info['encoding']}, {model_info['optimization_method']})")
+                model_desc = f"{model_info['model_class']} ({model_info['encoding']}, {model_info['optimization_method']})"
+                print(f"\n  Model {model_idx}/{len(bin_flux_models)}: {model_desc}")
 
                 self.available_models = [model_info]
 
-                for i, (lattice, flux, keff, desc, energy_group) in enumerate(zip(lattices, flux_data, k_effectives, descriptions, energy_groups)):
-                    print(f"\r    Testing configuration {i+1}/{len(lattices)}...", end='', flush=True)
-
+                for i, (lattice, flux, keff, desc, energy_group) in tqdm(
+                    enumerate(zip(lattices, flux_data, k_effectives, descriptions, energy_groups)),
+                    total=len(lattices),
+                    desc=f"    {model_info['model_class']}",
+                    unit="config",
+                    leave=False
+                ):
                     results = self.test_single_configuration(lattice, flux, keff, i, desc, in_training_flags[i], energy_group)
                     all_results.extend(results)
-
-                print()  # Newline after progress
 
         # Process single energy models
         for energy_type, energy_models in [('thermal', thermal_only_models),
@@ -990,22 +1000,25 @@ class ReactorModelTester:
 
                 # PERFORMANCE: Process by model, not by config
                 for model_idx, model_info in enumerate(energy_models, 1):
-                    print(f"\n  Model {model_idx}/{len(energy_models)}: {model_info['model_class']} ({model_info['encoding']}, {model_info['optimization_method']})")
+                    model_desc = f"{model_info['model_class']} ({model_info['encoding']}, {model_info['optimization_method']})"
+                    print(f"\n  Model {model_idx}/{len(energy_models)}: {model_desc}")
 
                     self.available_models = [model_info]
 
-                    for i, (lattice, flux, keff, desc, energy_group) in enumerate(zip(lattices, flux_data, k_effectives, descriptions, energy_groups)):
-                        print(f"\r    Testing configuration {i+1}/{len(lattices)}...", end='', flush=True)
-
+                    for i, (lattice, flux, keff, desc, energy_group) in tqdm(
+                        enumerate(zip(lattices, flux_data, k_effectives, descriptions, energy_groups)),
+                        total=len(lattices),
+                        desc=f"    {model_info['model_class']}",
+                        unit="config",
+                        leave=False
+                    ):
                         # Check if we have energy group data
                         if not energy_group:
-                            print(f"\n    Warning: No energy group data for config {i+1}, skipping {energy_type} only test")
+                            tqdm.write(f"    Warning: No energy group data for config {i+1}, skipping {energy_type} only test")
                             continue
 
                         results = self.test_single_configuration(lattice, flux, keff, i, desc, in_training_flags[i], energy_group)
                         all_results.extend(results)
-
-                    print()  # Newline after progress
 
         # Process k-eff models
         if keff_models:
@@ -1013,17 +1026,20 @@ class ReactorModelTester:
 
             # PERFORMANCE: Process by model, not by config
             for model_idx, model_info in enumerate(keff_models, 1):
-                print(f"\n  Model {model_idx}/{len(keff_models)}: {model_info['model_class']} ({model_info['encoding']}, {model_info['optimization_method']})")
+                model_desc = f"{model_info['model_class']} ({model_info['encoding']}, {model_info['optimization_method']})"
+                print(f"\n  Model {model_idx}/{len(keff_models)}: {model_desc}")
 
                 self.available_models = [model_info]
 
-                for i, (lattice, flux, keff, desc, energy_group) in enumerate(zip(lattices, flux_data, k_effectives, descriptions, energy_groups)):
-                    print(f"\r    Testing configuration {i+1}/{len(lattices)}...", end='', flush=True)
-
+                for i, (lattice, flux, keff, desc, energy_group) in tqdm(
+                    enumerate(zip(lattices, flux_data, k_effectives, descriptions, energy_groups)),
+                    total=len(lattices),
+                    desc=f"    {model_info['model_class']}",
+                    unit="config",
+                    leave=False
+                ):
                     results = self.test_single_configuration(lattice, flux, keff, i, desc, in_training_flags[i], energy_group)
                     all_results.extend(results)
-
-                print()  # Newline after progress
 
         print(f"\n\nTesting complete!")
         print(f"\nSummary: {match_count}/{len(lattices)} test configurations were seen during training (considering symmetries)")
