@@ -55,10 +55,22 @@ class DataHandler:
         label_order_mismatches = 0
         total_configs = 0
 
-        # NEW: Group counter
+        # NEW: For variable fill mode, group by spatial pattern instead of individual configs
+        # This prevents data leakage from fill permutations
+        spatial_pattern_to_group = {}
         group_id = 0
 
         for lattice, flux_dict, k_eff, energy_dict in zip(lattices, flux_data, k_effectives, energy_groups):
+            # Compute spatial pattern hash (F/C/I layout, ignoring specific fill types)
+            spatial_hash = self._get_spatial_hash(lattice)
+
+            # Assign group ID based on spatial pattern
+            if spatial_hash not in spatial_pattern_to_group:
+                spatial_pattern_to_group[spatial_hash] = group_id
+                group_id += 1
+
+            current_group_id = spatial_pattern_to_group[spatial_hash]
+
             # Apply rotational symmetry (8-fold augmentation)
             augmented = apply_rotational_symmetry(lattice, flux_dict, k_eff, energy_dict)
 
@@ -72,8 +84,8 @@ class DataHandler:
 
                 total_configs += 1
 
-                # NEW: Add group ID (same for all 8 augmentations)
-                augmentation_groups.append(group_id)
+                # NEW: Add group ID (same for all 8 augmentations AND all fill permutations)
+                augmentation_groups.append(current_group_id)
 
                 # Encode using selected method - now returns position order
                 # Note: Physics encoding uses module-level IRRADIATION_MODE and NCI_MODE toggles
@@ -112,10 +124,11 @@ class DataHandler:
                 y_k_eff.append(aug_k_eff)
                 irr_positions_list.append(irr_positions)
 
-            # NEW: Increment group ID after processing all augmentations
-            group_id += 1
-
         # Report validation statistics
+        print(f"  Unique spatial patterns: {len(spatial_pattern_to_group)}")
+        print(f"  Total configs (including fill permutations): {len(lattices)}")
+        if len(spatial_pattern_to_group) > 0:
+            print(f"  Average fill permutations per spatial pattern: {len(lattices)/len(spatial_pattern_to_group):.1f}")
         mismatch_percentage = (label_order_mismatches / total_configs) * 100 if total_configs > 0 else 0
         print(f"  Spatial vs alphabetical order mismatches: {label_order_mismatches}/{total_configs} ({mismatch_percentage:.1f}%)")
         if mismatch_percentage > 0:
@@ -368,3 +381,36 @@ class DataHandler:
             flux_values = flux_values[:4]
 
         return flux_values
+
+    def _get_spatial_hash(self, lattice):
+        """Compute a hash of the spatial pattern (F/C/I layout), ignoring fill type suffixes.
+
+        This ensures that configurations with the same F/C/I pattern but different
+        fill permutations (e.g., I_1P vs I_1B) are grouped together to prevent
+        data leakage in cross-validation.
+
+        Parameters
+        ----------
+        lattice : np.ndarray
+            8x8 reactor configuration array
+
+        Returns
+        -------
+        str
+            Hash string representing the spatial pattern
+        """
+        # Create a simplified lattice with fill types stripped
+        simplified = np.zeros_like(lattice, dtype=object)
+
+        for i in range(lattice.shape[0]):
+            for j in range(lattice.shape[1]):
+                cell = lattice[i, j]
+                if cell.startswith('I_'):
+                    # Strip the fill type suffix (P/B/G) and position number
+                    # Just mark as 'I' to indicate irradiation position
+                    simplified[i, j] = 'I'
+                else:
+                    simplified[i, j] = cell
+
+        # Convert to string for hashing
+        return str(simplified.tolist())
