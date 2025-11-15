@@ -820,21 +820,26 @@ class ReactorModelTester:
 
 # Complete replacement for test_file() method in model_tester.py
 
-    def test_file(self, test_file_path, training_file_path="ML/data/train.txt", show_match_details=False,
+    def test_file(self, test_file_path, training_file_path="ML/data/train.txt",
+                check_training_set=False, show_match_details=False,
                 save_intermediate_results=None):
         """Test all models on a test file
 
         Args:
             test_file_path: Path to test data
             training_file_path: Path to training data
-            show_match_details: Whether to show detailed matching info
+            check_training_set: Whether to check if configs were in training set (expensive!)
+            show_match_details: Whether to show detailed matching info (only if check_training_set=True)
             save_intermediate_results: If provided, function to save intermediate results
                                     (used for saving total flux results for bin models)
         """
         print(f"\nLoading test data from {test_file_path}...")
 
-        # Load training data for comparison
-        self.load_training_data(training_file_path)
+        # Load training data for comparison (only if needed)
+        if check_training_set:
+            self.load_training_data(training_file_path)
+        else:
+            self.training_lattices = []  # Empty list to skip checks
 
         # Parse test data - try to get energy groups too
         try:
@@ -892,15 +897,20 @@ class ReactorModelTester:
         all_results = []
         match_count = 0
 
-        # PERFORMANCE FIX: Pre-calculate training set membership for all configs (with caching)
-        print("\nChecking which configurations were in training set...")
-        in_training_flags = []
-        for lattice in tqdm(lattices, desc="Checking configs", unit="config"):
-            in_training = self.is_in_training_set(lattice)
-            in_training_flags.append(in_training)
-            if in_training:
-                match_count += 1
-        print(f"Found {match_count}/{len(lattices)} configurations in training set")
+        # PERFORMANCE FIX: Only check training set if requested (expensive operation!)
+        if check_training_set:
+            print("\nChecking which configurations were in training set...")
+            in_training_flags = []
+            for lattice in tqdm(lattices, desc="Checking configs", unit="config"):
+                in_training = self.is_in_training_set(lattice)
+                in_training_flags.append(in_training)
+                if in_training:
+                    match_count += 1
+            print(f"Found {match_count}/{len(lattices)} configurations in training set")
+        else:
+            print("\nSkipping training set check (for speed)")
+            # All configs marked as not in training set
+            in_training_flags = [False] * len(lattices)
 
         # Process total flux models first
         if total_flux_models:
@@ -1042,7 +1052,8 @@ class ReactorModelTester:
                     all_results.extend(results)
 
         print(f"\n\nTesting complete!")
-        print(f"\nSummary: {match_count}/{len(lattices)} test configurations were seen during training (considering symmetries)")
+        if check_training_set:
+            print(f"\nSummary: {match_count}/{len(lattices)} test configurations were seen during training (considering symmetries)")
 
         # Clear model cache to free memory
         self._clear_model_cache()

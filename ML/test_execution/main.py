@@ -180,9 +180,15 @@ def run_testing(outputs_dir=None):
     if not training_file:
         training_file = "ML/data/train.txt"
 
-    # Ask if user wants detailed matching information
-    show_details = input("\nShow detailed matching information? (y/n, default: n): ").strip().lower()
-    show_match_details = show_details == 'y'
+    # Ask if user wants training set checking (expensive operation!)
+    check_training = input("\nCheck if test configs were in training set? (y/n, default: n): ").strip().lower()
+    check_training_set = check_training == 'y'
+
+    show_match_details = False
+    if check_training_set:
+        # Only ask for details if they want to check training set
+        show_details = input("  Show detailed matching information (which config, what transformation)? (y/n, default: n): ").strip().lower()
+        show_match_details = show_details == 'y'
 
     # Initialize reporter
     reporter = ExcelReporter()
@@ -232,7 +238,7 @@ def run_testing(outputs_dir=None):
     tester.available_models = selected_models
 
     # Run comprehensive testing
-    all_results = tester.test_file(test_file, training_file, show_match_details, None)
+    all_results = tester.test_file(test_file, training_file, check_training_set, show_match_details, None)
 
     if not all_results:
         print("No results generated. Check for errors in model loading or data files.")
