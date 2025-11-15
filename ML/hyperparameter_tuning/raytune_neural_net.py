@@ -361,8 +361,8 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
         'patience': best_params['patience'],
         'device': None,  # Will auto-detect during final training
         # Keep backward compatibility
-        'width': best_params['base_width'],  # For compatibility with old code
-        'activation': best_params['activation']
+        # 'width': best_params['base_width'],  # For compatibility with old code
+        # 'activation': best_params['activation']
     }
 
     return return_params, analysis

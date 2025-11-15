@@ -36,6 +36,8 @@ class ReactorModelTester:
         self.test_results = []
         self.training_lattices = []
         self.total_flux_results = {}  # Cache for bin mode pairing
+        self.loaded_models_cache = {}  # Cache for loaded models (PERFORMANCE FIX)
+        self.current_model_key = None  # Track current model to avoid reloading
 
         # Set models directory
         if models_dir is None:
@@ -300,6 +302,78 @@ class ReactorModelTester:
         else:
             raise ValueError(f"Unknown encoding method: {encoding_method}")
 
+    def _load_model_cached(self, model_info):
+        """Load a model with caching to avoid repeated file I/O (PERFORMANCE FIX)
+
+        This dramatically speeds up testing by loading each model only once
+        instead of reloading from disk for every configuration.
+        """
+        filepath = model_info['filepath']
+
+        # Create a unique key for this model
+        model_key = f"{filepath}_{model_info.get('model_type', 'unknown')}"
+
+        # Check if this is the same model we just used
+        if self.current_model_key == model_key and filepath in self.loaded_models_cache:
+            return self.loaded_models_cache[filepath]
+
+        # Check if already cached but different from current
+        if filepath in self.loaded_models_cache:
+            self.current_model_key = model_key
+            return self.loaded_models_cache[filepath]
+
+        # Clear cache if switching models (memory management)
+        if self.current_model_key != model_key:
+            self._clear_model_cache()
+            self.current_model_key = model_key
+
+        # Load the model from disk (ONLY ONCE per unique model)
+        model_data = joblib.load(filepath)
+
+        # Update model_info with actual metadata from file if available
+        if 'model_class' in model_data:
+            model_info.update({
+                'model_class': model_data['model_class'],
+                'model_type': model_data['model_type'],
+                'encoding': model_data['encoding'],
+                'optimization_method': model_data.get('optimization_method', model_info.get('optimization_method', 'unknown')),
+                'use_log_flux': model_data.get('use_log_flux', model_info.get('use_log_flux', False)),
+                'flux_scale': model_data.get('flux_scale', model_info.get('flux_scale', 1e14)),
+                'flux_mode': model_data.get('flux_mode', model_info.get('flux_mode', 'total'))
+            })
+
+        # Load using appropriate model class
+        model_class_name = model_info.get('model_class', 'unknown')
+        model_wrapper = None
+        metadata = {}
+
+        if model_class_name == 'xgboost':
+            from ML_models import XGBoostReactorModel
+            model_wrapper, metadata = XGBoostReactorModel.load_model(filepath)
+        elif model_class_name == 'random_forest':
+            from ML_models import RandomForestReactorModel
+            model_wrapper, metadata = RandomForestReactorModel.load_model(filepath)
+        elif model_class_name == 'svm':
+            from ML_models import SVMReactorModel
+            model_wrapper, metadata = SVMReactorModel.load_model(filepath)
+        elif model_class_name == 'neural_net':
+            from ML_models import NeuralNetReactorModel
+            model_wrapper, metadata = NeuralNetReactorModel.load_model(filepath)
+
+        # Cache the loaded model
+        self.loaded_models_cache[filepath] = {
+            'model_data': model_data,
+            'model_wrapper': model_wrapper,
+            'metadata': metadata,
+            'model_info': model_info  # Store updated model_info too
+        }
+
+        return self.loaded_models_cache[filepath]
+
+    def _clear_model_cache(self):
+        """Clear the model cache to free memory"""
+        self.loaded_models_cache.clear()
+
     def load_total_flux_results(self, excel_path):
         """Load total flux results from an Excel file for bin mode pairing"""
         try:
@@ -354,43 +428,12 @@ class ReactorModelTester:
 
                 features = features.reshape(1, -1)
 
-                # Load model data - now we load the actual model file
-                model_data = joblib.load(model_info['filepath'])
-
-                # Update model_info with actual metadata from file if available
-                if 'model_class' in model_data:
-                    # Update with actual metadata from file
-                    model_info.update({
-                        'model_class': model_data['model_class'],
-                        'model_type': model_data['model_type'],
-                        'encoding': model_data['encoding'],
-                        'optimization_method': model_data.get('optimization_method', model_info.get('optimization_method', 'unknown')),
-                        'use_log_flux': model_data.get('use_log_flux', model_info.get('use_log_flux', False)),
-                        'flux_scale': model_data.get('flux_scale', model_info.get('flux_scale', 1e14)),
-                        'flux_mode': model_data.get('flux_mode', model_info.get('flux_mode', 'total'))
-                    })
-
-                # CRITICAL FIX: Properly load model using the appropriate model class
-                model_class_name = model_info.get('model_class', 'unknown')
-
-                # Import the appropriate model class
-                if model_class_name == 'xgboost':
-                    from ML_models import XGBoostReactorModel
-                    model_wrapper, metadata = XGBoostReactorModel.load_model(model_info['filepath'])
-                elif model_class_name == 'random_forest':
-                    from ML_models import RandomForestReactorModel
-                    model_wrapper, metadata = RandomForestReactorModel.load_model(model_info['filepath'])
-                elif model_class_name == 'svm':
-                    from ML_models import SVMReactorModel
-                    model_wrapper, metadata = SVMReactorModel.load_model(model_info['filepath'])
-                elif model_class_name == 'neural_net':
-                    from ML_models import NeuralNetReactorModel
-                    model_wrapper, metadata = NeuralNetReactorModel.load_model(model_info['filepath'])
-                else:
-                    # Fallback to old method for backward compatibility
-                    print(f"Warning: Unknown model class '{model_class_name}', using raw model")
-                    model_wrapper = None
-                    metadata = {}
+                # PERFORMANCE FIX: Load model using cache (dramatically faster!)
+                cached_model = self._load_model_cached(model_info)
+                model_data = cached_model['model_data']
+                model_wrapper = cached_model['model_wrapper']
+                metadata = cached_model['metadata']
+                # model_info is already updated inside _load_model_cached
 
                 result = {
                     'in_training': 'T' if in_training_set else 'F',  # Add this as first field
@@ -940,5 +983,8 @@ class ReactorModelTester:
 
         print(f"\n\nTesting complete!")
         print(f"\nSummary: {match_count}/{len(lattices)} test configurations were seen during training (considering symmetries)")
+
+        # Clear model cache to free memory
+        self._clear_model_cache()
 
         return all_results
