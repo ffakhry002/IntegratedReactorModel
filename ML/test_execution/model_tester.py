@@ -38,6 +38,7 @@ class ReactorModelTester:
         self.total_flux_results = {}  # Cache for bin mode pairing
         self.loaded_models_cache = {}  # Cache for loaded models (PERFORMANCE FIX)
         self.current_model_key = None  # Track current model to avoid reloading
+        self.training_set_cache = {}  # Cache for training set checks (PERFORMANCE FIX)
 
         # Set models directory
         if models_dir is None:
@@ -144,18 +145,33 @@ class ReactorModelTester:
         """
         Check if a test lattice exists in the training set,
         considering all symmetries and ignoring irradiation label differences
+
+        PERFORMANCE: Uses caching to avoid repeated expensive symmetry checks
         """
+        # Create a hashable key for the lattice
+        lattice_key = test_lattice.tobytes()
+
+        # Check cache first (PERFORMANCE FIX)
+        if lattice_key in self.training_set_cache:
+            return self.training_set_cache[lattice_key]
+
         # Get all symmetries of the test lattice
         test_symmetries = self.get_all_symmetries(test_lattice)
 
         # Check each training lattice
+        found = False
         for train_lattice in self.training_lattices:
             # Check if any symmetry of the test lattice matches the training lattice geometrically
             for test_sym, _ in test_symmetries:
                 if self.lattices_match_geometrically(test_sym, train_lattice):
-                    return True
+                    found = True
+                    break
+            if found:
+                break
 
-        return False
+        # Cache the result
+        self.training_set_cache[lattice_key] = found
+        return found
 
     def find_matching_training_config(self, test_lattice):
         """
@@ -875,26 +891,39 @@ class ReactorModelTester:
         all_results = []
         match_count = 0
 
+        # PERFORMANCE FIX: Pre-calculate training set membership for all configs (with caching)
+        print("\nChecking which configurations were in training set...")
+        in_training_flags = []
+        for i, lattice in enumerate(lattices):
+            in_training = self.is_in_training_set(lattice)
+            in_training_flags.append(in_training)
+            if in_training:
+                match_count += 1
+        print(f"Found {match_count}/{len(lattices)} configurations in training set")
+
         # Process total flux models first
         if total_flux_models:
             print(f"\nTesting {len(total_flux_models)} total flux model(s)...")
-            self.available_models = total_flux_models
 
-            for i, (lattice, flux, keff, desc, energy_group) in enumerate(zip(lattices, flux_data, k_effectives, descriptions, energy_groups)):
-                print(f"\rTesting configuration {i+1}/{len(lattices)}...", end='')
+            # PERFORMANCE: Process by model, not by config
+            for model_idx, model_info in enumerate(total_flux_models, 1):
+                print(f"\n  Model {model_idx}/{len(total_flux_models)}: {model_info['model_class']} ({model_info['encoding']}, {model_info['optimization_method']})")
 
-                # Check if this configuration was in training set
-                in_training = self.is_in_training_set(lattice)
-                if in_training:
-                    match_count += 1
+                # Load model ONCE per model (not per config!)
+                self.available_models = [model_info]
 
-                # Optionally show detailed match information
-                if show_match_details and in_training:
-                    match_found, train_idx, transform = self.find_matching_training_config(lattice)
-                    print(f"\n  Config {i+1} matches training config {train_idx+1} with transform: {transform}")
+                for i, (lattice, flux, keff, desc, energy_group) in enumerate(zip(lattices, flux_data, k_effectives, descriptions, energy_groups)):
+                    print(f"\r    Testing configuration {i+1}/{len(lattices)}...", end='', flush=True)
 
-                results = self.test_single_configuration(lattice, flux, keff, i, desc, in_training, energy_group)
-                all_results.extend(results)
+                    # Optionally show detailed match information
+                    if show_match_details and in_training_flags[i]:
+                        match_found, train_idx, transform = self.find_matching_training_config(lattice)
+                        print(f"\n      Config {i+1} matches training config {train_idx+1} with transform: {transform}")
+
+                    results = self.test_single_configuration(lattice, flux, keff, i, desc, in_training_flags[i], energy_group)
+                    all_results.extend(results)
+
+                print()  # Newline after progress
 
             # Save intermediate results if we have bin models coming up
             if bin_flux_models and save_intermediate_results:
@@ -906,16 +935,20 @@ class ReactorModelTester:
         # Process energy flux models
         if energy_flux_models:
             print(f"\n\nTesting {len(energy_flux_models)} energy flux model(s)...")
-            self.available_models = energy_flux_models
 
-            for i, (lattice, flux, keff, desc, energy_group) in enumerate(zip(lattices, flux_data, k_effectives, descriptions, energy_groups)):
-                print(f"\rTesting configuration {i+1}/{len(lattices)}...", end='')
+            # PERFORMANCE: Process by model, not by config
+            for model_idx, model_info in enumerate(energy_flux_models, 1):
+                print(f"\n  Model {model_idx}/{len(energy_flux_models)}: {model_info['model_class']} ({model_info['encoding']}, {model_info['optimization_method']})")
 
-                # Check if this configuration was in training set (only count once)
-                in_training = self.is_in_training_set(lattice)
+                self.available_models = [model_info]
 
-                results = self.test_single_configuration(lattice, flux, keff, i, desc, in_training, energy_group)
-                all_results.extend(results)
+                for i, (lattice, flux, keff, desc, energy_group) in enumerate(zip(lattices, flux_data, k_effectives, descriptions, energy_groups)):
+                    print(f"\r    Testing configuration {i+1}/{len(lattices)}...", end='', flush=True)
+
+                    results = self.test_single_configuration(lattice, flux, keff, i, desc, in_training_flags[i], energy_group)
+                    all_results.extend(results)
+
+                print()  # Newline after progress
 
         # Process bin flux models
         if bin_flux_models:
@@ -933,53 +966,64 @@ class ReactorModelTester:
             else:
                 print("Warning: No total flux data provided. Bin model results will be incomplete.")
 
-            self.available_models = bin_flux_models
+            # PERFORMANCE: Process by model, not by config
+            for model_idx, model_info in enumerate(bin_flux_models, 1):
+                print(f"\n  Model {model_idx}/{len(bin_flux_models)}: {model_info['model_class']} ({model_info['encoding']}, {model_info['optimization_method']})")
 
-            for i, (lattice, flux, keff, desc, energy_group) in enumerate(zip(lattices, flux_data, k_effectives, descriptions, energy_groups)):
-                print(f"\rTesting configuration {i+1}/{len(lattices)}...", end='')
+                self.available_models = [model_info]
 
-                # Check if this configuration was in training set (only count once)
-                in_training = self.is_in_training_set(lattice)
+                for i, (lattice, flux, keff, desc, energy_group) in enumerate(zip(lattices, flux_data, k_effectives, descriptions, energy_groups)):
+                    print(f"\r    Testing configuration {i+1}/{len(lattices)}...", end='', flush=True)
 
-                results = self.test_single_configuration(lattice, flux, keff, i, desc, in_training, energy_group)
-                all_results.extend(results)
+                    results = self.test_single_configuration(lattice, flux, keff, i, desc, in_training_flags[i], energy_group)
+                    all_results.extend(results)
 
-        # Process single energy models - THIS WAS MISSING!
+                print()  # Newline after progress
+
+        # Process single energy models
         for energy_type, energy_models in [('thermal', thermal_only_models),
                                         ('epithermal', epithermal_only_models),
                                         ('fast', fast_only_models)]:
             if energy_models:
                 print(f"\n\nTesting {len(energy_models)} {energy_type} only flux model(s)...")
                 print(f"(Each model predicts {energy_type} flux for 4 positions)")
-                self.available_models = energy_models
 
-                for i, (lattice, flux, keff, desc, energy_group) in enumerate(zip(lattices, flux_data, k_effectives, descriptions, energy_groups)):
-                    print(f"\rTesting configuration {i+1}/{len(lattices)}...", end='', flush=True)
+                # PERFORMANCE: Process by model, not by config
+                for model_idx, model_info in enumerate(energy_models, 1):
+                    print(f"\n  Model {model_idx}/{len(energy_models)}: {model_info['model_class']} ({model_info['encoding']}, {model_info['optimization_method']})")
 
-                    # Check if this configuration was in training set
-                    in_training = self.is_in_training_set(lattice)
+                    self.available_models = [model_info]
 
-                    # Check if we have energy group data
-                    if not energy_group:
-                        print(f"\nWarning: No energy group data for config {i+1}, skipping {energy_type} only test")
-                        continue
+                    for i, (lattice, flux, keff, desc, energy_group) in enumerate(zip(lattices, flux_data, k_effectives, descriptions, energy_groups)):
+                        print(f"\r    Testing configuration {i+1}/{len(lattices)}...", end='', flush=True)
 
-                    results = self.test_single_configuration(lattice, flux, keff, i, desc, in_training, energy_group)
-                    all_results.extend(results)
+                        # Check if we have energy group data
+                        if not energy_group:
+                            print(f"\n    Warning: No energy group data for config {i+1}, skipping {energy_type} only test")
+                            continue
+
+                        results = self.test_single_configuration(lattice, flux, keff, i, desc, in_training_flags[i], energy_group)
+                        all_results.extend(results)
+
+                    print()  # Newline after progress
 
         # Process k-eff models
         if keff_models:
             print(f"\n\nTesting {len(keff_models)} k-eff model(s)...")
-            self.available_models = keff_models
 
-            for i, (lattice, flux, keff, desc, energy_group) in enumerate(zip(lattices, flux_data, k_effectives, descriptions, energy_groups)):
-                print(f"\rTesting configuration {i+1}/{len(lattices)}...", end='')
+            # PERFORMANCE: Process by model, not by config
+            for model_idx, model_info in enumerate(keff_models, 1):
+                print(f"\n  Model {model_idx}/{len(keff_models)}: {model_info['model_class']} ({model_info['encoding']}, {model_info['optimization_method']})")
 
-                # Check if this configuration was in training set (only count once)
-                in_training = self.is_in_training_set(lattice)
+                self.available_models = [model_info]
 
-                results = self.test_single_configuration(lattice, flux, keff, i, desc, in_training, energy_group)
-                all_results.extend(results)
+                for i, (lattice, flux, keff, desc, energy_group) in enumerate(zip(lattices, flux_data, k_effectives, descriptions, energy_groups)):
+                    print(f"\r    Testing configuration {i+1}/{len(lattices)}...", end='', flush=True)
+
+                    results = self.test_single_configuration(lattice, flux, keff, i, desc, in_training_flags[i], energy_group)
+                    all_results.extend(results)
+
+                print()  # Newline after progress
 
         print(f"\n\nTesting complete!")
         print(f"\nSummary: {match_count}/{len(lattices)} test configurations were seen during training (considering symmetries)")
