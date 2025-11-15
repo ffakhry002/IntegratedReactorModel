@@ -381,7 +381,7 @@ class DataHandler:
             flux_values = flux_values[:4]
 
         return flux_values
-
+#
     def _get_spatial_hash(self, lattice):
         """Compute a hash of the spatial pattern (F/C/I layout), ignoring fill type suffixes.
 
