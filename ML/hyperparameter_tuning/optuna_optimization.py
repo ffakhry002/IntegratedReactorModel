@@ -275,7 +275,7 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
                     'tree_method': 'hist'  # CHANGED: 'hist' is faster and parallelizes better than 'exact'
                 }
 
-                print(f"  XGBoost params: n_estimators={params['n_estimators']}, max_depth={params['max_depth']}")
+                print(f"  XGBoost params: n_estimators={params['n_estimators']}, max_depth={params['max_depth']}, learning_rate={params['learning_rate']}, subsample={params['subsample']}, colsample_bytree={params['colsample_bytree']}, colsample_bylevel={params['colsample_bylevel']}, reg_alpha={params['reg_alpha']}, reg_lambda={params['reg_lambda']}, gamma={params['gamma']}, min_child_weight={params['min_child_weight']}, n_jobs={params['n_jobs']}, verbosity={params['verbosity']}, tree_method={params['tree_method']}")
                 model = MultiOutputRegressor(xgb.XGBRegressor(**params))
 
             elif model_type == 'random_forest':

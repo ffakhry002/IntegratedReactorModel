@@ -359,9 +359,12 @@ class ReactorEncodings:
         """Compute Neutron Competition Index for each irradiation position.
 
         NCI_i = sum over j≠i of contribution based on distance thresholds:
-        - d < sqrt(4.9): exp(-d_ij / lambda) (exponential decay)
+        - d < sqrt(4.9): exp(-(d_ij - 1) / lambda) (exponential decay, normalized to 1 at distance=1)
         - sqrt(4.9) <= d <= sqrt(5.1): 0.1 (constant small value)
         - d > sqrt(5.1): 0 (no contribution)
+
+        Note: The (distance - 1) normalization means adjacent cells (distance=1) have
+        maximum interaction strength of exp(0) = 1.0
 
         Parameters
         ----------
@@ -392,8 +395,8 @@ class ReactorEncodings:
 
                     # Apply threshold-based contribution
                     if dist < threshold_low:
-                        # Close distance: exponential decay
-                        nci += np.exp(-dist / lambda_decay)
+                        # Close distance: exponential decay (normalized to 1 at distance=1)
+                        nci += np.exp(-(dist - 1) / lambda_decay)
                     elif threshold_low <= dist <= threshold_high:
                         # Medium distance: constant small contribution
                         nci += 0.1
@@ -414,6 +417,10 @@ class ReactorEncodings:
         - NCI_P: competition from P-type vehicles (using lambda_P)
         - NCI_B: competition from B-type vehicles (using lambda_B)
         - NCI_G: competition from G-type vehicles (using lambda_G)
+
+        Formula: NCI = exp(-(distance - 1) / lambda)
+        Note: The (distance - 1) normalization means adjacent cells (distance=1) have
+        maximum interaction strength of exp(0) = 1.0
 
         Parameters
         ----------
@@ -456,19 +463,19 @@ class ReactorEncodings:
                     if label_j.endswith('P'):
                         # Use lambda_P for P-type vehicles
                         if dist < threshold_low:
-                            nci_P += np.exp(-dist / lambda_P)
+                            nci_P += np.exp(-(dist - 1) / lambda_P)
                         elif threshold_low <= dist <= threshold_high:
                             nci_P += 0.1
                     elif label_j.endswith('B'):
                         # Use lambda_B for B-type vehicles
                         if dist < threshold_low:
-                            nci_B += np.exp(-dist / lambda_B)
+                            nci_B += np.exp(-(dist - 1) / lambda_B)
                         elif threshold_low <= dist <= threshold_high:
                             nci_B += 0.1
                     elif label_j.endswith('G'):
                         # Use lambda_G for G-type vehicles
                         if dist < threshold_low:
-                            nci_G += np.exp(-dist / lambda_G)
+                            nci_G += np.exp(-(dist - 1) / lambda_G)
                         elif threshold_low <= dist <= threshold_high:
                             nci_G += 0.1
 
