@@ -71,7 +71,7 @@ class ModelTrainer:
         optimize_lambda = (encoding == 'physics' and lattices_train is not None)
         if optimize_lambda:
             print(f"✅ Lambda optimization ENABLED: irradiation_mode={irradiation_mode}, nci_mode={nci_mode}")
-            print(f"   Will optimize lambda parameters in range [0.25, 2.5]")
+            print(f"   Will optimize lambda parameters in range [0.5, 2.0]")
         else:
             if encoding != 'physics':
                 print(f"⚠️  Lambda optimization disabled: encoding='{encoding}' (need 'physics')")

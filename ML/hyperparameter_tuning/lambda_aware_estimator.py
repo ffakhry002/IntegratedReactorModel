@@ -221,13 +221,13 @@ def add_lambda_to_param_distributions(param_distributions: Dict,
     prefixed_params = {f'base_estimator__{k}': v
                       for k, v in param_distributions.items()}
 
-    # Add lambda parameters (uniform between 0.25 and 2.5)
+    # Add lambda parameters (uniform between 0.5 and 2.0)
     if irradiation_mode == 'vacuum' or nci_mode == 'single':
-        prefixed_params['lambda_decay'] = uniform(0.25, 2.25)  # 0.25 to 2.5
+        prefixed_params['lambda_decay'] = uniform(0.5, 1.5)  # 0.5 to 2.0
     else:
-        prefixed_params['lambda_P'] = uniform(0.25, 2.25)
-        prefixed_params['lambda_B'] = uniform(0.25, 2.25)
-        prefixed_params['lambda_G'] = uniform(0.25, 2.25)
+        prefixed_params['lambda_P'] = uniform(0.5, 1.5)  # 0.5 to 2.0
+        prefixed_params['lambda_B'] = uniform(0.5, 1.5)  # 0.5 to 2.0
+        prefixed_params['lambda_G'] = uniform(0.5, 1.5)  # 0.5 to 2.0
 
     return prefixed_params
 
@@ -262,22 +262,22 @@ def add_lambda_to_grid_params(param_grid: Dict,
     if irradiation_mode == 'vacuum' or nci_mode == 'single':
         best_lambda = best_lambda_values.get('lambda_decay', 1.5)
         prefixed_params['lambda_decay'] = [
-            max(0.25, best_lambda * 0.8),
-            max(0.25, best_lambda * 0.9),
+            max(0.5, best_lambda * 0.8),
+            max(0.5, best_lambda * 0.9),
             best_lambda,
-            min(2.5, best_lambda * 1.1),
-            min(2.5, best_lambda * 1.2)
+            min(2.0, best_lambda * 1.1),
+            min(2.0, best_lambda * 1.2)
         ]
     else:
         for vehicle_type in ['P', 'B', 'G']:
             key = f'lambda_{vehicle_type}'
             best_lambda = best_lambda_values.get(key, 1.5)
             prefixed_params[key] = [
-                max(0.25, best_lambda * 0.8),
-                max(0.25, best_lambda * 0.9),
+                max(0.5, best_lambda * 0.8),
+                max(0.5, best_lambda * 0.9),
                 best_lambda,
-                min(2.5, best_lambda * 1.1),
-                min(2.5, best_lambda * 1.2)
+                min(2.0, best_lambda * 1.1),
+                min(2.0, best_lambda * 1.2)
             ]
 
     return prefixed_params
@@ -310,10 +310,10 @@ def add_lambda_to_bayesian_spaces(search_spaces: Dict,
 
     # Add lambda search spaces
     if irradiation_mode == 'vacuum' or nci_mode == 'single':
-        prefixed_spaces['lambda_decay'] = Real(0.25, 2.5, prior='uniform')
+        prefixed_spaces['lambda_decay'] = Real(0.5, 2.0, prior='uniform')
     else:
-        prefixed_spaces['lambda_P'] = Real(0.25, 2.5, prior='uniform')
-        prefixed_spaces['lambda_B'] = Real(0.25, 2.5, prior='uniform')
-        prefixed_spaces['lambda_G'] = Real(0.25, 2.5, prior='uniform')
+        prefixed_spaces['lambda_P'] = Real(0.5, 2.0, prior='uniform')
+        prefixed_spaces['lambda_B'] = Real(0.5, 2.0, prior='uniform')
+        prefixed_spaces['lambda_G'] = Real(0.5, 2.0, prior='uniform')
 
     return prefixed_spaces

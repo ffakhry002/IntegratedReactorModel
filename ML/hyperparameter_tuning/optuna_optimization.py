@@ -231,14 +231,14 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
 
         # NEW: Suggest lambda parameters if optimizing
         if optimize_lambda:
-            # Suggest lambda values between 0.25 and 2.5
+            # Suggest lambda values between 0.5 and 2.0
             if 'lambda_decay' in lambda_params:
-                lambda_decay_trial = trial.suggest_float('lambda_decay', 0.25, 2.5)
+                lambda_decay_trial = trial.suggest_float('lambda_decay', 0.5, 2.0)
                 print(f"  Lambda: {lambda_decay_trial:.3f}")
             if 'lambda_P' in lambda_params:
-                lambda_P_trial = trial.suggest_float('lambda_P', 0.25, 2.5)
-                lambda_B_trial = trial.suggest_float('lambda_B', 0.25, 2.5)
-                lambda_G_trial = trial.suggest_float('lambda_G', 0.25, 2.5)
+                lambda_P_trial = trial.suggest_float('lambda_P', 0.5, 2.0)
+                lambda_B_trial = trial.suggest_float('lambda_B', 0.5, 2.0)
+                lambda_G_trial = trial.suggest_float('lambda_G', 0.5, 2.0)
                 print(f"  Lambdas: P={lambda_P_trial:.3f}, B={lambda_B_trial:.3f}, G={lambda_G_trial:.3f}")
 
             # Regenerate features with new lambda values
@@ -670,14 +670,14 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
 
         # NEW: Suggest lambda parameters if optimizing
         if optimize_lambda:
-            # Suggest lambda values between 0.25 and 2.5
+            # Suggest lambda values between 0.5 and 2.0
             if 'lambda_decay' in lambda_params:
-                lambda_decay_trial = trial.suggest_float('lambda_decay', 0.25, 2.5)
+                lambda_decay_trial = trial.suggest_float('lambda_decay', 0.5, 2.0)
                 print(f"  Lambda: {lambda_decay_trial:.3f}")
             if 'lambda_P' in lambda_params:
-                lambda_P_trial = trial.suggest_float('lambda_P', 0.25, 2.5)
-                lambda_B_trial = trial.suggest_float('lambda_B', 0.25, 2.5)
-                lambda_G_trial = trial.suggest_float('lambda_G', 0.25, 2.5)
+                lambda_P_trial = trial.suggest_float('lambda_P', 0.5, 2.0)
+                lambda_B_trial = trial.suggest_float('lambda_B', 0.5, 2.0)
+                lambda_G_trial = trial.suggest_float('lambda_G', 0.5, 2.0)
                 print(f"  Lambdas: P={lambda_P_trial:.3f}, B={lambda_B_trial:.3f}, G={lambda_G_trial:.3f}")
 
             # Regenerate features with new lambda values

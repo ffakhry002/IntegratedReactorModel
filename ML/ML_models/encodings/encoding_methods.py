@@ -360,7 +360,7 @@ class ReactorEncodings:
 
         NCI_i = sum over j≠i of contribution based on distance thresholds:
         - d < sqrt(4.9): exp(-(d_ij - 1) / lambda) (exponential decay, normalized to 1 at distance=1)
-        - sqrt(4.9) <= d <= sqrt(5.1): 0.1 (constant small value)
+        - sqrt(4.9) <= d <= sqrt(5.1): exp(-(sqrt(5) - 1) / lambda) (lambda-dependent cutoff)
         - d > sqrt(5.1): 0 (no contribution)
 
         Note: The (distance - 1) normalization means adjacent cells (distance=1) have
@@ -385,6 +385,9 @@ class ReactorEncodings:
         threshold_low = np.sqrt(4.9)   # ~2.21
         threshold_high = np.sqrt(5.1)  # ~2.26
 
+        # Medium distance contribution (lambda-dependent)
+        medium_dist_contribution = np.exp(-(np.sqrt(5) - 1) / lambda_decay)
+
         nci_values = []
         for i, pos_i in enumerate(continuous_positions):
             nci = 0.0
@@ -398,8 +401,8 @@ class ReactorEncodings:
                         # Close distance: exponential decay (normalized to 1 at distance=1)
                         nci += np.exp(-(dist - 1) / lambda_decay)
                     elif threshold_low <= dist <= threshold_high:
-                        # Medium distance: constant small contribution
-                        nci += 0.1
+                        # Medium distance: lambda-dependent cutoff value
+                        nci += medium_dist_contribution
                     # else: dist > threshold_high, contributes 0 (no addition)
 
             nci_values.append(nci)
@@ -445,6 +448,11 @@ class ReactorEncodings:
         threshold_low = np.sqrt(4.9)   # ~2.21
         threshold_high = np.sqrt(5.1)  # ~2.26
 
+        # Medium distance contributions (lambda-dependent, evaluated at sqrt(5))
+        medium_dist_contribution_P = np.exp(-(np.sqrt(5) - 1) / lambda_P)
+        medium_dist_contribution_B = np.exp(-(np.sqrt(5) - 1) / lambda_B)
+        medium_dist_contribution_G = np.exp(-(np.sqrt(5) - 1) / lambda_G)
+
         nci_values = []
         for i, pos_i in enumerate(continuous_positions):
             # Three separate NCI values for this position
@@ -465,19 +473,19 @@ class ReactorEncodings:
                         if dist < threshold_low:
                             nci_P += np.exp(-(dist - 1) / lambda_P)
                         elif threshold_low <= dist <= threshold_high:
-                            nci_P += 0.1
+                            nci_P += medium_dist_contribution_P
                     elif label_j.endswith('B'):
                         # Use lambda_B for B-type vehicles
                         if dist < threshold_low:
                             nci_B += np.exp(-(dist - 1) / lambda_B)
                         elif threshold_low <= dist <= threshold_high:
-                            nci_B += 0.1
+                            nci_B += medium_dist_contribution_B
                     elif label_j.endswith('G'):
                         # Use lambda_G for G-type vehicles
                         if dist < threshold_low:
                             nci_G += np.exp(-(dist - 1) / lambda_G)
                         elif threshold_low <= dist <= threshold_high:
-                            nci_G += 0.1
+                            nci_G += medium_dist_contribution_G
 
             # Append all three NCI values for this position
             nci_values.extend([nci_P, nci_B, nci_G])
