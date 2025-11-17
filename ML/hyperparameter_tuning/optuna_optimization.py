@@ -21,8 +21,8 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 
 # Global timeout settings
-TRIAL_TIMEOUT = 600*10  # 30 minutes per trial
-TOTAL_TIMEOUT = 30*60*60  # 30 hours total per model
+TRIAL_TIMEOUT = 6000*10  # 30 minutes per trial
+TOTAL_TIMEOUT = 300*60*60  # 30 hours total per model
 
 @contextmanager
 def timeout(duration):
