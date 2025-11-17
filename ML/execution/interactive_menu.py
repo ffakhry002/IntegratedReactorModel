@@ -569,19 +569,25 @@ class InteractiveTrainer:
                         )
 
                         # Handle both old and new return formats
-                        if len(result) == 4:
+                        if len(result) == 5:
+                            X, y_flux, y_keff, groups, augmented_lattices = result
+                        elif len(result) == 4:
                             X, y_flux, y_keff, groups = result
+                            augmented_lattices = None
+                            print("WARNING: No lattices returned - lambda optimization disabled!")
                         else:
                             X, y_flux, y_keff = result
-                            groups = None  # Fallback for compatibility
-                            print("WARNING: No groups returned - may have data leakage!")
+                            groups = None
+                            augmented_lattices = None
+                            print("WARNING: No groups/lattices returned - may have data leakage!")
 
                         # Split data
                         print("Splitting data...")
                         data_splits = self.data_handler.split_data(
                             X, y_flux, y_keff, groups,
                             test_size=self.config.test_size,
-                            random_state=self.config.random_state
+                            random_state=self.config.random_state,
+                            lattices=augmented_lattices  # NEW: Pass lattices for lambda optimization
                         )
 
                         # Update training info

@@ -125,14 +125,22 @@ def mape_scorer_flux(y_true, y_pred, use_log_flux=True):
 
     return mape
 
-def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=250, n_jobs=10, cores_per_trial=1, use_log_flux=True, groups=None, flux_mode='total', encoding='categorical'):
+def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=250, n_jobs=10, cores_per_trial=1, use_log_flux=True, groups=None, flux_mode='total', encoding='categorical', lattices_train=None, irradiation_mode='vacuum', nci_mode='single'):
     """Optimize hyperparameters for flux prediction only - NOW USING MAPE or MSE based on mode
+
+    NEW: Supports lambda optimization for physics-based encoding with NCI features
 
     Parameters
     ----------
     ...
     cores_per_trial : int
         Number of cores each trial should use internally (for XGBoost)
+    lattices_train : List[np.ndarray], optional
+        Lattice configurations for lambda-aware feature regeneration
+    irradiation_mode : str, optional
+        'vacuum' or 'fill' mode for NCI calculation
+    nci_mode : str, optional
+        'single' or 'separate' NCI mode
     ...
     """
 
@@ -140,6 +148,28 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
     print(f"Starting {model_type.upper()} optimization for FLUX")
     print(f"Flux mode: {flux_mode}")
     print(f"Encoding: {encoding}")
+
+    # NEW: Check if lambda optimization is supported
+    optimize_lambda = (encoding == 'physics' and lattices_train is not None)
+    if optimize_lambda:
+        print(f"Lambda optimization: ENABLED")
+        print(f"Irradiation mode: {irradiation_mode}")
+        print(f"NCI mode: {nci_mode}")
+        # Import feature regenerator
+        from utils.lambda_feature_regenerator import (
+            LambdaFeatureRegenerator, get_lambda_params_for_encoding
+        )
+        feature_regenerator = LambdaFeatureRegenerator(encoding)
+        lambda_params = get_lambda_params_for_encoding(irradiation_mode, nci_mode)
+        print(f"Lambda parameters to optimize: {lambda_params}")
+
+        # Separate features into fixed and regeneratable parts
+        feature_data_base = feature_regenerator.separate_features(
+            X_train, lattices_train, irradiation_mode, nci_mode
+        )
+    else:
+        print(f"Lambda optimization: DISABLED (encoding={encoding})")
+
     if flux_mode == 'bin':
         print(f"Optimization metric: MSE (for energy bins)")
     elif flux_mode in ['thermal_only', 'epithermal_only', 'fast_only']:
@@ -198,6 +228,32 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
         # Set environment variable to limit thread usage
         os.environ['OMP_NUM_THREADS'] = '1'
         os.environ['MKL_NUM_THREADS'] = '1'
+
+        # NEW: Suggest lambda parameters if optimizing
+        if optimize_lambda:
+            # Suggest lambda values between 0.25 and 2.5
+            if 'lambda_decay' in lambda_params:
+                lambda_decay_trial = trial.suggest_float('lambda_decay', 0.25, 2.5)
+                print(f"  Lambda: {lambda_decay_trial:.3f}")
+            if 'lambda_P' in lambda_params:
+                lambda_P_trial = trial.suggest_float('lambda_P', 0.25, 2.5)
+                lambda_B_trial = trial.suggest_float('lambda_B', 0.25, 2.5)
+                lambda_G_trial = trial.suggest_float('lambda_G', 0.25, 2.5)
+                print(f"  Lambdas: P={lambda_P_trial:.3f}, B={lambda_B_trial:.3f}, G={lambda_G_trial:.3f}")
+
+            # Regenerate features with new lambda values
+            if 'lambda_decay' in lambda_params:
+                X_train_regenerated = feature_regenerator.regenerate_features(
+                    feature_data_base, lambda_decay=lambda_decay_trial
+                )
+            else:
+                X_train_regenerated = feature_regenerator.regenerate_features(
+                    feature_data_base, lambda_P=lambda_P_trial,
+                    lambda_B=lambda_B_trial, lambda_G=lambda_G_trial
+                )
+        else:
+            # Use original features
+            X_train_regenerated = X_train
 
         try:
             # [KEEP ALL YOUR EXISTING PARAMETER SELECTION CODE HERE - NO CHANGES]
@@ -369,13 +425,13 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
                 if groups is not None:
                     from sklearn.model_selection import GroupKFold
                     cv = GroupKFold(n_splits=10)
-                    scores = cross_val_score(model, X_train, y_flux_train,
+                    scores = cross_val_score(model, X_train_regenerated, y_flux_train,
                                            cv=cv, groups=groups,
                                            scoring='neg_mean_squared_error', n_jobs=1)  # Avoid conflicts with Optuna parallelization
                 else:
                     from sklearn.model_selection import KFold
                     cv = KFold(n_splits=10, shuffle=True, random_state=42)
-                    scores = cross_val_score(model, X_train, y_flux_train,
+                    scores = cross_val_score(model, X_train_regenerated, y_flux_train,
                                            cv=cv, scoring='neg_mean_squared_error', n_jobs=1)  # Avoid conflicts with Optuna parallelization
 
                 # Return positive MSE (sklearn returns negative)
@@ -394,13 +450,13 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
                 if groups is not None:
                     from sklearn.model_selection import GroupKFold
                     cv = GroupKFold(n_splits=10)
-                    scores = cross_val_score(model, X_train, y_flux_train,
+                    scores = cross_val_score(model, X_train_regenerated, y_flux_train,
                                            cv=cv, groups=groups,
                                            scoring=custom_mape_scorer, n_jobs=1)  # Avoid conflicts with Optuna parallelization
                 else:
                     from sklearn.model_selection import KFold
                     cv = KFold(n_splits=10, shuffle=True, random_state=42)
-                    scores = cross_val_score(model, X_train, y_flux_train,
+                    scores = cross_val_score(model, X_train_regenerated, y_flux_train,
                                            cv=cv, scoring=custom_mape_scorer, n_jobs=1)  # Avoid conflicts with Optuna parallelization
 
                 # Handle scorer output (custom_mape_scorer returns negative values due to greater_is_better=False)
@@ -428,15 +484,24 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
             return float('inf')
 
     # Create study with proper exception handling
+    # NEW: Increase n_startup_trials to 150 (3x) for better lambda space exploration
+    # This helps avoid local optima by exploring more before switching to Bayesian
+    n_startup = 400 if optimize_lambda else 50
     study = optuna.create_study(
         direction='minimize',
         sampler=TPESampler(
-            n_startup_trials=50,
-            n_ei_candidates=50,
-            seed=42
+            n_startup_trials=n_startup,  # 3x for lambda optimization
+            n_ei_candidates=100,
+            seed=42,
+            multivariate=True,  # Enable multivariate TPE for lambda correlation
+            warn_independent_sampling=False
         ),
         pruner=None
     )
+
+    if optimize_lambda:
+        print(f"\n✓ Lambda optimization: Using {n_startup} random trials (3x) for thorough exploration")
+        print(f"  This helps avoid local optima in lambda space")
 
     # Add callback to print best value updates
     def callback(study, trial):
@@ -518,20 +583,50 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
         print(f"{'='*60}\n")
         return {}, study
 
-def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=250, n_jobs=10, cores_per_trial=1, groups=None, encoding='categorical'):
+def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=250, n_jobs=10, cores_per_trial=1, groups=None, encoding='categorical', lattices_train=None, irradiation_mode='vacuum', nci_mode='single'):
     """Optimize hyperparameters for k-eff prediction only
+
+    NEW: Supports lambda optimization for physics-based encoding with NCI features
 
     Parameters
     ----------
     ...
     cores_per_trial : int
         Number of cores each trial should use internally (for XGBoost)
+    lattices_train : List[np.ndarray], optional
+        Lattice configurations for lambda-aware feature regeneration
+    irradiation_mode : str, optional
+        'vacuum' or 'fill' mode for NCI calculation
+    nci_mode : str, optional
+        'single' or 'separate' NCI mode
     ...
     """
 
     print(f"\n{'='*60}")
     print(f"Starting {model_type.upper()} optimization for K-EFF")
     print(f"Encoding: {encoding}")
+
+    # NEW: Check if lambda optimization is supported
+    optimize_lambda = (encoding == 'physics' and lattices_train is not None)
+    if optimize_lambda:
+        print(f"Lambda optimization: ENABLED")
+        print(f"Irradiation mode: {irradiation_mode}")
+        print(f"NCI mode: {nci_mode}")
+        # Import feature regenerator
+        from utils.lambda_feature_regenerator import (
+            LambdaFeatureRegenerator, get_lambda_params_for_encoding
+        )
+        feature_regenerator = LambdaFeatureRegenerator(encoding)
+        lambda_params = get_lambda_params_for_encoding(irradiation_mode, nci_mode)
+        print(f"Lambda parameters to optimize: {lambda_params}")
+
+        # Separate features into fixed and regeneratable parts
+        feature_data_base = feature_regenerator.separate_features(
+            X_train, lattices_train, irradiation_mode, nci_mode
+        )
+    else:
+        print(f"Lambda optimization: DISABLED (encoding={encoding})")
+
     print(f"Total trials: {n_trials}, Timeout per trial: {TRIAL_TIMEOUT}s")
     print(f"Total timeout: {TOTAL_TIMEOUT}s")
     print(f"Parallel trials (n_jobs): {n_jobs}")
@@ -572,6 +667,32 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
             return float('inf')
 
         print(f"\n[Trial {trial.number + 1}/{n_trials}] Starting at {datetime.now().strftime('%H:%M:%S')}")
+
+        # NEW: Suggest lambda parameters if optimizing
+        if optimize_lambda:
+            # Suggest lambda values between 0.25 and 2.5
+            if 'lambda_decay' in lambda_params:
+                lambda_decay_trial = trial.suggest_float('lambda_decay', 0.25, 2.5)
+                print(f"  Lambda: {lambda_decay_trial:.3f}")
+            if 'lambda_P' in lambda_params:
+                lambda_P_trial = trial.suggest_float('lambda_P', 0.25, 2.5)
+                lambda_B_trial = trial.suggest_float('lambda_B', 0.25, 2.5)
+                lambda_G_trial = trial.suggest_float('lambda_G', 0.25, 2.5)
+                print(f"  Lambdas: P={lambda_P_trial:.3f}, B={lambda_B_trial:.3f}, G={lambda_G_trial:.3f}")
+
+            # Regenerate features with new lambda values
+            if 'lambda_decay' in lambda_params:
+                X_train_regenerated = feature_regenerator.regenerate_features(
+                    feature_data_base, lambda_decay=lambda_decay_trial
+                )
+            else:
+                X_train_regenerated = feature_regenerator.regenerate_features(
+                    feature_data_base, lambda_P=lambda_P_trial,
+                    lambda_B=lambda_B_trial, lambda_G=lambda_G_trial
+                )
+        else:
+            # Use original features
+            X_train_regenerated = X_train
 
         try:
             # Same parameter definitions as flux optimization - EXACTLY MATCHING
@@ -695,7 +816,7 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
                                 ('svm', model)
                             ])
 
-                        scores = cross_val_score(model, X_train, y_keff_train.ravel(),
+                        scores = cross_val_score(model, X_train_regenerated, y_keff_train.ravel(),
                                                cv=cv,
                                                groups=groups,
                                                scoring='neg_mean_squared_error',
@@ -710,7 +831,7 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
                                 ('svm', model)
                             ])
 
-                        scores = cross_val_score(model, X_train, y_keff_train.ravel(),
+                        scores = cross_val_score(model, X_train_regenerated, y_keff_train.ravel(),
                                                cv=cv,
                                                scoring='neg_mean_squared_error',
                                                n_jobs=1)
@@ -747,15 +868,23 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
             return float('inf')
 
     # Create study with proper exception handling
+    # NEW: Increase n_startup_trials to 150 (3x) for better lambda space exploration
+    n_startup = 400 if optimize_lambda else 50
     study = optuna.create_study(
         direction='minimize',
         sampler=TPESampler(
-            n_startup_trials=150,
+            n_startup_trials=n_startup,  # 3x for lambda optimization
             n_ei_candidates=100,
-            seed=42
+            seed=42,
+            multivariate=True,  # Enable multivariate TPE for lambda correlation
+            warn_independent_sampling=False
         ),
         pruner=None
     )
+
+    if optimize_lambda:
+        print(f"\n✓ Lambda optimization: Using {n_startup} random trials (3x) for thorough exploration")
+        print(f"  This helps avoid local optima in lambda space")
 
     # Add callback to print best value updates
     def callback(study, trial):

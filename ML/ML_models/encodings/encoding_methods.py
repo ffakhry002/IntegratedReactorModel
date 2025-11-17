@@ -124,7 +124,9 @@ class ReactorEncodings:
 
     @staticmethod
     def physics_based_encoding(lattice: np.ndarray, irradiation_mode: str = None,
-                               nci_mode: str = None) -> Tuple[np.ndarray, List[Tuple], List[Tuple]]:
+                               nci_mode: str = None, lambda_decay: float = 1.5,
+                               lambda_P: float = 1.5, lambda_B: float = 1.5,
+                               lambda_G: float = 1.5) -> Tuple[np.ndarray, List[Tuple], List[Tuple]]:
         """Physics-based encoding with global and local features.
 
         Method 3: Physics-based encoding with global and local features
@@ -151,6 +153,14 @@ class ReactorEncodings:
             'vacuum' for I_1, I_2 format or 'fill' for I_1P, I_1B, I_1G format
         nci_mode : str
             'single' for one NCI per position or 'separate' for NCI_P, NCI_B, NCI_G
+        lambda_decay : float, optional
+            Decay parameter for single NCI mode, by default 1.5
+        lambda_P : float, optional
+            Decay parameter for P-type vehicles (PWR) in separate mode, by default 1.5
+        lambda_B : float, optional
+            Decay parameter for B-type vehicles (BWR) in separate mode, by default 1.5
+        lambda_G : float, optional
+            Decay parameter for G-type vehicles (GAS) in separate mode, by default 1.5
 
         Returns
         -------
@@ -189,11 +199,13 @@ class ReactorEncodings:
                 lattice, i, j, label, irradiation_mode)
             local_features.extend(local_feat)
 
-        # Add NCI features for each position
+        # Add NCI features for each position with lambda parameters
         if irradiation_mode == 'fill' and nci_mode == 'separate':
-            nci_features = ReactorEncodings._compute_nci_separate(position_order_with_labels)
+            nci_features = ReactorEncodings._compute_nci_separate(
+                position_order_with_labels, lambda_P, lambda_B, lambda_G)
         else:
-            nci_features = ReactorEncodings._compute_nci_for_positions(position_order)
+            nci_features = ReactorEncodings._compute_nci_for_positions(
+                position_order, lambda_decay)
 
         # Combine all features
         feature_vec = np.concatenate([global_features, local_features, nci_features])
@@ -392,20 +404,27 @@ class ReactorEncodings:
         return nci_values
 
     @staticmethod
-    def _compute_nci_separate(positions_with_labels: List[Tuple], lambda_decay: float = 1.5) -> List[float]:
+    def _compute_nci_separate(positions_with_labels: List[Tuple],
+                             lambda_P: float = 1.5,
+                             lambda_B: float = 1.5,
+                             lambda_G: float = 1.5) -> List[float]:
         """Compute separate NCI values by vehicle type (P, B, G) for each irradiation position.
 
-        For each position, computes three NCI values:
-        - NCI_P: competition from P-type vehicles
-        - NCI_B: competition from B-type vehicles
-        - NCI_G: competition from G-type vehicles
+        For each position, computes three NCI values with SEPARATE lambda values for each vehicle type:
+        - NCI_P: competition from P-type vehicles (using lambda_P)
+        - NCI_B: competition from B-type vehicles (using lambda_B)
+        - NCI_G: competition from G-type vehicles (using lambda_G)
 
         Parameters
         ----------
         positions_with_labels : List[Tuple]
             List of (row, col, label) tuples for irradiation positions
-        lambda_decay : float, optional
-            Decay parameter, by default 1.5
+        lambda_P : float, optional
+            Decay parameter for P-type vehicles (PWR), by default 1.5
+        lambda_B : float, optional
+            Decay parameter for B-type vehicles (BWR), by default 1.5
+        lambda_G : float, optional
+            Decay parameter for G-type vehicles (GAS), by default 1.5
 
         Returns
         -------
@@ -431,24 +450,27 @@ class ReactorEncodings:
                     # Euclidean distance
                     dist = np.sqrt((pos_i[0] - pos_j[0])**2 + (pos_i[1] - pos_j[1])**2)
 
-                    # Calculate contribution based on distance
-                    contribution = 0.0
-                    if dist < threshold_low:
-                        # Close distance: exponential decay
-                        contribution = np.exp(-dist / lambda_decay)
-                    elif threshold_low <= dist <= threshold_high:
-                        # Medium distance: constant small contribution
-                        contribution = 0.1
-                    # else: dist > threshold_high, contributes 0 (no addition)
-
-                    # Add to appropriate NCI based on vehicle type
+                    # Add to appropriate NCI based on vehicle type, using type-specific lambda
                     label_j = pos_j[2]
+
                     if label_j.endswith('P'):
-                        nci_P += contribution
+                        # Use lambda_P for P-type vehicles
+                        if dist < threshold_low:
+                            nci_P += np.exp(-dist / lambda_P)
+                        elif threshold_low <= dist <= threshold_high:
+                            nci_P += 0.1
                     elif label_j.endswith('B'):
-                        nci_B += contribution
+                        # Use lambda_B for B-type vehicles
+                        if dist < threshold_low:
+                            nci_B += np.exp(-dist / lambda_B)
+                        elif threshold_low <= dist <= threshold_high:
+                            nci_B += 0.1
                     elif label_j.endswith('G'):
-                        nci_G += contribution
+                        # Use lambda_G for G-type vehicles
+                        if dist < threshold_low:
+                            nci_G += np.exp(-dist / lambda_G)
+                        elif threshold_low <= dist <= threshold_high:
+                            nci_G += 0.1
 
             # Append all three NCI values for this position
             nci_values.extend([nci_P, nci_B, nci_G])

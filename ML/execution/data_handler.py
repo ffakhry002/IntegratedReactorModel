@@ -40,6 +40,9 @@ class DataHandler:
         print(f"  Found {len(lattices)} configurations")
         print(f"  Flux mode: {flux_mode}")
 
+        # Store original lattices for lambda optimization
+        self.original_lattices = lattices
+
         print(f"  Applying {encoding_method} encoding with 8-fold augmentation...")
 
         # Prepare data with selected encoding
@@ -47,6 +50,7 @@ class DataHandler:
         y_flux_values = []
         y_k_eff = []
         irr_positions_list = []
+        augmented_lattices = []  # NEW: Store augmented lattices for lambda optimization
 
         # NEW: Track augmentation groups for CV
         augmentation_groups = []
@@ -103,6 +107,7 @@ class DataHandler:
                     raise ValueError(f"Unknown encoding method: {encoding_method}")
 
                 X_features.append(feature_vec)
+                augmented_lattices.append(aug_lattice)  # NEW: Store the augmented lattice
 
                 # Prepare flux values based on mode
                 if flux_mode == 'total':
@@ -186,8 +191,11 @@ class DataHandler:
         print(f"\n  ✓ Data loaded successfully with label-agnostic encoding")
         print(f"  ✓ Flux values ordered by spatial position, not label")
 
-        # NEW: Return groups as well
-        return X, y_flux, y_keff, groups
+        # Store augmented lattices for lambda optimization
+        self.augmented_lattices = augmented_lattices
+
+        # NEW: Return groups and lattices as well
+        return X, y_flux, y_keff, groups, augmented_lattices
 
     def _prepare_total_flux_values(self, lattice, flux_dict, position_order):
         """Prepare total flux values (original behavior)"""
@@ -286,7 +294,7 @@ class DataHandler:
 
         return bin_values
 
-    def split_data(self, X, y_flux, y_keff, groups=None, test_size=0.15, random_state=42):
+    def split_data(self, X, y_flux, y_keff, groups=None, test_size=0.15, random_state=42, lattices=None):
         """Split data into train/test sets"""
 
         # Handle test_size=0.0: use all data for training
@@ -299,6 +307,8 @@ class DataHandler:
             y_keff_test = np.array([])
             groups_train = groups
             groups_test = None
+            lattices_train = lattices if lattices is not None else None
+            lattices_test = None
 
             print(f"  Using all data for training (test_size=0.0)")
             if groups is not None:
@@ -322,6 +332,14 @@ class DataHandler:
             groups_train = groups[train_idx]
             groups_test = groups[test_idx]
 
+            # NEW: Split lattices if provided
+            if lattices is not None:
+                lattices_train = [lattices[i] for i in train_idx]
+                lattices_test = [lattices[i] for i in test_idx]
+            else:
+                lattices_train = None
+                lattices_test = None
+
             print(f"  Using GroupShuffleSplit to prevent augmentation leakage")
             print(f"  Unique configs in train: {len(np.unique(groups_train))}")
             print(f"  Unique configs in test: {len(np.unique(groups_test))}")
@@ -336,6 +354,17 @@ class DataHandler:
             groups_train = None
             groups_test = None
 
+            # NEW: Split lattices if provided
+            if lattices is not None:
+                # Need indices for lattice split
+                from sklearn.model_selection import train_test_split as tts
+                train_idx, test_idx = tts(range(len(lattices)), test_size=test_size, random_state=random_state)
+                lattices_train = [lattices[i] for i in train_idx]
+                lattices_test = [lattices[i] for i in test_idx]
+            else:
+                lattices_train = None
+                lattices_test = None
+
             print(f"  Training samples: {X_train.shape[0]}")
             print(f"  Test samples: {X_test.shape[0]}")
 
@@ -346,8 +375,10 @@ class DataHandler:
             'y_flux_test': y_flux_test,
             'y_keff_train': y_keff_train,
             'y_keff_test': y_keff_test,
-            'groups_train': groups_train,  # NEW
-            'groups_test': groups_test      # NEW
+            'groups_train': groups_train,
+            'groups_test': groups_test,
+            'lattices_train': lattices_train,  # NEW
+            'lattices_test': lattices_test      # NEW
         }
 
     def _prepare_single_energy_flux_values(self, lattice, flux_dict, energy_dict, position_order, flux_mode):

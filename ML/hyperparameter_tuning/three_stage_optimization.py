@@ -24,10 +24,10 @@ class OptimizationConfig:
     """Configuration for optimization process"""
     stage_timeout: int = 3600 * 200  # 20 hours per stage
     total_timeout: int = 7200 * 300  # 30 hours total
-    default_random_iter: int = 1000
-    default_bayesian_iter: int = 100
-    fast_random_iter: int = 100
-    fast_bayesian_iter: int = 20
+    default_random_iter: int = 3000  # INCREASED: 3x for lambda optimization
+    default_bayesian_iter: int = 500  # INCREASED: 5x for lambda optimization
+    fast_random_iter: int = 300  # INCREASED: 3x
+    fast_bayesian_iter: int = 100  # INCREASED: 5x
 
 config = OptimizationConfig()
 
@@ -1728,9 +1728,13 @@ def clean_optimization_parameters(params_dict: Dict[str, Any]) -> Dict[str, Any]
 # ============================================================================
 def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost',
                            n_jobs=-1, cores_per_trial=1, target_type='flux', use_log_flux=True, groups=None,
-                           n_random_iter=None, n_bayesian_iter=None, fast_mode=False, n_gpus=0):
+                           n_random_iter=None, n_bayesian_iter=None, fast_mode=False, n_gpus=0,
+                           encoding='categorical', lattices_train=None, irradiation_mode='vacuum', nci_mode='single',
+                           skip_grid_search=True):
     """
-    Three-stage hyperparameter optimization: Random → Grid → Bayesian
+    Three-stage hyperparameter optimization: Random → Grid (optional) → Bayesian
+
+    NEW: Supports lambda optimization for physics-based encoding with NCI features
 
     Args:
         X_train: Training features
@@ -1742,10 +1746,15 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
         target_type: 'flux' or 'keff' - determines optimization metric
         use_log_flux: Whether flux data is log-transformed
         groups: Array indicating which samples belong to same original config
-        n_random_iter: Number of random search iterations
-        n_bayesian_iter: Number of Bayesian search iterations
+        n_random_iter: Number of random search iterations (default: 3000)
+        n_bayesian_iter: Number of Bayesian search iterations (default: 500)
         fast_mode: If True, uses reduced iteration counts for quick testing
         n_gpus: Number of GPUs to use (unused for XGBoost and SVM, included for compatibility)
+        encoding: Encoding method ('physics', 'categorical', etc.)
+        lattices_train: List of lattice configurations for lambda optimization
+        irradiation_mode: 'vacuum' or 'fill' mode for NCI calculation
+        nci_mode: 'single' or 'separate' NCI mode
+        skip_grid_search: If True, skips grid search stage (default: True for lambda optimization)
 
     Returns:
         tuple: (best_params, None)
@@ -1759,14 +1768,51 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
         actual_random_iter = n_random_iter if n_random_iter is not None else config.default_random_iter
         actual_bayesian_iter = n_bayesian_iter if n_bayesian_iter is not None else config.default_bayesian_iter
 
+    # NEW: Check if lambda optimization is enabled
+    optimize_lambda = (encoding == 'physics' and lattices_train is not None)
+
     print(f"\n{'='*60}")
     print(f"THREE-STAGE HYPERPARAMETER OPTIMIZATION")
     print(f"{'='*60}")
     print(f"Model: {model_type}")
     print(f"Target: {target_type.upper()}")
+    print(f"Encoding: {encoding}")
+
+    if optimize_lambda:
+        print(f"Lambda optimization: ENABLED")
+        print(f"Irradiation mode: {irradiation_mode}")
+        print(f"NCI mode: {nci_mode}")
+        # Import feature regenerator and wrapper
+        from utils.lambda_feature_regenerator import (
+            LambdaFeatureRegenerator, get_lambda_params_for_encoding
+        )
+        from hyperparameter_tuning.lambda_aware_estimator import (
+            LambdaAwareEstimator, add_lambda_to_param_distributions,
+            add_lambda_to_grid_params, add_lambda_to_bayesian_spaces
+        )
+        feature_regenerator = LambdaFeatureRegenerator(encoding)
+        lambda_params = get_lambda_params_for_encoding(irradiation_mode, nci_mode)
+        print(f"Lambda parameters to optimize: {lambda_params}")
+
+        # Separate features into fixed and regeneratable parts
+        feature_data_base = feature_regenerator.separate_features(
+            X_train, lattices_train, irradiation_mode, nci_mode
+        )
+
+        # Force skip grid search for lambda optimization
+        skip_grid_search = True
+        print(f"Grid search: SKIPPED (not compatible with lambda optimization)")
+    else:
+        print(f"Lambda optimization: DISABLED")
+        feature_data_base = None
+
     print(f"Optimization metric: {'MAPE' if target_type == 'flux' else 'MSE'}")
-    print(f"Random search iterations: {actual_random_iter}")
-    print(f"Bayesian search iterations: {actual_bayesian_iter}")
+    print(f"Random search iterations: {actual_random_iter} (3x for lambda)")
+    print(f"Bayesian search iterations: {actual_bayesian_iter} (5x for lambda)")
+    if not optimize_lambda and not skip_grid_search:
+        print(f"Grid search: ENABLED")
+    else:
+        print(f"Grid search: SKIPPED")
     print(f"Parallel trials (n_jobs): {n_jobs}")
     print(f"Cores per trial: {cores_per_trial}")
     print(f"Stage timeout: {config.stage_timeout}s, Total timeout: {config.total_timeout}s")
@@ -1855,16 +1901,51 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
     for param, value in fixed_params.items():
         print(f"   - {param}: {value}")
 
+    # NEW: Wrap model with LambdaAwareEstimator if optimizing lambda
+    if optimize_lambda:
+        print(f"\n✓ Wrapping model with LambdaAwareEstimator for lambda optimization")
+        # Create base estimator instance
+        base_estimator = model_class(**fixed_params) if not needs_wrapper else model_class(**fixed_params)
+
+        # Wrap with lambda-aware estimator
+        wrapped_model_class = type('LambdaAware' + model_class.__name__, (LambdaAwareEstimator,), {})
+
+        # Update model_class to be a lambda that creates wrapped estimators
+        def create_wrapped_estimator():
+            base = model_class(**fixed_params)
+            return LambdaAwareEstimator(
+                base_estimator=base,
+                feature_data=feature_data_base,
+                irradiation_mode=irradiation_mode,
+                nci_mode=nci_mode
+            )
+
+        model_class_for_search = create_wrapped_estimator
+        # Update needs_wrapper flag since LambdaAwareEstimator handles prefixing
+        needs_wrapper_original = needs_wrapper
+        needs_wrapper = False  # Lambda wrapper handles all parameter prefixing
+    else:
+        model_class_for_search = model_class
+
     # ========================================================================
     # STAGE 1: RANDOM SEARCH
     # ========================================================================
     random_stage = RandomSearchStage()
-    param_distributions = handler.get_random_distributions(needs_wrapper)
+    param_distributions = handler.get_random_distributions(needs_wrapper if not optimize_lambda else needs_wrapper_original)
+
+    # NEW: Add lambda parameters if optimizing
+    if optimize_lambda:
+        param_distributions = add_lambda_to_param_distributions(
+            param_distributions, irradiation_mode, nci_mode
+        )
+        print(f"\n✓ Added lambda parameters to search space")
 
     success1, best_random_params, best_random_score, random_search_obj, stage1_time = \
-        random_stage.run(X_train, y_train, model_class, param_distributions,
+        random_stage.run(X_train, y_train, model_class_for_search if optimize_lambda else model_class,
+                        param_distributions,
                         cv, n_splits, scoring, n_jobs, groups, actual_random_iter,
-                        fixed_params=fixed_params, model_type=model_type)
+                        fixed_params=fixed_params if not optimize_lambda else {},
+                        model_type=model_type)
 
     if success1 and best_random_params:
         best_params_so_far = best_random_params
@@ -1881,38 +1962,66 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
         return clean_optimization_parameters(best_params_so_far), None
 
     # ========================================================================
-    # STAGE 2: GRID SEARCH
+    # STAGE 2: GRID SEARCH (SKIPPED FOR LAMBDA OPTIMIZATION)
     # ========================================================================
-    grid_stage = GridSearchStage()
+    if not skip_grid_search:
+        grid_stage = GridSearchStage()
 
-    success2, best_grid_params, best_grid_score, grid_search_obj, stage2_time = \
-        grid_stage.run(X_train, y_train, model_class, model_type,
-                      best_random_params, cv, n_splits, scoring, n_jobs,
-                      groups, needs_wrapper, fixed_params=fixed_params)
-
-    if success2 and best_grid_params:
-        if best_grid_score > best_score_so_far:
-            best_params_so_far = best_grid_params
-            best_score_so_far = best_grid_score
-            print(f"\nGrid search improved performance!")
+        # Add lambda parameters to grid if optimizing
+        if optimize_lambda:
+            # Extract lambda values from best_random_params
+            lambda_values = {k: v for k, v in best_random_params.items()
+                           if k.startswith('lambda_')}
+            param_grid = handler.create_grid_params(best_random_params,
+                                                    needs_wrapper_original if optimize_lambda else needs_wrapper)
+            param_grid = add_lambda_to_grid_params(param_grid, lambda_values,
+                                                   irradiation_mode, nci_mode)
         else:
-            print(f"\n Grid search did not improve performance.")
+            param_grid = None
 
-    # Check total timeout
-    if time.time() - optimization_start_time > config.total_timeout:
-        print(f"\nTotal timeout reached. Returning best parameters found so far.")
-        return clean_optimization_parameters(best_params_so_far), None
+        success2, best_grid_params, best_grid_score, grid_search_obj, stage2_time = \
+            grid_stage.run(X_train, y_train,
+                          model_class_for_search if optimize_lambda else model_class,
+                          model_type,
+                          best_random_params, cv, n_splits, scoring, n_jobs,
+                          groups, needs_wrapper_original if optimize_lambda else needs_wrapper,
+                          fixed_params=fixed_params if not optimize_lambda else {})
+
+        if success2 and best_grid_params:
+            if best_grid_score > best_score_so_far:
+                best_params_so_far = best_grid_params
+                best_score_so_far = best_grid_score
+                print(f"\nGrid search improved performance!")
+            else:
+                print(f"\nGrid search did not improve performance.")
+
+        # Check total timeout
+        if time.time() - optimization_start_time > config.total_timeout:
+            print(f"\nTotal timeout reached. Returning best parameters found so far.")
+            return clean_optimization_parameters(best_params_so_far), None
+    else:
+        print(f"\n{'='*60}")
+        print(f"STAGE 2: GRID SEARCH - SKIPPED")
+        print(f"{'='*60}")
 
     # ========================================================================
     # STAGE 3: BAYESIAN OPTIMIZATION
     # ========================================================================
     bayes_stage = BayesianSearchStage()
 
+    # NEW: Add lambda parameters to Bayesian search space if optimizing
+    if optimize_lambda:
+        # This will be handled inside the Bayesian stage, but we need to pass info
+        print(f"\n✓ Bayesian optimization will include lambda parameters")
+
     success3, best_bayes_params, best_bayes_score, bayes_search_obj, stage3_time = \
-        bayes_stage.run(X_train, y_train, model_class, model_type,
+        bayes_stage.run(X_train, y_train,
+                       model_class_for_search if optimize_lambda else model_class,
+                       model_type,
                        best_params_so_far, cv, n_splits, scoring, n_jobs,
-                       groups, needs_wrapper, actual_bayesian_iter,
-                       fixed_params=fixed_params)
+                       groups, needs_wrapper_original if optimize_lambda else needs_wrapper,
+                       actual_bayesian_iter,
+                       fixed_params=fixed_params if not optimize_lambda else {})
 
     if success3 and best_bayes_params:
         if best_bayes_score > best_score_so_far:
@@ -1920,7 +2029,7 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
             best_score_so_far = best_bayes_score
             print(f"\nBayesian search improved performance!")
         else:
-            print(f"\n Bayesian search did not improve performance.")
+            print(f"\nBayesian search did not improve performance.")
 
     # ========================================================================
     # FINAL SUMMARY

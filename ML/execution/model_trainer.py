@@ -48,6 +48,9 @@ class ModelTrainer:
         # NEW: Get groups if available
         groups_train = data_splits.get('groups_train', None)
 
+        # NEW: Get lattices for lambda optimization (if available)
+        lattices_train = data_splits.get('lattices_train', None)
+
         if target == 'flux':
             y_train = data_splits['y_flux_train']
             y_test = data_splits['y_flux_test']
@@ -57,6 +60,25 @@ class ModelTrainer:
 
         # Get flux mode
         flux_mode = config.flux_mode if hasattr(config, 'flux_mode') and target == 'flux' else 'total'
+
+        # NEW: Get irradiation_mode and nci_mode for lambda optimization
+        # Read from encoding_methods.py module-level settings
+        from ML_models.encodings.encoding_methods import IRRADIATION_MODE, NCI_MODE
+        irradiation_mode = IRRADIATION_MODE
+        nci_mode = NCI_MODE
+
+        # Check if lambda optimization will be enabled
+        optimize_lambda = (encoding == 'physics' and lattices_train is not None)
+        if optimize_lambda:
+            print(f"✅ Lambda optimization ENABLED: irradiation_mode={irradiation_mode}, nci_mode={nci_mode}")
+            print(f"   Will optimize lambda parameters in range [0.25, 2.5]")
+        else:
+            if encoding != 'physics':
+                print(f"⚠️  Lambda optimization disabled: encoding='{encoding}' (need 'physics')")
+            elif lattices_train is None:
+                print(f"⚠️  Lambda optimization disabled: no lattices provided")
+            else:
+                print(f"⚠️  Lambda optimization disabled: unknown reason")
 
         # Get best hyperparameters
         optimization_start = time.time()
@@ -77,7 +99,10 @@ class ModelTrainer:
                     cores_per_trial=cores_per_trial,  # NEW parameter
                     groups=groups_train,
                     flux_mode=flux_mode,
-                    encoding=encoding
+                    encoding=encoding,
+                    lattices_train=lattices_train,      # NEW: Enable lambda optimization
+                    irradiation_mode=irradiation_mode,  # NEW: From encoding_methods.py
+                    nci_mode=nci_mode                   # NEW: From encoding_methods.py
                     # Note: n_gpus not needed - Optuna uses sklearn MLP (CPU-only)
                 )
             else:  # keff
@@ -88,7 +113,10 @@ class ModelTrainer:
                     n_jobs=n_jobs,              # Use model-specific n_jobs
                     cores_per_trial=cores_per_trial,  # NEW parameter
                     groups=groups_train,
-                    encoding=encoding
+                    encoding=encoding,
+                    lattices_train=lattices_train,      # NEW: Enable lambda optimization
+                    irradiation_mode=irradiation_mode,  # NEW: From encoding_methods.py
+                    nci_mode=nci_mode                   # NEW: From encoding_methods.py
                     # Note: n_gpus not needed - Optuna uses sklearn MLP (CPU-only)
                 )
 
@@ -121,7 +149,12 @@ class ModelTrainer:
                 target_type=target,
                 use_log_flux=self.data_handler.use_log_flux if target == 'flux' else False,
                 groups=groups_train,  # NEW: Pass groups
-                n_gpus=config.n_gpus  # NEW: Pass GPU count
+                n_gpus=config.n_gpus,  # NEW: Pass GPU count
+                encoding=encoding,                  # NEW: Enable lambda optimization
+                lattices_train=lattices_train,      # NEW: Enable lambda optimization
+                irradiation_mode=irradiation_mode,  # NEW: From encoding_methods.py
+                nci_mode=nci_mode,                  # NEW: From encoding_methods.py
+                skip_grid_search=True               # NEW: Skip grid search for lambda optimization
             )
 
             # Check if optimization completed or timed out
