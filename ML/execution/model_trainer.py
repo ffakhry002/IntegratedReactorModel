@@ -68,12 +68,19 @@ class ModelTrainer:
         nci_mode = NCI_MODE
 
         # Check if lambda optimization will be enabled
-        optimize_lambda = (encoding == 'physics' and lattices_train is not None)
+        # Don't optimize lambda if NCI features are disabled (mode 2)
+        optimize_lambda = (encoding == 'physics' and lattices_train is not None and NCI_DISTANCE_CUTOFF != 2)
         if optimize_lambda:
             print(f"✅ Lambda optimization ENABLED: irradiation_mode={irradiation_mode}, nci_mode={nci_mode}")
             print(f"   Will optimize lambda parameters in range [0.5, 2.0]")
             print(f"   NCI formula: exp(-(distance - 1) / lambda)")
-            print(f"   Distance cutoff: {'ENABLED (d > sqrt(5) → 0)' if NCI_DISTANCE_CUTOFF else 'DISABLED (all distances contribute)'}")
+            if NCI_DISTANCE_CUTOFF == 1:
+                print(f"   Distance cutoff: ENABLED (d > sqrt(5) → 0)")
+            else:
+                print(f"   Distance cutoff: DISABLED (all distances contribute)")
+        elif NCI_DISTANCE_CUTOFF == 2:
+            print(f"⚠️  NCI features DISABLED (NCI_DISTANCE_CUTOFF=2)")
+            print(f"   Using only global + local features (no lambda optimization)")
         else:
             if encoding != 'physics':
                 print(f"⚠️  Lambda optimization disabled: encoding='{encoding}' (need 'physics')")
@@ -102,7 +109,7 @@ class ModelTrainer:
                     groups=groups_train,
                     flux_mode=flux_mode,
                     encoding=encoding,
-                    lattices_train=lattices_train,      # NEW: Enable lambda optimization
+                    lattices_train=lattices_train if optimize_lambda else None,      # Only pass if lambda optimization enabled
                     irradiation_mode=irradiation_mode,  # NEW: From encoding_methods.py
                     nci_mode=nci_mode                   # NEW: From encoding_methods.py
                     # Note: n_gpus not needed - Optuna uses sklearn MLP (CPU-only)
@@ -116,7 +123,7 @@ class ModelTrainer:
                     cores_per_trial=cores_per_trial,  # NEW parameter
                     groups=groups_train,
                     encoding=encoding,
-                    lattices_train=lattices_train,      # NEW: Enable lambda optimization
+                    lattices_train=lattices_train if optimize_lambda else None,      # Only pass if lambda optimization enabled
                     irradiation_mode=irradiation_mode,  # NEW: From encoding_methods.py
                     nci_mode=nci_mode                   # NEW: From encoding_methods.py
                     # Note: n_gpus not needed - Optuna uses sklearn MLP (CPU-only)
@@ -153,7 +160,7 @@ class ModelTrainer:
                 groups=groups_train,  # NEW: Pass groups
                 n_gpus=config.n_gpus,  # NEW: Pass GPU count
                 encoding=encoding,                  # NEW: Enable lambda optimization
-                lattices_train=lattices_train,      # NEW: Enable lambda optimization
+                lattices_train=lattices_train if optimize_lambda else None,      # Only pass if lambda optimization enabled
                 irradiation_mode=irradiation_mode,  # NEW: From encoding_methods.py
                 nci_mode=nci_mode,                  # NEW: From encoding_methods.py
                 skip_grid_search=True               # NEW: Skip grid search for lambda optimization

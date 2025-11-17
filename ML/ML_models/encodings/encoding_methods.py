@@ -16,12 +16,12 @@ NCI_MODE = 'separate'          # Options: 'single' or 'separate'
                              # 'separate': NCI_P, NCI_B, NCI_G per position
                              # (only applies when IRRADIATION_MODE = 'fill')
 
-# NCI Distance Cutoff - Read from environment variable, default to True
-# Set in SLURM script: export NCI_DISTANCE_CUTOFF=1 (with cutoff) or =0 (no cutoff)
-NCI_DISTANCE_CUTOFF = bool(int(os.environ.get('NCI_DISTANCE_CUTOFF', '1')))
-                             # True: Apply knight's move cutoff (d > sqrt(5) → NCI = 0)
-                             # False: No cutoff (all distances use exp(-(d-1)/lambda))
-                             # Formula is ALWAYS: exp(-(distance - 1) / lambda)
+# NCI Distance Cutoff - Read from environment variable, default to 1
+# Set in SLURM script: export NCI_DISTANCE_CUTOFF=0, 1, or 2
+NCI_DISTANCE_CUTOFF = int(os.environ.get('NCI_DISTANCE_CUTOFF', '1'))
+                             # 0: No cutoff (all distances use exp(-(d-1)/lambda))
+                             # 1: With cutoff (d > sqrt(5) → NCI = 0) [DEFAULT]
+                             # 2: Don't use NCI features at all (only global + local)
 # =============================================================================
 
 class ReactorEncodings:
@@ -207,16 +207,21 @@ class ReactorEncodings:
                 lattice, i, j, label, irradiation_mode)
             local_features.extend(local_feat)
 
-        # Add NCI features for each position with lambda parameters
-        if irradiation_mode == 'fill' and nci_mode == 'separate':
-            nci_features = ReactorEncodings._compute_nci_separate(
-                position_order_with_labels, lambda_P, lambda_B, lambda_G)
+        # Add NCI features for each position with lambda parameters (if enabled)
+        if NCI_DISTANCE_CUTOFF == 2:
+            # Skip NCI features entirely
+            feature_vec = np.concatenate([global_features, local_features])
         else:
-            nci_features = ReactorEncodings._compute_nci_for_positions(
-                position_order, lambda_decay)
+            # Include NCI features
+            if irradiation_mode == 'fill' and nci_mode == 'separate':
+                nci_features = ReactorEncodings._compute_nci_separate(
+                    position_order_with_labels, lambda_P, lambda_B, lambda_G)
+            else:
+                nci_features = ReactorEncodings._compute_nci_for_positions(
+                    position_order, lambda_decay)
 
-        # Combine all features
-        feature_vec = np.concatenate([global_features, local_features, nci_features])
+            # Combine all features
+            feature_vec = np.concatenate([global_features, local_features, nci_features])
 
         return feature_vec, irr_positions, position_order
 
@@ -405,16 +410,17 @@ class ReactorEncodings:
                     dist = np.sqrt((pos_i[0] - pos_j[0])**2 + (pos_i[1] - pos_j[1])**2)
 
                     # Formula is ALWAYS: exp(-(distance - 1) / lambda)
-                    if NCI_DISTANCE_CUTOFF:
+                    if NCI_DISTANCE_CUTOFF == 1:
                         # Apply knight's move cutoff
                         if dist < threshold_low:
                             nci += np.exp(-(dist - 1) / lambda_decay)
                         elif threshold_low <= dist <= threshold_high:
                             nci += medium_dist_contribution
                         # else: dist > threshold_high, contributes 0
-                    else:
+                    elif NCI_DISTANCE_CUTOFF == 0:
                         # No cutoff: all distances contribute
                         nci += np.exp(-(dist - 1) / lambda_decay)
+                    # NCI_DISTANCE_CUTOFF == 2: NCI not computed at all (handled in main function)
 
             nci_values.append(nci)
 
@@ -482,42 +488,45 @@ class ReactorEncodings:
                     # Formula is ALWAYS: exp(-(distance - 1) / lambda)
                     if label_j.endswith('P'):
                         # Use lambda_P for P-type vehicles
-                        if NCI_DISTANCE_CUTOFF:
+                        if NCI_DISTANCE_CUTOFF == 1:
                             # Apply knight's move cutoff
                             if dist < threshold_low:
                                 nci_P += np.exp(-(dist - 1) / lambda_P)
                             elif threshold_low <= dist <= threshold_high:
                                 nci_P += medium_dist_contribution_P
                             # else: d > sqrt(5.1), contributes 0
-                        else:
+                        elif NCI_DISTANCE_CUTOFF == 0:
                             # No cutoff: all distances contribute
                             nci_P += np.exp(-(dist - 1) / lambda_P)
+                        # NCI_DISTANCE_CUTOFF == 2: NCI not computed (handled in main function)
 
                     elif label_j.endswith('B'):
                         # Use lambda_B for B-type vehicles
-                        if NCI_DISTANCE_CUTOFF:
+                        if NCI_DISTANCE_CUTOFF == 1:
                             # Apply knight's move cutoff
                             if dist < threshold_low:
                                 nci_B += np.exp(-(dist - 1) / lambda_B)
                             elif threshold_low <= dist <= threshold_high:
                                 nci_B += medium_dist_contribution_B
                             # else: d > sqrt(5.1), contributes 0
-                        else:
+                        elif NCI_DISTANCE_CUTOFF == 0:
                             # No cutoff: all distances contribute
                             nci_B += np.exp(-(dist - 1) / lambda_B)
+                        # NCI_DISTANCE_CUTOFF == 2: NCI not computed (handled in main function)
 
                     elif label_j.endswith('G'):
                         # Use lambda_G for G-type vehicles
-                        if NCI_DISTANCE_CUTOFF:
+                        if NCI_DISTANCE_CUTOFF == 1:
                             # Apply knight's move cutoff
                             if dist < threshold_low:
                                 nci_G += np.exp(-(dist - 1) / lambda_G)
                             elif threshold_low <= dist <= threshold_high:
                                 nci_G += medium_dist_contribution_G
                             # else: d > sqrt(5.1), contributes 0
-                        else:
+                        elif NCI_DISTANCE_CUTOFF == 0:
                             # No cutoff: all distances contribute
                             nci_G += np.exp(-(dist - 1) / lambda_G)
+                        # NCI_DISTANCE_CUTOFF == 2: NCI not computed (handled in main function)
 
             # Append all three NCI values for this position
             nci_values.extend([nci_P, nci_B, nci_G])
