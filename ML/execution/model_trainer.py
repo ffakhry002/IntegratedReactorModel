@@ -63,7 +63,7 @@ class ModelTrainer:
 
         # NEW: Get irradiation_mode and nci_mode for lambda optimization
         # Read from encoding_methods.py module-level settings
-        from ML_models.encodings.encoding_methods import IRRADIATION_MODE, NCI_MODE
+        from ML_models.encodings.encoding_methods import IRRADIATION_MODE, NCI_MODE, NCI_DISTANCE_CUTOFF
         irradiation_mode = IRRADIATION_MODE
         nci_mode = NCI_MODE
 
@@ -72,6 +72,8 @@ class ModelTrainer:
         if optimize_lambda:
             print(f"✅ Lambda optimization ENABLED: irradiation_mode={irradiation_mode}, nci_mode={nci_mode}")
             print(f"   Will optimize lambda parameters in range [0.5, 2.0]")
+            print(f"   NCI formula: exp(-(distance - 1) / lambda)")
+            print(f"   Distance cutoff: {'ENABLED (d > sqrt(5) → 0)' if NCI_DISTANCE_CUTOFF else 'DISABLED (all distances contribute)'}")
         else:
             if encoding != 'physics':
                 print(f"⚠️  Lambda optimization disabled: encoding='{encoding}' (need 'physics')")
