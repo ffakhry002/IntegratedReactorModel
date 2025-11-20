@@ -1730,7 +1730,7 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
                            n_jobs=-1, cores_per_trial=1, target_type='flux', use_log_flux=True, groups=None,
                            n_random_iter=None, n_bayesian_iter=None, fast_mode=False, n_gpus=0,
                            encoding='categorical', lattices_train=None, irradiation_mode='vacuum', nci_mode='single',
-                           skip_grid_search=True):
+                           skip_grid_search=True, flux_loss='mape'):
     """
     Three-stage hyperparameter optimization: Random → Grid (optional) → Bayesian
 
@@ -1806,7 +1806,12 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
         print(f"Lambda optimization: DISABLED")
         feature_data_base = None
 
-    print(f"Optimization metric: {'MAPE' if target_type == 'flux' else 'MSE'}")
+    # Determine metric
+    if target_type == 'flux':
+        metric_name = 'MSE' if flux_loss == 'mse' else 'MAPE'
+    else:
+        metric_name = 'MSE'
+    print(f"Optimization metric: {metric_name}")
     print(f"Random search iterations: {actual_random_iter} (3x for lambda)")
     print(f"Bayesian search iterations: {actual_bayesian_iter} (5x for lambda)")
     if not optimize_lambda and not skip_grid_search:
@@ -1885,7 +1890,10 @@ def three_stage_optimization(X_train, y_train, model_class, model_type='xgboost'
     cv, n_splits = setup_cross_validation(X_train, y_train, groups)
 
     # Set up scoring
-    if target_type == 'flux':
+    if target_type == 'flux' and flux_loss == 'mse':
+        scoring = 'neg_mean_squared_error'
+        print(f"   - Using MSE scoring for flux")
+    elif target_type == 'flux':
         scoring = create_mape_scorer(use_log_flux)
         print(f"   - Using MAPE scoring (log_flux={use_log_flux})")
     else:

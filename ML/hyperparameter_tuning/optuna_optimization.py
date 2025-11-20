@@ -125,10 +125,11 @@ def mape_scorer_flux(y_true, y_pred, use_log_flux=True):
 
     return mape
 
-def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=250, n_jobs=10, cores_per_trial=1, use_log_flux=True, groups=None, flux_mode='total', encoding='categorical', lattices_train=None, irradiation_mode='vacuum', nci_mode='single'):
+def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=250, n_jobs=10, cores_per_trial=1, use_log_flux=True, groups=None, flux_mode='total', encoding='categorical', lattices_train=None, irradiation_mode='vacuum', nci_mode='single', flux_loss='mape'):
     """Optimize hyperparameters for flux prediction only - NOW USING MAPE or MSE based on mode
 
     NEW: Supports lambda optimization for physics-based encoding with NCI features
+    NEW: Supports MSE loss function via flux_loss parameter
 
     Parameters
     ----------
@@ -170,13 +171,17 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
     else:
         print(f"Lambda optimization: DISABLED (encoding={encoding})")
 
-    if flux_mode == 'bin':
-        print(f"Optimization metric: MSE (for energy bins)")
-    elif flux_mode in ['thermal_only', 'epithermal_only', 'fast_only']:
-        energy_group = flux_mode.replace('_only', '')
-        print(f"Optimization metric: MAPE (for {energy_group} flux only)")
+    # Determine scoring metric
+    if flux_loss == 'mse' or flux_mode == 'bin':
+        print(f"Optimization metric: MSE (Mean Squared Error)")
+        use_mse = True
     else:
-        print(f"Optimization metric: MAPE (Mean Absolute Percentage Error)")
+        if flux_mode in ['thermal_only', 'epithermal_only', 'fast_only']:
+            energy_group = flux_mode.replace('_only', '')
+            print(f"Optimization metric: MAPE (for {energy_group} flux only)")
+        else:
+            print(f"Optimization metric: MAPE (Mean Absolute Percentage Error)")
+        use_mse = False
     print(f"Total trials: {n_trials}, Timeout per trial: {TRIAL_TIMEOUT}s")
     print(f"Total timeout: {TOTAL_TIMEOUT}s")
     print(f"Parallel trials (n_jobs): {n_jobs}")
@@ -418,10 +423,10 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
                     print(f"  [ERROR] Invalid NN parameters caused: {str(e)[:100]}")
                     return float('inf')  # Skip this trial
 
-            # Choose scoring based on flux mode
-            if flux_mode == 'bin':
-                print(f"  Starting MSE-based cross-validation for energy bins...")
-                # Use sklearn cross_val_score for bin mode (MSE scoring)
+            # Choose scoring based on flux loss type
+            if use_mse:
+                print(f"  Starting MSE-based cross-validation...")
+                # Use sklearn cross_val_score for MSE scoring
                 if groups is not None:
                     from sklearn.model_selection import GroupKFold
                     cv = GroupKFold(n_splits=10)
@@ -519,7 +524,7 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
         None
         """
         if study.best_trial.number == trial.number:
-            if flux_mode == 'bin':
+            if use_mse:
                 print(f"\n[NEW BEST] Trial {trial.number}: MSE = {study.best_value:.6f}")
             else:
                 print(f"\n[NEW BEST] Trial {trial.number}: MAPE = {study.best_value:.2f}%")
@@ -549,7 +554,7 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
     print(f"Optimization finished. Completed trials: {len(study.trials)}/{n_trials}")
 
     if len(study.trials) > 0:
-        if flux_mode == 'bin':
+        if use_mse:
             print(f"Best MSE: {study.best_value:.6f}")
         else:
             print(f"Best MAPE: {study.best_value:.2f}%")

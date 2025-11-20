@@ -100,6 +100,9 @@ class ModelTrainer:
             n_jobs, cores_per_trial = get_model_specific_jobs(model_type, config)
 
             if target == 'flux':
+                # Determine flux loss function from environment variable (default: MAPE)
+                flux_loss = os.environ.get('FLUX_LOSS', 'mape').lower()
+
                 best_params, study = optimize_flux_model(
                     X_train, y_train,
                     model_type=model_type,
@@ -111,7 +114,8 @@ class ModelTrainer:
                     encoding=encoding,
                     lattices_train=lattices_train if optimize_lambda else None,      # Only pass if lambda optimization enabled
                     irradiation_mode=irradiation_mode,  # NEW: From encoding_methods.py
-                    nci_mode=nci_mode                   # NEW: From encoding_methods.py
+                    nci_mode=nci_mode,                  # NEW: From encoding_methods.py
+                    flux_loss=flux_loss                 # NEW: MSE or MAPE
                     # Note: n_gpus not needed - Optuna uses sklearn MLP (CPU-only)
                 )
             else:  # keff
@@ -149,6 +153,10 @@ class ModelTrainer:
 
             # Three-stage optimization
             model_class = self._get_model_class(model_type, target)
+
+            # Determine flux loss function from environment variable (default: MAPE)
+            flux_loss = os.environ.get('FLUX_LOSS', 'mape').lower() if target == 'flux' else 'mse'
+
             best_params, search = three_stage_optimization(
                 X_train, y_train,
                 model_class,
@@ -163,7 +171,8 @@ class ModelTrainer:
                 lattices_train=lattices_train if optimize_lambda else None,      # Only pass if lambda optimization enabled
                 irradiation_mode=irradiation_mode,  # NEW: From encoding_methods.py
                 nci_mode=nci_mode,                  # NEW: From encoding_methods.py
-                skip_grid_search=True               # NEW: Skip grid search for lambda optimization
+                skip_grid_search=True,              # NEW: Skip grid search for lambda optimization
+                flux_loss=flux_loss                 # NEW: MSE or MAPE
             )
 
             # Check if optimization completed or timed out
