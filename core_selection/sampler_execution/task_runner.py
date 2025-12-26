@@ -173,17 +173,8 @@ def run_single_stochastic_run(args):
         if is_kmedoids:
             inertia = quality_value
             distance = 0
-            # Calculate diversity separately
-            # Get the distance type from the sampler
-            if hasattr(sampler, 'distance_calculator'):
-                distance_type = sampler.distance_calculator.name
-            else:
-                distance_type = 'euclidean'  # default
-
-            if 'lattice' in method_name:
-                diversity = sampler.calculate_diversity_score_lattice_generic(indices, distance_type)
-            else:
-                diversity = sampler.calculate_diversity_score_generic(indices, distance_type)
+            # Calculate diversity separately - always use Euclidean in geometric space
+            diversity = sampler.calculate_diversity_score_generic(indices, 'euclidean')
         else:
             inertia = None
             distance = quality_value
@@ -200,16 +191,8 @@ def run_single_stochastic_run(args):
 
         # Calculate diversity if not provided
         if diversity is None:
-            # Get the distance type from the sampler
-            if hasattr(sampler, 'distance_calculator'):
-                distance_type = sampler.distance_calculator.name
-            else:
-                distance_type = 'euclidean'  # default
-
-            if 'lattice' in method_name:
-                diversity = sampler.calculate_diversity_score_lattice_generic(indices, distance_type)
-            else:
-                diversity = sampler.calculate_diversity_score_generic(indices, distance_type)
+            # Always use Euclidean in geometric space for consistent evaluation
+            diversity = sampler.calculate_diversity_score_generic(indices, 'euclidean')
 
     configurations = [sampler.configurations[i] for i in indices]
     irradiation_sets = [sampler.irradiation_sets[i] for i in indices]
@@ -354,16 +337,8 @@ def run_single_task_with_progress(task_args):
                 inertia = quality_value
                 algorithm = 'kmedoids'
                 # Need to calculate diversity separately for k-medoids
-                # Get the distance type from the sampler
-                if hasattr(sampler, 'distance_calculator'):
-                    distance_type = sampler.distance_calculator.name
-                else:
-                    distance_type = 'euclidean'  # default
-
-                if 'lattice' in method_name:
-                    diversity = sampler.calculate_diversity_score_lattice_generic(indices, distance_type)
-                else:
-                    diversity = sampler.calculate_diversity_score_generic(indices, distance_type)
+                # Always use Euclidean in geometric space for consistent evaluation
+                diversity = sampler.calculate_diversity_score_generic(indices, 'euclidean')
             else:
                 inertia = None
                 algorithm = 'greedy'
@@ -385,16 +360,8 @@ def run_single_task_with_progress(task_args):
 
             # If diversity not in results, calculate it
             if diversity is None:
-                # Get the distance type from the sampler
-                if hasattr(sampler, 'distance_calculator'):
-                    distance_type = sampler.distance_calculator.name
-                else:
-                    distance_type = 'euclidean'  # default
-
-                if 'lattice' in method_name:
-                    diversity = sampler.calculate_diversity_score_lattice_generic(indices, distance_type)
-                else:
-                    diversity = sampler.calculate_diversity_score_generic(indices, distance_type)
+                # Always use Euclidean in geometric space for consistent evaluation
+                diversity = sampler.calculate_diversity_score_generic(indices, 'euclidean')
 
         configurations = [sampler.configurations[i] for i in indices]
         irradiation_sets = [sampler.irradiation_sets[i] for i in indices]
@@ -484,16 +451,8 @@ def run_single_task(task_args):
                 inertia = quality_value
                 algorithm = 'kmedoids'
                 # Need to calculate diversity separately for k-medoids
-                # Get the distance type from the sampler
-                if hasattr(sampler, 'distance_calculator'):
-                    distance_type = sampler.distance_calculator.name
-                else:
-                    distance_type = 'euclidean'  # default
-
-                if 'lattice' in method_name:
-                    diversity = sampler.calculate_diversity_score_lattice_generic(indices, distance_type)
-                else:
-                    diversity = sampler.calculate_diversity_score_generic(indices, distance_type)
+                # Always use Euclidean in geometric space for consistent evaluation
+                diversity = sampler.calculate_diversity_score_generic(indices, 'euclidean')
             else:
                 inertia = None
                 algorithm = 'greedy'
@@ -515,16 +474,8 @@ def run_single_task(task_args):
 
             # If diversity not in results, calculate it
             if diversity is None:
-                # Get the distance type from the sampler
-                if hasattr(sampler, 'distance_calculator'):
-                    distance_type = sampler.distance_calculator.name
-                else:
-                    distance_type = 'euclidean'  # default
-
-                if 'lattice' in method_name:
-                    diversity = sampler.calculate_diversity_score_lattice_generic(indices, distance_type)
-                else:
-                    diversity = sampler.calculate_diversity_score_generic(indices, distance_type)
+                # Always use Euclidean in geometric space for consistent evaluation
+                diversity = sampler.calculate_diversity_score_generic(indices, 'euclidean')
 
         configurations = [sampler.configurations[i] for i in indices]
         irradiation_sets = [sampler.irradiation_sets[i] for i in indices]
