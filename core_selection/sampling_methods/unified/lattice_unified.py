@@ -79,11 +79,8 @@ class LatticeUnifiedSampler(BaseSampler):
         if self.algorithm.supports_quality_metric():
             quality_value, _ = self.algorithm.get_quality_metric()
         else:
-            # UPDATED: Use geometric diversity if specified, otherwise use lattice diversity
-            if self.use_geometric_diversity:
-                quality_value = self.calculate_diversity_score_generic(indices, 'euclidean')
-            else:
-                quality_value = self.calculate_diversity_score_lattice_generic(indices, self.distance_calculator.name)
+            # Always use Euclidean in geometric space for consistent diversity evaluation
+            quality_value = self.calculate_diversity_score_generic(indices, 'euclidean')
 
 
         return indices, quality_value
@@ -93,21 +90,15 @@ class LatticeUnifiedSampler(BaseSampler):
         print(f"\nRunning {self.method_name}")
         print(f"Algorithm: {self.algorithm.name}")
         print(f"Distance: {self.distance_calculator.name}")
-        if self.use_geometric_diversity:
-            print(f"Diversity calculation: Geometric space (5D physics parameters)")
-        else:
-            print(f"Diversity calculation: Lattice space")
+        print(f"Diversity calculation: Geometric space (5D physics parameters, Euclidean)")
         print(f"Total configurations: {len(self.irradiation_sets)}")
 
         # Handle single run case (for parallel execution)
         if n_runs == 1:
             seed = base_seed if base_seed else None
             indices, quality = self._run_single_sample(n_samples, seed)
-            # UPDATED: Use appropriate diversity calculation
-            if self.use_geometric_diversity:
-                diversity = self.calculate_diversity_score_generic(indices, 'euclidean')
-            else:
-                diversity = self.calculate_diversity_score_lattice_generic(indices, self.distance_calculator.name)
+            # Always use Euclidean in geometric space for consistent diversity evaluation
+            diversity = self.calculate_diversity_score_generic(indices, 'euclidean')
 
             result = {
                 'selected_indices': indices,
@@ -155,11 +146,8 @@ class LatticeUnifiedSampler(BaseSampler):
 
             indices = self.algorithm.select_samples(**kwargs)
 
-            # UPDATED: Calculate diversity using appropriate space metric
-            if self.use_geometric_diversity:
-                diversity = self.calculate_diversity_score_generic(indices, 'euclidean')
-            else:
-                diversity = self.calculate_diversity_score_lattice_generic(indices, self.distance_calculator.name)
+            # Always use Euclidean in geometric space for consistent diversity evaluation
+            diversity = self.calculate_diversity_score_generic(indices, 'euclidean')
             all_diversities.append(diversity)
 
             # For k-means, get inertia

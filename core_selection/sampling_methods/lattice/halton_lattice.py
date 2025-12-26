@@ -52,7 +52,7 @@ class HaltonLatticeSampler(BaseLatticeSampler):
             indices, avg_distance = self._single_halton_lattice_run(n_samples, seed)
 
             # Calculate diversity in physics parameter space
-            diversity = self.calculate_diversity_score_lattice_generic(indices, 'euclidean')
+            diversity = self.calculate_diversity_score_generic(indices, 'euclidean')
 
             print(f"  Run {run+1}/{n_runs}: Avg Distance = {avg_distance:.4f}, Diversity = {diversity:.4f}")
 

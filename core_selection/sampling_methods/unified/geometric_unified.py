@@ -90,7 +90,8 @@ class GeometricUnifiedSampler(BaseSampler):
         if self.algorithm.supports_quality_metric():
             quality_value, _ = self.algorithm.get_quality_metric()
         else:
-            quality_value = self.calculate_diversity_score_generic(indices, self.distance_calculator.name)
+            # Always use Euclidean for diversity evaluation (consistent across all methods)
+            quality_value = self.calculate_diversity_score_generic(indices, 'euclidean')
 
         # ADDED: Store cluster assignments if k-means
         if hasattr(self.algorithm, 'cluster_assignments'):
@@ -126,7 +127,8 @@ class GeometricUnifiedSampler(BaseSampler):
         if n_runs == 1:
             seed = base_seed if base_seed else None
             indices, quality = self._run_single_sample(n_samples, seed)
-            diversity = self.calculate_diversity_score_generic(indices, self.distance_calculator.name)
+            # Always use Euclidean for diversity evaluation (consistent across all methods)
+            diversity = self.calculate_diversity_score_generic(indices, 'euclidean')
 
             result = {
                 'selected_indices': indices,
@@ -172,8 +174,8 @@ class GeometricUnifiedSampler(BaseSampler):
                 seed
             )
 
-            # Calculate diversity
-            diversity = self.calculate_diversity_score_generic(indices, self.distance_calculator.name)
+            # Calculate diversity - always use Euclidean for consistent comparison
+            diversity = self.calculate_diversity_score_generic(indices, 'euclidean')
             all_diversities.append(diversity)
 
             # For k-means, get inertia
