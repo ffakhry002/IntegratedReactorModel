@@ -21,3 +21,4 @@ class TrainingConfig:
         self.n_gpus = 1  # Number of GPUs to use for neural network training
         self.test_size = 0.0  # Use all data for training; validation via CV
         self.random_state = 42
+        self.use_restructured = False  # Position-pooling for flux (XGBoost + physics + fill only)

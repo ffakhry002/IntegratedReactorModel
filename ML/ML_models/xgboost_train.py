@@ -4,13 +4,21 @@ import numpy as np
 from .base_model import ReactorModelBase
 
 class XGBoostReactorModel(ReactorModelBase):
-    def __init__(self, use_multioutput=True, **kwargs):
+    def __init__(self, use_multioutput=True, use_restructured=False,
+                 irradiation_mode='fill', nci_mode='separate',
+                 nci_disabled=False, **kwargs):
         """Initialize XGBoost reactor model.
 
         Parameters
         ----------
         use_multioutput : bool, optional
             Whether to use MultiOutputRegressor for flux prediction, by default True
+        use_restructured : bool, optional
+            Whether to use position-pooled restructured data (single model), by default False
+        irradiation_mode : str, optional
+            'vacuum' or 'fill', needed for restructuring feature layout at prediction time
+        nci_mode : str, optional
+            'single' or 'separate', needed for restructuring feature layout at prediction time
         **kwargs : dict
             Additional parameters for XGBRegressor
 
@@ -28,6 +36,10 @@ class XGBoostReactorModel(ReactorModelBase):
 
         self.params = kwargs
         self.use_multioutput = use_multioutput
+        self.use_restructured = use_restructured
+        self.irradiation_mode = irradiation_mode
+        self.nci_mode = nci_mode
+        self.nci_disabled = nci_disabled
 
     def fit_flux(self, X_train, y_flux):
         """Train flux model only.
@@ -35,27 +47,32 @@ class XGBoostReactorModel(ReactorModelBase):
         Parameters
         ----------
         X_train : numpy.ndarray
-            Training input features
+            Training input features.
+            If use_restructured=True: shape (4N, F) with 1D targets (already restructured).
+            If use_restructured=False: shape (N, F) with (N, 4) targets.
         y_flux : numpy.ndarray
-            Training flux target values
+            Training flux target values.
 
         Returns
         -------
         XGBoostReactorModel
             Self for method chaining
         """
-        # Use base class validation
-        y_flux = self.validate_flux_output(y_flux)
-
-        if self.use_multioutput:
-            # Use MultiOutputRegressor for multiple flux outputs
-            self.flux_model = MultiOutputRegressor(xgb.XGBRegressor(**self.params))
-        else:
-            # This won't work well for multiple outputs!
-            print("WARNING: use_multioutput=False for flux prediction may cause issues")
+        if self.use_restructured:
+            # Restructured: single-output model, y is 1D
             self.flux_model = xgb.XGBRegressor(**self.params)
+            self.flux_model.fit(X_train, y_flux.ravel())
+        else:
+            # Use base class validation
+            y_flux = self.validate_flux_output(y_flux)
 
-        self.flux_model.fit(X_train, y_flux)
+            if self.use_multioutput:
+                self.flux_model = MultiOutputRegressor(xgb.XGBRegressor(**self.params))
+            else:
+                print("WARNING: use_multioutput=False for flux prediction may cause issues")
+                self.flux_model = xgb.XGBRegressor(**self.params)
+
+            self.flux_model.fit(X_train, y_flux)
         return self
 
     def fit_keff(self, X_train, y_keff):
@@ -83,17 +100,27 @@ class XGBoostReactorModel(ReactorModelBase):
         Parameters
         ----------
         X_test : numpy.ndarray
-            Test input features
+            Test input features in ORIGINAL layout (n, F).
+            If use_restructured=True, internally restructures to (4n, F),
+            predicts scalars, and reshapes back to (n, 4).
 
         Returns
         -------
         numpy.ndarray
-            Predicted flux values
+            Predicted flux values, shape (n, 4)
         """
         if self.flux_model is None:
             raise ValueError("Flux model not trained")
 
-        predictions = self.flux_model.predict(X_test)
+        if self.use_restructured:
+            from utils.data_restructure import restructure_single_for_prediction
+            n_samples = X_test.shape[0]
+            X_pooled = restructure_single_for_prediction(
+                X_test, self.irradiation_mode, self.nci_mode, self.nci_disabled)
+            raw_predictions = self.flux_model.predict(X_pooled)
+            predictions = raw_predictions.reshape(n_samples, 4)
+        else:
+            predictions = self.flux_model.predict(X_test)
 
         # Use base class validation
         predictions = self.validate_prediction_shape(
@@ -167,7 +194,11 @@ class XGBoostReactorModel(ReactorModelBase):
             Dictionary containing XGBoost-specific metadata
         """
         return {
-            'use_multioutput': self.use_multioutput
+            'use_multioutput': self.use_multioutput,
+            'use_restructured': self.use_restructured,
+            'restructured_irradiation_mode': self.irradiation_mode,
+            'restructured_nci_mode': self.nci_mode,
+            'restructured_nci_disabled': self.nci_disabled,
         }
 
     def _restore_model_specific_attributes(self, data):
@@ -183,3 +214,7 @@ class XGBoostReactorModel(ReactorModelBase):
         None
         """
         self.use_multioutput = data.get('use_multioutput', True)
+        self.use_restructured = data.get('use_restructured', False)
+        self.irradiation_mode = data.get('restructured_irradiation_mode', 'fill')
+        self.nci_mode = data.get('restructured_nci_mode', 'separate')
+        self.nci_disabled = data.get('restructured_nci_disabled', False)

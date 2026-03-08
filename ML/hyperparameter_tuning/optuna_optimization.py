@@ -125,7 +125,7 @@ def mape_scorer_flux(y_true, y_pred, use_log_flux=True):
 
     return mape
 
-def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=250, n_jobs=10, cores_per_trial=1, use_log_flux=True, groups=None, flux_mode='total', encoding='categorical', lattices_train=None, irradiation_mode='vacuum', nci_mode='single', flux_loss='mape'):
+def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=250, n_jobs=10, cores_per_trial=1, use_log_flux=True, groups=None, flux_mode='total', encoding='categorical', lattices_train=None, irradiation_mode='vacuum', nci_mode='single', flux_loss='mape', use_restructured=False, nci_disabled=False):
     """Optimize hyperparameters for flux prediction only - NOW USING MAPE or MSE based on mode
 
     NEW: Supports lambda optimization for physics-based encoding with NCI features
@@ -171,8 +171,13 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
     else:
         print(f"Lambda optimization: DISABLED (encoding={encoding})")
 
+    # Log restructured mode
+    if use_restructured:
+        print(f"Position pooling: ENABLED (restructured data, single-output model)")
+        print(f"  Training data will be restructured from (N,{X_train.shape[1]}) to (4N,{X_train.shape[1]})")
+
     # Determine scoring metric
-    if flux_loss == 'mse' or flux_mode == 'bin':
+    if use_restructured or flux_loss == 'mse' or flux_mode == 'bin':
         print(f"Optimization metric: MSE (Mean Squared Error)")
         use_mse = True
     else:
@@ -198,6 +203,8 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
 
     start_time = time.time()
     completed_trials = 0
+    best_mape_across_trials = float('inf')
+    best_r2_across_trials = float('-inf')
 
     # Create custom MAPE scorer with use_log_flux parameter (matching old implementation)
     def mape_scorer_wrapper(y_true, y_pred):
@@ -219,7 +226,7 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
         float
             Score to minimize (MAPE or MSE depending on flux mode)
         """
-        nonlocal completed_trials
+        nonlocal completed_trials, best_mape_across_trials, best_r2_across_trials
         trial_start = time.time()
 
         # Check if we've exceeded total timeout
@@ -281,7 +288,10 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
                 }
 
                 print(f"  XGBoost params: n_estimators={params['n_estimators']}, max_depth={params['max_depth']}, learning_rate={params['learning_rate']}, subsample={params['subsample']}, colsample_bytree={params['colsample_bytree']}, colsample_bylevel={params['colsample_bylevel']}, reg_alpha={params['reg_alpha']}, reg_lambda={params['reg_lambda']}, gamma={params['gamma']}, min_child_weight={params['min_child_weight']}, n_jobs={params['n_jobs']}, verbosity={params['verbosity']}, tree_method={params['tree_method']}")
-                model = MultiOutputRegressor(xgb.XGBRegressor(**params))
+                if use_restructured:
+                    model = xgb.XGBRegressor(**params)
+                else:
+                    model = MultiOutputRegressor(xgb.XGBRegressor(**params))
 
             elif model_type == 'random_forest':
                 min_samples_leaf = trial.suggest_int('min_samples_leaf', 2, 10)
@@ -423,25 +433,63 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
                     print(f"  [ERROR] Invalid NN parameters caused: {str(e)[:100]}")
                     return float('inf')  # Skip this trial
 
+            # Restructure data for position pooling if enabled
+            if use_restructured:
+                from utils.data_restructure import restructure_for_position_pooling
+                X_for_cv, y_for_cv, groups_for_cv = restructure_for_position_pooling(
+                    X_train_regenerated, y_flux_train, groups,
+                    irradiation_mode, nci_mode, nci_disabled=nci_disabled)
+            else:
+                X_for_cv, y_for_cv, groups_for_cv = X_train_regenerated, y_flux_train, groups
+
             # Choose scoring based on flux loss type
             if use_mse:
                 print(f"  Starting MSE-based cross-validation...")
-                # Use sklearn cross_val_score for MSE scoring
-                if groups is not None:
-                    from sklearn.model_selection import GroupKFold
-                    cv = GroupKFold(n_splits=10)
-                    scores = cross_val_score(model, X_train_regenerated, y_flux_train,
-                                           cv=cv, groups=groups,
-                                           scoring='neg_mean_squared_error', n_jobs=1)  # Avoid conflicts with Optuna parallelization
-                else:
-                    from sklearn.model_selection import KFold
-                    cv = KFold(n_splits=10, shuffle=True, random_state=42)
-                    scores = cross_val_score(model, X_train_regenerated, y_flux_train,
-                                           cv=cv, scoring='neg_mean_squared_error', n_jobs=1)  # Avoid conflicts with Optuna parallelization
 
-                # Return positive MSE (sklearn returns negative)
-                final_score = -np.mean(scores)
-                print(f"  Trial {trial.number} MSE: {final_score:.6f}")
+                if use_restructured:
+                    from sklearn.model_selection import cross_validate
+                    scoring = {
+                        'mse': 'neg_mean_squared_error',
+                        'r2': 'r2',
+                        'mape': custom_mape_scorer,
+                    }
+                    if groups_for_cv is not None:
+                        from sklearn.model_selection import GroupKFold
+                        cv = GroupKFold(n_splits=5)
+                        cv_results = cross_validate(model, X_for_cv, y_for_cv,
+                                                    cv=cv, groups=groups_for_cv,
+                                                    scoring=scoring, n_jobs=1)
+                    else:
+                        from sklearn.model_selection import KFold
+                        cv = KFold(n_splits=5, shuffle=True, random_state=42)
+                        cv_results = cross_validate(model, X_for_cv, y_for_cv,
+                                                    cv=cv, scoring=scoring, n_jobs=1)
+
+                    final_score = -np.mean(cv_results['test_mse'])
+                    trial_mape = -np.mean(cv_results['test_mape'])
+                    trial_r2 = np.mean(cv_results['test_r2'])
+
+                    print(f"  Trial {trial.number} MSE: {final_score:.6f} | MAPE: {trial_mape:.2f}% | R²: {trial_r2:.6f}")
+
+                    if trial_mape < best_mape_across_trials:
+                        best_mape_across_trials = trial_mape
+                    if trial_r2 > best_r2_across_trials:
+                        best_r2_across_trials = trial_r2
+                else:
+                    if groups_for_cv is not None:
+                        from sklearn.model_selection import GroupKFold
+                        cv = GroupKFold(n_splits=5)
+                        scores = cross_val_score(model, X_for_cv, y_for_cv,
+                                                 cv=cv, groups=groups_for_cv,
+                                                 scoring='neg_mean_squared_error', n_jobs=1)
+                    else:
+                        from sklearn.model_selection import KFold
+                        cv = KFold(n_splits=5, shuffle=True, random_state=42)
+                        scores = cross_val_score(model, X_for_cv, y_for_cv,
+                                                 cv=cv, scoring='neg_mean_squared_error', n_jobs=1)
+
+                    final_score = -np.mean(scores)
+                    print(f"  Trial {trial.number} MSE: {final_score:.6f}")
 
             else:
                 # MAPE-based scoring using sklearn cross_val_score (fixes model state contamination)
@@ -452,17 +500,17 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
                 os.environ['MKL_NUM_THREADS'] = '1'
 
                 # Use sklearn cross_val_score with custom MAPE scorer
-                if groups is not None:
+                if groups_for_cv is not None:
                     from sklearn.model_selection import GroupKFold
-                    cv = GroupKFold(n_splits=10)
-                    scores = cross_val_score(model, X_train_regenerated, y_flux_train,
-                                           cv=cv, groups=groups,
-                                           scoring=custom_mape_scorer, n_jobs=1)  # Avoid conflicts with Optuna parallelization
+                    cv = GroupKFold(n_splits=5)
+                    scores = cross_val_score(model, X_for_cv, y_for_cv,
+                                           cv=cv, groups=groups_for_cv,
+                                           scoring=custom_mape_scorer, n_jobs=1)
                 else:
                     from sklearn.model_selection import KFold
-                    cv = KFold(n_splits=10, shuffle=True, random_state=42)
-                    scores = cross_val_score(model, X_train_regenerated, y_flux_train,
-                                           cv=cv, scoring=custom_mape_scorer, n_jobs=1)  # Avoid conflicts with Optuna parallelization
+                    cv = KFold(n_splits=5, shuffle=True, random_state=42)
+                    scores = cross_val_score(model, X_for_cv, y_for_cv,
+                                           cv=cv, scoring=custom_mape_scorer, n_jobs=1)
 
                 # Handle scorer output (custom_mape_scorer returns negative values due to greater_is_better=False)
                 final_score = -np.mean(scores)  # Convert back to positive MAPE
@@ -558,6 +606,9 @@ def optimize_flux_model(X_train, y_flux_train, model_type='xgboost', n_trials=25
             print(f"Best MSE: {study.best_value:.6f}")
         else:
             print(f"Best MAPE: {study.best_value:.2f}%")
+        if use_restructured:
+            print(f"Best MAPE across trials: {best_mape_across_trials:.2f}%")
+            print(f"Best R² across trials: {best_r2_across_trials:.6f}")
         print(f"Total time: {time.time() - start_time:.1f}s")
 
         # Save study for later visualization
@@ -802,7 +853,7 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
             # NEW: Use GroupKFold if groups provided
             if groups is not None:
                 from sklearn.model_selection import GroupKFold, cross_val_score
-                cv = GroupKFold(n_splits=10)
+                cv = GroupKFold(n_splits=5)
             else:
                 from sklearn.model_selection import cross_val_score
                 cv = 10  # Regular KFold
@@ -812,30 +863,12 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
                 warnings.filterwarnings('ignore')
                 try:
                     if groups is not None:
-                        # Use GroupKFold with groups
-                        # CRITICAL FIX: For SVM, we need to scale features
-                        if model_type == 'svm':
-                            # Create a pipeline that scales then applies SVM
-                            model = Pipeline([
-                                ('scaler', StandardScaler()),
-                                ('svm', model)
-                            ])
-
                         scores = cross_val_score(model, X_train_regenerated, y_keff_train.ravel(),
                                                cv=cv,
                                                groups=groups,
                                                scoring='neg_mean_squared_error',
                                                n_jobs=1)
                     else:
-                        # Regular cross-validation
-                        # CRITICAL FIX: For SVM, we need to scale features
-                        if model_type == 'svm':
-                            # Create a pipeline that scales then applies SVM
-                            model = Pipeline([
-                                ('scaler', StandardScaler()),
-                                ('svm', model)
-                            ])
-
                         scores = cross_val_score(model, X_train_regenerated, y_keff_train.ravel(),
                                                cv=cv,
                                                scoring='neg_mean_squared_error',

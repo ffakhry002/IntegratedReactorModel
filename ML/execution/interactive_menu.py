@@ -414,6 +414,21 @@ class InteractiveTrainer:
         # Store flux mode in config
         self.config.flux_mode = self.flux_mode
 
+        # Offer restructured position pooling if applicable
+        if ('flux' in self.config.targets
+                and 'physics' in self.config.encodings
+                and 'xgboost' in self.config.models):
+            from ML_models.encodings.encoding_methods import IRRADIATION_MODE
+            if IRRADIATION_MODE == 'fill':
+                print("\n" + "-"*40)
+                print("POSITION POOLING (RESTRUCTURED DATA)")
+                print("-"*40)
+                print("Restructured mode trains a single XGBoost model for all")
+                print("positions instead of 4 separate ones (4x more training data).")
+                print("Only applies to XGBoost + physics encoding + fill mode flux.")
+                self.config.use_restructured = self.get_yes_no(
+                    "Use restructured position pooling?", 'n')
+
         # Get additional settings for optuna if selected
         if 'optuna' in self.config.optimizations:
             n_trials = input("\nNumber of Optuna trials (default: 250): ").strip()
@@ -454,6 +469,16 @@ class InteractiveTrainer:
         if not data_file:
             data_file = 'data/train.txt'
 
+        test_data_file = input("Path to test data for final evaluation (default: data/test.txt, 'none' to skip): ").strip()
+        if not test_data_file:
+            test_data_file = 'data/test.txt'
+        elif test_data_file.lower() == 'none':
+            test_data_file = None
+
+        if test_data_file and not os.path.exists(test_data_file):
+            print(f"WARNING: Test file '{test_data_file}' not found. Skipping final evaluation.")
+            test_data_file = None
+
         # Calculate total training jobs
         total_jobs = (len(self.config.targets) * len(self.config.models) *
                     len(self.config.encodings) * len(self.config.optimizations))
@@ -469,6 +494,8 @@ class InteractiveTrainer:
                 energy_group = self.flux_mode.replace('_only', '')
                 print(f"  Training on {energy_group} flux only (total flux × {energy_group}%)")
         print(f"Models: {', '.join(self.config.models)}")
+        if self.config.use_restructured:
+            print(f"Position pooling: ENABLED (single XGBoost, restructured data)")
         print(f"Encodings: {', '.join(self.config.encodings)}")
         print(f"Optimizations: {', '.join(self.config.optimizations)}")
         if 'optuna' in self.config.optimizations:
@@ -498,7 +525,11 @@ class InteractiveTrainer:
             other_models = [m for m in self.config.models if m in ['random_forest', 'neural_net']]
             print(f"  {', '.join(other_models)} allocation: {self.config.n_jobs} cores (default)")
 
-        print(f"Data file: {data_file}")
+        print(f"Training data: {data_file}")
+        if test_data_file:
+            print(f"Test data: {test_data_file} (independent evaluation after training)")
+        else:
+            print(f"Test data: None (CV-only validation)")
         print(f"Total training jobs: {total_jobs}")
 
 
@@ -590,12 +621,34 @@ class InteractiveTrainer:
                             lattices=augmented_lattices  # NEW: Pass lattices for lambda optimization
                         )
 
+                        # Load separate test file for final evaluation
+                        if test_data_file:
+                            print(f"Loading test data from {test_data_file}...")
+                            handler_test = DataHandler()
+                            test_result = handler_test.load_and_prepare_data(
+                                test_data_file, encoding, flux_mode=flux_mode_to_use)
+                            if len(test_result) == 5:
+                                X_test_ext, y_flux_test_ext, y_keff_test_ext, _, lattices_test_ext = test_result
+                            elif len(test_result) == 4:
+                                X_test_ext, y_flux_test_ext, y_keff_test_ext, _ = test_result
+                                lattices_test_ext = None
+                            else:
+                                X_test_ext, y_flux_test_ext, y_keff_test_ext = test_result
+                                lattices_test_ext = None
+
+                            data_splits['X_test'] = X_test_ext
+                            data_splits['y_flux_test'] = y_flux_test_ext
+                            data_splits['y_keff_test'] = y_keff_test_ext
+                            if lattices_test_ext is not None:
+                                data_splits['lattices_test'] = lattices_test_ext
+                            print(f"  Test samples: {X_test_ext.shape[0]} (from {test_data_file})")
+
                         # Update training info
                         if 'n_samples' not in all_results['training_info']:
                             all_results['training_info'].update({
                                 'n_samples': X.shape[0],
                                 'train_size': data_splits['X_train'].shape[0],
-                                'test_size': data_splits['X_test'].shape[0]
+                                'test_size': data_splits['X_test'].shape[0] if hasattr(data_splits['X_test'], 'shape') and data_splits['X_test'].shape[0] > 0 else 0
                             })
 
                         all_results['training_info'][f'{encoding}_features'] = X.shape[1]
@@ -639,11 +692,15 @@ class InteractiveTrainer:
                                 model_path = os.path.join(self.models_dir,
                                     f'{model_type}_{target}_{encoding}_{optimization}.pkl')
 
-                            # Fixed save_model call - removed flux_mode from metadata since it's passed separately
+                            # Extract optimized lambda values (if any) for saving
+                            lambda_keys = ['lambda_P', 'lambda_B', 'lambda_G', 'lambda_decay']
+                            optimized_lambdas = {k: best_params[k] for k in lambda_keys if k in best_params}
+
                             metadata = {
                                 'params': best_params,
                                 'metrics': metrics,
-                                'model_class': model_type
+                                'model_class': model_type,
+                                'optimized_lambdas': optimized_lambdas if optimized_lambdas else None
                             }
                             self.model_trainer.save_model(
                                 model,

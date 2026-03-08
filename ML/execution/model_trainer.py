@@ -103,6 +103,10 @@ class ModelTrainer:
                 # Determine flux loss function from environment variable (default: MAPE)
                 flux_loss = os.environ.get('FLUX_LOSS', 'mape').lower()
 
+                # Check if restructured mode applies for this model
+                use_restructured = (getattr(config, 'use_restructured', False)
+                                    and model_type == 'xgboost')
+
                 best_params, study = optimize_flux_model(
                     X_train, y_train,
                     model_type=model_type,
@@ -115,8 +119,9 @@ class ModelTrainer:
                     lattices_train=lattices_train if optimize_lambda else None,      # Only pass if lambda optimization enabled
                     irradiation_mode=irradiation_mode,  # NEW: From encoding_methods.py
                     nci_mode=nci_mode,                  # NEW: From encoding_methods.py
-                    flux_loss=flux_loss                 # NEW: MSE or MAPE
-                    # Note: n_gpus not needed - Optuna uses sklearn MLP (CPU-only)
+                    flux_loss=flux_loss,                # NEW: MSE or MAPE
+                    use_restructured=use_restructured,  # Position pooling
+                    nci_disabled=(NCI_DISTANCE_CUTOFF == 2),
                 )
             else:  # keff
                 best_params, study = optimize_keff_model(
@@ -143,7 +148,12 @@ class ModelTrainer:
                 # Capture CV score from Optuna
                 if study is not None:
                     best_cv_score = study.best_value
-                    print(f"  Best CV MAPE: {best_cv_score:.2f}%")
+                    uses_mse = (target == 'keff'
+                                or (target == 'flux' and (use_restructured or flux_loss == 'mse')))
+                    if uses_mse:
+                        print(f"  Best CV MSE: {best_cv_score:.6f}")
+                    else:
+                        print(f"  Best CV MAPE: {best_cv_score:.2f}%")
 
         elif config.optimization == 'three_stage':
             print(f"Starting three-stage optimization...")
@@ -273,11 +283,57 @@ class ModelTrainer:
         optimization_time = time.time() - optimization_start
         print(f"\nOptimization took {optimization_time/60:.1f} minutes")
 
+        # Extract lambda params from best_params and apply to features
+        lambda_param_names = ['lambda_P', 'lambda_B', 'lambda_G', 'lambda_decay']
+        best_lambdas = {k: best_params[k] for k in lambda_param_names if k in best_params}
+        model_params = {k: v for k, v in best_params.items() if k not in lambda_param_names}
+
+        if best_lambdas and optimize_lambda:
+            print(f"\n  Applying optimized lambda values to features:")
+            for k, v in best_lambdas.items():
+                print(f"    {k}: {v:.3f}")
+
+            from utils.lambda_feature_regenerator import LambdaFeatureRegenerator
+            feature_regenerator = LambdaFeatureRegenerator(encoding)
+            feature_data_train = feature_regenerator.separate_features(
+                X_train, lattices_train, irradiation_mode, nci_mode)
+            X_train = feature_regenerator.regenerate_features(
+                feature_data_train, **best_lambdas)
+            print(f"  Regenerated training features with optimized lambdas")
+
+            if X_test is not None and len(X_test) > 0:
+                lattices_test = data_splits.get('lattices_test', None)
+                if lattices_test is not None:
+                    feature_data_test = feature_regenerator.separate_features(
+                        X_test, lattices_test, irradiation_mode, nci_mode)
+                    X_test = feature_regenerator.regenerate_features(
+                        feature_data_test, **best_lambdas)
+                    print(f"  Regenerated test features with optimized lambdas")
+                else:
+                    print(f"  WARNING: No lattices_test available -- test data uses default lambdas")
+
+        # Restructure training data for final model if needed
+        use_restructured_final = (getattr(config, 'use_restructured', False)
+                                  and target == 'flux' and model_type == 'xgboost')
+        nci_disabled = (NCI_DISTANCE_CUTOFF == 2)
+        if use_restructured_final:
+            from utils.data_restructure import restructure_for_position_pooling
+            X_train_final, y_train_final, _ = restructure_for_position_pooling(
+                X_train, y_train, groups_train, irradiation_mode, nci_mode,
+                nci_disabled=nci_disabled)
+            print(f"  Restructured training data: {X_train.shape} -> {X_train_final.shape}")
+        else:
+            X_train_final, y_train_final = X_train, y_train
+
         # Train final model
         print(f"\n Training final model...")
         training_start = time.time()
 
-        model = self._create_and_train_model(model_type, target, X_train, y_train, best_params)
+        model = self._create_and_train_model(
+            model_type, target, X_train_final, y_train_final, model_params,
+            use_restructured=use_restructured_final,
+            irradiation_mode=irradiation_mode, nci_mode=nci_mode,
+            nci_disabled=nci_disabled)
 
         training_time = time.time() - training_start
         print(f"  Final model training took {training_time:.1f} seconds")
@@ -293,9 +349,12 @@ class ModelTrainer:
         else:
             # No test set - model was validated via CV during hyperparameter optimization
             print(f"\n Model validated via cross-validation during hyperparameter optimization")
-            print(f"  Model trained on {len(X_train)} configurations")
+            print(f"  Model trained on {len(X_train_final)} samples")
             if best_cv_score is not None:
-                print(f"  Best CV MAPE: {best_cv_score:.2f}%")
+                if use_restructured_final:
+                    print(f"  Best CV MSE: {best_cv_score:.6f} (log-scale)")
+                else:
+                    print(f"  Best CV MAPE: {best_cv_score:.2f}%")
             print(f"  No held-out test set (test_size=0.0)")
             print(f"  For evaluation on external test data, use test.py with external test configs")
 
@@ -408,7 +467,9 @@ class ModelTrainer:
         }
         return defaults.get(model_type, {})
 
-    def _create_and_train_model(self, model_type, target, X_train, y_train, params):
+    def _create_and_train_model(self, model_type, target, X_train, y_train, params,
+                               use_restructured=False, irradiation_mode='fill',
+                               nci_mode='separate', nci_disabled=False):
         """Create and train the appropriate model using new model classes"""
         # Import the new model classes
         from ML_models import (
@@ -420,7 +481,12 @@ class ModelTrainer:
 
         # Create the appropriate model
         if model_type == 'xgboost':
-            model = XGBoostReactorModel(**params)
+            model = XGBoostReactorModel(
+                use_restructured=use_restructured,
+                irradiation_mode=irradiation_mode,
+                nci_mode=nci_mode,
+                nci_disabled=nci_disabled,
+                **params)
         elif model_type == 'random_forest':
             model = RandomForestReactorModel(**params)
         elif model_type == 'svm':
