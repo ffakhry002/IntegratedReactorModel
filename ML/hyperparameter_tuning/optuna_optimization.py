@@ -699,6 +699,8 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
 
     start_time = time.time()
     completed_trials = 0
+    best_mape_across_trials = float('inf')
+    best_r2_across_trials = float('-inf')
 
     def objective(trial):
         """Objective function for k-eff model hyperparameter optimization.
@@ -713,7 +715,7 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
         float
             Score to minimize (MSE)
         """
-        nonlocal completed_trials
+        nonlocal completed_trials, best_mape_across_trials, best_r2_across_trials
         trial_start = time.time()
 
         # Check if we've exceeded total timeout
@@ -844,48 +846,54 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
 
             # Train and evaluate with CV - UPDATED FOR GROUPS
             print(f"  Starting cross-validation...")
-            cv_scores = []
 
             # Set environment variable to limit thread usage
             os.environ['OMP_NUM_THREADS'] = '1'
             os.environ['MKL_NUM_THREADS'] = '1'
 
-            # NEW: Use GroupKFold if groups provided
+            from sklearn.model_selection import cross_validate
+            from sklearn.metrics import make_scorer, mean_absolute_percentage_error
+
+            custom_mape_scorer_keff = make_scorer(
+                mean_absolute_percentage_error, greater_is_better=False
+            )
+
+            scoring = {
+                'mse': 'neg_mean_squared_error',
+                'r2': 'r2',
+                'mape': custom_mape_scorer_keff,
+            }
+
             if groups is not None:
-                from sklearn.model_selection import GroupKFold, cross_val_score
+                from sklearn.model_selection import GroupKFold
                 cv = GroupKFold(n_splits=5)
             else:
-                from sklearn.model_selection import cross_val_score
-                cv = 10  # Regular KFold
+                from sklearn.model_selection import KFold
+                cv = KFold(n_splits=5, shuffle=True, random_state=42)
 
-            # Use cross_val_score with proper CV
             with warnings.catch_warnings():
                 warnings.filterwarnings('ignore')
                 try:
-                    if groups is not None:
-                        scores = cross_val_score(model, X_train_regenerated, y_keff_train.ravel(),
-                                               cv=cv,
-                                               groups=groups,
-                                               scoring='neg_mean_squared_error',
-                                               n_jobs=1)
-                    else:
-                        scores = cross_val_score(model, X_train_regenerated, y_keff_train.ravel(),
-                                               cv=cv,
-                                               scoring='neg_mean_squared_error',
-                                               n_jobs=1)
-                    cv_scores = scores
-                    print(f"  CV completed. Mean score: {np.mean(scores):.6f}")
+                    cv_results = cross_validate(
+                        model, X_train_regenerated, y_keff_train.ravel(),
+                        cv=cv,
+                        groups=groups if groups is not None else None,
+                        scoring=scoring, n_jobs=1)
                 except Exception as e:
                     print(f"  CV error: {str(e)[:100]}")
                     return float('inf')
 
-            if len(cv_scores) == 0:
-                print(f"  No valid CV scores obtained")
-                return float('inf')
+            final_score = -np.mean(cv_results['test_mse'])
+            trial_mape = -np.mean(cv_results['test_mape']) * 100
+            trial_r2 = np.mean(cv_results['test_r2'])
 
-            final_score = -np.mean(cv_scores)
-            print(f"  Trial {trial.number} score: {final_score:.6f}")
+            print(f"  Trial {trial.number} MSE: {final_score:.6f} | MAPE: {trial_mape:.2f}% | R\u00b2: {trial_r2:.6f}")
             print(f"  Trial time: {time.time() - trial_start:.1f}s")
+
+            if trial_mape < best_mape_across_trials:
+                best_mape_across_trials = trial_mape
+            if trial_r2 > best_r2_across_trials:
+                best_r2_across_trials = trial_r2
 
             # Increment completed trials
             completed_trials += 1
@@ -967,7 +975,9 @@ def optimize_keff_model(X_train, y_keff_train, model_type='xgboost', n_trials=25
     print(f"Optimization finished. Completed trials: {len(study.trials)}/{n_trials}")
 
     if len(study.trials) > 0:
-        print(f"Best score: {study.best_value:.6f}")
+        print(f"Best MSE: {study.best_value:.6f}")
+        print(f"Best MAPE across trials: {best_mape_across_trials:.2f}%")
+        print(f"Best R\u00b2 across trials: {best_r2_across_trials:.6f}")
         print(f"Total time: {time.time() - start_time:.1f}s")
 
         # Save study for later visualization
