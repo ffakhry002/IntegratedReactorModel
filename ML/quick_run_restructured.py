@@ -38,7 +38,7 @@ start = time.time()
 print("\n1. Loading training data...")
 handler = DataHandler()
 X, y_flux, y_keff, groups, lattices = handler.load_and_prepare_data(
-    TRAIN_FILE, encoding_method='physics', flux_mode='total')
+    TRAIN_FILE, encoding_method='physics', flux_mode='total')[:5]
 
 print(f"\n   X: {X.shape} (should be 37 features)")
 print(f"   y_flux: {y_flux.shape}")
@@ -51,7 +51,7 @@ data_splits = handler.split_data(X, y_flux, y_keff, groups, test_size=0.0, latti
 print("\n2. Loading test data for evaluation...")
 handler_test = DataHandler()
 X_test_all, y_flux_test_all, y_keff_test_all, _, lattices_test_all = handler_test.load_and_prepare_data(
-    TEST_FILE, encoding_method='physics', flux_mode='total')
+    TEST_FILE, encoding_method='physics', flux_mode='total')[:5]
 print(f"   Test configs: {X_test_all.shape[0]}")
 
 # Put a subset of test data in splits for evaluation

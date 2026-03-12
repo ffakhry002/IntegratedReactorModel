@@ -1,0 +1,128 @@
+#!/bin/bash
+#
+# Submit learning curve experiment: 20 data sizes × 5 targets = 100 jobs.
+#
+# Each job trains XGBoost with physics encoding + Optuna on a subset of training
+# data (first N_GEOMETRIES × 33 RUNs from train.txt) and evaluates on the full
+# test set with split metrics (random lattice vs self-adjusted).
+#
+# Folder structure:
+#   ML_logs/learning_curve/
+#   ├── N013_total/
+#   ├── N013_thermal/
+#   ├── ...
+#   ├── N256_keff/
+#   └── summary/
+
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+# ── Configuration ───────────────────────────────────────────────────
+N_TRIALS=${N_TRIALS:-5000}
+NCI_DISTANCE_CUTOFF=0
+DELAY_SECONDS=${DELAY_SECONDS:-5}
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SLURM_SCRIPT="${SCRIPT_DIR}/cpu_ml.sh"
+
+# 20 geometry steps (multiples ~13, always ending with 256)
+GEOMETRY_STEPS=(13 26 39 52 65 78 91 104 117 130 143 156 169 182 195 208 221 234 247 256)
+
+# 5 targets: 4 flux modes + keff
+# Format: "TARGET FLUX_MODE_NAME FLUX_CHOICE"
+TARGETS=(
+    "flux total 1"
+    "flux thermal_only 4"
+    "flux epithermal_only 5"
+    "flux fast_only 6"
+    "keff keff 0"
+)
+
+# ── Create log directories ──────────────────────────────────────────
+BASE_LOG="$HOME/IntegratedReactorModel/ML/ML_logs/learning_curve"
+mkdir -p "${BASE_LOG}/summary"
+
+for n_geo in "${GEOMETRY_STEPS[@]}"; do
+    for target_spec in "${TARGETS[@]}"; do
+        read -r target_type flux_name flux_choice <<< "$target_spec"
+        if [ "$target_type" = "keff" ]; then
+            mkdir -p "${BASE_LOG}/N$(printf '%03d' $n_geo)_keff"
+        else
+            mkdir -p "${BASE_LOG}/N$(printf '%03d' $n_geo)_${flux_name}"
+        fi
+    done
+done
+
+TOTAL=$((${#GEOMETRY_STEPS[@]} * ${#TARGETS[@]}))
+
+echo "=========================================================================="
+echo " Learning Curve Experiment"
+echo "=========================================================================="
+echo ""
+echo " Geometry steps (${#GEOMETRY_STEPS[@]}): ${GEOMETRY_STEPS[*]}"
+echo " Targets (${#TARGETS[@]}): total, thermal, epithermal, fast, keff"
+echo " NCI cutoff: $NCI_DISTANCE_CUTOFF"
+echo " Optuna trials per job: $N_TRIALS"
+echo " Total jobs: $TOTAL"
+echo " Delay between submissions: ${DELAY_SECONDS}s"
+echo ""
+echo "=========================================================================="
+
+SUBMITTED=0
+
+for n_geo in "${GEOMETRY_STEPS[@]}"; do
+    for target_spec in "${TARGETS[@]}"; do
+        read -r target_type flux_name flux_choice <<< "$target_spec"
+
+        if [ "$target_type" = "keff" ]; then
+            label="keff"
+        else
+            label="${flux_name}"
+        fi
+
+        log_dir="${BASE_LOG}/N$(printf '%03d' $n_geo)_${label}"
+        job_name="lc_N${n_geo}_${label}"
+
+        ((SUBMITTED++))
+
+        echo ""
+        echo -e "${BLUE}[${SUBMITTED}/${TOTAL}] ${job_name}${NC}"
+        echo "  N_GEOMETRIES=$n_geo (${n_geo}×33 = $((n_geo * 33)) RUNs)"
+        echo "  Target: $target_type ($label)"
+        echo "  Logs: ${log_dir}/"
+
+        sbatch \
+            --job-name="${job_name}" \
+            --output="${log_dir}/ml_%x_%j.out" \
+            --error="${log_dir}/ml_%x_%j.err" \
+            --export="ALL,TARGET=${target_type},NCI_DISTANCE_CUTOFF=${NCI_DISTANCE_CUTOFF},FLUX_MODE_NAME=${flux_name},FLUX_CHOICE=${flux_choice},N_GEOMETRIES=${n_geo},N_TRIALS=${N_TRIALS},TEST_C_FILE=${TEST_C_FILE:-data/test_c.txt}" \
+            --wckey=edu_class \
+            "${SLURM_SCRIPT}"
+
+        if [ $? -eq 0 ]; then
+            echo -e "  ${GREEN}✓ Submitted${NC}"
+        else
+            echo -e "  ${RED}✗ Failed${NC}"
+        fi
+
+        if [ $SUBMITTED -lt $TOTAL ]; then
+            sleep "${DELAY_SECONDS}"
+        fi
+    done
+done
+
+echo ""
+echo "=========================================================================="
+echo -e "${GREEN}All ${TOTAL} jobs submitted!${NC}"
+echo "=========================================================================="
+echo ""
+echo "Log base: ${BASE_LOG}/"
+echo ""
+echo "Monitor with:"
+echo "  squeue -u \$USER"
+echo "  tail -f ${BASE_LOG}/N013_total/ml_*.out"
+echo ""
+echo "After completion, collect results with:"
+echo "  bash slurm/collect_results.sh learning_curve"

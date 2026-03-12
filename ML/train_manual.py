@@ -170,7 +170,7 @@ def train_model():
         flux_mode=FLUX_MODE if TARGET == 'flux' else 'total'
     )
 
-    X, y_flux, y_keff, groups = result
+    X, y_flux, y_keff, groups = result[:4]
 
     # Use all data for training (no test split)
     data_splits = data_handler.split_data(X, y_flux, y_keff, groups, test_size=0.0)

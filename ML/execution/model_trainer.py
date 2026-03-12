@@ -343,9 +343,25 @@ class ModelTrainer:
         if X_test is not None and len(X_test) > 0:
             print(f"\n Evaluating on test set...")
             eval_start = time.time()
-            metrics = self._evaluate_model(model, X_test, y_test, target)
+
+            fill_categories_test = data_splits.get('fill_categories_test', None)
+            test_split_run = data_splits.get('test_split_run', None)
+
+            metrics = self._evaluate_model(
+                model, X_test, y_test, target,
+                fill_categories=fill_categories_test,
+                test_split_run=test_split_run)
             eval_time = time.time() - eval_start
             print(f"  Evaluation took {eval_time:.1f} seconds")
+
+            # Evaluate on Test Set C (random cores) if available
+            X_test_c = data_splits.get('X_test_c', None)
+            if X_test_c is not None and len(X_test_c) > 0:
+                y_test_c = data_splits.get('y_flux_test_c' if target == 'flux' else 'y_keff_test_c')
+                fc_test_c = data_splits.get('fill_categories_test_c', None)
+                test_c_metrics = self._evaluate_test_set_c(
+                    model, X_test_c, y_test_c, target, fill_categories=fc_test_c)
+                metrics['test_set_c'] = test_c_metrics
         else:
             # No test set - model was validated via CV during hyperparameter optimization
             print(f"\n Model validated via cross-validation during hyperparameter optimization")
@@ -521,78 +537,193 @@ class ModelTrainer:
 
         return model
 
-    def _evaluate_model(self, model, X_test, y_test, target):
-        """Evaluate model performance"""
-        # Use the model's predict methods
-        if target == 'flux':
-            predictions = model.predict_flux(X_test)
-        else:
-            predictions = model.predict_keff(X_test)
+    def _compute_metrics_for_subset(self, y_true, y_pred, target):
+        """Compute MSE, MAPE, R^2 for a subset of test data.
 
-        # Get flux mode if available
+        Parameters
+        ----------
+        y_true : np.ndarray
+            True values
+        y_pred : np.ndarray
+            Predicted values
+        target : str
+            'flux' or 'keff'
+
+        Returns
+        -------
+        dict
+            Dictionary with mse, rmse, mae, r2, mape keys
+        """
         flux_mode = self.data_handler.flux_mode if hasattr(self.data_handler, 'flux_mode') else 'total'
 
-        # Calculate metrics
-        if target == 'flux' and len(y_test.shape) > 1 and y_test.shape[1] > 1:
-            # Multi-output metrics
+        if len(y_true) == 0:
+            return {'mse': None, 'rmse': None, 'mae': None, 'r2': None, 'mape': None, 'n_samples': 0}
+
+        if target == 'flux' and len(y_true.shape) > 1 and y_true.shape[1] > 1:
             if flux_mode == 'bin':
-                # Use MSE for bins
-                mse = mean_squared_error(y_test, predictions)
-                mae = mean_absolute_error(y_test, predictions)
-                r2 = r2_score(y_test, predictions)
-
-                # No MAPE for bins - use relative MSE instead
-                mape = np.sqrt(mse) * 100  # Convert RMSE to percentage-like metric
-
-            else:  # total or energy flux
-                # Average metrics across outputs
-                n_outputs = y_test.shape[1]
-                mse = np.mean([mean_squared_error(y_test[:, i], predictions[:, i])
+                mse = mean_squared_error(y_true, y_pred)
+                mae = mean_absolute_error(y_true, y_pred)
+                r2 = r2_score(y_true, y_pred) if len(y_true) > 1 else 0.0
+                mape = np.sqrt(mse) * 100
+            else:
+                n_outputs = y_true.shape[1]
+                mse = np.mean([mean_squared_error(y_true[:, i], y_pred[:, i])
                             for i in range(n_outputs)])
-                mae = np.mean([mean_absolute_error(y_test[:, i], predictions[:, i])
+                mae = np.mean([mean_absolute_error(y_true[:, i], y_pred[:, i])
                             for i in range(n_outputs)])
-                r2 = np.mean([r2_score(y_test[:, i], predictions[:, i])
-                            for i in range(n_outputs)])
+                r2 = np.mean([r2_score(y_true[:, i], y_pred[:, i])
+                            for i in range(n_outputs)]) if len(y_true) > 1 else 0.0
 
-                # Calculate MAPE for flux
                 if self.data_handler and self.data_handler.use_log_flux:
-                    # Convert from log scale to original scale for MAPE
-                    y_test_original = 10 ** y_test
-                    predictions_original = 10 ** predictions
-                    mape = np.mean(np.abs((y_test_original - predictions_original) / y_test_original)) * 100
+                    y_orig = 10 ** y_true
+                    p_orig = 10 ** y_pred
+                    mape = np.mean(np.abs((y_orig - p_orig) / y_orig)) * 100
                 else:
-                    # Direct MAPE calculation
-                    mape = np.mean(np.abs((y_test - predictions) / (y_test + 1e-10))) * 100
-
+                    mape = np.mean(np.abs((y_true - y_pred) / (y_true + 1e-10))) * 100
         else:
-            # Single output metrics (k-eff)
-            mse = mean_squared_error(y_test, predictions)
-            mae = mean_absolute_error(y_test, predictions)
-            r2 = r2_score(y_test, predictions)
+            mse = mean_squared_error(y_true, y_pred)
+            mae = mean_absolute_error(y_true, y_pred)
+            r2 = r2_score(y_true, y_pred) if len(y_true) > 1 else 0.0
+            mape = np.mean(np.abs((y_true - y_pred) / (y_true + 1e-10))) * 100
 
-            # MAPE for single output
-            mape = np.mean(np.abs((y_test - predictions) / (y_test + 1e-10))) * 100
-
-        # Store metrics
-        metrics = {
+        return {
             'mse': float(mse),
             'rmse': float(np.sqrt(mse)),
             'mae': float(mae),
             'r2': float(r2),
             'mape': float(mape),
-            'relative_error': float(mape / 100)  # Keep for backward compatibility
+            'n_samples': int(len(y_true))
         }
 
-        print(f"  Test MSE: {mse:.6f}")
-        print(f"  Test RMSE: {np.sqrt(mse):.6f}")
-        print(f"  Test MAE: {mae:.6f}")
-        print(f"  Test R²: {r2:.4f}")
-        if flux_mode == 'bin' and target == 'flux':
-            print(f"  Test RMSE%: {mape:.2f}%")
+    def _evaluate_model(self, model, X_test, y_test, target,
+                        fill_categories=None, test_split_run=None):
+        """Evaluate model performance with optional test-set splitting and per-fill-type breakdown.
+
+        Parameters
+        ----------
+        model : object
+            Trained model
+        X_test : np.ndarray
+            Test features
+        y_test : np.ndarray
+            Test targets
+        target : str
+            'flux' or 'keff'
+        fill_categories : np.ndarray, optional
+            Fill type category for each test sample (e.g., '4G', '3G1P', etc.)
+        test_split_run : int, optional
+            RUN number at which to split test data into Set A and Set B.
+            Set A = RUNs 1..test_split_run, Set B = RUNs test_split_run+1..end.
+            Split index = test_split_run * 8 (due to 8-fold augmentation).
+        """
+        if target == 'flux':
+            predictions = model.predict_flux(X_test)
         else:
-            print(f"  Test MAPE: {mape:.2f}%")
+            predictions = model.predict_keff(X_test)
+
+        flux_mode = self.data_handler.flux_mode if hasattr(self.data_handler, 'flux_mode') else 'total'
+
+        # Overall metrics
+        overall = self._compute_metrics_for_subset(y_test, predictions, target)
+        overall['relative_error'] = float(overall['mape'] / 100) if overall['mape'] else None
+
+        print(f"  Test MSE: {overall['mse']:.6f}")
+        print(f"  Test RMSE: {overall['rmse']:.6f}")
+        print(f"  Test MAE: {overall['mae']:.6f}")
+        print(f"  Test R²: {overall['r2']:.4f}")
+        if flux_mode == 'bin' and target == 'flux':
+            print(f"  Test RMSE%: {overall['mape']:.2f}%")
+        else:
+            print(f"  Test MAPE: {overall['mape']:.2f}%")
+
+        metrics = {'overall': overall}
+
+        # Split test evaluation if boundary provided
+        if test_split_run is not None:
+            split_idx = test_split_run * 8
+            if split_idx < len(y_test):
+                # Test Set A (random lattice configs)
+                y_a, p_a = y_test[:split_idx], predictions[:split_idx]
+                X_a = X_test[:split_idx]
+                fc_a = fill_categories[:split_idx] if fill_categories is not None else None
+
+                # Test Set B (self-adjusted configs)
+                y_b, p_b = y_test[split_idx:], predictions[split_idx:]
+                X_b = X_test[split_idx:]
+                fc_b = fill_categories[split_idx:] if fill_categories is not None else None
+
+                metrics_a = self._compute_metrics_for_subset(y_a, p_a, target)
+                metrics_b = self._compute_metrics_for_subset(y_b, p_b, target)
+
+                print(f"\n  --- Test Set A (random lattice, {metrics_a['n_samples']} samples) ---")
+                print(f"  MSE: {metrics_a['mse']:.6f}  R²: {metrics_a['r2']:.4f}  MAPE: {metrics_a['mape']:.2f}%")
+
+                print(f"\n  --- Test Set B (self-adjusted, {metrics_b['n_samples']} samples) ---")
+                print(f"  MSE: {metrics_b['mse']:.6f}  R²: {metrics_b['r2']:.4f}  MAPE: {metrics_b['mape']:.2f}%")
+
+                # Per-fill-type breakdown for each test set
+                fill_types = ['4G', '3G1P', '3G1B', '2G2P', '2G2B', '2G1P1B']
+
+                for set_label, y_set, p_set, fc_set in [
+                    ('test_set_a', y_a, p_a, fc_a),
+                    ('test_set_b', y_b, p_b, fc_b)
+                ]:
+                    set_metrics = {'overall': self._compute_metrics_for_subset(y_set, p_set, target)}
+
+                    if fc_set is not None:
+                        set_name = "Set A (random)" if set_label == 'test_set_a' else "Set B (self-adj)"
+                        print(f"\n  Per-fill-type breakdown for {set_name}:")
+                        for ft in fill_types:
+                            mask = (fc_set == ft)
+                            if np.any(mask):
+                                ft_metrics = self._compute_metrics_for_subset(
+                                    y_set[mask], p_set[mask], target)
+                                set_metrics[ft] = ft_metrics
+                                print(f"    {ft:>7s}: MSE={ft_metrics['mse']:.6f}  "
+                                      f"R²={ft_metrics['r2']:.4f}  "
+                                      f"MAPE={ft_metrics['mape']:.2f}%  "
+                                      f"(n={ft_metrics['n_samples']})")
+                            else:
+                                set_metrics[ft] = {'mse': None, 'r2': None, 'mape': None, 'n_samples': 0}
+
+                    metrics[set_label] = set_metrics
 
         return metrics
+
+    def _evaluate_test_set_c(self, model, X_test, y_test, target, fill_categories=None):
+        """Evaluate model on Test Set C (random cores from test_c.txt).
+
+        Same per-fill-type breakdown as Sets A/B but no internal splitting.
+        """
+        if target == 'flux':
+            predictions = model.predict_flux(X_test)
+        else:
+            predictions = model.predict_keff(X_test)
+
+        overall = self._compute_metrics_for_subset(y_test, predictions, target)
+
+        print(f"\n  --- Test Set C (random cores, {overall['n_samples']} samples) ---")
+        print(f"  MSE: {overall['mse']:.6f}  R²: {overall['r2']:.4f}  MAPE: {overall['mape']:.2f}%")
+
+        set_metrics = {'overall': overall}
+
+        if fill_categories is not None:
+            fill_types = ['4G', '3G1P', '3G1B', '2G2P', '2G2B', '2G1P1B']
+            print(f"\n  Per-fill-type breakdown for Set C (random cores):")
+            for ft in fill_types:
+                mask = (fill_categories == ft)
+                if np.any(mask):
+                    ft_metrics = self._compute_metrics_for_subset(
+                        y_test[mask], predictions[mask], target)
+                    set_metrics[ft] = ft_metrics
+                    print(f"    {ft:>7s}: MSE={ft_metrics['mse']:.6f}  "
+                          f"R²={ft_metrics['r2']:.4f}  "
+                          f"MAPE={ft_metrics['mape']:.2f}%  "
+                          f"(n={ft_metrics['n_samples']})")
+                else:
+                    set_metrics[ft] = {'mse': None, 'r2': None, 'mape': None, 'n_samples': 0}
+
+        return set_metrics
 
     def save_model(self, model, filepath, metadata, model_type, target, encoding, optimization):
         """Save model with correct flux transform metadata"""

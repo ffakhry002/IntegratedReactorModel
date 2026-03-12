@@ -50,7 +50,7 @@ X_aug, y_flux_aug, y_keff_aug, groups_aug, lattices_aug = handler.load_and_prepa
     '/Users/dima/Downloads/Thesis data/Machine Learning/train_test_data/train.txt',
     encoding_method='physics',
     flux_mode='total'
-)
+)[:5]
 
 print(f"\n  With augmentation:")
 print(f"    X shape: {X_aug.shape}")

@@ -593,14 +593,25 @@ class InteractiveTrainer:
                         print(f"\nLoading data with {encoding} encoding...")
                         # Pass flux mode for flux targets
                         flux_mode_to_use = self.flux_mode if target == 'flux' else 'total'
+
+                        # Read N_GEOMETRIES from environment for learning curve experiments
+                        n_geometries_env = os.environ.get('N_GEOMETRIES', None)
+                        train_max_runs = None
+                        if n_geometries_env is not None:
+                            train_max_runs = int(n_geometries_env) * 33
+                            print(f"  Learning curve mode: N_GEOMETRIES={n_geometries_env}, loading first {train_max_runs} RUNs")
+
                         result = self.data_handler.load_and_prepare_data(
                             data_file,
                             encoding,
-                            flux_mode=flux_mode_to_use
+                            flux_mode=flux_mode_to_use,
+                            max_runs=train_max_runs
                         )
 
-                        # Handle both old and new return formats
-                        if len(result) == 5:
+                        # Handle return formats (newest returns 6 values with fill_categories)
+                        if len(result) == 6:
+                            X, y_flux, y_keff, groups, augmented_lattices, _ = result
+                        elif len(result) == 5:
                             X, y_flux, y_keff, groups, augmented_lattices = result
                         elif len(result) == 4:
                             X, y_flux, y_keff, groups = result
@@ -627,7 +638,10 @@ class InteractiveTrainer:
                             handler_test = DataHandler()
                             test_result = handler_test.load_and_prepare_data(
                                 test_data_file, encoding, flux_mode=flux_mode_to_use)
-                            if len(test_result) == 5:
+                            fill_categories_test = None
+                            if len(test_result) == 6:
+                                X_test_ext, y_flux_test_ext, y_keff_test_ext, _, lattices_test_ext, fill_categories_test = test_result
+                            elif len(test_result) == 5:
                                 X_test_ext, y_flux_test_ext, y_keff_test_ext, _, lattices_test_ext = test_result
                             elif len(test_result) == 4:
                                 X_test_ext, y_flux_test_ext, y_keff_test_ext, _ = test_result
@@ -641,7 +655,36 @@ class InteractiveTrainer:
                             data_splits['y_keff_test'] = y_keff_test_ext
                             if lattices_test_ext is not None:
                                 data_splits['lattices_test'] = lattices_test_ext
+                            if fill_categories_test is not None:
+                                data_splits['fill_categories_test'] = fill_categories_test
+                            # Split boundary for test set A (random) vs B (self-adjusted)
+                            data_splits['test_split_run'] = 4224
                             print(f"  Test samples: {X_test_ext.shape[0]} (from {test_data_file})")
+
+                        # Load Test Set C (random cores) if available
+                        test_c_file = os.environ.get('TEST_C_FILE', 'data/test_c.txt')
+                        if os.path.exists(test_c_file):
+                            print(f"Loading Test Set C from {test_c_file}...")
+                            handler_test_c = DataHandler()
+                            test_c_result = handler_test_c.load_and_prepare_data(
+                                test_c_file, encoding, flux_mode=flux_mode_to_use)
+                            if len(test_c_result) == 6:
+                                X_tc, y_flux_tc, y_keff_tc, _, lattices_tc, fc_tc = test_c_result
+                            elif len(test_c_result) == 5:
+                                X_tc, y_flux_tc, y_keff_tc, _, lattices_tc = test_c_result
+                                fc_tc = None
+                            else:
+                                X_tc, y_flux_tc, y_keff_tc = test_c_result[:3]
+                                lattices_tc, fc_tc = None, None
+
+                            data_splits['X_test_c'] = X_tc
+                            data_splits['y_flux_test_c'] = y_flux_tc
+                            data_splits['y_keff_test_c'] = y_keff_tc
+                            if lattices_tc is not None:
+                                data_splits['lattices_test_c'] = lattices_tc
+                            if fc_tc is not None:
+                                data_splits['fill_categories_test_c'] = fc_tc
+                            print(f"  Test Set C samples: {X_tc.shape[0]} (from {test_c_file})")
 
                         # Update training info
                         if 'n_samples' not in all_results['training_info']:

@@ -22,12 +22,27 @@ class DataHandler:
         self.flux_scale = 1e14    # Alternative scaling factor
         self.flux_mode = 'total'  # NEW: 'total', 'energy', or 'bin'
 
-    def load_and_prepare_data(self, data_file, encoding_method, flux_mode='total'):
-        """Load and encode reactor data with support for different flux modes"""
+    def load_and_prepare_data(self, data_file, encoding_method, flux_mode='total', max_runs=None):
+        """Load and encode reactor data with support for different flux modes
+
+        Parameters
+        ----------
+        data_file : str
+            Path to the data file
+        encoding_method : str
+            Encoding method to use
+        flux_mode : str, optional
+            Flux prediction mode (default: 'total')
+        max_runs : int, optional
+            Maximum number of RUNs to parse from the file.
+            Useful for learning curve experiments (e.g., max_runs=N_GEOMETRIES*33).
+        """
         self.flux_mode = flux_mode  # Store for later use
 
         print(f"  Loading from {data_file}...")
-        result = parse_reactor_data(data_file)
+        if max_runs is not None:
+            print(f"  Subsetting: loading first {max_runs} RUNs")
+        result = parse_reactor_data(data_file, max_runs=max_runs)
 
         # Handle both old and new return formats
         if len(result) == 5:
@@ -54,6 +69,9 @@ class DataHandler:
 
         # NEW: Track augmentation groups for CV
         augmentation_groups = []
+
+        # Track fill type categories (4G, 3G1P, 3G1B, 2G2P, 2G2B, 2G1P1B)
+        fill_categories = []
 
         # Track some statistics for validation
         label_order_mismatches = 0
@@ -90,6 +108,9 @@ class DataHandler:
 
                 # NEW: Add group ID (same for all 8 augmentations AND all fill permutations)
                 augmentation_groups.append(current_group_id)
+
+                # Track fill type category (same for all 8 augmentations of one config)
+                fill_categories.append(self._classify_fill_type(aug_lattice))
 
                 # Encode using selected method - now returns position order
                 # Note: Physics encoding uses module-level IRRADIATION_MODE and NCI_MODE toggles
@@ -194,8 +215,11 @@ class DataHandler:
         # Store augmented lattices for lambda optimization
         self.augmented_lattices = augmented_lattices
 
-        # NEW: Return groups and lattices as well
-        return X, y_flux, y_keff, groups, augmented_lattices
+        # Convert fill categories to numpy array
+        fill_categories = np.array(fill_categories)
+
+        # NEW: Return groups, lattices, and fill categories
+        return X, y_flux, y_keff, groups, augmented_lattices, fill_categories
 
     def _prepare_total_flux_values(self, lattice, flux_dict, position_order):
         """Prepare total flux values (original behavior)"""
@@ -412,7 +436,42 @@ class DataHandler:
             flux_values = flux_values[:4]
 
         return flux_values
-#
+    @staticmethod
+    def _classify_fill_type(lattice):
+        """Classify the irradiation fill type of a reactor configuration.
+
+        Counts G (gas), P (PWR), and B (BWR) capsules among the 4 irradiation
+        positions and returns a category string like '4G', '3G1P', '2G1P1B', etc.
+
+        Parameters
+        ----------
+        lattice : np.ndarray
+            8x8 reactor configuration array
+
+        Returns
+        -------
+        str
+            Fill type category (one of: '4G', '3G1P', '3G1B', '2G2P', '2G2B', '2G1P1B')
+        """
+        counts = {'G': 0, 'P': 0, 'B': 0}
+        for row in lattice:
+            for cell in row:
+                cell_str = str(cell)
+                if cell_str.startswith('I_'):
+                    suffix = cell_str[-1]
+                    if suffix in counts:
+                        counts[suffix] += 1
+
+        parts = []
+        for letter in ['G', 'P', 'B']:
+            if counts[letter] > 0:
+                if counts[letter] == 1:
+                    parts.append(f'1{letter}')
+                else:
+                    parts.append(f'{counts[letter]}{letter}')
+
+        return ''.join(parts)
+
     def _get_spatial_hash(self, lattice):
         """Compute a hash of the spatial pattern (F/C/I layout), ignoring fill type suffixes.
 

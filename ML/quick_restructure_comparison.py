@@ -48,7 +48,7 @@ X, y_flux, y_keff, groups, lattices = handler.load_and_prepare_data(
     '/Users/dima/Downloads/Thesis data/Machine Learning/train_test_data/train.txt',
     encoding_method='physics',
     flux_mode='total'  # 4 outputs: total flux at each of 4 positions
-)
+)[:5]
 
 print(f"\nData loaded:")
 print(f"  X shape: {X.shape}")

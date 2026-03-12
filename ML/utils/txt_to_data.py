@@ -6,13 +6,16 @@ import pandas as pd
 from datetime import datetime
 import os
 
-def parse_reactor_data(filename: str) -> Tuple[List[np.ndarray], List[Dict], List[float], List[str], List[Dict]]:
+def parse_reactor_data(filename: str, max_runs: int = None) -> Tuple[List[np.ndarray], List[Dict], List[float], List[str], List[Dict]]:
     """Parse reactor configuration data from text file with validation.
 
     Parameters
     ----------
     filename : str
         Path to the text file containing reactor configuration data
+    max_runs : int, optional
+        Maximum number of RUNs to parse. If None, parse all.
+        Useful for training on subsets (e.g., max_runs=66 for 2 geometries x 33 fills).
 
     Returns
     -------
@@ -36,6 +39,10 @@ def parse_reactor_data(filename: str) -> Tuple[List[np.ndarray], List[Dict], Lis
 
     # Split by runs
     runs = re.split(r'RUN \d+:', content)[1:]  # Skip header
+
+    if max_runs is not None:
+        runs = runs[:max_runs]
+        print(f"  Limiting to first {max_runs} RUNs (out of {len(re.split(r'RUN ', content)) - 1} total)")
 
     for run_idx, run in enumerate(runs):
         # Extract description
