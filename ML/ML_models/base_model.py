@@ -41,6 +41,8 @@ class ReactorModelBase(ABC):
         self.flux_mode = flux_mode
         if flux_mode == 'total':
             self._n_flux_outputs = 4
+        elif flux_mode == 'energy_sixteen':
+            self._n_flux_outputs = 16  # 4 positions × (tot, th, epi, fast)
         elif flux_mode in ['thermal_only', 'epithermal_only', 'fast_only']:
             self._n_flux_outputs = 4  # Single energy group, 4 positions
         else:  # energy or bin
@@ -212,6 +214,8 @@ class ReactorModelBase(ABC):
                 # Infer from flux_mode
                 if flux_mode == 'total':
                     save_dict['n_flux_outputs'] = 4
+                elif flux_mode == 'energy_sixteen':
+                    save_dict['n_flux_outputs'] = 16
                 else:  # energy or bin
                     save_dict['n_flux_outputs'] = 12
 
@@ -271,6 +275,8 @@ class ReactorModelBase(ABC):
             model.flux_mode = data['flux_mode']
             if data['flux_mode'] == 'total':
                 model._n_flux_outputs = 4
+            elif data['flux_mode'] == 'energy_sixteen':
+                model._n_flux_outputs = 16
             elif data['flux_mode'] in ['thermal_only', 'epithermal_only', 'fast_only']:
                 model._n_flux_outputs = 4  # Single energy group, 4 positions
             else:  # energy or bin

@@ -418,6 +418,12 @@ class NeuralNetReactorModel(ReactorModelBase):
         """
         super().__init__()  # Initialize base class
         self.model_class_name = 'neural_net'
+        self.nn_config = kwargs.pop('nn_config', 1)
+        self.use_restructured = kwargs.pop('use_restructured', False)
+        self.irradiation_mode = kwargs.pop('irradiation_mode', 'fill')
+        self.nci_mode = kwargs.pop('nci_mode', 'separate')
+        self.nci_disabled = kwargs.pop('nci_disabled', False)
+        self.regen_lambdas_ = None
 
         # Set default parameters if not provided
         if 'max_epochs' not in kwargs:
@@ -530,6 +536,22 @@ class NeuralNetReactorModel(ReactorModelBase):
         else:
             X_scaled = X_test
 
+        if self.use_restructured and self.nn_config == 4:
+            from utils.data_restructure import restructure_single_for_prediction
+
+            X_pool = restructure_single_for_prediction(
+                X_test, self.irradiation_mode, self.nci_mode, self.nci_disabled)
+            X_scaled_pool = self.flux_scaler.transform(X_pool)
+            pred_pooled = self.flux_model.predict(X_scaled_pool)
+            n = X_test.shape[0]
+            out = np.zeros((n, 16), dtype=np.float64)
+            for i in range(n):
+                for pos in range(4):
+                    out[i, pos * 4 : (pos + 1) * 4] = pred_pooled[i * 4 + pos, :]
+            if self.flux_mode == 'energy_sixteen':
+                return out
+            return self.validate_prediction_shape(out, n, 'flux')
+
         predictions = self.flux_model.predict(X_scaled)
 
         # Use base class validation
@@ -581,10 +603,19 @@ class NeuralNetReactorModel(ReactorModelBase):
         dict
             Neural network specific metadata
         """
-        return {
+        meta = {
             'scale_features': self.scale_features,
-            'pytorch_version': torch.__version__
+            'pytorch_version': torch.__version__,
+            'nn_config': getattr(self, 'nn_config', 1),
+            'use_restructured': getattr(self, 'use_restructured', False),
+            'irradiation_mode': getattr(self, 'irradiation_mode', 'fill'),
+            'nci_mode': getattr(self, 'nci_mode', 'separate'),
+            'nci_disabled': getattr(self, 'nci_disabled', False),
         }
+        rl = getattr(self, 'regen_lambdas_', None)
+        if rl:
+            meta['regen_lambdas'] = rl
+        return meta
 
     def _restore_model_specific_attributes(self, data):
         """Restore Neural Net-specific attributes.
@@ -599,6 +630,13 @@ class NeuralNetReactorModel(ReactorModelBase):
         None
         """
         self.scale_features = data.get('scale_features', True)
+        self.nn_config = data.get('nn_config', getattr(self, 'nn_config', 1))
+        self.use_restructured = data.get('use_restructured', False)
+        self.irradiation_mode = data.get('irradiation_mode', 'fill')
+        self.nci_mode = data.get('nci_mode', 'separate')
+        self.nci_disabled = data.get('nci_disabled', False)
+        if 'regen_lambdas' in data:
+            self.regen_lambdas_ = data['regen_lambdas']
         if 'scaler' in data:
             if data['model_type'] == 'flux':
                 self.flux_scaler = data['scaler']

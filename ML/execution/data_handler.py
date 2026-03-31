@@ -20,7 +20,7 @@ class DataHandler:
         self.encodings = ReactorEncodings()
         self.use_log_flux = True  # Flag to use log transform for flux
         self.flux_scale = 1e14    # Alternative scaling factor
-        self.flux_mode = 'total'  # NEW: 'total', 'energy', or 'bin'
+        self.flux_mode = 'total'  # 'total', 'energy', 'energy_sixteen', 'bin', or *_only
 
     def load_and_prepare_data(self, data_file, encoding_method, flux_mode='total', max_runs=None):
         """Load and encode reactor data with support for different flux modes
@@ -137,6 +137,10 @@ class DataHandler:
                 elif flux_mode == 'energy':
                     # 12 values: 3 energy groups × 4 positions
                     flux_values = self._prepare_energy_flux_values(aug_lattice, aug_flux, aug_energy, position_order)
+                elif flux_mode == 'energy_sixteen':
+                    # 16 values: 4 positions × (total, thermal, epithermal, fast) — thesis multi-output NN layout
+                    flux_values = self._prepare_energy_sixteen_flux_values(
+                        aug_lattice, aug_flux, aug_energy, position_order)
                 elif flux_mode == 'bin':
                     # 12 values: 3 percentages × 4 positions
                     flux_values = self._prepare_energy_bin_values(aug_lattice, aug_energy, position_order)
@@ -173,6 +177,8 @@ class DataHandler:
         # Check expected output dimensions
         if flux_mode == 'total':
             assert y_flux.shape[1] == 4, f"Expected 4 flux outputs, got {y_flux.shape[1]}"
+        elif flux_mode == 'energy_sixteen':
+            assert y_flux.shape[1] == 16, f"Expected 16 flux outputs, got {y_flux.shape[1]}"
         elif flux_mode in ['thermal_only', 'epithermal_only', 'fast_only']:
             assert y_flux.shape[1] == 4, f"Expected 4 flux outputs for single energy mode, got {y_flux.shape[1]}"
         else:  # energy or bin
@@ -199,6 +205,8 @@ class DataHandler:
         print(f"  Feature shape: {X.shape}")
         if flux_mode == 'total':
             print(f"  Flux targets: {y_flux.shape} (4 positions per sample)")
+        elif flux_mode == 'energy_sixteen':
+            print(f"  Flux targets: {y_flux.shape} (16 values: 4 positions × [tot, th, epi, fast])")
         elif flux_mode == 'energy':
             print(f"  Flux targets: {y_flux.shape} (12 values: 3 energy groups × 4 positions)")
         elif flux_mode == 'bin':
@@ -285,6 +293,32 @@ class DataHandler:
                 flux_values.append(0.0)
             flux_values = flux_values[:12]
 
+        return flux_values
+
+    def _prepare_energy_sixteen_flux_values(self, lattice, flux_dict, energy_dict, position_order):
+        """16 absolute flux values: per position [total, thermal, epithermal, fast].
+
+        Column order (thesis / NN configs 1–3): for positions p=0..3 in spatial order,
+        indices ``4*p + 0..3`` are tot, th, epi, fast at that position.
+        """
+        flux_values = []
+        for pos in position_order:
+            i, j = pos
+            label = lattice[i, j]
+            if label.startswith('I_') and label in flux_dict and label in energy_dict:
+                total_flux = flux_dict[label]
+                energy_fracs = energy_dict[label]
+                thermal_flux = total_flux * energy_fracs['thermal']
+                epithermal_flux = total_flux * energy_fracs['epithermal']
+                fast_flux = total_flux * energy_fracs['fast']
+                flux_values.extend([total_flux, thermal_flux, epithermal_flux, fast_flux])
+            else:
+                flux_values.extend([0.0, 0.0, 0.0, 0.0])
+        if len(flux_values) != 16:
+            print(f"Warning: Expected 16 energy_sixteen flux values, got {len(flux_values)}")
+            while len(flux_values) < 16:
+                flux_values.append(0.0)
+            flux_values = flux_values[:16]
         return flux_values
 
     def _prepare_energy_bin_values(self, lattice, energy_dict, position_order):

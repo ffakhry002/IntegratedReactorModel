@@ -22,3 +22,8 @@ class TrainingConfig:
         self.test_size = 0.0  # Use all data for training; validation via CV
         self.random_state = 42
         self.use_restructured = False  # Position-pooling for flux (XGBoost + physics + fill only)
+        self.flux_mode = 'total'
+        # Thesis neural-net layout (1–5) for energy_sixteen + Ray Tune; see neural_net_configs.data_pipeline
+        self.nn_config = None
+        # Flux group index (0–3) for single-HPO-per-job runs (configs 2, 3, 5)
+        self.flux_group = None

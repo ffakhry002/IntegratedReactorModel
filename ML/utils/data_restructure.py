@@ -130,6 +130,94 @@ def restructure_for_position_pooling(
     return X_pooled, y_pooled, groups_pooled
 
 
+def restructure_for_position_pooling_multiout(
+    X: np.ndarray,
+    y_flux: np.ndarray,
+    groups: np.ndarray,
+    irradiation_mode: str = 'fill',
+    nci_mode: str = 'separate',
+    nci_disabled: bool = False,
+    n_flux_per_position: int = 4,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Restructure for thesis NN configs 4–5: ``my`` position with multiple flux targets.
+
+    Same feature reordering as `restructure_for_position_pooling`, but ``y`` has
+    ``n_flux_per_position`` values **per position** (e.g. tot, th, epi, fast).
+
+    Expected ``y_flux`` layout (``energy_sixteen`` mode): shape ``(N, 16)`` with
+    columns ``[pos0_tot, pos0_th, pos0_epi, pos0_fast, pos1_tot, ..., pos3_fast]``.
+
+    Parameters
+    ----------
+    y_flux : np.ndarray, shape (N, n_pos * n_flux_per_position)
+        Multi-output flux per row in standard layout.
+
+    Returns
+    -------
+    X_pooled : np.ndarray, shape (4N, F)
+    y_pooled : np.ndarray, shape (4N, n_flux_per_position)
+        Targets for the position in the ``my`` slot only.
+    groups_pooled : np.ndarray, shape (4N,)
+    """
+    n_global, n_local, n_nci, n_pos = _get_feature_layout(irradiation_mode, nci_mode, nci_disabled)
+    n_samples = X.shape[0]
+    expected_features = n_global + n_local * n_pos + n_nci * n_pos
+
+    if X.shape[1] != expected_features:
+        raise ValueError(
+            f"Expected {expected_features} features for {irradiation_mode}/{nci_mode}, "
+            f"got {X.shape[1]}"
+        )
+    if y_flux.shape[0] != n_samples:
+        raise ValueError(f"y_flux rows {y_flux.shape[0]} != X rows {n_samples}")
+    if y_flux.shape[1] != n_pos * n_flux_per_position:
+        raise ValueError(
+            f"Expected y_flux shape (*, {n_pos * n_flux_per_position}), got {y_flux.shape}"
+        )
+
+    n_out = n_samples * n_pos
+    X_pooled = np.empty((n_out, expected_features), dtype=X.dtype)
+    y_pooled = np.empty((n_out, n_flux_per_position), dtype=y_flux.dtype)
+    groups_pooled = np.empty(n_out, dtype=groups.dtype)
+
+    local_block_start = n_global
+    nci_block_start = n_global + n_local * n_pos
+
+    for idx in range(n_samples):
+        row = X[idx]
+        global_feats = row[:n_global]
+
+        all_local = []
+        for p in range(n_pos):
+            s = local_block_start + p * n_local
+            all_local.append(row[s:s + n_local])
+
+        all_nci = []
+        for p in range(n_pos):
+            s = nci_block_start + p * n_nci
+            all_nci.append(row[s:s + n_nci])
+
+        for my_pos in range(n_pos):
+            out_idx = idx * n_pos + my_pos
+
+            other_local = np.concatenate([all_local[p] for p in range(n_pos) if p != my_pos])
+            other_nci = np.concatenate([all_nci[p] for p in range(n_pos) if p != my_pos])
+
+            X_pooled[out_idx] = np.concatenate([
+                global_feats,
+                all_local[my_pos],
+                all_nci[my_pos],
+                other_local,
+                other_nci,
+            ])
+
+            base = my_pos * n_flux_per_position
+            y_pooled[out_idx] = y_flux[idx, base:base + n_flux_per_position]
+            groups_pooled[out_idx] = groups[idx]
+
+    return X_pooled, y_pooled, groups_pooled
+
+
 def restructure_single_for_prediction(
     X: np.ndarray,
     irradiation_mode: str = 'fill',

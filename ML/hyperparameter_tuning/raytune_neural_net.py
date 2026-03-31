@@ -17,48 +17,80 @@ from ray.tune.execution.placement_groups import PlacementGroupFactory
 from optuna.samplers import TPESampler
 import optuna
 from sklearn.model_selection import GroupKFold, cross_val_score
-from sklearn.metrics import make_scorer
+from sklearn.metrics import make_scorer, mean_squared_error
 import torch
 import pickle
 import ray
 import json
 
-def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
-                                n_gpus=2, target_type='flux', use_log_flux=True, encoding='physics'):
+def optimize_neural_net_raytune(
+    X_train,
+    y_train,
+    groups=None,
+    n_trials=10,
+    n_gpus=2,
+    target_type='flux',
+    use_log_flux=True,
+    encoding='physics',
+    lattices_train=None,
+    irradiation_mode='fill',
+    nci_mode='separate',
+    nci_disabled=False,
+    nn_config=1,
+    flux_mode='total',
+    optimize_lambda=None,
+    flux_group_index=None,
+    score_metric='mse_log',
+):
     """
-    Optimize neural network hyperparameters using Ray Tune
+    Optimize neural network hyperparameters using Ray Tune.
+
+    When ``lattices_train`` is set and ``optimize_lambda`` is True (default for
+    physics encoding), NCI lambda parameters are searched **jointly** with NN
+    architecture (same pattern as Optuna flux): each trial regenerates features
+    before GroupKFold CV.
 
     Parameters
     ----------
-    X_train : np.ndarray
-        Training features
-    y_train : np.ndarray
-        Training targets
-    groups : np.ndarray, optional
-        Group labels for GroupKFold (prevents augmentation leakage)
-    n_trials : int
-        Number of hyperparameter combinations to try
-    n_gpus : int
-        Number of GPUs to use
-    target_type : str
-        'flux' or 'keff'
-    use_log_flux : bool
-        Whether flux data is log-transformed
-    encoding : str
-        Encoding type for consistent naming (default: 'physics')
-
-    Returns
-    -------
-    best_params : dict
-        Best hyperparameters found
-    analysis : ray.tune.ExperimentAnalysis
-        Full Ray Tune results
+    nn_config : int
+        Thesis layout 1–5 (see ``neural_net_configs.data_pipeline``).
+    flux_mode : str
+        e.g. ``energy_sixteen`` for 16-channel flux.
+    flux_group_index : int, optional
+        For nn_config 2 or 5: which flux group 0=tot, 1=th, 2=epi, 3=fast.
+    score_metric : str
+        ``mse_log`` (default for thesis NN) or ``mape``.
     """
+    from utils.lambda_feature_regenerator import (
+        LambdaFeatureRegenerator,
+        get_lambda_params_for_encoding,
+    )
+    from neural_net_configs.data_pipeline import prepare_xy_after_lambda
+
+    if optimize_lambda is None:
+        nci_cut = int(os.environ.get('NCI_DISTANCE_CUTOFF', '0'))
+        optimize_lambda = (
+            encoding == 'physics'
+            and lattices_train is not None
+            and nci_cut != 2
+        )
+
+    feature_data_base = None
+    lambda_param_names = []
+    if optimize_lambda and lattices_train is not None:
+        fr = LambdaFeatureRegenerator(encoding)
+        feature_data_base = fr.separate_features(
+            X_train, lattices_train, irradiation_mode, nci_mode
+        )
+        lambda_param_names = get_lambda_params_for_encoding(irradiation_mode, nci_mode)
+        print(f"Joint lambda optimization: {lambda_param_names}")
 
     print(f"\n{'='*60}")
     print(f"RAY TUNE OPTIMIZATION FOR NEURAL NETWORK")
     print(f"{'='*60}")
     print(f"Target: {target_type.upper()}")
+    print(f"nn_config: {nn_config}, flux_mode: {flux_mode}, score: {score_metric}")
+    print(f"optimize_lambda: {optimize_lambda}")
     print(f"Trials: {n_trials}")
     print(f"GPUs: {n_gpus}")
     if groups is not None:
@@ -102,47 +134,80 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
         "random_state": 42
     }
 
+    if optimize_lambda and lambda_param_names:
+        if 'lambda_decay' in lambda_param_names:
+            config_space['lambda_decay'] = tune.uniform(0.5, 2.0)
+        if 'lambda_P' in lambda_param_names:
+            config_space['lambda_P'] = tune.uniform(0.5, 2.0)
+            config_space['lambda_B'] = tune.uniform(0.5, 2.0)
+            config_space['lambda_G'] = tune.uniform(0.5, 2.0)
+
+    fr_ref = None
+    if optimize_lambda and feature_data_base is not None:
+        fr_ref = LambdaFeatureRegenerator(encoding)
+
     # Define training function
     def train_neural_net(config, X=X_train, y=y_train, groups=groups):
         """Train function called by Ray Tune"""
         from ML_models.neural_net_train import PyTorchFlexibleRegressorWrapper
-        from ML_models.neural_architectures import create_heterogeneous_activations
         import torch
         import gc  # For memory management
 
-        # SIMPLIFIED: Use uniform activation across all layers
         activations = config['activation']
 
         print(f"\n{'='*60}")
         print(f"NEW TRIAL STARTING")
         print(f"{'='*60}")
-        print(f"Architecture:")
-        print(f"  Type: {config['architecture_type']}, Depth: {config['depth']}, Base Width: {config['base_width']}")
-        print(f"  Activation: {activations} (uniform across all layers)")
-        print(f"Training:")
-        print(f"  Learning Rate: {config['learning_rate']:.6f}, Optimizer: {config['optimizer']}")
-        print(f"  Weight Decay: {config['weight_decay']:.6f}, Batch Size: {config['batch_size']}")
-        print(f"Regularization:")
-        print(f"  Dropout: {config['dropout_rate']:.3f}, Batch Norm: True (fixed)")
-        print(f"{'='*60}")
 
-        # Use CUDA - Ray Tune handles GPU assignment via CUDA_VISIBLE_DEVICES
+        # Regenerate features with trial lambdas
+        if optimize_lambda and feature_data_base is not None and fr_ref is not None:
+            if 'lambda_decay' in lambda_param_names:
+                X_regen = fr_ref.regenerate_features(
+                    feature_data_base, lambda_decay=config['lambda_decay']
+                )
+            else:
+                X_regen = fr_ref.regenerate_features(
+                    feature_data_base,
+                    lambda_P=config['lambda_P'],
+                    lambda_B=config['lambda_B'],
+                    lambda_G=config['lambda_G'],
+                )
+        else:
+            X_regen = X_train
+
+        try:
+            X_cv, y_cv, groups_cv = prepare_xy_after_lambda(
+                X_regen,
+                y_train,
+                groups,
+                nn_config,
+                irradiation_mode,
+                nci_mode,
+                nci_disabled,
+                flux_group_index=flux_group_index,
+            )
+        except Exception as e:
+            print(f"  prepare_xy failed: {e}")
+            tune.report({"score": float('inf'), "training_iteration": 0})
+            return
+
+        print(f"Architecture: {config['architecture_type']}, depth={config['depth']}, nn_config={nn_config}")
+        print(f"CV data: X={X_cv.shape}, y={y_cv.shape}")
+
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
         # Cross-validation with GroupKFold - CREATE NEW MODEL FOR EACH FOLD
-        if groups is not None:
+        if groups_cv is not None:
             cv = GroupKFold(n_splits=5)
             cv_scores = []
 
-            # Enumerate to enable ASHA early stopping
-            for fold_idx, (train_idx, test_idx) in enumerate(cv.split(X, y, groups)):
+            for fold_idx, (train_idx, test_idx) in enumerate(cv.split(X_cv, y_cv, groups_cv)):
                 print(f"  Fold {fold_idx + 1}/5...")
 
-                X_train_fold, X_test_fold = X[train_idx], X[test_idx]
-                y_train_fold, y_test_fold = y[train_idx], y[test_idx]
-                groups_train_fold = groups[train_idx]
+                X_train_fold, X_test_fold = X_cv[train_idx], X_cv[test_idx]
+                y_train_fold, y_test_fold = y_cv[train_idx], y_cv[test_idx]
+                groups_train_fold = groups_cv[train_idx]
 
-                # CRITICAL: Create NEW model for each fold to prevent memory accumulation
                 model = PyTorchFlexibleRegressorWrapper(
                     architecture_type=config["architecture_type"],
                     base_width=config["base_width"],
@@ -153,100 +218,98 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
                     weight_decay=config["weight_decay"],
                     batch_size=config["batch_size"],
                     dropout_rate=config["dropout_rate"],
-                    use_batch_norm=True,  # FIXED at True
+                    use_batch_norm=True,
                     max_epochs=config["max_epochs"],
                     patience=config["patience"],
                     validation_fraction=config["validation_fraction"],
-                    device=device,  # Ray-assigned GPU
+                    device=device,
                     verbose=config["verbose"],
                     random_state=config["random_state"]
                 )
 
-                # Fit with groups for internal validation (zero leakage!)
                 model.fit(X_train_fold, y_train_fold, groups=groups_train_fold)
                 predictions = model.predict(X_test_fold)
 
-                # Score
                 if target_type == 'flux':
+                    if score_metric == 'mse_log' and use_log_flux:
+                        fold_score = mean_squared_error(y_test_fold, predictions)
+                    elif score_metric == 'mape' or score_metric != 'mse_log':
+                        if use_log_flux:
+                            y_true_orig = 10 ** y_test_fold
+                            y_pred_orig = 10 ** predictions
+                            fold_score = np.mean(
+                                np.abs((y_true_orig - y_pred_orig) / (y_true_orig + 1e-10))
+                            ) * 100
+                        else:
+                            fold_score = np.mean(
+                                np.abs((y_test_fold - predictions) / (y_test_fold + 1e-10))
+                            ) * 100
+                    else:
+                        fold_score = mean_squared_error(y_test_fold, predictions)
+                    cv_scores.append(fold_score)
+                else:
+                    fold_score = mean_squared_error(y_test_fold, predictions.ravel())
+                    cv_scores.append(fold_score)
+
+                current_mean = float(np.mean(cv_scores))
+                print(f"    ✓ Fold {fold_idx + 1} score: {cv_scores[-1]:.6f} | Running avg: {current_mean:.6f}")
+
+                del model, X_train_fold, X_test_fold, y_train_fold, y_test_fold, predictions, groups_train_fold
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                gc.collect()
+
+                tune.report({"score": current_mean, "training_iteration": fold_idx + 1})
+
+            print(f"  Trial complete! Final score: {current_mean:.6f}")
+        else:
+            from sklearn.model_selection import KFold
+            print("  WARNING: No groups — using KFold (possible augmentation leakage)")
+            kf = KFold(n_splits=5, shuffle=True, random_state=42)
+            cv_scores = []
+            for fold_idx, (train_idx, test_idx) in enumerate(kf.split(X_cv)):
+                X_train_fold, X_test_fold = X_cv[train_idx], X_cv[test_idx]
+                y_train_fold, y_test_fold = y_cv[train_idx], y_cv[test_idx]
+                model = PyTorchFlexibleRegressorWrapper(
+                    architecture_type=config["architecture_type"],
+                    base_width=config["base_width"],
+                    depth=config["depth"],
+                    activations=activations,
+                    optimizer=config["optimizer"],
+                    learning_rate=config["learning_rate"],
+                    weight_decay=config["weight_decay"],
+                    batch_size=config["batch_size"],
+                    dropout_rate=config["dropout_rate"],
+                    use_batch_norm=True,
+                    max_epochs=config["max_epochs"],
+                    patience=config["patience"],
+                    validation_fraction=config["validation_fraction"],
+                    device=device,
+                    verbose=config["verbose"],
+                    random_state=config["random_state"]
+                )
+                model.fit(X_train_fold, y_train_fold, groups=None)
+                predictions = model.predict(X_test_fold)
+                if target_type == 'flux' and score_metric == 'mse_log' and use_log_flux:
+                    fold_score = mean_squared_error(y_test_fold, predictions)
+                elif target_type == 'flux':
                     if use_log_flux:
                         y_true_orig = 10 ** y_test_fold
                         y_pred_orig = 10 ** predictions
-                        mape = np.mean(np.abs((y_true_orig - y_pred_orig) / (y_true_orig + 1e-10))) * 100
+                        fold_score = np.mean(
+                            np.abs((y_true_orig - y_pred_orig) / (y_true_orig + 1e-10))) * 100
                     else:
-                        mape = np.mean(np.abs((y_test_fold - predictions) / (y_test_fold + 1e-10))) * 100
-                    cv_scores.append(mape)
+                        fold_score = np.mean(
+                            np.abs((y_test_fold - predictions) / (y_test_fold + 1e-10))) * 100
                 else:
-                    from sklearn.metrics import mean_squared_error
-                    mse = mean_squared_error(y_test_fold, predictions)
-                    cv_scores.append(mse)
-
-                # Calculate current mean
+                    fold_score = mean_squared_error(y_test_fold, predictions.ravel())
+                cv_scores.append(fold_score)
                 current_mean = float(np.mean(cv_scores))
-                print(f"    ✓ Fold {fold_idx + 1} score: {cv_scores[-1]:.4f} | Running avg: {current_mean:.4f}")
-
-                # CRITICAL: CLEAN UP MEMORY AFTER EACH FOLD
-                del model, X_train_fold, X_test_fold, y_train_fold, y_test_fold, predictions, groups_train_fold
+                del model
                 if torch.cuda.is_available():
-                    torch.cuda.empty_cache()  # Clear GPU memory
-                gc.collect()  # Clear CPU memory
-
-                # Report after cleanup
+                    torch.cuda.empty_cache()
+                gc.collect()
                 tune.report({"score": current_mean, "training_iteration": fold_idx + 1})
-
-            print(f"  Trial complete! Final score: {current_mean:.4f}")
-
-            scores = np.array(cv_scores)
-        else:
-            # No groups - use standard CV (WARNING: May have data leakage!)
-            print("  WARNING: No groups provided - using standard 5-fold CV")
-            cv = 5
-
-            # Create model once for standard cross_val_score
-            model = PyTorchFlexibleRegressorWrapper(
-                architecture_type=config["architecture_type"],
-                base_width=config["base_width"],
-                depth=config["depth"],
-                activations=activations,
-                optimizer=config["optimizer"],
-                learning_rate=config["learning_rate"],
-                weight_decay=config["weight_decay"],
-                batch_size=config["batch_size"],
-                dropout_rate=config["dropout_rate"],
-                use_batch_norm=True,  # FIXED at True
-                max_epochs=config["max_epochs"],
-                patience=config["patience"],
-                validation_fraction=config["validation_fraction"],
-                device=device,
-                verbose=config["verbose"],
-                random_state=config["random_state"]
-            )
-
-            if target_type == 'flux':
-                def mape_scorer(y_true, y_pred):
-                    if use_log_flux:
-                        y_true_orig = 10 ** y_true
-                        y_pred_orig = 10 ** y_pred
-                        mape = np.mean(np.abs((y_true_orig - y_pred_orig) / (y_true_orig + 1e-10))) * 100
-                    else:
-                        mape = np.mean(np.abs((y_true - y_pred) / (y_true + 1e-10))) * 100
-                    return -mape
-                scorer = make_scorer(mape_scorer, greater_is_better=True)
-            else:
-                scorer = 'neg_mean_squared_error'
-
-            scores = cross_val_score(model, X, y, cv=cv, scoring=scorer, n_jobs=1)
-            # cross_val_score returns negative (higher is better convention)
-            # Convert back to positive for consistency
-            scores = -scores  # Now positive MAPE/MSE
-            mean_score = float(np.mean(scores))
-
-            # CRITICAL: CLEAN UP MEMORY
-            del model
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-            gc.collect()
-
-            tune.report({"score": mean_score})  # Dictionary format for API compatibility
 
     # ASHA scheduler - RELAXED for maximum GPU flooding
     # More lenient settings to keep 192 trials running
@@ -326,8 +389,25 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
 
     # Get best result (use explicit method since scheduler already has metric/mode)
     best_trial = analysis.get_best_trial(metric="score", mode="min")
+    if best_trial is None:
+        print("WARNING: No completed trials; returning default hyperparameters.")
+        return {
+            'architecture_type': 'rectangular',
+            'base_width': 100,
+            'depth': 2,
+            'activations': 'relu',
+            'learning_rate': 0.001,
+            'weight_decay': 0.001,
+            'optimizer': 'adam',
+            'batch_size': 128,
+            'dropout_rate': 0.0,
+            'use_batch_norm': True,
+            'max_epochs': 1500,
+            'patience': 50,
+            'device': None,
+        }, analysis
     best_params = best_trial.config
-    best_score = best_trial.last_result["score"]
+    best_score = best_trial.last_result.get("score", float("inf"))
 
     print(f"\n{'='*60}")
     print(f"RAY TUNE OPTIMIZATION COMPLETE")
@@ -345,7 +425,7 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
     # SIMPLIFIED: Use uniform activation (no complex strategies)
     best_activations = best_params['activation']
 
-    # Return only the hyperparameters (not fixed params)
+    # Return NN hyperparameters + joint lambda values for ModelTrainer
     return_params = {
         'architecture_type': best_params['architecture_type'],
         'base_width': best_params['base_width'],
@@ -360,10 +440,10 @@ def optimize_neural_net_raytune(X_train, y_train, groups=None, n_trials=10,
         'max_epochs': best_params['max_epochs'],
         'patience': best_params['patience'],
         'device': None,  # Will auto-detect during final training
-        # Keep backward compatibility
-        # 'width': best_params['base_width'],  # For compatibility with old code
-        # 'activation': best_params['activation']
     }
+    for lk in ('lambda_decay', 'lambda_P', 'lambda_B', 'lambda_G'):
+        if lk in best_params:
+            return_params[lk] = best_params[lk]
 
     return return_params, analysis
 
@@ -374,7 +454,9 @@ def _save_raytune_results(analysis, target_type, n_gpus, encoding='physics'):
     # Create separate directory for each target type
     base_dir = os.path.dirname(os.path.dirname(__file__))
     outputs_dir = os.path.join(base_dir, 'outputs', 'raytune_results', target_type)
+    plots_dir = os.path.join(outputs_dir, 'plots')
     os.makedirs(outputs_dir, exist_ok=True)
+    os.makedirs(plots_dir, exist_ok=True)
 
     # Save analysis object
     try:
@@ -414,10 +496,6 @@ def _save_raytune_results(analysis, target_type, n_gpus, encoding='physics'):
 
     # Convert to DataFrame for visualization
     df = analysis.dataframe()
-
-    # Create visualizations
-    plots_dir = os.path.join(outputs_dir, 'plots')
-    os.makedirs(plots_dir, exist_ok=True)
 
     # 1. Convergence Plot
     try:

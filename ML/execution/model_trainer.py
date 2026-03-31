@@ -93,6 +93,22 @@ class ModelTrainer:
         optimization_start = time.time()
         best_cv_score = None  # Track CV score from optimization
 
+        if (
+            model_type == 'neural_net'
+            and config.optimization == 'raytune'
+            and target == 'flux'
+        ):
+            nn_cfg = getattr(config, 'nn_config', None)
+            if nn_cfg is None:
+                nn_cfg = int(os.environ.get('NN_CONFIG', '1'))
+            fm = getattr(config, 'flux_mode', 'total')
+            if fm == 'energy_sixteen' and 1 <= nn_cfg <= 5:
+                return self._train_nn_ray_thesis(
+                    data_splits, config, encoding, model_type, target,
+                    X_train, y_train, y_test, X_test, groups_train,
+                    lattices_train, flux_mode, irradiation_mode, nci_mode,
+                    optimize_lambda, optimization_start, nn_cfg)
+
         if config.optimization == 'optuna':
             print(f"Starting Optuna optimization...")
 
@@ -312,6 +328,34 @@ class ModelTrainer:
                 else:
                     print(f"  WARNING: No lattices_test available -- test data uses default lambdas")
 
+            # Apply lambdas to Test Set C as well
+            lattices_test_c = data_splits.get('lattices_test_c', None)
+            X_test_c = data_splits.get('X_test_c', None)
+            if X_test_c is not None and len(X_test_c) > 0 and lattices_test_c is not None:
+                if len(lattices_test_c) != X_test_c.shape[0]:
+                    raise ValueError(
+                        f"lattices_test_c length ({len(lattices_test_c)}) != X_test_c rows "
+                        f"({X_test_c.shape[0]}). Set C features/targets would be misaligned."
+                    )
+                feature_data_test_c = feature_regenerator.separate_features(
+                    X_test_c, lattices_test_c, irradiation_mode, nci_mode)
+                data_splits['X_test_c'] = feature_regenerator.regenerate_features(
+                    feature_data_test_c, **best_lambdas)
+                print(f"  Regenerated Test Set C features with optimized lambdas")
+            elif (
+                X_test_c is not None
+                and len(X_test_c) > 0
+                and lattices_test_c is None
+            ):
+                print(
+                    "\n  ⚠️  CRITICAL: Test Set C has no lattices in data_splits — "
+                    "CANNOT apply optimized lambdas to Set C.\n"
+                    "      Model was trained on lambda-regenerated NCI features; "
+                    "Set C still uses DEFAULT NCI from the initial encoder.\n"
+                    "      Set C metrics will be systematically biased (usually worse). "
+                    "Fix load_and_prepare_data to return augmented_lattices for test_c."
+                )
+
         # Restructure training data for final model if needed
         use_restructured_final = (getattr(config, 'use_restructured', False)
                                   and target == 'flux' and model_type == 'xgboost')
@@ -523,6 +567,8 @@ class ModelTrainer:
                 # Direct setting for backward compatibility
                 if self.data_handler.flux_mode in ['total', 'thermal_only', 'epithermal_only', 'fast_only']:
                     model._n_flux_outputs = 4
+                elif self.data_handler.flux_mode == 'energy_sixteen':
+                    model._n_flux_outputs = 16
                 else:
                     model._n_flux_outputs = 12
 
@@ -557,8 +603,12 @@ class ModelTrainer:
         flux_mode = self.data_handler.flux_mode if hasattr(self.data_handler, 'flux_mode') else 'total'
 
         if len(y_true) == 0:
-            return {'mse': None, 'rmse': None, 'mae': None, 'r2': None, 'mape': None, 'n_samples': 0}
+            return {
+                'mse': None, 'rmse': None, 'mae': None, 'r2': None, 'mape': None,
+                'mse_log': None, 'n_samples': 0,
+            }
 
+        mse_log = None
         if target == 'flux' and len(y_true.shape) > 1 and y_true.shape[1] > 1:
             if flux_mode == 'bin':
                 mse = mean_squared_error(y_true, y_pred)
@@ -580,20 +630,26 @@ class ModelTrainer:
                     mape = np.mean(np.abs((y_orig - p_orig) / y_orig)) * 100
                 else:
                     mape = np.mean(np.abs((y_true - y_pred) / (y_true + 1e-10))) * 100
+
+            if flux_mode == 'energy_sixteen' and self.data_handler and self.data_handler.use_log_flux:
+                mse_log = float(mean_squared_error(y_true, y_pred))
         else:
             mse = mean_squared_error(y_true, y_pred)
             mae = mean_absolute_error(y_true, y_pred)
             r2 = r2_score(y_true, y_pred) if len(y_true) > 1 else 0.0
             mape = np.mean(np.abs((y_true - y_pred) / (y_true + 1e-10))) * 100
 
-        return {
+        out = {
             'mse': float(mse),
             'rmse': float(np.sqrt(mse)),
             'mae': float(mae),
             'r2': float(r2),
             'mape': float(mape),
-            'n_samples': int(len(y_true))
+            'n_samples': int(len(y_true)),
         }
+        if mse_log is not None:
+            out['mse_log'] = mse_log
+        return out
 
     def _evaluate_model(self, model, X_test, y_test, target,
                         fill_categories=None, test_split_run=None):
@@ -627,16 +683,19 @@ class ModelTrainer:
         overall = self._compute_metrics_for_subset(y_test, predictions, target)
         overall['relative_error'] = float(overall['mape'] / 100) if overall['mape'] else None
 
-        print(f"  Test MSE: {overall['mse']:.6f}")
-        print(f"  Test RMSE: {overall['rmse']:.6f}")
-        print(f"  Test MAE: {overall['mae']:.6f}")
-        print(f"  Test R²: {overall['r2']:.4f}")
+        print(f"  Test MSE: {overall['mse']:.10f}")
+        if overall.get('mse_log') is not None:
+            print(f"  Test MSE (log space, all outputs): {overall['mse_log']:.10f}")
+        print(f"  Test RMSE: {overall['rmse']:.10f}")
+        print(f"  Test MAE: {overall['mae']:.10f}")
+        print(f"  Test R²: {overall['r2']:.6f}")
         if flux_mode == 'bin' and target == 'flux':
-            print(f"  Test RMSE%: {overall['mape']:.2f}%")
+            print(f"  Test RMSE%: {overall['mape']:.8f}%")
         else:
-            print(f"  Test MAPE: {overall['mape']:.2f}%")
+            print(f"  Test MAPE: {overall['mape']:.8f}%")
 
         metrics = {'overall': overall}
+        metrics.update(overall)  # Flat access for backward compatibility with results_manager
 
         # Split test evaluation if boundary provided
         if test_split_run is not None:
@@ -656,10 +715,10 @@ class ModelTrainer:
                 metrics_b = self._compute_metrics_for_subset(y_b, p_b, target)
 
                 print(f"\n  --- Test Set A (random lattice, {metrics_a['n_samples']} samples) ---")
-                print(f"  MSE: {metrics_a['mse']:.6f}  R²: {metrics_a['r2']:.4f}  MAPE: {metrics_a['mape']:.2f}%")
+                print(f"  MSE: {metrics_a['mse']:.10f}  R²: {metrics_a['r2']:.6f}  MAPE: {metrics_a['mape']:.8f}%")
 
                 print(f"\n  --- Test Set B (self-adjusted, {metrics_b['n_samples']} samples) ---")
-                print(f"  MSE: {metrics_b['mse']:.6f}  R²: {metrics_b['r2']:.4f}  MAPE: {metrics_b['mape']:.2f}%")
+                print(f"  MSE: {metrics_b['mse']:.10f}  R²: {metrics_b['r2']:.6f}  MAPE: {metrics_b['mape']:.8f}%")
 
                 # Per-fill-type breakdown for each test set
                 fill_types = ['4G', '3G1P', '3G1B', '2G2P', '2G2B', '2G1P1B']
@@ -679,9 +738,9 @@ class ModelTrainer:
                                 ft_metrics = self._compute_metrics_for_subset(
                                     y_set[mask], p_set[mask], target)
                                 set_metrics[ft] = ft_metrics
-                                print(f"    {ft:>7s}: MSE={ft_metrics['mse']:.6f}  "
-                                      f"R²={ft_metrics['r2']:.4f}  "
-                                      f"MAPE={ft_metrics['mape']:.2f}%  "
+                                print(f"    {ft:>7s}: MSE={ft_metrics['mse']:.10f}  "
+                                      f"R²={ft_metrics['r2']:.6f}  "
+                                      f"MAPE={ft_metrics['mape']:.8f}%  "
                                       f"(n={ft_metrics['n_samples']})")
                             else:
                                 set_metrics[ft] = {'mse': None, 'r2': None, 'mape': None, 'n_samples': 0}
@@ -703,7 +762,7 @@ class ModelTrainer:
         overall = self._compute_metrics_for_subset(y_test, predictions, target)
 
         print(f"\n  --- Test Set C (random cores, {overall['n_samples']} samples) ---")
-        print(f"  MSE: {overall['mse']:.6f}  R²: {overall['r2']:.4f}  MAPE: {overall['mape']:.2f}%")
+        print(f"  MSE: {overall['mse']:.10f}  R²: {overall['r2']:.6f}  MAPE: {overall['mape']:.8f}%")
 
         set_metrics = {'overall': overall}
 
@@ -716,14 +775,280 @@ class ModelTrainer:
                     ft_metrics = self._compute_metrics_for_subset(
                         y_test[mask], predictions[mask], target)
                     set_metrics[ft] = ft_metrics
-                    print(f"    {ft:>7s}: MSE={ft_metrics['mse']:.6f}  "
-                          f"R²={ft_metrics['r2']:.4f}  "
-                          f"MAPE={ft_metrics['mape']:.2f}%  "
+                    print(f"    {ft:>7s}: MSE={ft_metrics['mse']:.10f}  "
+                          f"R²={ft_metrics['r2']:.6f}  "
+                          f"MAPE={ft_metrics['mape']:.8f}%  "
                           f"(n={ft_metrics['n_samples']})")
                 else:
                     set_metrics[ft] = {'mse': None, 'r2': None, 'mape': None, 'n_samples': 0}
 
         return set_metrics
+
+    def _train_nn_ray_thesis(
+        self,
+        data_splits,
+        config,
+        encoding,
+        model_type,
+        target,
+        X_train,
+        y_train,
+        y_test,
+        X_test,
+        groups_train,
+        lattices_train,
+        flux_mode,
+        irradiation_mode,
+        nci_mode,
+        optimize_lambda,
+        optimization_start,
+        nn_cfg,
+    ):
+        """Thesis NN configs 1–5 with joint Ray Tune + lambda (``energy_sixteen`` flux only).
+
+        When ``config.flux_group`` is set (0–3) and the config is multi-study
+        (2, 3, 5), only that single flux-group HPO is executed.  The resulting
+        submodel(s) are persisted to a deterministic path under
+        ``config.models_dir`` and the method returns early (no composite
+        assembly, no evaluation).
+        """
+        from ML_models.encodings.encoding_methods import NCI_DISTANCE_CUTOFF
+        from neural_net_configs.composite import NeuralNetCompositeThesis
+        from neural_net_configs.data_pipeline import (
+            prepare_xy_after_lambda,
+            slice_y_for_flux_group,
+            slice_y_single_target,
+        )
+        from utils.lambda_feature_regenerator import LambdaFeatureRegenerator
+
+        nci_disabled = (NCI_DISTANCE_CUTOFF == 2)
+        n_trials = config.n_trials if hasattr(config, 'n_trials') else 100
+        n_gpus = config.n_gpus if hasattr(config, 'n_gpus') else 1
+        flux_group = getattr(config, 'flux_group', None)
+        models_dir = getattr(config, 'models_dir', 'outputs/models')
+
+        def run_one_ray_tune(flux_group_index=None, y_override=None):
+            yt = y_override if y_override is not None else y_train
+            return optimize_neural_net_raytune(
+                X_train,
+                yt,
+                groups=groups_train,
+                n_trials=n_trials,
+                n_gpus=n_gpus,
+                target_type='flux',
+                use_log_flux=self.data_handler.use_log_flux,
+                encoding=encoding,
+                lattices_train=lattices_train,
+                irradiation_mode=irradiation_mode,
+                nci_mode=nci_mode,
+                nci_disabled=nci_disabled,
+                nn_config=nn_cfg,
+                flux_mode=flux_mode,
+                optimize_lambda=optimize_lambda,
+                flux_group_index=flux_group_index,
+                score_metric='mse_log',
+            )
+
+        def apply_lambdas_to_matrices(best_lambdas, mutate_splits=True):
+            """Regenerate X from λ. If ``mutate_splits`` is True, update test matrices in ``data_splits``."""
+            if not best_lambdas or not optimize_lambda:
+                return X_train, X_test
+            fr = LambdaFeatureRegenerator(encoding)
+            fd = fr.separate_features(X_train, lattices_train, irradiation_mode, nci_mode)
+            Xt = fr.regenerate_features(fd, **best_lambdas)
+            Xte = X_test
+            if X_test is not None and len(X_test) > 0:
+                lt = data_splits.get('lattices_test', None)
+                if lt is not None:
+                    fd_te = fr.separate_features(X_test, lt, irradiation_mode, nci_mode)
+                    Xte = fr.regenerate_features(fd_te, **best_lambdas)
+            if mutate_splits:
+                if Xte is not None and len(Xte) > 0:
+                    data_splits['X_test'] = Xte
+                ltc = data_splits.get('lattices_test_c', None)
+                Xtc = data_splits.get('X_test_c', None)
+                if Xtc is not None and len(Xtc) > 0 and ltc is not None:
+                    fd_c = fr.separate_features(Xtc, ltc, irradiation_mode, nci_mode)
+                    data_splits['X_test_c'] = fr.regenerate_features(
+                        fd_c, **best_lambdas)
+            return Xt, Xte
+
+        def strip_lambda(bp):
+            names = ['lambda_P', 'lambda_B', 'lambda_G', 'lambda_decay']
+            lam = {k: bp[k] for k in names if k in bp}
+            mp = {k: v for k, v in bp.items() if k not in names}
+            return lam, mp
+
+        def fit_nn(mp, Xt, yt, gr, use_rest, nn_c, lambdas_for_eval=None):
+            m = NeuralNetReactorModel(
+                nn_config=nn_c,
+                use_restructured=use_rest,
+                irradiation_mode=irradiation_mode,
+                nci_mode=nci_mode,
+                nci_disabled=nci_disabled,
+                **mp,
+            )
+            m.set_flux_mode('energy_sixteen')
+            m.fit_flux(Xt, yt, groups=gr)
+            m.regen_lambdas_ = lambdas_for_eval
+            return m
+
+        def _save_submodel(model, tag):
+            """Save a submodel with a deterministic name under *models_dir*."""
+            os.makedirs(models_dir, exist_ok=True)
+            path = os.path.join(models_dir, f'nn_config{nn_cfg}_{tag}_submodel.pkl')
+            model.save_model(
+                filepath=path,
+                model_type='flux',
+                encoding=encoding,
+                optimization_method='raytune',
+                flux_scale=1.0,
+                use_log_flux=self.data_handler.use_log_flux,
+                flux_mode='energy_sixteen',
+                irradiation_mode=irradiation_mode,
+                nci_mode=nci_mode,
+            )
+            print(f"  Submodel saved → {path}")
+            return path
+
+        # ── single-group mode for configs 2, 3, 5 ──────────────────────
+        if nn_cfg in (2, 3, 5) and flux_group is not None:
+            g = flux_group
+            print(f"\n{'='*60}")
+            print(f"Single-HPO mode: nn_config={nn_cfg}, flux_group={g}")
+            print(f"{'='*60}")
+
+            if nn_cfg == 2:
+                best_params, _ = run_one_ray_tune(flux_group_index=g)
+                lam, mp = strip_lambda(best_params)
+                Xt, _ = apply_lambdas_to_matrices(lam, mutate_splits=False)
+                y_sub = slice_y_for_flux_group(y_train, g)
+                sub = fit_nn(mp, Xt, y_sub, groups_train, False, 2, lam if lam else None)
+                _save_submodel(sub, f'group{g}')
+
+            elif nn_cfg == 5:
+                best_params, _ = run_one_ray_tune(flux_group_index=g)
+                lam, mp = strip_lambda(best_params)
+                Xt, _ = apply_lambdas_to_matrices(lam, mutate_splits=False)
+                Xt, y1, gr = prepare_xy_after_lambda(
+                    Xt, y_train, groups_train, 5, irradiation_mode, nci_mode,
+                    nci_disabled, flux_group_index=g,
+                )
+                sub = fit_nn(mp, Xt, y1, gr, True, 5, lam if lam else None)
+                _save_submodel(sub, f'group{g}')
+
+            else:  # nn_cfg == 3
+                best_params, _ = run_one_ray_tune(
+                    y_override=slice_y_single_target(y_train, 0, g))
+                lam, mp = strip_lambda(best_params)
+                Xt, _ = apply_lambdas_to_matrices(lam, mutate_splits=False)
+                for pos in range(4):
+                    y_col = slice_y_single_target(y_train, pos, g)
+                    sub = fit_nn(mp, Xt, y_col, groups_train, False, 3, lam if lam else None)
+                    _save_submodel(sub, f'group{g}_pos{pos}')
+
+            total_time = time.time() - optimization_start
+            print(f"\n Submodel(s) saved.  Time: {total_time/60:.1f} min")
+            print("Run assemble_composite.py after all groups finish to build & evaluate.")
+            return None, {}, {'nn_config': nn_cfg, 'flux_group': g}
+
+        # ── full-run mode (all groups in one process) ───────────────────
+        best_cv_score = None
+        submodels = []
+        all_best = {}
+
+        if nn_cfg in (1, 4):
+            best_params, analysis = run_one_ray_tune()
+            if analysis is not None:
+                bt = analysis.get_best_trial(metric='score', mode='min')
+                if bt is not None and bt.last_result:
+                    best_cv_score = bt.last_result.get('score')
+            lam, mp = strip_lambda(best_params)
+            Xt, _ = apply_lambdas_to_matrices(lam, mutate_splits=True)
+            y_tr = y_train
+            gr = groups_train
+            use_rest = nn_cfg == 4
+            if use_rest:
+                Xt, y_tr, gr = prepare_xy_after_lambda(
+                    Xt, y_train, groups_train, 4, irradiation_mode, nci_mode, nci_disabled
+                )
+            model = fit_nn(mp, Xt, y_tr, gr, use_rest, nn_cfg, lam if lam else None)
+            all_best = best_params
+
+        elif nn_cfg == 2:
+            for g in range(4):
+                best_params, analysis = run_one_ray_tune(flux_group_index=g)
+                lam, mp = strip_lambda(best_params)
+                Xt, _ = apply_lambdas_to_matrices(lam, mutate_splits=False)
+                y_sub = slice_y_for_flux_group(y_train, g)
+                submodels.append(
+                    fit_nn(mp, Xt, y_sub, groups_train, False, 2, lam if lam else None))
+            model = NeuralNetCompositeThesis(
+                2, submodels, encoding, irradiation_mode, nci_mode, nci_disabled,
+                optimize_lambda=optimize_lambda,
+            )
+            model.set_flux_mode('energy_sixteen')
+
+        elif nn_cfg == 5:
+            for g in range(4):
+                best_params, _ = run_one_ray_tune(flux_group_index=g)
+                lam, mp = strip_lambda(best_params)
+                Xt, _ = apply_lambdas_to_matrices(lam, mutate_splits=False)
+                Xt, y1, gr = prepare_xy_after_lambda(
+                    Xt, y_train, groups_train, 5, irradiation_mode, nci_mode,
+                    nci_disabled, flux_group_index=g,
+                )
+                submodels.append(
+                    fit_nn(mp, Xt, y1, gr, True, 5, lam if lam else None))
+            model = NeuralNetCompositeThesis(
+                5, submodels, encoding, irradiation_mode, nci_mode, nci_disabled,
+                optimize_lambda=optimize_lambda,
+            )
+            model.set_flux_mode('energy_sixteen')
+
+        else:
+            # nn_cfg == 3: sixteen independent single-output nets
+            # Thesis HPO: 4 runs grouped by flux type — all 4 position
+            # networks within the same flux group share hyperparameters.
+            for g in range(4):
+                best_params, _ = run_one_ray_tune(
+                    y_override=slice_y_single_target(y_train, 0, g))
+                lam, mp = strip_lambda(best_params)
+                Xt, _ = apply_lambdas_to_matrices(lam, mutate_splits=False)
+                for pos in range(4):
+                    y_col = slice_y_single_target(y_train, pos, g)
+                    submodels.append(
+                        fit_nn(mp, Xt, y_col, groups_train, False, 3, lam if lam else None))
+            model = NeuralNetCompositeThesis(
+                3, submodels, encoding, irradiation_mode, nci_mode, nci_disabled,
+                optimize_lambda=optimize_lambda,
+            )
+            model.set_flux_mode('energy_sixteen')
+
+        X_test_eval = data_splits.get('X_test', X_test)
+        metrics = {}
+        if X_test_eval is not None and len(X_test_eval) > 0:
+            fill_categories_test = data_splits.get('fill_categories_test', None)
+            test_split_run = data_splits.get('test_split_run', None)
+            if isinstance(model, NeuralNetCompositeThesis):
+                model._lattices_eval = data_splits.get('lattices_test', None)
+            metrics = self._evaluate_model(
+                model, X_test_eval, y_test, target,
+                fill_categories=fill_categories_test,
+                test_split_run=test_split_run)
+            X_test_c = data_splits.get('X_test_c', None)
+            if X_test_c is not None and len(X_test_c) > 0:
+                y_tc = data_splits.get('y_flux_test_c', None)
+                fc_tc = data_splits.get('fill_categories_test_c', None)
+                if isinstance(model, NeuralNetCompositeThesis):
+                    model._lattices_eval = data_splits.get('lattices_test_c', None)
+                metrics['test_set_c'] = self._evaluate_test_set_c(
+                    model, X_test_c, y_tc, target, fill_categories=fc_tc)
+
+        total_time = time.time() - optimization_start
+        print(f"\n Total time for neural_net thesis nn_config={nn_cfg}: {total_time/60:.1f} minutes")
+
+        return model, metrics, all_best if nn_cfg in (1, 4) else {'nn_config': nn_cfg}
 
     def save_model(self, model, filepath, metadata, model_type, target, encoding, optimization):
         """Save model with correct flux transform metadata"""

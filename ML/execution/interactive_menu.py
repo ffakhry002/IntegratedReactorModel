@@ -125,29 +125,34 @@ class InteractiveTrainer:
             flux_modes = [
                 ('total', 'Total Flux - Single value per position (current behavior)'),
                 ('energy', 'Energy Flux - Absolute flux for thermal/epithermal/fast'),
+                ('energy_sixteen', '16-channel: total+thermal+epithermal+fast × 4 positions (thesis NN)'),
                 ('bin', 'Energy Bins - Percentage distribution (thermal/epithermal/fast)'),
                 ('thermal_only', 'Thermal Only'),
                 ('epithermal_only', 'Epithermal Only'),
                 ('fast_only', 'Fast Only')
             ]
+            env_flux = os.environ.get('FLUX_MODE', '').strip()
+            if env_flux and any(m[0] == env_flux for m in flux_modes):
+                self.flux_mode = env_flux
+                print(f"Using FLUX_MODE from environment: {self.flux_mode}")
+            else:
+                print("Select flux prediction mode:")
+                for i, (mode, desc) in enumerate(flux_modes, 1):
+                    print(f"  {i}. {desc}")
 
-            print("Select flux prediction mode:")
-            for i, (mode, desc) in enumerate(flux_modes, 1):
-                print(f"  {i}. {desc}")
-
-            while True:
-                choice = input(f"Enter choice (1-6, default: 1): ").strip()
-                if choice == '':
-                    self.flux_mode = 'total'
-                    break
-                try:
-                    idx = int(choice) - 1
-                    if 0 <= idx < len(flux_modes):
-                        self.flux_mode = flux_modes[idx][0]
+                while True:
+                    choice = input(f"Enter choice (1-7, default: 1): ").strip()
+                    if choice == '':
+                        self.flux_mode = 'total'
                         break
-                except ValueError:
-                    pass
-                print("Please enter 1, 2, 3, 4, 5, or 6")
+                    try:
+                        idx = int(choice) - 1
+                        if 0 <= idx < len(flux_modes):
+                            self.flux_mode = flux_modes[idx][0]
+                            break
+                    except ValueError:
+                        pass
+                    print("Please enter a number from 1 to 7")
 
             print(f"\nSelected flux mode: {self.flux_mode}")
             targets.append('flux')
@@ -460,14 +465,53 @@ class InteractiveTrainer:
         self.config.n_gpus = self.get_gpu_settings(self.config.models)
         self.config.trials_per_gpu = self.get_trials_per_gpu(self.config.n_gpus, self.config.optimizations)
 
+        # Thesis NN layout (energy_sixteen + Ray Tune): env NN_CONFIG overrides prompt
+        if (
+            'flux' in self.config.targets
+            and self.flux_mode == 'energy_sixteen'
+            and 'neural_net' in self.config.models
+            and 'raytune' in self.config.optimizations
+        ):
+            nn_env = os.environ.get('NN_CONFIG', '').strip()
+            if nn_env:
+                self.config.nn_config = int(nn_env)
+                print(f"\nNN_CONFIG from environment: {self.config.nn_config} (thesis layout 1–5)")
+            else:
+                raw = input(
+                    "\nThesis NN layout nn_config (1–5, default 1): ").strip()
+                self.config.nn_config = int(raw) if raw else 1
+
+            # For multi-HPO configs (2, 3, 5), ask which flux group to run
+            if self.config.nn_config in (2, 3, 5):
+                fg_env = os.environ.get('FLUX_GROUP', '').strip()
+                if fg_env:
+                    self.config.flux_group = int(fg_env)
+                    print(f"FLUX_GROUP from environment: {self.config.flux_group} "
+                          f"(0=total, 1=thermal, 2=epithermal, 3=fast)")
+                else:
+                    fg_labels = ['0 — total', '1 — thermal', '2 — epithermal', '3 — fast']
+                    print("\nThis config requires one HPO per flux group.")
+                    print("Which flux group to run?")
+                    for lbl in fg_labels:
+                        print(f"  {lbl}")
+                    fg_raw = input("FLUX_GROUP (0–3): ").strip()
+                    self.config.flux_group = int(fg_raw)
+                if not (0 <= self.config.flux_group <= 3):
+                    raise ValueError(f"FLUX_GROUP must be 0–3, got {self.config.flux_group}")
+
         # Data file selection
         print("\n" + "-"*40)
         print("DATA FILE SELECTION")
         print("-"*40)
 
-        data_file = input("Path to training data (default: data/train.txt): ").strip()
-        if not data_file:
-            data_file = 'data/train.txt'
+        train_env = os.environ.get('TRAIN_FILE', '').strip()
+        if train_env:
+            data_file = train_env
+            print(f"Using TRAIN_FILE from environment: {data_file}")
+        else:
+            data_file = input("Path to training data (default: data/train.txt): ").strip()
+            if not data_file:
+                data_file = 'data/train.txt'
 
         test_data_file = input("Path to test data for final evaluation (default: data/test.txt, 'none' to skip): ").strip()
         if not test_data_file:
@@ -506,6 +550,11 @@ class InteractiveTrainer:
                 print(f"  GPUs: {self.config.n_gpus}")
             if hasattr(self.config, 'trials_per_gpu'):
                 print(f"  Trials per GPU: {self.config.trials_per_gpu}")
+        if getattr(self.config, 'nn_config', None) is not None:
+            print(f"Thesis nn_config: {self.config.nn_config}")
+            if getattr(self.config, 'flux_group', None) is not None:
+                fg_names = ['total', 'thermal', 'epithermal', 'fast']
+                print(f"  Flux group: {self.config.flux_group} ({fg_names[self.config.flux_group]})")
         if 'three_stage_neural_net' in self.config.optimizations:
             print(f"Three-Stage Neural Net:")
             print(f"  Random search: {self.config.random_iter} iterations")
@@ -681,6 +730,11 @@ class InteractiveTrainer:
                             data_splits['y_flux_test_c'] = y_flux_tc
                             data_splits['y_keff_test_c'] = y_keff_tc
                             if lattices_tc is not None:
+                                if len(lattices_tc) != X_tc.shape[0]:
+                                    raise ValueError(
+                                        f"Test Set C: len(lattices)={len(lattices_tc)} != "
+                                        f"X_tc rows={X_tc.shape[0]} (check data_handler / test_c file)"
+                                    )
                                 data_splits['lattices_test_c'] = lattices_tc
                             if fc_tc is not None:
                                 data_splits['fill_categories_test_c'] = fc_tc
@@ -695,6 +749,8 @@ class InteractiveTrainer:
                             })
 
                         all_results['training_info'][f'{encoding}_features'] = X.shape[1]
+
+                        self.config.models_dir = self.models_dir
 
                         for model_type in self.config.models:
                             job_counter += 1
@@ -726,34 +782,37 @@ class InteractiveTrainer:
                                 'flux_mode': self.flux_mode if target == 'flux' else None  # NEW
                             }
 
-                            # Save model with all identifiers in filename
-                            if target == 'flux' and self.flux_mode != 'total':
-                                # Include flux mode in filename for non-total modes
-                                model_path = os.path.join(self.models_dir,
-                                    f'{model_type}_{target}_{self.flux_mode}_{encoding}_{optimization}.pkl')
+                            if model is None:
+                                # Single-group submodel run — already saved inside the trainer
+                                print("Submodel saved by trainer (single flux-group mode).")
                             else:
-                                model_path = os.path.join(self.models_dir,
-                                    f'{model_type}_{target}_{encoding}_{optimization}.pkl')
+                                # Save model with all identifiers in filename
+                                if target == 'flux' and self.flux_mode != 'total':
+                                    model_path = os.path.join(self.models_dir,
+                                        f'{model_type}_{target}_{self.flux_mode}_{encoding}_{optimization}.pkl')
+                                else:
+                                    model_path = os.path.join(self.models_dir,
+                                        f'{model_type}_{target}_{encoding}_{optimization}.pkl')
 
-                            # Extract optimized lambda values (if any) for saving
-                            lambda_keys = ['lambda_P', 'lambda_B', 'lambda_G', 'lambda_decay']
-                            optimized_lambdas = {k: best_params[k] for k in lambda_keys if k in best_params}
+                                # Extract optimized lambda values (if any) for saving
+                                lambda_keys = ['lambda_P', 'lambda_B', 'lambda_G', 'lambda_decay']
+                                optimized_lambdas = {k: best_params[k] for k in lambda_keys if k in best_params}
 
-                            metadata = {
-                                'params': best_params,
-                                'metrics': metrics,
-                                'model_class': model_type,
-                                'optimized_lambdas': optimized_lambdas if optimized_lambdas else None
-                            }
-                            self.model_trainer.save_model(
-                                model,
-                                model_path,
-                                metadata,
-                                model_type,     # model type (xgboost, random_forest, etc.)
-                                target,         # target (flux or keff)
-                                encoding,       # encoding method
-                                optimization    # optimization method
-                            )
+                                metadata = {
+                                    'params': best_params,
+                                    'metrics': metrics,
+                                    'model_class': model_type,
+                                    'optimized_lambdas': optimized_lambdas if optimized_lambdas else None
+                                }
+                                self.model_trainer.save_model(
+                                    model,
+                                    model_path,
+                                    metadata,
+                                    model_type,
+                                    target,
+                                    encoding,
+                                    optimization
+                                )
 
             # Save all results
             end_time = datetime.now()
