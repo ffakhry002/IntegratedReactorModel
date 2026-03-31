@@ -1,10 +1,10 @@
 #!/bin/bash
-#SBATCH --partition=general
+#SBATCH --partition=gpu
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --wckey=edu_class
-#SBATCH --cpus-per-task=32
-#SBATCH --gres=gpu:a100:3
+#SBATCH --cpus-per-task=48
+#SBATCH --gres=gpu:v100:4
 #SBATCH --mem=0
 #SBATCH --exclusive
 #SBATCH --time=06-23:59:59
@@ -13,6 +13,7 @@
 
 # ──────────────────────────────────────────────────────────────────────
 # SLURM batch script for thesis Neural Network + Ray Tune HPO jobs.
+# *** SAWTOOTH cluster (V100 GPUs, CUDA 12.x, 48 CPUs) ***
 #
 # Runs ONE HPO study for the specified NN_CONFIG and (optionally)
 # FLUX_GROUP.  For multi-network configs (2, 3, 5), submit one job per
@@ -26,7 +27,7 @@
 #   FLUX_GROUP           0–3 (required for configs 2/3/5 single-HPO mode)
 #   TRAIN_FILE           Training data path (default: data/train.txt)
 #   N_TRIALS             Ray Tune trials  (default: 100)
-#   N_GPUS               GPUs to use      (default: 3, must match --gres)
+#   N_GPUS               GPUs to use      (default: 4, must match --gres)
 #   TEST_C_FILE          Test Set C file  (default: data/test_c.txt)
 # ──────────────────────────────────────────────────────────────────────
 
@@ -37,6 +38,7 @@ echo "========================================================"
 echo "Job started at: $(date)"
 echo "Job ID:         $SLURM_JOB_ID"
 echo "Node(s):        $(hostname)"
+echo "Cluster:        SAWTOOTH (V100)"
 echo "NN_CONFIG:      $NN_CONFIG"
 echo "NCI_CUTOFF:     $NCI_DISTANCE_CUTOFF"
 if [ -n "$FLUX_GROUP" ]; then
@@ -44,14 +46,14 @@ if [ -n "$FLUX_GROUP" ]; then
 fi
 echo "Trials:         ${N_TRIALS:-100}"
 echo "Train file:     ${TRAIN_FILE:-data/train.txt}"
-echo "GPUs:           ${N_GPUS:-3}"
+echo "GPUs:           ${N_GPUS:-4}"
 echo "========================================================"
 
 cd $SLURM_SUBMIT_DIR
 
 # ── CUDA ────────────────────────────────────────────────────────────
 module purge
-module load cuda/11.8.0-gcc-11.5.0-hfmv
+module load cuda/12.9.1-er7a
 
 echo "CUDA loaded:"
 nvcc --version
@@ -74,12 +76,16 @@ export PYTORCH_NUM_THREADS=1
 export OMP_PROC_BIND=false
 export OMP_PLACES=threads
 
-NTHREADS=${SLURM_CPUS_PER_TASK:-32}
+# Disable PyTorch dynamo/JIT compiler — avoids 'skip_code' import crash
+# in PyTorch 2.5.x on certain CUDA driver combinations.
+export TORCHDYNAMO_DISABLE=1
+
+NTHREADS=${SLURM_CPUS_PER_TASK:-48}
 
 # ── PyTorch CUDA verification ──────────────────────────────────────
 # NOTE: If PyTorch CUDA version is wrong, fix it on the LOGIN NODE
-# (compute nodes have no internet):
-#   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+# (compute nodes may not have internet):
+#   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 echo "========================================================"
 echo "Checking PyTorch installation..."
 echo "========================================================"
@@ -87,9 +93,10 @@ echo "========================================================"
 TORCH_CUDA_VERSION=$(python -c "import torch; print(torch.version.cuda)" 2>/dev/null || echo "NONE")
 echo "PyTorch CUDA version: $TORCH_CUDA_VERSION"
 
-if [ "$TORCH_CUDA_VERSION" != "11.8" ]; then
-    echo "WARNING: PyTorch CUDA version mismatch (found: $TORCH_CUDA_VERSION, need: 11.8)"
-    echo "Fix this on the login node before resubmitting."
+if [ "$TORCH_CUDA_VERSION" != "12.1" ] && [ "$TORCH_CUDA_VERSION" != "12.4" ]; then
+    echo "WARNING: PyTorch CUDA version mismatch (found: $TORCH_CUDA_VERSION, need: 12.x)"
+    echo "Fix this on the login node before resubmitting:"
+    echo "  pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121"
 fi
 
 ray stop --force 2>/dev/null || true
@@ -113,64 +120,61 @@ echo "GPU Info:"
 nvidia-smi
 
 # ── Config exports (read by interactive_menu.py) ───────────────────
+TARGET=${TARGET:-flux}
 export NCI_DISTANCE_CUTOFF=${NCI_DISTANCE_CUTOFF}
-export FLUX_MODE=energy_sixteen
-export NN_CONFIG=${NN_CONFIG}
-export FLUX_GROUP=${FLUX_GROUP:-}
 export TRAIN_FILE=${TRAIN_FILE:-data/train.txt}
 export TEST_C_FILE=${TEST_C_FILE:-data/test_c.txt}
-export FLUX_LOSS=mse
 
 cd /home/fakhfari/IntegratedReactorModel/ML/
 
-N_GPUS=${N_GPUS:-3}
+N_GPUS=${N_GPUS:-4}
 
-echo "========================================================"
-echo "Starting NN thesis config ${NN_CONFIG} with Ray Tune..."
-echo "  GPUs: ${N_GPUS}  |  CPUs: ${NTHREADS}  |  Trials: ${N_TRIALS:-100}"
-if [ -n "$FLUX_GROUP" ]; then
-    echo "  Flux group: ${FLUX_GROUP} (single-HPO mode)"
-fi
-echo "========================================================"
+if [ "$TARGET" = "keff" ]; then
+    echo "========================================================"
+    echo "Starting NN keff with Ray Tune..."
+    echo "  GPUs: ${N_GPUS}  |  CPUs: ${NTHREADS}  |  Trials: ${N_TRIALS:-100}"
+    echo "========================================================"
 
-# ──────────────────────────────────────────────────────────────────────
-# Heredoc for the interactive menu (22 inputs).
-#
-# FLUX_MODE, NN_CONFIG, FLUX_GROUP, and TRAIN_FILE are set as env vars
-# so the menu auto-reads them without prompting.
-#
-#  1  Train flux?                    → y
-#     (FLUX_MODE=energy_sixteen from env — no input needed)
-#  2  Train keff?                    → n
-#  3  XGBoost?                       → n
-#  4  Random Forest?                 → n
-#  5  SVM?                           → n
-#  6  Neural Net?                    → y
-#  7  One-Hot encoding?              → n
-#  8  Categorical encoding?          → n
-#  9  Physics encoding?              → y
-# 10  Spatial encoding?              → n
-# 11  Graph encoding?                → n
-# 12  Optuna?                        → n
-# 13  Three-Stage?                   → n
-# 14  Ray Tune?                      → y
-# 15  Three-Stage Neural Net?        → n
-# 16  No optimization?               → n
-#     (position pooling NOT asked — requires xgboost)
-# 17  Ray Tune trials                → N_TRIALS
-# 18  Parallel computing?            → y
-# 19  Number of cores                → NTHREADS
-# 20  Number of GPUs                 → N_GPUS  (asked because >1 GPU)
-#     (NN_CONFIG from env — no input)
-#     (FLUX_GROUP from env — no input)
-#     (TRAIN_FILE from env — no input)
-# 21  Test data path                 → (empty = default data/test.txt)
-# 22  Proceed?                       → y
-#
-# NOTE: Line 20 (GPU count) is only asked when >1 GPU is detected.
-#       If you change --gres to a single GPU, REMOVE line 20.
-# ──────────────────────────────────────────────────────────────────────
-python -u main.py <<EOF
+    python -u main.py <<EOF
+n
+y
+n
+n
+n
+y
+n
+n
+y
+n
+n
+n
+n
+y
+n
+n
+${N_TRIALS:-100}
+y
+${NTHREADS}
+${N_GPUS}
+
+y
+EOF
+
+else
+    export FLUX_MODE=energy_sixteen
+    export NN_CONFIG=${NN_CONFIG}
+    export FLUX_GROUP=${FLUX_GROUP:-}
+    export FLUX_LOSS=mse
+
+    echo "========================================================"
+    echo "Starting NN thesis config ${NN_CONFIG} with Ray Tune..."
+    echo "  GPUs: ${N_GPUS}  |  CPUs: ${NTHREADS}  |  Trials: ${N_TRIALS:-100}"
+    if [ -n "$FLUX_GROUP" ]; then
+        echo "  Flux group: ${FLUX_GROUP} (single-HPO mode)"
+    fi
+    echo "========================================================"
+
+    python -u main.py <<EOF
 y
 n
 n
@@ -194,6 +198,8 @@ ${N_GPUS}
 
 y
 EOF
+
+fi
 
 echo "========================================================"
 echo "Job completed at: $(date)"

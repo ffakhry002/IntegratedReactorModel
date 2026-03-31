@@ -5,19 +5,14 @@ Clean, efficient multi-GPU support with proper GroupKFold integration
 
 import os
 import numpy as np
-import pandas as pd
-import matplotlib
-matplotlib.use('Agg')  # Non-interactive backend for cluster
-import matplotlib.pyplot as plt
 from ray import tune
 from ray.tune import CLIReporter
 from ray.tune.schedulers import ASHAScheduler
 from ray.tune.search.optuna import OptunaSearch
 from ray.tune.execution.placement_groups import PlacementGroupFactory
 from optuna.samplers import TPESampler
-import optuna
-from sklearn.model_selection import GroupKFold, cross_val_score
-from sklearn.metrics import make_scorer, mean_squared_error
+from sklearn.model_selection import GroupKFold
+from sklearn.metrics import mean_squared_error
 import torch
 import pickle
 import ray
@@ -361,16 +356,22 @@ def optimize_neural_net_raytune(
     print(f"Resources: {n_gpus} GPUs available")
     print(f"Search strategy: {n_startup} random trials, then intelligent TPE")
 
+    # Detect available CPUs (SLURM-aware)
+    total_cpus = int(os.environ.get('SLURM_CPUS_PER_TASK',
+                     os.environ.get('SLURM_CPUS_ON_NODE', os.cpu_count() or 32)))
+    max_concurrent = total_cpus  # 1 CPU per trial → concurrency = #CPUs
+    gpu_fraction = n_gpus / max_concurrent  # spread GPUs evenly across trials
+
     # Initialize Ray explicitly to ensure proper resource allocation
     if not ray.is_initialized():
         ray.init(
-            num_cpus=32,
+            num_cpus=total_cpus,
             num_gpus=n_gpus,
             ignore_reinit_error=True,
-            object_store_memory=50*1024*1024*1024,  # 50 GB object store
-            _memory=500*1024*1024*1024,  # Reserve 500 GB for workers
+            object_store_memory=50*1024*1024*1024,
+            _memory=500*1024*1024*1024,
             _system_config={
-                "automatic_object_spilling_enabled": True,  # Spill to disk if RAM full
+                "automatic_object_spilling_enabled": True,
                 "object_spilling_config": json.dumps({
                     "type": "filesystem",
                     "params": {"directory_path": "/tmp/ray_spill"}
@@ -380,17 +381,16 @@ def optimize_neural_net_raytune(
 
     _ensure_object_refs()
 
-    # Solution 3: Use PlacementGroupFactory for fractional resource allocation
-    # This allows Ray Tune to properly pack multiple trials on same GPU
     resources_per_trial = PlacementGroupFactory([
-        {"CPU": 1, "GPU": 3/32}  # 1 CPU, 3/32 GPU per trial
+        {"CPU": 1, "GPU": gpu_fraction}
     ])
 
     print(f"\nResource Allocation (PlacementGroupFactory):")
+    print(f"  CPUs available: {total_cpus}")
     print(f"  CPU per trial: 1.0")
-    print(f"  GPU per trial: {3/32:.5f} (3/32)")
-    print(f"  Expected trials per GPU: ~{int(32/3)} trials")
-    print(f"  Max concurrent trials: 32")
+    print(f"  GPU per trial: {gpu_fraction:.5f} ({n_gpus}/{max_concurrent})")
+    print(f"  Trials per GPU: ~{int(max_concurrent / n_gpus)}")
+    print(f"  Max concurrent trials: {max_concurrent}")
     print(f"  Memory management: Enabled (GC + CUDA cache clearing after each fold)")
     print(f"  Object store spilling: Enabled → /tmp/ray_spill\n")
 
@@ -401,8 +401,8 @@ def optimize_neural_net_raytune(
         scheduler=scheduler,
         search_alg=search_alg,
         progress_reporter=reporter,
-        resources_per_trial=resources_per_trial,  # Use PlacementGroupFactory
-        max_concurrent_trials=32,
+        resources_per_trial=resources_per_trial,
+        max_concurrent_trials=max_concurrent,
         metric="score",      # Needed for analysis.best_trial
         mode="min",          # Needed for analysis.best_trial
         raise_on_failed_trial=False,
@@ -471,16 +471,12 @@ def optimize_neural_net_raytune(
 
 
 def _save_raytune_results(analysis, target_type, n_gpus, encoding='physics'):
-    """Save Ray Tune results and create visualizations (similar to Optuna)"""
+    """Save Ray Tune analysis pickle (no visualizations)."""
 
-    # Create separate directory for each target type
     base_dir = os.path.dirname(os.path.dirname(__file__))
     outputs_dir = os.path.join(base_dir, 'outputs', 'raytune_results', target_type)
-    plots_dir = os.path.join(outputs_dir, 'plots')
     os.makedirs(outputs_dir, exist_ok=True)
-    os.makedirs(plots_dir, exist_ok=True)
 
-    # Save analysis object
     try:
         results_file = f"raytune_{target_type}_ngpus{n_gpus}_analysis.pkl"
         results_path = os.path.join(outputs_dir, results_file)
@@ -490,203 +486,4 @@ def _save_raytune_results(analysis, target_type, n_gpus, encoding='physics'):
     except Exception as e:
         print(f"Could not save results: {e}")
 
-    # Try to get underlying Optuna study for native Optuna visualizations
-    try:
-        if hasattr(analysis, 'search_alg') and hasattr(analysis.search_alg, '_ot_study'):
-            optuna_study = analysis.search_alg._ot_study
-
-            # Save Optuna study to CONSISTENT location (same as other models)
-            optuna_studies_dir = os.path.join(base_dir, 'outputs', 'optuna_studies')
-            os.makedirs(optuna_studies_dir, exist_ok=True)
-
-            # Use consistent naming: neural_net_raytune_{target}_{encoding}_study.pkl
-            study_filename = f"neural_net_raytune_{target_type}_{encoding}_study.pkl"
-            study_path = os.path.join(optuna_studies_dir, study_filename)
-
-            import joblib
-            joblib.dump(optuna_study, study_path)
-            print(f"\nOptuna study saved to: {study_path}")
-            print(f"You can load it later for visualization using:")
-            print(f"  study = joblib.load('{study_path}')")
-
-            # Create Optuna-style plots
-            _create_optuna_plots(optuna_study, plots_dir, target_type)
-        else:
-            print("  Optuna study not accessible (using non-Optuna search)")
-    except Exception as e:
-        print(f"  Could not save Optuna study or create Optuna plots: {e}")
-
-    # Convert to DataFrame for visualization
-    df = analysis.dataframe()
-
-    # 1. Convergence Plot
-    try:
-        plt.figure(figsize=(10, 6))
-        plt.plot(df['score'].values, marker='o', alpha=0.6, markersize=4)
-        plt.xlabel('Trial Number', fontsize=12)
-        plt.ylabel(f'Score ({"MAPE %" if target_type == "flux" else "MSE"})', fontsize=12)
-        plt.title(f'Ray Tune Optimization Convergence - {target_type.upper()}', fontsize=14)
-        plt.grid(True, alpha=0.3)
-        plt.tight_layout()
-        plt.savefig(os.path.join(plots_dir, f'convergence_{target_type}.png'), dpi=150)
-        plt.close()
-        print(f"  Saved: convergence_{target_type}.png")
-    except Exception as e:
-        print(f"  Could not create convergence plot: {e}")
-
-    # 2. Best Score Progress
-    try:
-        best_so_far = []
-        current_best = float('inf')
-        for score in df['score'].values:
-            if score < current_best:
-                current_best = score
-            best_so_far.append(current_best)
-
-        plt.figure(figsize=(10, 6))
-        plt.plot(best_so_far, linewidth=2, color='#2E86AB')
-        plt.xlabel('Trial Number', fontsize=12)
-        plt.ylabel(f'Best Score So Far', fontsize=12)
-        plt.title(f'Best Score Progress - {target_type.upper()}', fontsize=14)
-        plt.grid(True, alpha=0.3)
-        plt.tight_layout()
-        plt.savefig(os.path.join(plots_dir, f'best_progress_{target_type}.png'), dpi=150)
-        plt.close()
-        print(f"  Saved: best_progress_{target_type}.png")
-    except Exception as e:
-        print(f"  Could not create progress plot: {e}")
-
-    # 3. Parameter Importance (scatter plots)
-    try:
-        params_to_plot = ['depth', 'width', 'learning_rate', 'weight_decay', 'dropout_rate']
-        fig, axes = plt.subplots(2, 3, figsize=(15, 10))
-        axes = axes.flatten()
-
-        for i, param in enumerate(params_to_plot):
-            if param in df.columns:
-                axes[i].scatter(df[param], df['score'], alpha=0.5, s=20)
-                axes[i].set_xlabel(param, fontsize=10)
-                axes[i].set_ylabel('Score', fontsize=10)
-                axes[i].set_title(f'{param} vs Score', fontsize=11)
-                axes[i].grid(True, alpha=0.3)
-
-        # Hide unused subplot
-        axes[5].axis('off')
-
-        plt.tight_layout()
-        plt.savefig(os.path.join(plots_dir, f'parameter_importance_{target_type}.png'), dpi=150)
-        plt.close()
-        print(f"  Saved: parameter_importance_{target_type}.png")
-    except Exception as e:
-        print(f"  Could not create parameter importance plot: {e}")
-
-    # 4. Categorical Parameter Performance
-    try:
-        fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-
-        # Activation
-        if 'activation' in df.columns:
-            activation_scores = df.groupby('activation')['score'].mean().sort_values()
-            axes[0].bar(range(len(activation_scores)), activation_scores.values)
-            axes[0].set_xticks(range(len(activation_scores)))
-            axes[0].set_xticklabels(activation_scores.index, rotation=45)
-            axes[0].set_title('Activation Function', fontsize=12)
-            axes[0].set_ylabel('Mean Score', fontsize=10)
-            axes[0].grid(True, alpha=0.3, axis='y')
-
-        # Optimizer
-        if 'optimizer' in df.columns:
-            optimizer_scores = df.groupby('optimizer')['score'].mean().sort_values()
-            axes[1].bar(range(len(optimizer_scores)), optimizer_scores.values)
-            axes[1].set_xticks(range(len(optimizer_scores)))
-            axes[1].set_xticklabels(optimizer_scores.index, rotation=45)
-            axes[1].set_title('Optimizer', fontsize=12)
-            axes[1].set_ylabel('Mean Score', fontsize=10)
-            axes[1].grid(True, alpha=0.3, axis='y')
-
-        # Batch Normalization
-        if 'use_batch_norm' in df.columns:
-            batchnorm_scores = df.groupby('use_batch_norm')['score'].mean()
-            labels = ['False', 'True']
-            axes[2].bar(range(len(batchnorm_scores)), batchnorm_scores.values)
-            axes[2].set_xticks(range(len(batchnorm_scores)))
-            axes[2].set_xticklabels(labels)
-            axes[2].set_title('Batch Normalization', fontsize=12)
-            axes[2].set_ylabel('Mean Score', fontsize=10)
-            axes[2].grid(True, alpha=0.3, axis='y')
-
-        plt.tight_layout()
-        plt.savefig(os.path.join(plots_dir, f'categorical_params_{target_type}.png'), dpi=150)
-        plt.close()
-        print(f"  Saved: categorical_params_{target_type}.png")
-    except Exception as e:
-        print(f"  Could not create categorical params plot: {e}")
-
-    # 5. Save top 10 trials to text file
-    try:
-        top_10 = df.nsmallest(10, 'score')
-        summary_file = os.path.join(outputs_dir, f'top10_{target_type}.txt')
-        with open(summary_file, 'w') as f:
-            f.write(f"Top 10 Hyperparameter Combinations - {target_type.upper()}\n")
-            f.write("="*80 + "\n\n")
-            for rank, (idx, row) in enumerate(top_10.iterrows(), 1):
-                f.write(f"Rank {rank}:\n")
-                f.write(f"  Score: {row['score']:.4f}\n")
-                f.write(f"  depth={row['depth']}, width={row['width']}\n")
-                f.write(f"  learning_rate={row['learning_rate']:.6f}, weight_decay={row['weight_decay']:.6f}\n")
-                f.write(f"  activation={row['activation']}, optimizer={row['optimizer']}\n")
-                f.write(f"  batch_size={row['batch_size']}, dropout={row['dropout_rate']:.3f}\n")
-                f.write(f"  batch_norm={row['use_batch_norm']}\n\n")
-        print(f"  Saved: top10_{target_type}.txt")
-    except Exception as e:
-        print(f"  Could not save top 10 summary: {e}")
-
-    print(f"\nAll Ray Tune results saved to: {outputs_dir}\n")
-
-
-def _create_optuna_plots(study, plots_dir, target_type):
-    """Create Optuna's native visualization plots"""
-
-    print("\nCreating Optuna-style visualizations...")
-
-    # 1. Optimization History
-    try:
-        fig = optuna.visualization.plot_optimization_history(study)
-        fig.write_image(os.path.join(plots_dir, f'optuna_history_{target_type}.png'))
-        print(f"  Saved: optuna_history_{target_type}.png")
-    except Exception as e:
-        print(f"  Could not create optimization history: {e}")
-
-    # 2. Parameter Importances
-    try:
-        fig = optuna.visualization.plot_param_importances(study)
-        fig.write_image(os.path.join(plots_dir, f'optuna_importances_{target_type}.png'))
-        print(f"  Saved: optuna_importances_{target_type}.png")
-    except Exception as e:
-        print(f"  Could not create parameter importances: {e}")
-
-    # 3. Parallel Coordinate Plot
-    try:
-        fig = optuna.visualization.plot_parallel_coordinate(study)
-        fig.write_image(os.path.join(plots_dir, f'optuna_parallel_{target_type}.png'))
-        print(f"  Saved: optuna_parallel_{target_type}.png")
-    except Exception as e:
-        print(f"  Could not create parallel coordinate: {e}")
-
-    # 4. Slice Plot
-    try:
-        fig = optuna.visualization.plot_slice(study)
-        fig.write_image(os.path.join(plots_dir, f'optuna_slice_{target_type}.png'))
-        print(f"  Saved: optuna_slice_{target_type}.png")
-    except Exception as e:
-        print(f"  Could not create slice plot: {e}")
-
-    # 5. Contour Plot (for key parameter pairs)
-    try:
-        fig = optuna.visualization.plot_contour(study, params=['depth', 'width'])
-        fig.write_image(os.path.join(plots_dir, f'optuna_contour_depth_width_{target_type}.png'))
-        print(f"  Saved: optuna_contour_depth_width_{target_type}.png")
-    except Exception as e:
-        print(f"  Could not create contour plot: {e}")
-
-    print("  Optuna visualizations complete!")
+    print(f"All Ray Tune results saved to: {outputs_dir}\n")

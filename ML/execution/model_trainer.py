@@ -223,16 +223,25 @@ class ModelTrainer:
                     n_gpus=config.n_gpus,
                     target_type=target,
                     use_log_flux=self.data_handler.use_log_flux if target == 'flux' else False,
-                    encoding=encoding
+                    encoding=encoding,
+                    lattices_train=lattices_train if optimize_lambda else None,
+                    irradiation_mode=irradiation_mode,
+                    nci_mode=nci_mode,
+                    nci_disabled=(NCI_DISTANCE_CUTOFF == 2),
+                    optimize_lambda=optimize_lambda,
+                    score_metric='mse' if target == 'keff' else 'mse_log',
                 )
                 print(f" Ray Tune complete!")
                 # Capture CV score from Ray Tune
                 if analysis is not None:
-                    best_trial = analysis.best_trial
-                    if best_trial is not None:
-                        best_cv_score = best_trial.last_result.get('mape', None)
+                    bt = analysis.get_best_trial(metric='score', mode='min')
+                    if bt is not None and bt.last_result:
+                        best_cv_score = bt.last_result.get('score')
                         if best_cv_score is not None:
-                            print(f"  Best CV MAPE: {best_cv_score:.2f}%")
+                            if target == 'keff':
+                                print(f"  Best CV MSE: {best_cv_score:.8f}")
+                            else:
+                                print(f"  Best CV score: {best_cv_score:.6f}")
             else:
                 print(f"  Ray Tune only supports neural_net. Using default parameters.")
                 best_params = self._get_default_params(model_type)
@@ -933,7 +942,9 @@ class ModelTrainer:
                 nci_disabled=nci_disabled,
                 **mp,
             )
+            n_out = yt.shape[1] if yt.ndim == 2 else 1
             m.set_flux_mode('energy_sixteen')
+            m._n_flux_outputs = n_out
             m.fit_flux(Xt, yt, groups=gr)
             m.regen_lambdas_ = lambdas_for_eval
             return m
