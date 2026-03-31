@@ -651,6 +651,30 @@ class ModelTrainer:
             out['mse_log'] = mse_log
         return out
 
+    def _per_flux_type_metrics(self, y_true, y_pred, target, indent="  "):
+        """Print and return per-flux-type (total/thermal/epithermal/fast) metrics
+        for energy_sixteen mode.  Each flux type's metric is averaged across the
+        4 irradiation positions.
+
+        Column layout: col = pos*4 + group, group 0=total 1=thermal 2=epi 3=fast.
+        """
+        flux_mode = getattr(self.data_handler, 'flux_mode', 'total')
+        if flux_mode != 'energy_sixteen' or y_true.ndim < 2 or y_true.shape[1] != 16:
+            return {}
+
+        flux_names = ['Total', 'Thermal', 'Epithermal', 'Fast']
+        flux_metrics = {}
+
+        print(f"{indent}Per flux type:")
+        for g, name in enumerate(flux_names):
+            cols = [p * 4 + g for p in range(4)]
+            m = self._compute_metrics_for_subset(y_true[:, cols], y_pred[:, cols], target)
+            flux_metrics[name.lower()] = m
+            print(f"{indent}  {name:>11s}: MSE={m['mse']:.10f}  "
+                  f"R\u00b2={m['r2']:.6f}  MAPE={m['mape']:.8f}%")
+
+        return flux_metrics
+
     def _evaluate_model(self, model, X_test, y_test, target,
                         fill_categories=None, test_split_run=None):
         """Evaluate model performance with optional test-set splitting and per-fill-type breakdown.
@@ -694,6 +718,10 @@ class ModelTrainer:
         else:
             print(f"  Test MAPE: {overall['mape']:.8f}%")
 
+        flux_type_metrics = self._per_flux_type_metrics(y_test, predictions, target)
+        if flux_type_metrics:
+            overall['per_flux_type'] = flux_type_metrics
+
         metrics = {'overall': overall}
         metrics.update(overall)  # Flat access for backward compatibility with results_manager
 
@@ -716,9 +744,15 @@ class ModelTrainer:
 
                 print(f"\n  --- Test Set A (random lattice, {metrics_a['n_samples']} samples) ---")
                 print(f"  MSE: {metrics_a['mse']:.10f}  R²: {metrics_a['r2']:.6f}  MAPE: {metrics_a['mape']:.8f}%")
+                ft_a = self._per_flux_type_metrics(y_a, p_a, target)
+                if ft_a:
+                    metrics_a['per_flux_type'] = ft_a
 
                 print(f"\n  --- Test Set B (self-adjusted, {metrics_b['n_samples']} samples) ---")
                 print(f"  MSE: {metrics_b['mse']:.10f}  R²: {metrics_b['r2']:.6f}  MAPE: {metrics_b['mape']:.8f}%")
+                ft_b = self._per_flux_type_metrics(y_b, p_b, target)
+                if ft_b:
+                    metrics_b['per_flux_type'] = ft_b
 
                 # Per-fill-type breakdown for each test set
                 fill_types = ['4G', '3G1P', '3G1B', '2G2P', '2G2B', '2G1P1B']
@@ -737,9 +771,13 @@ class ModelTrainer:
                             if np.any(mask):
                                 ft_metrics = self._compute_metrics_for_subset(
                                     y_set[mask], p_set[mask], target)
+                                ft_flux = self._per_flux_type_metrics(
+                                    y_set[mask], p_set[mask], target, indent="           ")
+                                if ft_flux:
+                                    ft_metrics['per_flux_type'] = ft_flux
                                 set_metrics[ft] = ft_metrics
                                 print(f"    {ft:>7s}: MSE={ft_metrics['mse']:.10f}  "
-                                      f"R²={ft_metrics['r2']:.6f}  "
+                                      f"R\u00b2={ft_metrics['r2']:.6f}  "
                                       f"MAPE={ft_metrics['mape']:.8f}%  "
                                       f"(n={ft_metrics['n_samples']})")
                             else:
@@ -763,6 +801,9 @@ class ModelTrainer:
 
         print(f"\n  --- Test Set C (random cores, {overall['n_samples']} samples) ---")
         print(f"  MSE: {overall['mse']:.10f}  R²: {overall['r2']:.6f}  MAPE: {overall['mape']:.8f}%")
+        ft_c = self._per_flux_type_metrics(y_test, predictions, target)
+        if ft_c:
+            overall['per_flux_type'] = ft_c
 
         set_metrics = {'overall': overall}
 
@@ -774,9 +815,13 @@ class ModelTrainer:
                 if np.any(mask):
                     ft_metrics = self._compute_metrics_for_subset(
                         y_test[mask], predictions[mask], target)
+                    ft_flux = self._per_flux_type_metrics(
+                        y_test[mask], predictions[mask], target, indent="           ")
+                    if ft_flux:
+                        ft_metrics['per_flux_type'] = ft_flux
                     set_metrics[ft] = ft_metrics
                     print(f"    {ft:>7s}: MSE={ft_metrics['mse']:.10f}  "
-                          f"R²={ft_metrics['r2']:.6f}  "
+                          f"R\u00b2={ft_metrics['r2']:.6f}  "
                           f"MAPE={ft_metrics['mape']:.8f}%  "
                           f"(n={ft_metrics['n_samples']})")
                 else:

@@ -146,12 +146,32 @@ def optimize_neural_net_raytune(
     if optimize_lambda and feature_data_base is not None:
         fr_ref = LambdaFeatureRegenerator(encoding)
 
-    # Define training function
-    def train_neural_net(config, X=X_train, y=y_train, groups=groups):
+    # ── Put large data into Ray object store so the trial closure stays small ──
+    # (Deferred until after ray.init; see below.)
+    _X_ref = _y_ref = _groups_ref = _fdb_ref = None
+
+    def _ensure_object_refs():
+        """Lazily put large arrays into the Ray object store (called after ray.init)."""
+        nonlocal _X_ref, _y_ref, _groups_ref, _fdb_ref
+        if _X_ref is not None:
+            return
+        _X_ref = ray.put(X_train)
+        _y_ref = ray.put(y_train)
+        _groups_ref = ray.put(groups) if groups is not None else None
+        _fdb_ref = ray.put(feature_data_base) if feature_data_base is not None else None
+
+    # Define training function — capture only lightweight refs, not raw arrays
+    def train_neural_net(config):
         """Train function called by Ray Tune"""
         from ML_models.neural_net_train import PyTorchFlexibleRegressorWrapper
+        from neural_net_configs.data_pipeline import prepare_xy_after_lambda as _prepare
         import torch
-        import gc  # For memory management
+        import gc
+
+        X_local = ray.get(_X_ref)
+        y_local = ray.get(_y_ref)
+        groups_local = ray.get(_groups_ref) if _groups_ref is not None else None
+        fdb_local = ray.get(_fdb_ref) if _fdb_ref is not None else None
 
         activations = config['activation']
 
@@ -160,26 +180,26 @@ def optimize_neural_net_raytune(
         print(f"{'='*60}")
 
         # Regenerate features with trial lambdas
-        if optimize_lambda and feature_data_base is not None and fr_ref is not None:
+        if optimize_lambda and fdb_local is not None and fr_ref is not None:
             if 'lambda_decay' in lambda_param_names:
                 X_regen = fr_ref.regenerate_features(
-                    feature_data_base, lambda_decay=config['lambda_decay']
+                    fdb_local, lambda_decay=config['lambda_decay']
                 )
             else:
                 X_regen = fr_ref.regenerate_features(
-                    feature_data_base,
+                    fdb_local,
                     lambda_P=config['lambda_P'],
                     lambda_B=config['lambda_B'],
                     lambda_G=config['lambda_G'],
                 )
         else:
-            X_regen = X_train
+            X_regen = X_local
 
         try:
-            X_cv, y_cv, groups_cv = prepare_xy_after_lambda(
+            X_cv, y_cv, groups_cv = _prepare(
                 X_regen,
-                y_train,
-                groups,
+                y_local,
+                groups_local,
                 nn_config,
                 irradiation_mode,
                 nci_mode,
@@ -357,6 +377,8 @@ def optimize_neural_net_raytune(
                 })
             }
         )
+
+    _ensure_object_refs()
 
     # Solution 3: Use PlacementGroupFactory for fractional resource allocation
     # This allows Ray Tune to properly pack multiple trials on same GPU

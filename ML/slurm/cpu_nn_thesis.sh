@@ -77,19 +77,19 @@ export OMP_PLACES=threads
 NTHREADS=${SLURM_CPUS_PER_TASK:-32}
 
 # ── PyTorch CUDA verification ──────────────────────────────────────
+# NOTE: If PyTorch CUDA version is wrong, fix it on the LOGIN NODE
+# (compute nodes have no internet):
+#   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 echo "========================================================"
 echo "Checking PyTorch installation..."
 echo "========================================================"
 
 TORCH_CUDA_VERSION=$(python -c "import torch; print(torch.version.cuda)" 2>/dev/null || echo "NONE")
+echo "PyTorch CUDA version: $TORCH_CUDA_VERSION"
 
 if [ "$TORCH_CUDA_VERSION" != "11.8" ]; then
-    echo "PyTorch CUDA version mismatch (found: $TORCH_CUDA_VERSION, need: 11.8)"
-    echo "Reinstalling PyTorch with CUDA 11.8..."
-    pip uninstall torch torchvision torchaudio -y
-    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-else
-    echo "PyTorch CUDA 11.8 already installed"
+    echo "WARNING: PyTorch CUDA version mismatch (found: $TORCH_CUDA_VERSION, need: 11.8)"
+    echo "Fix this on the login node before resubmitting."
 fi
 
 ray stop --force 2>/dev/null || true
